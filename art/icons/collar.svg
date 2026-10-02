@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Chain of office (a title bestowed)</title>
+  <path stroke-dasharray="2 1.6" d="M5 3c0 6 3 10.5 7 11.5 4-1 7-5.5 7-11.5"/>
+  <circle cx="12" cy="18.2" r="3"/>
+  <circle cx="12" cy="18.2" r="1" fill="currentColor" stroke="none"/>
+</svg>

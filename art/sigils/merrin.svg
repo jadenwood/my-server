@@ -4,29 +4,125 @@
     A silver eel coiled through a broken net, on a deep green field. Original artwork for the Realm of Ostreval.
   </desc>
   <defs>
-    <radialGradient id="merrin-field" cx="50%" cy="42%" r="62%">
+    <radialGradient id="merrin-field" cx="50%" cy="40%" r="62%">
       <stop offset="0" stop-color="#47644f"/>
-      <stop offset=".6" stop-color="#24472d"/>
+      <stop offset=".62" stop-color="#24472d"/>
       <stop offset="1" stop-color="#162c1c"/>
     </radialGradient>
+    <linearGradient id="merrin-gold" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#fbe3a2"/>
+      <stop offset=".35" stop-color="#f4c96d"/>
+      <stop offset=".6" stop-color="#d6a043"/>
+      <stop offset="1" stop-color="#9c6a1e"/>
+    </linearGradient>
+    <pattern id="merrin-diaper" width="18" height="18" patternTransform="rotate(45 128 128)" patternUnits="userSpaceOnUse">
+      <path fill="none" stroke="#47644f" stroke-width=".7" d="M0 .5h18M.5 0v18"/>
+      <circle cx="9" cy="9" r="1.1" fill="#47644f"/>
+    </pattern>
   </defs>
-  <circle cx="128" cy="128" r="126" fill="#131417"/>
-  <circle cx="128" cy="128" r="118" fill="url(#merrin-field)"/>
-  <circle cx="128" cy="128" r="110" fill="none" stroke="#d6a043" stroke-width="3"/>
-  <g id="charge" transform="translate(28 24)">
-<!--the broken net-->
-    <path fill="none" stroke="#9fb3a4" stroke-linecap="round" stroke-width="3" d="m102 30 72 72m-148 0 72-72m-23 4 95 95m-140 0 95-95M55 45l29 29m46 46 29 29m-118 0 29-29m46-46 29-29M40 61l29 29m45 45 29 29m-86 0 29-29m45-45 29-29M29 82l93 93m-44 0 93-93M26 109l69 69m10 0 69-69"/>
-<!--the eel, slipping through-->
-    <path fill="none" stroke="#c9ced4" stroke-linecap="round" stroke-width="15" d="M62 40c48-14 88 10 70 46-14 26-70 20-62 56 6 24 42 30 68 18"/>
-    <path fill="none" stroke="#c9ced4" stroke-linecap="round" stroke-width="8" d="M138 160c10-4 18-10 26-20"/>
-    <path fill="none" stroke="#c9ced4" stroke-linecap="round" stroke-width="4" d="m164 140 8-12"/>
-    <path fill="none" stroke="#24472d" stroke-linecap="round" stroke-width="2" d="M80 36c32-4 60 16 48 44m0 12c-18 16-52 18-50 46"/>
-    <path fill="#c9ced4" d="M48 40c2-10 14-14 24-10v20c-10 2-22-2-24-10"/>
-    <circle cx="58" cy="37" r="3" fill="#24472d"/>
-    <path fill="none" stroke="#24472d" stroke-linecap="round" stroke-width="2" d="m48 41 8 1"/>
-<!--strands that pass over the eel, so it reads as slipping through-->
-    <path fill="none" stroke="#9fb3a4" stroke-linecap="round" stroke-width="3" d="m125 34-21 21m-63 94 29-29m28-90 18 18"/>
-<!--frayed ends at the tear-->
-    <path fill="none" stroke="#9fb3a4" stroke-linecap="round" stroke-width="2" d="m84 74 6 2m26-2-2 6m0 55-6-2m-22 2 2-6"/>
+  <circle cx="128" cy="128" r="127" fill="#0c0d0f"/>
+  <circle cx="128" cy="128" r="123.5" fill="none" stroke="#26282d" stroke-dasharray="1.6 2.3" stroke-width="4"/>
+  <circle cx="128" cy="128" r="119" fill="url(#merrin-field)"/>
+  <circle cx="128" cy="128" r="104" fill="url(#merrin-diaper)" opacity=".32"/>
+  <circle cx="128" cy="128" r="117.5" fill="none" stroke="#0c0d0f" stroke-width="3" opacity=".55"/>
+  <circle cx="128" cy="128" r="111" fill="none" stroke="url(#merrin-gold)" stroke-width="4.5"/>
+  <circle cx="128" cy="128" r="105" fill="none" stroke="#d6a043" opacity=".5"/>
+  <path fill="url(#merrin-gold)" stroke="#0c0d0f" stroke-width=".8" d="m128 11 5 6-5 6-5-6Zm0 222 5 6-5 6-5-6ZM11 128l6-5 6 5-6 5Zm222 0 6-5 6 5-6 5Z"/>
+  <g id="charge" transform="translate(28 28)">
+    <defs>
+      <mask id="merrin-shade">
+        <use fill="white" stroke="white" href="#merrin-form"/>
+        <use fill="black" stroke="black" href="#merrin-form" transform="translate(-4 -5)"/>
+      </mask>
+      <mask id="merrin-lit">
+        <use fill="white" stroke="white" href="#merrin-form"/>
+        <use fill="black" stroke="black" href="#merrin-form" transform="translate(3 4)"/>
+      </mask>
+      <g id="merrin-back">
+        <path d="M77 32.8c5.2-1.1 20.6-6.7 31-6.7s22.8 2 31.6 6.8 17.9 13.5 21.4 21.9c3.5 8.3 3.4 20-.2 28.3s-12.6 16.4-21.4 21.3c-8.8 5-21.8 5.9-31.5 8.5s-19.5 3.5-26.4 7.1-12.9 9.2-15.3 14.3c-2.3 5.1-1.8 11.7 1.2 16.4 2.9 4.8 9.4 9.4 16.5 12.1s17.5 4.4 25.9 4.3 17.6-2.3 24.6-4.9c7-2.5 14.5-8.8 17.4-10.6a.5.5 0 0 0-.4-.8c-3 1.6-10.7 7.5-17.6 9.8s-15.9 4-24 3.9-18.2-2-24.7-4.7c-6.5-2.6-12-7.2-14.5-11.1-2.5-4-2.8-8.5-.6-12.6 2.1-4.1 7-9 13.5-12.1s15.9-4.1 25.6-6.7c9.7-2.5 23.3-3.3 32.7-8.7s19.6-14.2 23.6-23.5c3.9-9.3 4.1-22.8.2-32.3-3.9-9.4-14-19-23.6-24.3s-23-7.3-34-7.4-26.7 5.7-32 6.9a2.5 2.5 0 0 0 1 4.8"/>
+      </g>
+      <g id="merrin-form">
+        <path d="M61.6 58.6c3.5-1.9 13.4-8.4 21.1-11.1s17.1-5.2 25.3-5.2c8.2-.1 17.7 1.8 24.2 5 6.4 3.2 12 9.1 14.5 14s2.6 10.5.2 15.5c-2.3 5-7.3 10.9-14.5 14.6-7.1 3.7-18.7 4.9-28.3 7.6-9.7 2.8-21.2 3.8-29.5 8.9-8.4 5.1-17.7 13.5-20.6 21.7-3 8.2-1.5 20.3 2.9 27.5s14.5 12.4 23.3 15.6c8.9 3.1 20.5 4 29.9 3.3 9.5-.7 19.5-4 26.9-7.5 7.5-3.4 13.4-9 18-13.4 4.5-4.3 7.8-10.7 9.3-12.8a.4.4 0 0 0-.6-.6c-1.8 1.9-5.9 7.5-10.7 11.2-4.8 3.6-10.8 8-18 10.6-7.2 2.5-16.6 4.5-25.1 4.5-8.6 0-19-1.8-26.1-4.7-7.2-2.8-13.7-7.6-16.7-12.4-2.9-4.8-3.5-11.4-1.1-16.5s8.5-10.7 15.4-14.3c7-3.6 16.8-4.5 26.5-7.1s22.8-3.4 31.7-8.4c8.8-5 17.8-13.1 21.5-21.4 3.6-8.3 3.7-20.1.2-28.5s-12.6-17.2-21.5-22-21.4-6.9-31.8-6.9c-10.4-.1-21.8 3.4-30.7 6.7S58.2 43.3 54.4 45.4a7.5 7.5 0 0 0 7.2 13.2"/>
+        <path d="M27 67c1.5-1.5 5.8-6.2 9-9s6.3-5.7 10-8c3.7-2.2 8.7-5.5 12-5.5s7 3.1 8 5.5.3 6.7-2 9-7.8 3.7-12 5-8.8 2.5-13 3-10 0-12 0m39-9c1.7-.3 7.3 3.7 8 6s-2.3 7.7-4 8-5.3-3.7-6-6 .3-7.7 2-8"/>
+      </g>
+      <linearGradient id="merrin-metal" x1="20" x2="180" y1="10" y2="190" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#eef1f4"/>
+        <stop offset=".45" stop-color="#c9ced4"/>
+        <stop offset="1" stop-color="#7d858e"/>
+      </linearGradient>
+      <pattern id="merrin-hatch" width="3.4" height="3.4" patternTransform="rotate(-38)" patternUnits="userSpaceOnUse">
+        <path stroke="#7d858e" stroke-width="1.43" d="M0 0v3.4"/>
+      </pattern>
+      <filter id="merrin-edge" width="120%" height="120%" x="-8%" y="-8%" color-interpolation-filters="sRGB">
+        <feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="d"/>
+        <feOffset dx="2.5" dy="3.5" in="d"/>
+        <feGaussianBlur result="b" stdDeviation="2.2"/>
+        <feFlood flood-color="#0c0d0f" flood-opacity=".6"/>
+        <feComposite in2="b" operator="in" result="s"/>
+        <feFlood flood-color="#162c1c"/>
+        <feComposite in2="d" operator="in" result="e"/>
+        <feMerge>
+          <feMergeNode in="s"/>
+          <feMergeNode in="e"/>
+        </feMerge>
+      </filter>
+    </defs>
+    <defs>
+      <clipPath id="merrin-netclip">
+        <circle cx="100" cy="100" r="88"/>
+      </clipPath>
+      <clipPath id="merrin-over">
+        <path d="M40 118h34v44H40Zm100-90h28v40h-28Z"/>
+      </clipPath>
+      <mask id="merrin-tear">
+        <path fill="white" d="M0 0h200v200H0z"/>
+        <path fill="black" d="m143 96-12.9 11.3.7 19-20.8-6.6L94.9 132l-10.2-14.2-15.8-6.6L75 96l-9.7-16.8L87.2 77l7.7-17 16 8.8 17.4-.2 1.8 16.1Z"/>
+      </mask>
+      <g id="merrin-net">
+        <path d="M-200 0 0 200M-200 0l-200 200M-176 0 24 200M-176 0l-200 200M-152 0 48 200M-152 0l-200 200M-128 0 72 200M-128 0l-200 200M-104 0 96 200M-104 0l-200 200M-80 0l200 200M-80 0l-200 200M-56 0l200 200M-56 0l-200 200M-32 0l200 200M-32 0l-200 200M-8 0l200 200M-8 0l-200 200M16 0l200 200M16 0l-200 200M40 0l200 200M40 0l-200 200M64 0l200 200M64 0l-200 200M88 0l200 200M88 0l-200 200M112 0l200 200M112 0-88 200M136 0l200 200M136 0-64 200M160 0l200 200M160 0-40 200M184 0l200 200M184 0-16 200M208 0l200 200M208 0 8 200M232 0l200 200M232 0 32 200M256 0l200 200M256 0 56 200M280 0l200 200M280 0 80 200M304 0l200 200M304 0 104 200M328 0l200 200M328 0 128 200M352 0l200 200M352 0 152 200M376 0l200 200M376 0 176 200M400 0l200 200M400 0 200 200"/>
+        <path stroke-width="4" d="M28 60h.01M28 84h.01M28 108h.01M28 132h.01M64 48h.01M64 72h.01M64 96h.01M64 120h.01M64 144h.01M64 168h.01M76 36h.01M76 60h.01M76 132h.01M76 156h.01M76 180h.01M88 24h.01M88 48h.01M88 144h.01M88 168h.01M100 36h.01M100 60h.01m-.01 72h.01m-.01 24h.01m-.01 24h.01M112 24h.01M112 48h.01m-.01 96h.01m-.01 24h.01M124 36h.01M124 60h.01m-.01 72h.01m-.01 24h.01m-.01 24h.01m47.97-48"/>
+      </g>
+    </defs>
+    <g fill="none" stroke="#162c1c" stroke-linecap="round" stroke-width="4" opacity=".85">
+      <g clip-path="url(#merrin-netclip)">
+        <g mask="url(#merrin-tear)">
+          <use href="#merrin-net"/>
+        </g>
+      </g>
+    </g>
+    <g fill="none" stroke="#9fb3a4" stroke-linecap="round" stroke-width="1.8">
+      <g clip-path="url(#merrin-netclip)">
+        <g mask="url(#merrin-tear)">
+          <use href="#merrin-net"/>
+        </g>
+      </g>
+    </g>
+    <use fill="#162c1c" stroke="#162c1c" filter="url(#merrin-edge)" href="#merrin-back"/>
+    <use fill="#7d858e" stroke="#7d858e" href="#merrin-back"/>
+    <use fill="url(#merrin-hatch)" stroke="url(#merrin-hatch)" href="#merrin-back" opacity=".55"/>
+    <use fill="#162c1c" stroke="#162c1c" filter="url(#merrin-edge)" href="#merrin-form"/>
+    <use fill="url(#merrin-metal)" stroke="url(#merrin-metal)" href="#merrin-form"/>
+    <path fill="url(#merrin-hatch)" d="M0 0h200v200H0z" mask="url(#merrin-shade)"/>
+    <path fill="#eef1f4" d="M0 0h200v200H0z" mask="url(#merrin-lit)" opacity=".55"/>
+    <path fill="none" stroke="#7d858e" stroke-dasharray="1.5 3.2" stroke-linecap="round" stroke-width="1.5" d="M58 52c3.7-2 13.7-9 22-12s18.7-6 28-6 20.3 2 28 6 15 11.3 18 18 3 15.3 0 22-10 13.7-18 18-20.3 5.3-30 8-20.3 3.7-28 8-15.3 11.3-18 18-1.7 16 2 22 12 11 20 14 19 4.3 28 4 21.7-5 26-6"/>
+    <path fill="none" stroke="#162c1c" stroke-linecap="round" stroke-width="1.5" d="M57 49.5c3 3 3 8 0 11m4-12c3 3 3.5 9 .5 12.5M29 66.5q9 0 17-2"/>
+    <circle cx="44" cy="56" r="2.6" fill="#162c1c"/>
+    <circle cx="44.6" cy="55.4" r=".8" fill="#eef1f4"/>
+    <g fill="none" stroke-linecap="round" clip-path="url(#merrin-over)">
+      <g stroke="#162c1c" stroke-width="4">
+        <g clip-path="url(#merrin-netclip)">
+          <g mask="url(#merrin-tear)">
+            <use href="#merrin-net"/>
+          </g>
+        </g>
+      </g>
+      <g stroke="#9fb3a4" stroke-width="1.8">
+        <g clip-path="url(#merrin-netclip)">
+          <g mask="url(#merrin-tear)">
+            <use href="#merrin-net"/>
+          </g>
+        </g>
+      </g>
+    </g>
   </g>
 </svg>
