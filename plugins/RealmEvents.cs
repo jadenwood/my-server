@@ -1262,6 +1262,26 @@ namespace Oxide.Plugins
             return list.ToArray();
         }
 
+        // Next scheduled event for RealmChronicle's RealmState.next: { "title": string, "at": DateTime (UTC) }, or null.
+        private Dictionary<string, object> GetNextEvent()
+        {
+            if (loadFailed || config == null || config.Schedule == null) return null;
+            DateTime now = Now();
+            DateTime? best = null;
+            string kind = null;
+            foreach (ScheduleEntry e in config.Schedule)
+            {
+                if (!e.Enabled || !KindEnabled(e.Event)) continue;
+                DateTime? next = NextStart(e, now);
+                if (next.HasValue && (!best.HasValue || next.Value < best.Value)) { best = next; kind = e.Event; }
+            }
+            if (!best.HasValue) return null;
+            var result = new Dictionary<string, object>();
+            result["title"] = KindTitle(kind);
+            result["at"] = DateTime.SpecifyKind(best.Value, DateTimeKind.Utc);
+            return result;
+        }
+
         #endregion
 
         #region Helpers
