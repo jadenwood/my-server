@@ -130,10 +130,14 @@ test('launcher ServerManager spawns the ROK.exe shim and reads it like the real 
     await mgr.start(dir, 'ROK', { extraArgs: ['-cport', String(cport)] });
     ac.attach(); // as lib/court-host.js does: connect at spawn, inside the 10 s window
     await H.until(() => ac.isConnected(), 8000, 'console connected');
-    // The game writes nothing to stdout, so the manager falls back to tailing the NEWEST file in
-    // Logs\ after 6 s. Both the Unity log and the game's Log[...].txt live there.
+    // The game writes nothing to stdout. The manager follows the game's own Log[...].txt (the newest
+    // one created after its start) and is ready on "Server for N players ..." then "Game has started.".
     await H.until(() => mgr.lines.some((l) => l.src === 'log'), 15000, 'manager tailing a log file');
-    t.diagnostic(`manager follows: ${mgr.lines.filter((l) => /following/.test(l.text)).map((l) => l.text).join(' | ')}; ready=${mgr.status().ready}`);
+    if (typeof mgr.status().phase === 'string') {
+      await H.until(() => mgr.status().ready, 15000, 'manager ready');
+      assert.match(mgr.status().gameLog, /Log\[\d{6}-\d{6}\]\.txt$/);
+    }
+    t.diagnostic(`manager follows: ${mgr.lines.filter((l) => /Following/.test(l.text)).map((l) => l.text).join(' | ')}; ready=${mgr.status().ready}`);
     assert.match(mgr.lines.map((l) => l.text).join('\n'), /-batchmode -nographics -silentcrash -logFile .*realm-server\.log -cport \d+/);
     const exited = new Promise((r) => mgr.once('exit', r));
     await ac.send('/shutdown');

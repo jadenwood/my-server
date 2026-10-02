@@ -80,7 +80,9 @@ const SIM_DEFAULTS = {
   debugLogs: false,
   consoleHost: '127.0.0.1', // the game binds 0.0.0.0; the sim's console has no auth and takes /sim commands, so loopback unless asked
   firstRunExitCode: 0,
-  crashExitCode: 1
+  crashExitCode: 1,
+  failedSlot: 'keep', // keep | delete: a new slot whose world never loaded (docs/worlds.md)
+  relaunchMs: 2000 // rok-sim watchdog: Server.exe relaunches ROK.exe about 2 s after it ends (seen on the owner's PC)
 };
 
 const FLAG_MAP = {
@@ -110,14 +112,17 @@ const FLAG_MAP = {
   '--sim-debug-logs': ['debugLogs', 'flag'],
   '--sim-console-host': ['consoleHost', 'str'],
   '--sim-first-run-exit-code': ['firstRunExitCode', 'int'],
-  '--sim-crash-exit-code': ['crashExitCode', 'int']
+  '--sim-crash-exit-code': ['crashExitCode', 'int'],
+  '--sim-failed-slot': ['failedSlot', 'str'],
+  '--sim-relaunch-ms': ['relaunchMs', 'int']
 };
 
 const ENUMS = {
   steam: ['ok', 'init-fail', 'no-login', 'no-secure'],
   a2sPlayers: ['count', 'zero'],
   chronicle: ['off', 'on', 'demo'],
-  realmCourt: ['auto', 'on', 'off']
+  realmCourt: ['auto', 'on', 'off'],
+  failedSlot: ['keep', 'delete']
 };
 
 // Returns { sim, rest } where rest are the arguments the "game" sees. Throws on a bad sim flag.
