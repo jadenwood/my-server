@@ -6,7 +6,7 @@ import { mkdtemp, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createApp, parseOptions, sanitizeEvent, EVENT_TYPES } from '../server.js';
+import { createApp, parseOptions, sanitizeEvent, sanitizeState, sanitizeNext, EVENT_TYPES } from '../server.js';
 
 const SAMPLE = fileURLToPath(new URL('../sample-data', import.meta.url));
 let server;
@@ -38,6 +38,7 @@ test('/api/state returns the contract shape', async () => {
   assert.deepEqual(Object.keys(s.houses[0]).sort(), ['liege', 'members', 'name', 'sigil']);
   assert.equal(typeof s.online, 'number');
   assert.equal(s.stale, false);
+  assert.deepEqual(s.next, { title: 'Rebellion window', at: '2026-10-03T19:00:00Z' });
 });
 
 test('/api/events: latest, since and limit', async () => {
@@ -117,4 +118,32 @@ test('event types match the RealmChronicle plugin and the page labels', async ()
   assert.ok(meta, 'TYPE_META not found in common.js');
   const labelled = [...meta[1].matchAll(/^\s*([a-z_]+):/gm)].map((m) => m[1]).sort();
   assert.deepEqual(labelled, [...EVENT_TYPES].sort());
+});
+
+test('next event: valid {title, at} passes through, normalized to UTC', () => {
+  assert.deepEqual(sanitizeNext({ title: 'Crown Night', at: '2026-10-03T19:00:00Z' }), { title: 'Crown Night', at: '2026-10-03T19:00:00Z' });
+  assert.deepEqual(sanitizeNext({ title: ' Truce ', at: '2026-10-03T21:00:00+02:00', extra: 1 }), { title: 'Truce', at: '2026-10-03T19:00:00Z' });
+  // No zone: read as UTC, like every other plugin timestamp.
+  assert.deepEqual(sanitizeNext({ title: 'Royal Tournament', at: '2026-10-03T19:00:00' }), { title: 'Royal Tournament', at: '2026-10-03T19:00:00Z' });
+  assert.deepEqual(sanitizeNext({ title: 'x'.repeat(80), at: '2026-10-03T19:00:00Z' }).title.length, 80);
+});
+
+test('next event: bad titles and times become null', () => {
+  const at = '2026-10-03T19:00:00Z';
+  for (const n of [
+    undefined, null, 'Crown Night', [], {},
+    { title: 'x'.repeat(81), at },
+    { title: '', at }, { title: '   ', at }, { title: 5, at }, { at },
+    { title: 'Crown Night' }, { title: 'Crown Night', at: 'soon' }, { title: 'Crown Night', at: 1790000000000 },
+    { title: 'Crown Night', at: '2026-13-40T99:00:00Z' }, { title: 'Crown Night', at: 'Sat, 03 Oct 2026 19:00:00 GMT' },
+  ]) assert.equal(sanitizeNext(n), null, JSON.stringify(n));
+  assert.equal(sanitizeState({}).next, null);
+  assert.equal(sanitizeState({ next: { title: 'Crown Night', at: 'never' } }).next, null);
+});
+
+test('next event title limit and field names match the RealmChronicle plugin', async () => {
+  const cs = await readFile(new URL('../../plugins/RealmChronicle.cs', import.meta.url), 'utf8');
+  assert.match(cs, /NextTitleMax\s*=\s*80\s*;/);
+  assert.match(cs, /public NextEvent next;/);
+  assert.match(cs, /class NextEvent\s*\{\s*public string title;\s*public string at;\s*\}/);
 });

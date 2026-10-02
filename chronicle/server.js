@@ -119,7 +119,19 @@ export function sanitizeState(s) {
     online: int(s.online),
     maxPlayers: int(s.maxPlayers),
     updated: normalizeIso(s.updated),
+    next: sanitizeNext(s.next),
   };
+}
+
+// Next scheduled realm event, {title, at}: title is a non-empty string of at most 80 characters (longer is
+// rejected, not cut) and `at` must be a valid ISO 8601 time. Anything else becomes null.
+export function sanitizeNext(n) {
+  if (!n || typeof n !== 'object' || typeof n.title !== 'string') return null;
+  const title = n.title.trim();
+  if (!title || title.length > 80) return null;
+  if (typeof n.at !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(n.at)) return null;
+  const at = normalizeIso(n.at);
+  return at ? { title, at } : null;
 }
 
 export function createApp(opts) {
