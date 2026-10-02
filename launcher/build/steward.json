@@ -1,0 +1,82 @@
+{
+  "appId": "community.realm.launcher",
+  "productName": "Realm Steward",
+  "publish": null,
+  "directories": {
+    "output": "dist",
+    "buildResources": "build"
+  },
+  "files": [
+    "main.js",
+    "preload.js",
+    "config.json",
+    "news.json",
+    "lib/**/*",
+    "renderer/**/*",
+    "!renderer/player.*",
+    "!renderer/coach.*",
+    "build/icon.png"
+  ],
+  "extraMetadata": {
+    "main": "main.js",
+    "productName": "Realm Steward"
+  },
+  "extraResources": [
+    {
+      "from": "../chronicle",
+      "to": "chronicle",
+      "filter": [
+        "server.js",
+        "package.json",
+        "public/**/*"
+      ]
+    },
+    {
+      "from": "../plugins",
+      "to": "plugins",
+      "filter": [
+        "*.cs"
+      ]
+    }
+  ],
+  "extraFiles": [
+    {
+      "from": "config.json",
+      "to": "config.json"
+    },
+    {
+      "from": "news.json",
+      "to": "news.json"
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      },
+      {
+        "target": "portable",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "icon": "build/icon.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowElevation": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Realm Steward",
+    "artifactName": "Realm-Steward-Setup-${version}.${ext}"
+  },
+  "portable": {
+    "artifactName": "Realm-Steward-${version}-portable.${ext}"
+  }
+}

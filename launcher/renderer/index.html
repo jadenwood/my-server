@@ -72,6 +72,9 @@
     <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7zm10 0h3v14h-3z" fill="currentColor"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-8.3 8.3-1.4-1.4L17.6 5H14zM5 5h6v2H7v10h10v-4h2v6H5z" fill="currentColor"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z" fill="currentColor"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20 10 10 0 010-20zm-1.6 2.2A8 8 0 004.3 11h3.2c.1-2.6.9-5 2.9-6.8zm3.2 0c2 1.8 2.8 4.2 2.9 6.8h3.2a8 8 0 00-6.1-6.8zM9.5 11h5c-.1-2.3-.9-4.4-2.5-6-1.6 1.6-2.4 3.7-2.5 6zm-5.2 2a8 8 0 006.1 6.8c-2-1.8-2.8-4.2-2.9-6.8zm5.2 0c.1 2.3.9 4.4 2.5 6 1.6-1.6 2.4-3.7 2.5-6zm7 0c-.1 2.6-.9 5-2.9 6.8a8 8 0 006.1-6.8z" fill="currentColor"/></symbol>
+    <symbol id="i-seal" viewBox="0 0 24 24"><path d="M12 2l2.2 1.6 2.7-.2.9 2.6 2.3 1.4-.7 2.6.7 2.6-2.3 1.4-.9 2.6-2.7-.2L12 18l-2.2-1.6-2.7.2-.9-2.6L3.9 12.6l.7-2.6-.7-2.6L6.2 6l.9-2.6 2.7.2zm0 5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zM8 17.5l-1.5 4.5 2.5-1 1.6 2 1-3.4zm8 0l-3.6 2.1 1 3.4 1.6-2 2.5 1z" fill="currentColor"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><path d="M8 7a5 5 0 014.6 7H22v3h-2v3h-3v-3h-4.4A5 5 0 118 7zm0 3a2 2 0 100 4 2 2 0 000-4z" fill="currentColor"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.4 5L12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4L12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z" fill="currentColor"/></symbol>
   </svg>
 
@@ -169,6 +172,7 @@
     <div class="brand">
       <svg class="brand-sigil"><use href="#sigil"/></svg>
       <span class="brand-name">REALM</span>
+      <span class="brand-edition">Steward</span>
     </div>
     <div class="title-status" id="title-status"><span class="dot"></span><span id="title-status-text">Server stopped</span></div>
     <div class="win-controls">
@@ -180,9 +184,11 @@
 
   <nav class="rail" aria-label="Screens">
     <button class="rail-btn" data-go="home"><svg><use href="#i-keep"/></svg><span>Home</span></button>
-    <button class="rail-btn" data-go="server"><svg><use href="#i-forge"/></svg><span>Server</span></button>
+    <button class="rail-btn" data-go="server"><svg><use href="#i-forge"/></svg><span>Servers</span></button>
     <button class="rail-btn" data-go="realm"><svg><use href="#i-banners"/></svg><span>Realm</span></button>
     <button class="rail-btn" data-go="overlay"><svg><use href="#i-eye"/></svg><span>Overlay</span></button>
+    <button class="rail-btn" data-go="public"><svg><use href="#i-globe"/></svg><span>Public</span></button>
+    <button class="rail-btn" data-go="publish"><svg><use href="#i-seal"/></svg><span>Publish</span></button>
     <button class="rail-btn" data-go="settings"><svg><use href="#i-gear"/></svg><span>Settings</span></button>
     <div class="rail-spacer"></div>
     <button class="rail-btn small" id="open-setup"><svg><use href="#i-compass"/></svg><span>Setup</span></button>
@@ -270,8 +276,8 @@
     <section class="view view-server" data-view="server" hidden>
       <header class="view-head">
         <div>
-          <p class="eyebrow">The test server</p>
-          <h1 class="view-title">The Keep</h1>
+          <p class="eyebrow">Your servers</p>
+          <h1 class="view-title" id="srv-title">The Keep</h1>
         </div>
         <div class="srv-state">
           <span class="pill big" id="srv-pill">Stopped</span>
@@ -281,6 +287,8 @@
           </div>
         </div>
       </header>
+
+      <div class="fleet-strip" id="fleet-strip" role="tablist" aria-label="Servers"></div>
 
       <div class="server-grid">
         <section class="card console-card">
@@ -302,10 +310,41 @@
         </section>
 
         <aside class="server-side">
+          <article class="card inst-card" id="inst-card">
+            <header class="card-head">
+              <h2 class="card-title">Server settings</h2>
+              <span class="fine mono" id="inst-id"></span>
+            </header>
+            <p class="fine inst-note" id="inst-note"></p>
+            <label class="field"><span>Server name</span><input id="inst-name" maxlength="64"></label>
+            <div class="row gap">
+              <label class="field grow"><span>Max players</span><input id="inst-max" type="number" min="1" max="120"></label>
+              <label class="field grow"><span>Secs between joins</span><input id="inst-pacing" type="number" min="1" max="30" placeholder="10"></label>
+            </div>
+            <small class="fine field-note" id="inst-max-note">Up to 120. The game code has no player limit of its own; 120 is Realm's cap, and play at 120 is untested. Joins are let in one at a time, every "secs between joins" (game default 10; 3 refills 120 slots in about 6 minutes).</small>
+            <div class="row gap">
+              <label class="field grow"><span>Game port</span><input id="inst-port" type="number" min="1024" max="65535"></label>
+              <label class="field grow"><span>Query port</span><input id="inst-query" type="number" min="1024" max="65534"></label>
+            </div>
+            <small class="fine field-note" id="inst-ports-note"></small>
+            <h3 class="mini-h">Keeping it up</h3>
+            <div class="check-list">
+              <label class="check"><input type="checkbox" id="inst-auto"><span>Restart by itself after a crash</span></label>
+              <label class="check"><input type="checkbox" id="inst-backup"><span>Back up the world before every restart</span></label>
+              <div class="row gap"><label class="check"><input type="checkbox" id="inst-daily"><span>Restart every day at</span></label><input id="inst-time" class="time-input" type="time"></div>
+            </div>
+            <p class="fine sup-line" id="inst-sup"></p>
+            <div class="row gap">
+              <button class="btn small primary" id="inst-save"><svg class="ico"><use href="#i-check"/></svg><span>Save</span></button>
+              <button class="btn ghost small" id="inst-setup" hidden><svg class="ico"><use href="#i-compass"/></svg><span>Set up</span></button>
+              <span class="toolbar-spacer"></span>
+              <button class="btn ghost small" id="inst-remove" hidden><svg class="ico"><use href="#i-x"/></svg><span>Remove</span></button>
+            </div>
+          </article>
           <article class="card">
             <h2 class="card-title">Upkeep</h2>
             <div class="tool-list">
-              <button class="tool" id="act-plugins"><svg><use href="#i-plugin"/></svg><span><b>Update plugins</b><small>Copy changed Realm plugins into the server. Oxide reloads them live.</small></span></button>
+              <button class="tool" id="act-plugins"><svg><use href="#i-plugin"/></svg><span><b>Update plugins</b><small>Copy changed Realm plugins into every server copy. Oxide reloads them live.</small></span></button>
               <button class="tool" id="act-backup"><svg><use href="#i-chest"/></svg><span><b>Back up world</b><small>Zip Saves and oxide\data into the backups folder.</small></span></button>
               <button class="tool" id="act-restore"><svg><use href="#i-restore"/></svg><span><b>Restore backup</b><small>Put an older world back. The current one is moved aside first.</small></span></button>
               <button class="tool warn" id="act-undo-oxide"><svg><use href="#i-undo"/></svg><span><b>Undo Oxide</b><small>Restore the vanilla game files of the test copy from the install backup.</small></span></button>
@@ -316,12 +355,12 @@
             </div>
           </article>
           <article class="card facts">
-            <h2 class="card-title">Test copy</h2>
+            <h2 class="card-title">Server copy</h2>
             <dl class="facts-list">
               <div><dt>Folder</dt><dd class="mono" id="fact-root">-</dd></div>
               <div><dt>Oxide</dt><dd id="fact-oxide">-</dd></div>
               <div><dt>Settings file</dt><dd id="fact-cfg">-</dd></div>
-              <div><dt>Network</dt><dd>Local only (127.0.0.1, RCON off)</dd></div>
+              <div><dt>Network</dt><dd id="fact-net">Local only (127.0.0.1, RCON off)</dd></div>
             </dl>
             <div class="row gap">
               <button class="btn ghost small" data-open="server"><svg class="ico"><use href="#i-folder"/></svg><span>Server folder</span></button>
@@ -421,6 +460,113 @@
       </div>
     </section>
 
+    <!-- ================= GO PUBLIC ================= -->
+    <section class="view view-public" data-view="public" hidden>
+      <header class="view-head">
+        <div>
+          <p class="eyebrow">Open the gates</p>
+          <h1 class="view-title">Go Public</h1>
+        </div>
+        <div class="fleet-pick" id="pub-pick" role="tablist" aria-label="Server"></div>
+      </header>
+      <div class="public-grid">
+        <div class="public-col">
+          <article class="card step-card">
+            <h2 class="card-title"><span class="step-num">1</span>Network</h2>
+            <div class="radio-row">
+              <label class="radio"><input type="radio" name="pub-net" value="local" id="pub-net-local"><span><b>This PC only</b><small>bindIP 127.0.0.1. Nobody else can join. Safe for testing.</small></span></label>
+              <label class="radio"><input type="radio" name="pub-net" value="public" id="pub-net-public"><span><b>Public</b><small>bindIP 0.0.0.0. Players on the internet can join once the ports are open.</small></span></label>
+            </div>
+            <label class="check"><input type="checkbox" id="pub-listed"><span>Also list it in the game's own server browser (isPrivate False)</span></label>
+            <p class="fine">Applied the next time the server starts. isPrivate only hides a server from the browser list; it is not a password.</p>
+            <div class="row gap"><button class="btn small primary" id="pub-net-save"><svg class="ico"><use href="#i-check"/></svg><span>Save</span></button><span class="fine" id="pub-net-state"></span></div>
+          </article>
+          <article class="card step-card">
+            <h2 class="card-title"><span class="step-num">2</span>Windows Firewall</h2>
+            <p class="fine">Realm adds these rules only when you press the button and accept the Windows permission prompt. Each one is limited to this server's ROK.exe and its ports. <b>Remove rules</b> deletes exactly these.</p>
+            <table class="port-table" id="pub-rules"></table>
+            <p class="fine" id="pub-fw-state"></p>
+            <div class="row gap">
+              <button class="btn small primary" id="pub-fw-add"><svg class="ico"><use href="#i-shield"/></svg><span>Add firewall rules</span></button>
+              <button class="btn ghost small" id="pub-fw-remove"><svg class="ico"><use href="#i-x"/></svg><span>Remove rules</span></button>
+            </div>
+          </article>
+        </div>
+        <div class="public-col">
+          <article class="card step-card">
+            <h2 class="card-title"><span class="step-num">3</span>Router</h2>
+            <p class="fine">In your router's <b>port forwarding</b> page, send these ports to this PC (<span class="mono" id="pub-lan">-</span>). Realm never changes your router.</p>
+            <table class="port-table" id="pub-router"></table>
+            <p class="fine warn-text">Never forward TCP 11000 to 11003: the game's admin console listens there and has no password.</p>
+          </article>
+          <article class="card step-card">
+            <header class="card-head">
+              <h2 class="card-title"><span class="step-num">4</span>Check</h2>
+              <button class="btn small" id="pub-test"><svg class="ico"><use href="#i-eye"/></svg><span>Run checks</span></button>
+            </header>
+            <ul class="check-results" id="pub-checks"><li class="empty">Start the server, then run the checks.</li></ul>
+            <p class="fine">Checks from this PC cannot fully prove that strangers can reach you over UDP. The final test: a friend outside your network opens the Realm player app and sees the server online.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PUBLISH ================= -->
+    <section class="view view-publish" data-view="publish" hidden>
+      <header class="view-head">
+        <div>
+          <p class="eyebrow">Tell players where to ride</p>
+          <h1 class="view-title">Publish Server List</h1>
+        </div>
+        <button class="btn primary" id="pl-write"><svg class="ico"><use href="#i-seal"/></svg><span>Sign &amp; write servers.json</span></button>
+      </header>
+      <div class="publish-grid">
+        <div class="publish-col">
+          <article class="card">
+            <h2 class="card-title"><svg class="ico"><use href="#i-key"/></svg>Signing key</h2>
+            <p class="fine" id="key-state">Checking...</p>
+            <div class="url-box key-box" id="key-box" hidden><span class="mono" id="key-public"></span><button class="btn small" id="key-copy"><svg class="ico"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+            <div class="row gap">
+              <button class="btn small primary" id="key-create"><svg class="ico"><use href="#i-key"/></svg><span>Create signing key</span></button>
+              <button class="btn ghost small" id="key-replace" hidden>Replace key</button>
+            </div>
+            <p class="fine">The private key is made on this PC and never leaves it. Only the public key goes into the player build, so players can tell your list from a forged one.</p>
+          </article>
+          <article class="card">
+            <h2 class="card-title">List settings</h2>
+            <label class="field"><span>Realm name</span><input id="pl-realm" maxlength="60"></label>
+            <label class="field"><span>Where you will host servers.json</span><input id="pl-url" maxlength="300" placeholder="https://yourname.github.io/realm/servers.json" spellcheck="false"><small>The player app downloads the list from here. Realm does not upload it; you do.</small></label>
+            <div class="row gap">
+              <label class="field grow"><span>Valid for (days)</span><input id="pl-days" type="number" min="1" max="365"></label>
+              <label class="field grow"><span>Rules link (optional)</span><input id="pl-rules" maxlength="300" placeholder="https://..." spellcheck="false"></label>
+            </div>
+            <label class="field">
+              <span>Write the files to</span>
+              <div class="row"><input id="pl-out" maxlength="240" spellcheck="false"><button class="btn ghost small" id="pl-out-browse"><svg class="ico"><use href="#i-folder"/></svg><span>Browse</span></button></div>
+            </label>
+            <label class="check" id="pl-embed-row" hidden><input type="checkbox" id="pl-embed"><span>Also put the key and list into this repo's player build (launcher\player\player-config.json)</span></label>
+          </article>
+        </div>
+        <div class="publish-col">
+          <article class="card">
+            <h2 class="card-title">Servers in the list</h2>
+            <div class="pl-rows" id="pl-rows"></div>
+            <p class="fine">Address: your public IP or, better, a DNS name that points at it (a dynamic-DNS name keeps working when your IP changes). Ports come from each server's settings. A Chronicle address is optional and must be reachable by players.</p>
+          </article>
+          <article class="card result-card" id="pl-result" hidden>
+            <h2 class="card-title"><svg class="ico"><use href="#i-check"/></svg>Written</h2>
+            <dl class="facts-list" id="pl-result-list"></dl>
+            <ol class="steps-list">
+              <li>Upload <b>servers.json</b> to the address above (for example GitHub Pages, or a gist's raw link).</li>
+              <li>Build the player installer with <b>player-config.json</b> in place (<span class="mono">npm run dist:player</span>).</li>
+              <li>Give players <b>Realm-Setup.exe</b>. Republish the list before it expires.</li>
+            </ol>
+            <div class="row gap"><button class="btn ghost small" data-open="publish"><svg class="ico"><use href="#i-folder"/></svg><span>Open folder</span></button></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
     <!-- ================= SETTINGS ================= -->
     <section class="view view-settings" data-view="settings" hidden>
       <header class="view-head">
@@ -432,9 +578,9 @@
       </header>
       <div class="settings-grid">
         <article class="card">
-          <h2 class="card-title">Test server</h2>
+          <h2 class="card-title">Main server</h2>
           <label class="field">
-            <span>Test copy folder</span>
+            <span>Server 1 folder (test copy)</span>
             <div class="row">
               <input id="set-root" maxlength="240" spellcheck="false">
               <button class="btn ghost small" id="set-root-browse"><svg class="ico"><use href="#i-folder"/></svg><span>Browse</span></button>
@@ -456,17 +602,6 @@
             </div>
             <small>Only read, once, to make the test copy.</small>
           </div>
-        </article>
-
-        <article class="card">
-          <h2 class="card-title">Server settings <span class="fine">ServerSettings.cfg</span></h2>
-          <p class="fine" id="set-cfg-note"></p>
-          <label class="field"><span>Server name</span><input id="set-name" maxlength="64"></label>
-          <div class="row gap">
-            <label class="field grow"><span>Max players</span><input id="set-max" type="number" min="1" max="200"></label>
-            <label class="field grow"><span>Game port</span><input id="set-port" type="number" min="1024" max="65535"></label>
-          </div>
-          <small class="fine">Only keys already in the file are changed, and the previous file is copied to _realm-backups\config first. Stop the server before saving.</small>
         </article>
 
         <article class="card">

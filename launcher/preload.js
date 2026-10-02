@@ -1,10 +1,11 @@
 'use strict';
 
-// Narrow bridge: named calls only, no raw ipcRenderer, no Node APIs. Every argument is validated
-// again in the main process.
+// Realm Steward bridge: named calls only, no raw ipcRenderer, no Node APIs. Every argument is
+// validated again in the main process. (The player edition uses player/preload.js, which exposes
+// none of the server, setup, firewall or publish calls below.)
 const { contextBridge, ipcRenderer } = require('electron');
 
-const PUSH_TYPES = new Set(['progress', 'busy', 'server-lines', 'server-status', 'overlay', 'window', 'closing']);
+const PUSH_TYPES = new Set(['progress', 'busy', 'server-lines', 'server-status', 'overlay', 'window', 'closing', 'fleet']);
 
 // Calls resolve with the data, or reject with { message, details, cancelled }.
 async function call(channel, ...args) {
@@ -15,7 +16,8 @@ async function call(channel, ...args) {
 }
 
 const c0 = (channel) => () => call(channel);
-const c1 = (channel) => (arg) => call(channel, arg);
+const c1 = (channel) => (a) => call(channel, a);
+const c2 = (channel) => (a, b) => call(channel, a, b);
 
 contextBridge.exposeInMainWorld('realm', {
   appInfo: c0('app:info'),
@@ -35,34 +37,58 @@ contextBridge.exposeInMainWorld('realm', {
     save: c1('settings:save'),
     saveNews: c1('settings:saveNews'),
     browse: c1('settings:browse'),
-    openFolder: c1('settings:openFolder')
+    openFolder: c2('settings:openFolder')
   },
 
   setup: {
-    status: c0('setup:status'),
-    run: c1('setup:run'),
+    status: c1('setup:status'),
+    run: c2('setup:run'),
     cancel: c0('setup:cancel'),
-    finish: c0('setup:finish')
+    finish: c1('setup:finish')
   },
 
+  fleet: {
+    list: c0('fleet:list'),
+    instance: c1('fleet:instance'),
+    add: c1('fleet:add'),
+    remove: c1('fleet:remove'),
+    update: c2('fleet:update')
+  },
+
+  // Every server call takes the instance id ('s1'..'s4') first.
   server: {
-    status: c0('server:status'),
-    log: c1('server:log'),
-    start: c0('server:start'),
-    stop: c0('server:stop'),
-    forceStop: c0('server:force'),
-    restart: c0('server:restart'),
-    command: c1('server:command'),
-    deployPlugins: c0('server:deployPlugins'),
-    backup: c1('server:backup'),
-    listBackups: c0('server:listBackups'),
-    restore: c1('server:restore'),
-    undoOxide: c0('server:undoOxide')
+    status: c1('server:status'),
+    log: c2('server:log'),
+    start: c1('server:start'),
+    stop: c1('server:stop'),
+    forceStop: c1('server:force'),
+    restart: c1('server:restart'),
+    command: c2('server:command'),
+    deployPlugins: c1('server:deployPlugins'),
+    backup: c2('server:backup'),
+    listBackups: c1('server:listBackups'),
+    restore: c2('server:restore'),
+    undoOxide: c1('server:undoOxide')
   },
 
   overlay: {
     status: c0('overlay:status'),
     copyUrl: c0('overlay:copyUrl')
+  },
+
+  goPublic: {
+    status: c1('public:status'),
+    setNetwork: c2('public:setNetwork'),
+    firewallAdd: c1('public:firewallAdd'),
+    firewallRemove: c1('public:firewallRemove'),
+    selfTest: c1('public:selfTest')
+  },
+
+  publish: {
+    status: c0('publish:status'),
+    createKey: c1('publish:createKey'),
+    write: c1('publish:write'),
+    copyKey: c0('publish:copyKey')
   },
 
   // Main -> renderer notifications (progress, console lines, status). Only known types pass.

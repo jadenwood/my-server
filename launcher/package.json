@@ -1,20 +1,24 @@
 {
   "name": "realm-launcher",
-  "productName": "Realm",
-  "version": "0.2.0",
-  "description": "Realm desktop client: plays through Steam and runs the owner's local test server. Does not modify game client files.",
+  "productName": "Realm Steward",
+  "version": "0.3.0",
+  "description": "Realm desktop apps from one codebase: Realm Steward (owner: runs up to 4 local test servers) and Realm (player: joins through the player's own Steam copy). Neither modifies game client files.",
   "main": "main.js",
   "private": true,
   "license": "UNLICENSED",
   "author": "Realm",
   "scripts": {
     "start": "electron .",
+    "start:player": "electron player/main.js",
     "preview": "node scripts/preview-server.mjs",
     "screenshot": "node scripts/screenshot.mjs",
     "screens": "node scripts/electron-screens.mjs",
+    "screens:player": "node scripts/player-screens.mjs",
     "check": "node scripts/check.mjs",
     "test": "node --test test/*.test.js",
-    "dist:win": "electron-builder --win nsis portable --x64"
+    "dist:steward": "electron-builder --config build/steward.json --win nsis portable --x64",
+    "dist:player": "electron-builder --config build/player.json --win nsis portable --x64",
+    "dist:win": "npm run dist:steward"
   },
   "dependencies": {
     "yauzl": "^3.4.0",
@@ -23,57 +27,5 @@
   "devDependencies": {
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8"
-  },
-  "build": {
-    "appId": "community.realm.launcher",
-    "productName": "Realm",
-    "publish": null,
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "config.json",
-      "news.json",
-      "lib/**/*",
-      "renderer/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "../chronicle",
-        "to": "chronicle",
-        "filter": ["server.js", "package.json", "public/**/*"]
-      },
-      {
-        "from": "../plugins",
-        "to": "plugins",
-        "filter": ["*.cs"]
-      }
-    ],
-    "extraFiles": [
-      { "from": "config.json", "to": "config.json" },
-      { "from": "news.json", "to": "news.json" }
-    ],
-    "win": {
-      "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
-      ],
-      "icon": "build/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowElevation": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Realm",
-      "artifactName": "Realm-Setup-${version}.${ext}"
-    },
-    "portable": {
-      "artifactName": "Realm-${version}-portable.${ext}"
-    }
   }
 }

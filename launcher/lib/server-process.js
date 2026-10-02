@@ -10,6 +10,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const S = require('./safety');
+const N = require('./netcheck');
 
 const MAX_LINES = 3000;
 const STOP_GRACE_MS = 60 * 1000;
@@ -33,6 +34,11 @@ class ServerManager extends EventEmitter {
     this.stopOverdue = false;
     this.tail = null;
     this.lastExit = null;
+    // true once stop()/forceStop() was called for this run: the exit was asked for, not a crash.
+    this.requested = false;
+    this.readyAt = null;
+    this.steam = null;
+    this.listening = null;
   }
 
   status() {
@@ -45,7 +51,10 @@ class ServerManager extends EventEmitter {
       ready: this.ready,
       players: [...this.players].slice(0, 200),
       stopOverdue: this.stopOverdue,
-      lastExit: this.lastExit
+      lastExit: this.lastExit,
+      readyAt: this.readyAt,
+      steam: this.steam,
+      listening: this.listening
     };
   }
 
@@ -65,8 +74,16 @@ class ServerManager extends EventEmitter {
   inspect(text) {
     if (!this.ready && S.READY_LINE.test(text)) {
       this.ready = true;
+      this.readyAt = new Date().toISOString();
       this.emitStatus();
     }
+    const steam = N.parseSteamLine(text);
+    if (steam) {
+      this.steam = steam;
+      this.emitStatus();
+    }
+    const listening = N.parseListeningLine(text);
+    if (listening) this.listening = listening;
     const j = S.JOIN_LINE.exec(text);
     if (j) {
       this.players.add(j[1].slice(0, 64));
@@ -109,6 +126,10 @@ class ServerManager extends EventEmitter {
     this.stdoutSeen = false;
     this.stopOverdue = false;
     this.lastExit = null;
+    this.requested = false;
+    this.readyAt = null;
+    this.steam = null;
+    this.listening = null;
     this.startedAt = new Date().toISOString();
     this.state = 'starting';
     this.log('sys', `Starting ${name}.exe ${args.join(' ')} in ${root}`);
@@ -175,7 +196,9 @@ class ServerManager extends EventEmitter {
     this.ready = false;
     this.players.clear();
     this.stopOverdue = false;
-    this.lastExit = { code, signal: signal || null, error: err ? err.message : null, at: new Date().toISOString() };
+    const uptimeMs = this.startedAt ? Date.now() - Date.parse(this.startedAt) : null;
+    const loadMs = this.readyAt && this.startedAt ? Date.parse(this.readyAt) - Date.parse(this.startedAt) : null;
+    this.lastExit = { code, signal: signal || null, error: err ? err.message : null, at: new Date().toISOString(), requested: this.requested, uptimeMs, loadMs };
     if (!err) this.log('sys', `Server stopped${code != null ? ` (exit code ${code})` : signal ? ` (${signal})` : ''}.`);
     this.emitStatus();
     this.emit('exit', this.lastExit);
@@ -194,6 +217,7 @@ class ServerManager extends EventEmitter {
   // Graceful stop: "quit" on stdin, then wait. After the grace period the UI offers Force stop.
   stop() {
     if (!this.child) return this.status();
+    this.requested = true;
     if (this.state !== 'stopping') {
       this.state = 'stopping';
       this.log('sys', 'Sending "quit" to the server and waiting for it to save and close...');
@@ -218,6 +242,7 @@ class ServerManager extends EventEmitter {
   forceStop() {
     const child = this.child;
     if (!child) return Promise.resolve(this.status());
+    this.requested = true;
     this.log('sys', 'Force stopping the server.');
     return new Promise((resolve) => {
       const done = () => resolve(this.status());

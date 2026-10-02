@@ -6,6 +6,7 @@
 // No Electron imports here, so `node --test` can exercise every rule on any OS.
 
 const path = require('path');
+const { parseVdf, parseLibraryFolders, parseRegSteamPath } = require('./shared/steam');
 
 const MARKER_NAME = '.realm-test-copy';
 const STEAM_SERVER_DIR = 'Reign Of Kings Dedicated Server';
@@ -252,83 +253,6 @@ function pickDataFolder(names) {
 
 // ---------- Steam discovery ----------
 
-// Minimal Valve KeyValues (VDF) parser: quoted strings, braces, // comments.
-function parseVdf(text) {
-  const src = String(text);
-  let i = 0;
-  function skip() {
-    for (;;) {
-      while (i < src.length && /\s/.test(src[i])) i++;
-      if (src.startsWith('//', i)) {
-        while (i < src.length && src[i] !== '\n') i++;
-      } else return;
-    }
-  }
-  function str() {
-    if (src[i] !== '"') {
-      // Unquoted tokens are legal in KeyValues; read up to whitespace or a brace.
-      const start = i;
-      while (i < src.length && !/[\s{}"]/.test(src[i])) i++;
-      return src.slice(start, i);
-    }
-    i++;
-    let out = '';
-    while (i < src.length && src[i] !== '"') {
-      if (src[i] === '\\' && i + 1 < src.length) {
-        const n = src[i + 1];
-        out += n === 'n' ? '\n' : n === 't' ? '\t' : n;
-        i += 2;
-      } else out += src[i++];
-    }
-    i++;
-    return out;
-  }
-  function obj(depth) {
-    const o = {};
-    for (;;) {
-      skip();
-      if (i >= src.length) return o;
-      if (src[i] === '}') {
-        i++;
-        return o;
-      }
-      const key = str();
-      if (!key && src[i] !== '"') {
-        i++;
-        continue;
-      }
-      skip();
-      if (src[i] === '{') {
-        i++;
-        o[key] = depth > 20 ? {} : obj(depth + 1);
-      } else {
-        o[key] = str();
-      }
-    }
-  }
-  return obj(0);
-}
-
-// libraryfolders.vdf: new format {"0": {"path": "..."}}, old format {"1": "D:\\SteamLibrary"}.
-function parseLibraryFolders(text) {
-  const doc = parseVdf(text);
-  const rootKey = Object.keys(doc).find((k) => /^libraryfolders$/i.test(k));
-  const lf = rootKey ? doc[rootKey] : doc;
-  const out = [];
-  if (!lf || typeof lf !== 'object') return out;
-  for (const [k, v] of Object.entries(lf)) {
-    if (v && typeof v === 'object' && typeof v.path === 'string') out.push(v.path);
-    else if (typeof v === 'string' && /^\d+$/.test(k)) out.push(v);
-  }
-  return out.filter((p) => p.trim());
-}
-
-// `reg query HKCU\Software\Valve\Steam /v SteamPath` output -> 'c:\program files (x86)\steam'.
-function parseRegSteamPath(stdout) {
-  const m = /^\s*SteamPath\s+REG_(?:EXPAND_)?SZ\s+(.+?)\s*$/im.exec(String(stdout));
-  return m ? m[1].replace(/\//g, '\\') : null;
-}
-
 function steamServerCandidates(steamPath, libraries, defaultPath = DEFAULT_STEAM_SERVER) {
   const P = path.win32;
   const list = [defaultPath];
@@ -400,7 +324,8 @@ function validateSettings(input) {
   }
   if ('maxPlayers' in v) {
     try {
-      out.maxPlayers = asInt(v.maxPlayers, 1, 200, 'Max players');
+      // 120: Realm's cap (lib/fleet.js MAX_PLAYERS_CAP). The game itself has no clamp [DEC].
+      out.maxPlayers = asInt(v.maxPlayers, 1, 120, 'Max players');
     } catch (e) {
       errors.push(e.message + '.');
     }

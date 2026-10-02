@@ -14,7 +14,11 @@ const DEFAULTS = Object.freeze({
   serverExe: 'Server',
   discordUrl: '',
   news: null,
-  setupComplete: false
+  setupComplete: false,
+  // Server instances s1..s4 (lib/fleet.js); s1's folder is testRoot.
+  instances: [],
+  // Last "Publish server list" inputs and the list's sequence number.
+  publish: {}
 });
 
 class Settings {
@@ -25,7 +29,7 @@ class Settings {
 
   async load() {
     try {
-      const raw = JSON.parse((await fsp.readFile(this.file, 'utf8')).replace(/^﻿/, ''));
+      const raw = JSON.parse((await fsp.readFile(this.file, 'utf8')).replace(/^\uFEFF/, ''));
       if (raw && typeof raw === 'object') {
         for (const k of Object.keys(DEFAULTS)) if (k in raw) this.data[k] = raw[k];
       }
@@ -44,6 +48,8 @@ class Settings {
       }
     }
     this.data.setupComplete = this.data.setupComplete === true;
+    if (!Array.isArray(this.data.instances)) this.data.instances = [];
+    if (!this.data.publish || typeof this.data.publish !== 'object' || Array.isArray(this.data.publish)) this.data.publish = {};
     return this.data;
   }
 

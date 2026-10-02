@@ -87,6 +87,26 @@
       undoOxide: () => ok({ restored: 0, removed: 0 })
     },
     overlay: { status: () => ok(overlay), copyUrl: () => ok(overlay.overlayUrl) },
+    fleet: {
+      list: () => ok([{ id: 's1', slot: 1, name: 'Realm - Local Test', root: 'G:\\RealmTest\\server', rootOk: true, copied: true, ports: { game: 7350, query: 27015, rcon: 27016 }, maxPlayers: 120, network: 'local', listed: false, autoRestart: true, backupBeforeRestart: true, dailyRestart: { enabled: false, time: '06:00' }, state: 'stopped', ready: false, players: 0, supervisor: {} }]),
+      instance: () => ok({ id: 's1', ports: { game: 7350, query: 27015, rcon: 27016 }, autoRestart: true, backupBeforeRestart: true, dailyRestart: { enabled: false, time: '06:00' }, network: 'local', listed: false, cfg: { exists: true, serverName: 'Realm - Local Test', maxPlayers: '120', joinPacing: '10' }, maxPlayersCap: 120, sockets: [], supervisor: {} }),
+      add: () => ok({ id: 's2', root: 'G:\\RealmTest\\s2\\server', ports: { game: 7360, query: 27025, rcon: 27026 } }),
+      remove: () => ok({ removed: 's2', folderKept: 'G:\\RealmTest\\s2\\server' }),
+      update: () => ok({ saved: ['instance'], cfgChanges: [], cfgMissing: [] })
+    },
+    goPublic: {
+      status: () => ok({ id: 's1', name: 'Realm - Local Test', network: 'local', listed: false, ports: { game: 7350, query: 27015, rcon: 27016 }, sockets: [{ port: 7350, proto: 'udp', what: 'game' }, { port: 7350, proto: 'tcp', what: 'ping' }, { port: 27015, proto: 'udp', what: 'Steam query' }], rules: [], program: 'G:\\RealmTest\\server\\ROK.exe', programError: null, firewall: { supported: false, present: [] }, lan: [{ address: '192.168.1.20' }], running: false }),
+      setNetwork: (_id, v) => ok({ ...v, appliesAtNextStart: false }),
+      firewallAdd: () => ok({ supported: false, present: [] }),
+      firewallRemove: () => ok({ supported: false, present: [] }),
+      selfTest: () => ok({ checks: [{ label: 'Server running', status: 'bad', detail: 'Preview only.' }] })
+    },
+    publish: {
+      status: () => ok({ key: null, realm: 'The Realm', manifestUrl: '', outDir: 'G:\\RealmTest\\publish', validDays: 30, rulesUrl: '', servers: [], canEmbed: false }),
+      createKey: () => ok({ publicKey: 'preview', keyId: '0000000000000000' }),
+      write: () => Promise.reject(new Error('Preview only.')),
+      copyKey: () => ok('preview')
+    },
     onPush: () => {}
   };
 })();

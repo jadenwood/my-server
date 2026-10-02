@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Realm: how to join</title>
+  <link rel="stylesheet" href="coach.css">
+</head>
+<body>
+  <!-- Always-on-top helper shown by the player edition after JOIN. No bridge, no Node: it only
+       reads its own query string. -->
+  <div class="coach">
+    <header>
+      <span class="eyebrow">Realm</span>
+      <button id="close" aria-label="Close">&times;</button>
+    </header>
+    <h1 id="title">Joining</h1>
+    <p id="lead"></p>
+    <ol id="steps"></ol>
+    <div class="addr"><span>Address</span><b id="host"></b><span>Port</span><b id="port"></b></div>
+    <p class="fine" id="fine"></p>
+  </div>
+  <script src="coach.js"></script>
+</body>
+</html>

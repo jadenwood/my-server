@@ -114,22 +114,36 @@
   // ---------------------------------------------------------------- shared state
 
   let config = null;
+  // srv: the server selected on the Servers screen. home: Server 1 (Home, Chronicle and overlay follow it).
+  let selId = 's1';
   let srv = { state: 'stopped' };
+  const srvById = {};
+  let fleetList = [];
   let busyLabel = null;
+
+  function home() {
+    return srvById.s1 || { state: 'stopped' };
+  }
 
   function updateTitleStatus() {
     const box = $('title-status');
-    let text = 'Server stopped';
     box.className = 'title-status';
+    const list = fleetList.length ? fleetList : [{ id: 's1', state: home().state, ready: home().ready }];
+    const up = list.filter((f) => f.state === 'running' && f.ready).length;
+    const moving = list.filter((f) => f.state === 'starting' || f.state === 'stopping' || (f.state === 'running' && !f.ready)).length;
+    let text;
     if (busyLabel) {
       text = busyLabel + '...';
       box.classList.add('busy');
-    } else if (srv.state === 'running') {
-      text = srv.ready ? 'Server running' : 'Server loading';
-      box.classList.add(srv.ready ? 'running' : 'busy');
-    } else if (srv.state === 'starting' || srv.state === 'stopping') {
-      text = srv.state === 'starting' ? 'Server starting' : 'Server stopping';
-      box.classList.add('busy');
+    } else if (list.length === 1) {
+      const f = list[0];
+      text = f.state === 'running' ? (f.ready ? 'Server running' : 'Server loading') : f.state === 'starting' ? 'Server starting' : f.state === 'stopping' ? 'Server stopping' : 'Server stopped';
+      if (f.state === 'running') box.classList.add(f.ready ? 'running' : 'busy');
+      else if (f.state !== 'stopped') box.classList.add('busy');
+    } else {
+      text = `${up} of ${list.length} servers running` + (moving ? `, ${moving} changing` : '');
+      if (moving) box.classList.add('busy');
+      else if (up) box.classList.add('running');
     }
     $('title-status-text').textContent = text;
   }
@@ -201,6 +215,7 @@
   }
 
   function renderHomeStatus() {
+    const srv = home();
     const s = chronicleState;
     const pill = $('status-pill');
     let kind = 'bad';
@@ -339,8 +354,19 @@
     if (!box.childElementCount) box.appendChild(el('p', 'placeholder', 'The forge is cold. Press Start to light the server; its console appears here.'));
   }
 
+  const ROMAN = { s1: 'I', s2: 'II', s3: 'III', s4: 'IV' };
+
   function renderServer(st) {
-    if (st) srv = { ...srv, ...st };
+    if (st && st.id && st.id !== selId) {
+      srvById[st.id] = { ...(srvById[st.id] || {}), ...st };
+      updateTitleStatus();
+      if (current === 'home' && st.id === 's1') renderHomeStatus();
+      return;
+    }
+    if (st) {
+      srv = { ...srv, ...st };
+      srvById[selId] = srv;
+    }
     const s = srv;
     const pill = $('srv-pill');
     const map = { running: s.ready ? ['ok', 'Running'] : ['warn', 'Loading'], starting: ['warn', 'Starting'], stopping: ['warn', 'Stopping'], stopped: ['', 'Stopped'] };
@@ -361,7 +387,8 @@
     $('srv-restart').disabled = !running || s.state === 'stopping' || !!busyLabel;
     $('srv-force').hidden = !(running && (s.stopOverdue || s.state === 'stopping'));
     $('console-cmd').disabled = !running;
-    for (const id of ['act-plugins', 'act-backup', 'act-restore', 'act-undo-oxide']) $(id).disabled = noCopy || !!busyLabel;
+    for (const id of ['act-backup', 'act-restore', 'act-undo-oxide']) $(id).disabled = noCopy || !!busyLabel;
+    $('act-plugins').disabled = !!busyLabel || !fleetList.some((f) => f.copied);
     if ('oxideBackup' in s) $('act-undo-oxide').disabled = $('act-undo-oxide').disabled || !s.oxideBackup;
     if ('testRoot' in s) {
       $('fact-root').textContent = s.testRoot || 'Not set';
@@ -369,6 +396,10 @@
       $('fact-oxide').className = s.oxide ? 'ok' : '';
       $('fact-cfg').textContent = s.cfgExists ? 'Present' : 'Not created yet (first start creates it)';
     }
+    if (s.ports) {
+      $('fact-net').textContent = (s.network === 'public' ? 'Public (0.0.0.0)' : 'This PC only (127.0.0.1)') + ` · game ${s.ports.game} · query ${s.ports.query} · RCON off`;
+    }
+    renderSupLine(s.supervisor);
     if (external) $('srv-meta-2').textContent = 'A server from this folder is running outside Realm (pid ' + s.external.map((p) => p.pid).join(', ') + ').';
     updateTitleStatus();
     if (current === 'home') renderHomeStatus();
@@ -376,21 +407,194 @@
 
   async function refreshServer() {
     try {
-      renderServer(await api.server.status());
+      renderServer(await api.server.status(selId));
+      if (selId !== 's1') srvById.s1 = { ...(srvById.s1 || {}), ...(await api.server.status('s1')) };
+    } catch (e) {
+      fail(e);
+    }
+    refreshFleet();
+  }
+
+  function renderSupLine(sup) {
+    const line = $('inst-sup');
+    line.className = 'fine sup-line';
+    if (!sup) return;
+    const parts = [];
+    if (sup.halted) {
+      line.classList.add('bad');
+      parts.push(sup.halted);
+    }
+    if (sup.nextRestartAt) parts.push('Restarting at ' + new Date(sup.nextRestartAt).toLocaleTimeString() + ' after a crash.');
+    if (sup.plannedAt) parts.push('Next daily restart ' + when(sup.plannedAt) + '.');
+    if (sup.crashes24h) parts.push(sup.crashes24h + ' crash(es) in 24 h.');
+    if (sup.lastBackup) parts.push('Last automatic backup ' + ago(sup.lastBackup.at) + '.');
+    line.textContent = parts.join(' ');
+  }
+
+  // ---------- fleet strip (up to four servers)
+
+  function fleetCard(f) {
+    const b = el('button', 'fleet-card' + (f.id === selId ? ' active' : ''));
+    b.setAttribute('role', 'tab');
+    b.dataset.inst = f.id;
+    const up = f.state === 'running' && f.ready;
+    const moving = f.state !== 'stopped' && !up;
+    const num = el('span', 'num' + (up ? ' on' : moving ? ' busy' : f.supervisor && f.supervisor.halted ? ' bad' : ''), ROMAN[f.id] || f.id);
+    const name = el('span', 'fc-name', f.name);
+    let meta = !f.copied ? 'Not set up yet' : up ? `${f.players}/${f.maxPlayers || '?'} players` : f.state === 'stopped' ? (f.supervisor && f.supervisor.nextRestartAt ? 'Restarting soon' : 'Stopped') : f.state;
+    meta += ` · ${f.ports.game}` + (f.network === 'public' ? ' · public' : '');
+    b.append(num, name, el('span', 'fc-meta', meta));
+    b.title = f.root;
+    return b;
+  }
+
+  function renderFleet() {
+    const strip = $('fleet-strip');
+    strip.replaceChildren();
+    for (const f of fleetList) strip.appendChild(fleetCard(f));
+    if (fleetList.length < 4) {
+      const add = el('button', 'fleet-card add');
+      add.id = 'fleet-add';
+      add.append(el('span', 'num', '+'), el('span', 'fc-name', 'Add server'), el('span', 'fc-meta', 'Up to 4 on this PC'));
+      strip.appendChild(add);
+    }
+    const sel = fleetList.find((f) => f.id === selId);
+    if (sel) $('srv-title').textContent = sel.name;
+    for (const f of fleetList) srvById[f.id] = { ...(srvById[f.id] || {}), state: f.state, ready: f.ready };
+    updateTitleStatus();
+  }
+
+  async function refreshFleet() {
+    try {
+      fleetList = await api.fleet.list();
+      renderFleet();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function selectInstance(id) {
+    if (id === selId) return;
+    selId = id;
+    srv = { state: 'stopped' };
+    lastLineId = 0;
+    $('console').replaceChildren();
+    renderFleet();
+    await views.server.show();
+  }
+
+  $('fleet-strip').addEventListener('click', async (ev) => {
+    const card = ev.target.closest('.fleet-card');
+    if (!card) return;
+    if (card.id === 'fleet-add') return addInstance();
+    selectInstance(card.dataset.inst);
+  });
+
+  async function addInstance() {
+    const n = fleetList.length + 1;
+    const ok = await confirmBox({
+      title: 'Add another server?',
+      text: `Realm makes another full copy of the dedicated server (several GB) in its own folder, with its own ports, then runs the same setup as the first one. Up to four servers can run on this PC; whether four fit in its memory is untested, so add them one at a time.`,
+      ok: 'Choose folder'
+    });
+    if (!ok) return;
+    let root = null;
+    try {
+      root = await api.settings.browse('instanceRoot');
+    } catch (e) {
+      return fail(e);
+    }
+    try {
+      const r = await api.fleet.add(root ? { root } : {});
+      toast(`Server ${n} added (game port ${r.ports.game}, query port ${r.ports.query}). Now set it up.`, 'ok');
+      await refreshFleet();
+      await selectInstance(r.id);
+      openWizard(r.id);
     } catch (e) {
       fail(e);
     }
   }
 
+  // ---------- per-server settings card
+
+  let instData = null;
+
+  async function loadInstance() {
+    try {
+      instData = await api.fleet.instance(selId);
+    } catch (e) {
+      return fail(e);
+    }
+    const d = instData;
+    const cfg = d.cfg || {};
+    $('inst-id').textContent = `Server ${d.id.slice(1)} · ${d.id}`;
+    for (const id of ['inst-name', 'inst-max', 'inst-pacing']) $(id).disabled = !cfg.exists;
+    $('inst-name').value = cfg.serverName || '';
+    $('inst-max').value = cfg.maxPlayers || '';
+    $('inst-max').max = String(d.maxPlayersCap || 120);
+    $('inst-pacing').value = cfg.joinPacing || '';
+    $('inst-port').value = d.ports.game;
+    $('inst-query').value = d.ports.query;
+    $('inst-ports-note').textContent = `Players connect to UDP ${d.ports.game}; TCP ${d.ports.game} carries the ping check; UDP ${d.ports.query} answers Steam queries. RCON stays off (its port is ${d.ports.rcon}).`;
+    $('inst-note').textContent = cfg.exists ? 'Name, max players and join pacing are saved into this server\'s ServerSettings.cfg (stop it first). Ports and the restart plan are applied at every start.' : 'This copy has no ServerSettings.cfg yet. Run its setup first.';
+    $('inst-auto').checked = d.autoRestart;
+    $('inst-backup').checked = d.backupBeforeRestart;
+    $('inst-daily').checked = d.dailyRestart.enabled;
+    $('inst-time').value = d.dailyRestart.time;
+    $('inst-remove').hidden = d.id === 's1';
+    const f = fleetList.find((x) => x.id === d.id);
+    $('inst-setup').hidden = !!(f && f.copied && cfg.exists);
+    renderSupLine(d.supervisor);
+  }
+
+  $('inst-save').addEventListener('click', async () => {
+    if (!instData) return;
+    const patch = {
+      ports: { game: $('inst-port').value, query: $('inst-query').value },
+      autoRestart: $('inst-auto').checked,
+      backupBeforeRestart: $('inst-backup').checked,
+      dailyRestart: { enabled: $('inst-daily').checked, time: $('inst-time').value }
+    };
+    if (instData.cfg && instData.cfg.exists) {
+      patch.cfg = { serverName: $('inst-name').value, maxPlayers: $('inst-max').value };
+      if ($('inst-pacing').value !== '') patch.cfg.joinPacing = $('inst-pacing').value;
+    }
+    try {
+      const r = await api.fleet.update(selId, patch);
+      const changed = (r.cfgChanges || []).map((c) => `${c.key} '${c.from}' -> '${c.to}'`);
+      const missing = (r.cfgMissing || []).length ? ` Not in the file (left alone): ${r.cfgMissing.join(', ')}.` : '';
+      toast((changed.length ? 'Saved. ServerSettings.cfg: ' + changed.join(', ') + ' (old file backed up).' : 'Server settings saved.') + missing, 'ok');
+      await loadInstance();
+      refreshServer();
+    } catch (e) {
+      fail(e);
+    }
+  });
+  $('inst-setup').addEventListener('click', () => openWizard(selId));
+  $('inst-remove').addEventListener('click', async () => {
+    const ok = await confirmBox({ title: `Remove Server ${selId.slice(1)}?`, text: 'Realm forgets this server. Its folder, world and backups stay on disk; delete them yourself if you no longer need them.', ok: 'Remove', danger: true });
+    if (!ok) return;
+    try {
+      const r = await api.fleet.remove(selId);
+      toast(`Removed. The folder ${r.folderKept} was kept.`, 'ok');
+      await refreshFleet();
+      selId = 'x';
+      await selectInstance('s1');
+    } catch (e) {
+      fail(e);
+    }
+  });
+
   views.server = {
     async show() {
       await refreshServer();
       try {
-        appendLines(await api.server.log(lastLineId));
+        appendLines(await api.server.log(selId, lastLineId));
       } catch {
         /* ignore */
       }
       consolePlaceholder();
+      loadInstance();
     }
   };
 
@@ -407,16 +611,16 @@
     }
   }
 
-  $('srv-start').addEventListener('click', () => guarded(() => api.server.start(), 'Server starting. Watch the console for "Initialize engine version".'));
-  $('srv-stop').addEventListener('click', () => guarded(() => api.server.stop(), 'Sent "quit". The server saves and closes.'));
+  $('srv-start').addEventListener('click', () => guarded(() => api.server.start(selId), 'Server starting. Watch the console for "Initialize engine version".'));
+  $('srv-stop').addEventListener('click', () => guarded(() => api.server.stop(selId), 'Sent "quit". The server saves and closes.'));
   $('srv-restart').addEventListener('click', async () => {
     toast('Restarting: sending "quit" first...');
-    const r = await guarded(() => api.server.restart());
+    const r = await guarded(() => api.server.restart(selId));
     if (r && r.needsForce) toast('The server did not close in time. Use Force stop, then Start.', 'bad');
   });
   $('srv-force').addEventListener('click', async () => {
     const ok = await confirmBox({ title: 'Force stop the server?', text: 'This ends the server process right away. Anything not yet saved is lost. Prefer waiting a little longer if it is still saving.', ok: 'Force stop', danger: true });
-    if (ok) guarded(() => api.server.forceStop(), 'Server force stopped.');
+    if (ok) guarded(() => api.server.forceStop(selId), 'Server force stopped.');
   });
   $('console-form').addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -424,7 +628,7 @@
     const text = input.value.trim();
     if (!text) return;
     try {
-      await api.server.command(text);
+      await api.server.command(selId, text);
       input.value = '';
     } catch (e) {
       fail(e);
@@ -444,8 +648,8 @@
 
   $('act-plugins').addEventListener('click', () =>
     guarded(
-      () => api.server.deployPlugins(),
-      (r) => (r.copied ? `Deployed ${r.copied} plugin file(s). Oxide reloads them while the server runs.` : 'All plugins are already up to date.')
+      () => api.server.deployPlugins('all'),
+      (r) => (r.copied ? `Deployed ${r.copied} plugin file(s) to ${r.servers} server(s). Oxide reloads them while the server runs.` : `All plugins are already up to date on ${r.servers} server(s).`)
     )
   );
 
@@ -457,14 +661,14 @@
       allowRunning = true;
     }
     showOpProgress(true, 'Packing the world into a chest...');
-    await guarded(() => api.server.backup(allowRunning), (r) => `Backup written: ${r.name} (${bytes(r.size)}).`);
+    await guarded(() => api.server.backup(selId, allowRunning), (r) => `Backup written: ${r.name} (${bytes(r.size)}).`);
     showOpProgress(false);
   });
 
   $('act-restore').addEventListener('click', async () => {
     let list;
     try {
-      list = await api.server.listBackups();
+      list = await api.server.listBackups(selId);
     } catch (e) {
       return fail(e);
     }
@@ -477,7 +681,7 @@
     });
     if (!pick) return;
     showOpProgress(true, 'Restoring ' + pick + '...');
-    await guarded(() => api.server.restore(pick), (r) => `Restored ${r.restored} files. The previous world was moved aside${r.safetyBackup ? ' and saved as ' + r.safetyBackup : ''}.`);
+    await guarded(() => api.server.restore(selId, pick), (r) => `Restored ${r.restored} files. The previous world was moved aside${r.safetyBackup ? ' and saved as ' + r.safetyBackup : ''}.`);
     showOpProgress(false);
   });
 
@@ -488,11 +692,11 @@
       ok: 'Undo Oxide',
       danger: true
     });
-    if (ok) guarded(() => api.server.undoOxide(), (r) => `Oxide removed: ${r.restored} original file(s) restored, ${r.removed} removed.`);
+    if (ok) guarded(() => api.server.undoOxide(selId), (r) => `Oxide removed: ${r.restored} original file(s) restored, ${r.removed} removed.`);
   });
 
   for (const b of $$('[data-open]')) {
-    b.addEventListener('click', () => api.settings.openFolder(b.dataset.open).catch(fail));
+    b.addEventListener('click', () => api.settings.openFolder(b.dataset.open, selId).catch(fail));
   }
 
   // ================================================================ REALM
@@ -679,6 +883,273 @@
     renderOverlay();
   });
 
+  // ================================================================ GO PUBLIC
+
+  let pubId = 's1';
+  let pubData = null;
+
+  function renderPick(boxId, active, onPick) {
+    const box = $(boxId);
+    box.replaceChildren();
+    for (const f of fleetList.length ? fleetList : [{ id: 's1', name: 'Server 1' }]) {
+      const b = el('button', f.id === active ? 'active' : '', 'Server ' + (ROMAN[f.id] || f.id));
+      b.title = f.name || '';
+      b.addEventListener('click', () => onPick(f.id));
+      box.appendChild(b);
+    }
+  }
+
+  function row(cells, cls) {
+    const tr = el('tr', cls);
+    for (const c of cells) {
+      const td = el('td', c.cls || '', c.text);
+      tr.appendChild(td);
+    }
+    return tr;
+  }
+
+  function head(labels) {
+    const tr = el('tr');
+    for (const l of labels) tr.appendChild(el('th', null, l));
+    return tr;
+  }
+
+  function renderPublic() {
+    const d = pubData;
+    if (!d) return;
+    renderPick('pub-pick', pubId, (id) => {
+      pubId = id;
+      views.public.show();
+    });
+    $('pub-net-local').checked = d.network !== 'public';
+    $('pub-net-public').checked = d.network === 'public';
+    $('pub-listed').checked = !!d.listed;
+    $('pub-listed').disabled = d.network !== 'public';
+    $('pub-net-state').textContent = `${d.name}: ${d.network === 'public' ? 'public' : 'this PC only'}${d.running ? ' (running; changes apply at the next start)' : ''}.`;
+
+    const rules = $('pub-rules');
+    rules.replaceChildren(head(['Rule', 'Action', 'Protocol', 'Ports']));
+    const present = new Set((d.firewall.present || []).map((r) => r.name));
+    for (const r of d.rules) {
+      rules.appendChild(row([{ text: r.name, cls: present.has(r.name) ? 'present' : '' }, { text: r.action, cls: r.action === 'Block' ? 'block' : '' }, { text: r.protocol }, { text: r.ports, cls: 'mono' }]));
+    }
+    if (d.programError) $('pub-fw-state').textContent = d.programError;
+    else if (!d.firewall.supported) $('pub-fw-state').textContent = `Every rule applies only to ${d.program}. Rules can only be added on Windows.`;
+    else $('pub-fw-state').textContent = (present.size ? `${present.size} of ${d.rules.length} rules are in place (green). ` : 'No Realm rules yet. ') + `Every rule applies only to ${d.program}.`;
+    $('pub-fw-add').disabled = !d.firewall.supported || !!d.programError;
+    $('pub-fw-remove').disabled = !d.firewall.supported || !present.size;
+
+    const router = $('pub-router');
+    router.replaceChildren(head(['Forward', 'Protocol', 'To this PC', 'Why']));
+    for (const sck of d.sockets) router.appendChild(row([{ text: String(sck.port), cls: 'mono' }, { text: sck.proto.toUpperCase() }, { text: String(sck.port), cls: 'mono' }, { text: sck.what === 'game' ? 'Game traffic' : sck.what === 'ping' ? 'Ping check (players are kicked without it)' : 'Steam query (server list ping)' }]));
+    $('pub-lan').textContent = d.lan.length ? d.lan.map((l) => l.address).join(', ') : 'unknown';
+  }
+
+  views.public = {
+    async show() {
+      if (!fleetList.length) await refreshFleet();
+      try {
+        pubData = await api.goPublic.status(pubId);
+        renderPublic();
+      } catch (e) {
+        fail(e);
+      }
+    }
+  };
+
+  for (const r of $$('input[name="pub-net"]')) r.addEventListener('change', () => ($('pub-listed').disabled = !$('pub-net-public').checked));
+  $('pub-net-save').addEventListener('click', async () => {
+    try {
+      const r = await api.goPublic.setNetwork(pubId, { network: $('pub-net-public').checked ? 'public' : 'local', listed: $('pub-listed').checked });
+      toast(`Saved: ${r.network === 'public' ? 'public' : 'this PC only'}${r.listed ? ', listed in the game browser' : ''}.${r.appliesAtNextStart ? ' Restart the server to apply it.' : ''}`, 'ok');
+      views.public.show();
+      refreshFleet();
+    } catch (e) {
+      fail(e);
+    }
+  });
+  $('pub-fw-add').addEventListener('click', async () => {
+    const ok = await confirmBox({
+      title: 'Add Windows Firewall rules?',
+      text: 'Realm will show the exact rules once more, then Windows asks for administrator permission. The rules only allow this server\'s ROK.exe on its own ports, and block the admin console ports. Remove rules undoes them.',
+      ok: 'Continue'
+    });
+    if (!ok) return;
+    try {
+      await api.goPublic.firewallAdd(pubId);
+      toast('Firewall rules added.', 'ok');
+    } catch (e) {
+      fail(e);
+    }
+    views.public.show();
+  });
+  $('pub-fw-remove').addEventListener('click', async () => {
+    const ok = await confirmBox({ title: 'Remove the Realm firewall rules?', text: 'Windows asks for administrator permission, then exactly the rules listed here are deleted. Players outside this PC can no longer connect.', ok: 'Remove rules', danger: true });
+    if (!ok) return;
+    try {
+      await api.goPublic.firewallRemove(pubId);
+      toast('Firewall rules removed.', 'ok');
+    } catch (e) {
+      fail(e);
+    }
+    views.public.show();
+  });
+  $('pub-test').addEventListener('click', async () => {
+    const list = $('pub-checks');
+    list.replaceChildren(el('li', 'empty', 'Checking...'));
+    try {
+      const r = await api.goPublic.selfTest(pubId);
+      list.replaceChildren();
+      for (const c of r.checks) {
+        const li = el('li', c.status);
+        li.append(el('span', 'dot'), el('b', null, c.label), el('span', null, c.detail));
+        list.appendChild(li);
+      }
+    } catch (e) {
+      list.replaceChildren();
+      fail(e);
+    }
+  });
+
+  // ================================================================ PUBLISH
+
+  let publishData = null;
+
+  function plRow(sv) {
+    const box = el('div', 'pl-row' + (sv.include ? '' : ' off'));
+    box.dataset.id = sv.id;
+    const headBox = el('div', 'pl-head');
+    const inc = el('input');
+    inc.type = 'checkbox';
+    inc.checked = sv.include;
+    inc.dataset.k = 'include';
+    inc.addEventListener('change', () => box.classList.toggle('off', !inc.checked));
+    const lbl = el('label', 'check');
+    lbl.append(inc, el('span', null, 'List'));
+    headBox.append(lbl, el('b', null, 'Server ' + (ROMAN[sv.id] || sv.id)), el('span', 'fine', `port ${sv.port} · query ${sv.queryPort}${sv.network !== 'public' ? ' · still set to this PC only' : ''}`));
+    box.appendChild(headBox);
+    const field = (label, key, value, cls, attrs = {}) => {
+      const l = el('label', cls || '');
+      const i = el('input');
+      i.value = value == null ? '' : String(value);
+      i.dataset.k = key;
+      for (const [k, v] of Object.entries(attrs)) i.setAttribute(k, v);
+      l.append(el('span', null, label), i);
+      box.appendChild(l);
+      return i;
+    };
+    field('Name', 'name', sv.name, 'span2', { maxlength: '64' });
+    field('Region', 'region', sv.region, '', { maxlength: '32', placeholder: 'EU' });
+    field('Public address', 'address', sv.address, 'span2', { maxlength: '253', placeholder: 'play.example.org', spellcheck: 'false' });
+    field('Max players', 'maxPlayers', sv.maxPlayers, '', { type: 'number', min: '1', max: '1000' });
+    field('Chronicle address (optional)', 'chronicleUrl', sv.chronicleUrl, 'span3', { maxlength: '200', placeholder: 'https://chronicle.example.org', spellcheck: 'false' });
+    return box;
+  }
+
+  function renderPublish() {
+    const d = publishData;
+    if (!d) return;
+    if (d.key) {
+      $('key-state').textContent = `Key ${d.key.keyId}, made ${d.key.created ? when(d.key.created) : ''}. ${d.key.protection === 'safeStorage' ? 'Stored encrypted for your Windows user.' : 'Stored unencrypted in the Realm Steward profile folder (this system offers no key protection). Keep that folder private.'}`;
+      $('key-public').textContent = d.key.publicKey;
+    } else {
+      $('key-state').textContent = d.keyError || 'No signing key yet. Create one once; keep using it for every list you publish.';
+    }
+    $('key-box').hidden = !d.key;
+    $('key-create').hidden = !!d.key;
+    $('key-replace').hidden = !d.key;
+    $('pl-realm').value = d.realm;
+    $('pl-url').value = d.manifestUrl;
+    $('pl-days').value = d.validDays;
+    $('pl-rules').value = d.rulesUrl;
+    $('pl-out').value = d.outDir;
+    $('pl-embed-row').hidden = !d.canEmbed;
+    const rows = $('pl-rows');
+    rows.replaceChildren();
+    for (const sv of d.servers) rows.appendChild(plRow(sv));
+    $('pl-write').disabled = !d.key;
+  }
+
+  views.publish = {
+    async show() {
+      try {
+        publishData = await api.publish.status();
+        renderPublish();
+      } catch (e) {
+        fail(e);
+      }
+    }
+  };
+
+  $('key-create').addEventListener('click', async () => {
+    try {
+      const k = await api.publish.createKey(false);
+      toast(`Signing key ${k.keyId} created.`, 'ok');
+      views.publish.show();
+    } catch (e) {
+      fail(e);
+    }
+  });
+  $('key-replace').addEventListener('click', async () => {
+    try {
+      const k = await api.publish.createKey(true);
+      toast(`New signing key ${k.keyId}. Build and hand out a new player installer.`, 'ok');
+      views.publish.show();
+    } catch (e) {
+      fail(e);
+    }
+  });
+  $('key-copy').addEventListener('click', async () => {
+    try {
+      await api.publish.copyKey();
+      toast('Public key copied.', 'ok');
+    } catch (e) {
+      fail(e);
+    }
+  });
+  $('pl-out-browse').addEventListener('click', async () => {
+    try {
+      const p = await api.settings.browse('publishOut');
+      if (p) $('pl-out').value = p;
+    } catch (e) {
+      fail(e);
+    }
+  });
+  $('pl-write').addEventListener('click', async () => {
+    const servers = $$('#pl-rows .pl-row').map((r) => {
+      const o = { id: r.dataset.id };
+      for (const i of $$('input[data-k]', r)) o[i.dataset.k] = i.type === 'checkbox' ? i.checked : i.value;
+      return o;
+    });
+    try {
+      const r = await api.publish.write({
+        realm: $('pl-realm').value,
+        manifestUrl: $('pl-url').value,
+        validDays: $('pl-days').value,
+        rulesUrl: $('pl-rules').value,
+        outDir: $('pl-out').value,
+        embed: !$('pl-embed-row').hidden && $('pl-embed').checked,
+        servers
+      });
+      const list = $('pl-result-list');
+      list.replaceChildren();
+      const add = (k, v) => {
+        const div = el('div');
+        div.append(el('dt', null, k), el('dd', 'mono', v));
+        list.appendChild(div);
+      };
+      add('List', r.files.servers);
+      add('Player config', r.files.playerConfig);
+      add('Version', `${r.seq} · ${r.servers} server(s) · key ${r.keyId}`);
+      add('Expires', when(r.expires));
+      if (r.embedded) add('Player build', r.embedded);
+      $('pl-result').hidden = false;
+      toast('servers.json signed and written. Nothing was uploaded.', 'ok');
+    } catch (e) {
+      fail(e);
+    }
+  });
+
   // ================================================================ SETTINGS
 
   let settingsData = null;
@@ -731,12 +1202,6 @@
     $('set-exe').value = d.serverExe;
     $('set-discord').value = d.discordUrl || '';
     $('set-steam').textContent = d.steamServer || 'Detected automatically during setup';
-    const cfg = d.cfg || {};
-    for (const id of ['set-name', 'set-max', 'set-port']) $(id).disabled = !cfg.exists;
-    $('set-name').value = cfg.serverName || '';
-    $('set-max').value = cfg.maxPlayers || '';
-    $('set-port').value = cfg.portNumber || '';
-    $('set-cfg-note').textContent = cfg.exists ? 'Read from the test copy. Saved straight into its ServerSettings.cfg.' : 'ServerSettings.cfg does not exist yet. The setup starts the server once to create it.';
     renderNewsRows(d.news || []);
   }
 
@@ -752,11 +1217,6 @@
       serverExe: $('set-exe').value,
       discordUrl: $('set-discord').value
     };
-    if (settingsData && settingsData.cfg && settingsData.cfg.exists) {
-      payload.serverName = $('set-name').value;
-      payload.maxPlayers = $('set-max').value;
-      payload.port = $('set-port').value;
-    }
     try {
       const r = await api.settings.save(payload);
       const changed = (r.cfgChanges || []).map((c) => `${c.key} '${c.from}' -> '${c.to}'`);
@@ -825,7 +1285,7 @@
     { id: 'plugins', label: 'Raise the banners', sub: 'Houses, crown and chronicle plugins', title: 'Deploying the Realm plugins', lead: 'Copying the Realm plugins into the server. Oxide compiles them the next time the server starts.' }
   ];
   const SKIPPABLE = new Set(['firstRun', 'download', 'install', 'plugins']);
-  const wiz = { states: {}, running: false, failedAt: -1, phase: 'intro', lastError: null, status: null };
+  const wiz = { id: 's1', states: {}, running: false, failedAt: -1, phase: 'intro', lastError: null, status: null };
 
   function wizRenderSteps(activeIdx) {
     const list = $('step-list');
@@ -877,7 +1337,7 @@
   }
 
   async function wizRefresh() {
-    wiz.status = await api.setup.status();
+    wiz.status = await api.setup.status(wiz.id);
     for (const s of STEPS) {
       if (wiz.status.steps[s.id].done && wiz.states[s.id] !== 'skipped') wiz.states[s.id] = 'done';
       else if (wiz.states[s.id] === 'done') wiz.states[s.id] = 'pending';
@@ -889,15 +1349,18 @@
     wiz.phase = 'intro';
     const st = wiz.status;
     $('wiz-root').value = st.testRoot;
-    $('wiz-root-msg').textContent = st.rootOk ? 'Realm only changes this folder. Not on C:, not inside Steam.' : st.rootReason;
+    $('wiz-root').disabled = wiz.id !== 's1';
+    $('wiz-root-browse').disabled = wiz.id !== 's1';
+    $('wiz-root-msg').textContent = st.rootOk ? (wiz.id === 's1' ? 'Realm only changes this folder. Not on C:, not inside Steam.' : 'Chosen when this server was added. Remove and add it again to use another folder.') : st.rootReason;
     $('wiz-root-msg').className = st.rootOk ? '' : 'bad';
     const remaining = STEPS.filter((s) => !st.steps[s.id].done).length;
+    const extra = wiz.id !== 's1';
     wizShow({
-      kicker: 'Welcome',
-      title: st.allDone ? 'Your Realm is already standing' : 'Let’s raise your Realm',
+      kicker: extra ? `Server ${wiz.id.slice(1)}` : 'Welcome',
+      title: st.allDone ? (extra ? `${st.instanceName} is already standing` : 'Your Realm is already standing') : extra ? `Let’s raise Server ${wiz.id.slice(1)}` : 'Let’s raise your Realm',
       lead: st.allDone
         ? 'Every step is done. You can run the setup again at any time; finished steps are skipped.'
-        : `Realm will make a private <b>test copy</b> of your dedicated server, add the Oxide mod framework and the Realm plugins. ${remaining} step(s) to go; finished steps are skipped. You will not need a command window.`,
+        : `Realm will make a private <b>${extra ? 'second copy' : 'test copy'}</b> of your dedicated server, add the Oxide mod framework and the Realm plugins. ${remaining} step(s) to go; finished steps are skipped. You will not need a command window.`,
       folder: true,
       go: st.allDone ? 'Finish' : 'Begin'
     });
@@ -906,7 +1369,9 @@
 
   function wizDone() {
     wiz.phase = 'done';
-    wizShow({ kicker: 'All done', title: 'Your Realm stands ready', lead: 'Start the server on the <b>Server</b> screen. When its console shows it has loaded, press <b>Play</b> and direct connect to <b>127.0.0.1</b> port <b>7350</b>.', go: 'Enter the Realm' });
+    const f = fleetList.find((x) => x.id === wiz.id);
+    const port = f ? f.ports.game : 7350;
+    wizShow({ kicker: 'All done', title: wiz.id === 's1' ? 'Your Realm stands ready' : `Server ${wiz.id.slice(1)} stands ready`, lead: `Start the server on the <b>Servers</b> screen. When its console shows it has loaded, press <b>Play</b> and direct connect to <b>127.0.0.1</b> port <b>${port}</b>.`, go: 'Enter the Realm' });
     const mark = el('div', 'done-mark');
     mark.appendChild(icon('i-check'));
     $('wiz-body').prepend(mark);
@@ -932,7 +1397,7 @@
         wizSetBar({ indeterminate: true, text: 'Working...' });
         $('wiz-bar').style.width = '0';
         try {
-          await api.setup.run(s.id);
+          await api.setup.run(s.id, wiz.id);
           wiz.states[s.id] = 'done';
           wiz.ran[s.id] = true;
         } catch (e) {
@@ -960,7 +1425,8 @@
     }
   }
 
-  async function openWizard() {
+  async function openWizard(id) {
+    wiz.id = typeof id === 'string' ? id : 's1';
     $('wizard').hidden = false;
     wiz.states = {};
     wiz.ran = {};
@@ -984,17 +1450,19 @@
     if (wiz.running) return;
     if (wiz.phase === 'done') {
       try {
-        await api.setup.finish();
+        await api.setup.finish(wiz.id);
       } catch (e) {
         return fail(e);
       }
+      const target = wiz.id;
       closeWizard();
       go('server');
+      selectInstance(target);
       return;
     }
     if (wiz.phase === 'intro') {
       const root = $('wiz-root').value.trim();
-      if (root !== wiz.status.testRoot) {
+      if (wiz.id === 's1' && root !== wiz.status.testRoot) {
         try {
           await api.settings.save({ testRoot: root });
         } catch (e) {
@@ -1020,7 +1488,7 @@
   });
   $('wiz-cancel').addEventListener('click', () => api.setup.cancel());
   $('wiz-close').addEventListener('click', closeWizard);
-  $('open-setup').addEventListener('click', openWizard);
+  $('open-setup').addEventListener('click', () => openWizard(current === 'server' ? selId : 's1'));
   $('wiz-copy-details').addEventListener('click', async () => {
     const e = wiz.lastError;
     if (!e) return;
@@ -1051,8 +1519,14 @@
   // ================================================================ push events
 
   api.onPush((msg) => {
-    if (msg.type === 'server-lines') appendLines(msg.lines || []);
-    else if (msg.type === 'server-status') renderServer(msg.status);
+    if (msg.type === 'server-lines') {
+      if ((msg.id || 's1') === selId) appendLines(msg.lines || []);
+    } else if (msg.type === 'server-status') renderServer({ ...msg.status, id: msg.id || 's1' });
+    else if (msg.type === 'fleet') {
+      fleetList = Array.isArray(msg.list) ? msg.list : fleetList;
+      renderFleet();
+      if (current === 'publish' && !publishData) views.publish.show();
+    }
     else if (msg.type === 'busy') {
       busyLabel = msg.label;
       updateTitleStatus();
@@ -1103,9 +1577,10 @@
     }, config.pollSeconds * 1000);
     setInterval(() => {
       if (current === 'server') refreshServer();
+      else refreshFleet();
     }, 10000);
     try {
-      const st = await api.setup.status();
+      const st = await api.setup.status('s1');
       if (!st.setupComplete) openWizard();
     } catch (e) {
       fail(e);

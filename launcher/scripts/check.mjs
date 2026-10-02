@@ -9,9 +9,15 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const files = [
   'main.js',
   'preload.js',
+  'player/main.js',
+  'player/preload.js',
   ...readdirSync(path.join(root, 'lib')).filter((f) => f.endsWith('.js')).map((f) => `lib/${f}`),
+  ...readdirSync(path.join(root, 'lib', 'shared')).filter((f) => f.endsWith('.js')).map((f) => `lib/shared/${f}`),
   'renderer/app.js',
+  'renderer/player.js',
+  'renderer/coach.js',
   'renderer/mock-preload.js',
+  ...readdirSync(path.join(root, 'build')).filter((f) => f.endsWith('.js')).map((f) => `build/${f}`),
   ...readdirSync(path.join(root, 'scripts')).filter((f) => f.endsWith('.mjs')).map((f) => `scripts/${f}`),
   ...readdirSync(path.join(root, 'test')).filter((f) => f.endsWith('.js')).map((f) => `test/${f}`)
 ];
@@ -26,14 +32,19 @@ for (const f of files) {
   }
 }
 
-const html = readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
-const app = readFileSync(path.join(root, 'renderer', 'app.js'), 'utf8');
-const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
-const used = new Set([...app.matchAll(/\$\('([A-Za-z0-9_-]+)'\)/g)].map((m) => m[1]));
-for (const id of used) {
-  if (!ids.has(id)) {
-    failed++;
-    console.error(`renderer/app.js uses #${id}, which is missing from index.html`);
+// Every element id a renderer script looks up must exist in its page.
+let resolved = 0;
+for (const [page, script] of [['index.html', 'app.js'], ['player.html', 'player.js'], ['coach.html', 'coach.js']]) {
+  const html = readFileSync(path.join(root, 'renderer', page), 'utf8');
+  const js = readFileSync(path.join(root, 'renderer', script), 'utf8');
+  const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
+  const used = new Set([...js.matchAll(/\$\('([A-Za-z0-9_-]+)'\)/g)].map((m) => m[1]));
+  resolved += used.size;
+  for (const id of used) {
+    if (!ids.has(id)) {
+      failed++;
+      console.error(`renderer/${script} uses #${id}, which is missing from ${page}`);
+    }
   }
 }
 
@@ -41,4 +52,4 @@ if (failed) {
   console.error(`check failed (${failed} problem(s))`);
   process.exit(1);
 }
-console.log(`check ok: ${files.length} files parsed, ${used.size} element ids resolved`);
+console.log(`check ok: ${files.length} files parsed, ${resolved} element ids resolved`);

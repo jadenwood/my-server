@@ -1,0 +1,13 @@
+{
+  "realmName": "The Realm",
+  "tagline": "Swear an oath. Claim a crown. Answer for it.",
+  "manifestUrl": "",
+  "publicKey": "",
+  "bundledManifest": null,
+  "links": {
+    "discord": "",
+    "rules": ""
+  },
+  "joinMethod": "quick",
+  "steamAppId": 344760
+}

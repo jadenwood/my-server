@@ -133,7 +133,7 @@ async function removeTree(p) {
 
 async function readJsonFile(file, fallback) {
   try {
-    return JSON.parse((await fsp.readFile(file, 'utf8')).replace(/^﻿/, ''));
+    return JSON.parse((await fsp.readFile(file, 'utf8')).replace(/^\uFEFF/, ''));
   } catch {
     return fallback;
   }
