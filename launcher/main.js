@@ -825,6 +825,10 @@ function wireServerEvents() {
     }
   });
   server.on('status', (st) => push({ type: 'server-status', status: st }));
+  // Remember the fallback so the next start (and Settings) uses ROK.exe directly.
+  server.on('exe-fallback', (exe) => {
+    settings.update({ serverExe: exe }).catch(() => {});
+  });
 }
 
 // The Chronicle sends frame-ancestors 'self'; only inside this app, and only for the overlay preview

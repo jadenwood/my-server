@@ -96,6 +96,12 @@ class ServerManager extends EventEmitter {
       throw Object.assign(new Error(`${name}.exe was not found in ${root}. Try the other server program in Settings.`), { friendly: true });
     }
     const args = name === 'ROK' ? ['-batchmode', '-nographics', '-silentcrash'] : [];
+    if (name === 'ROK') {
+      // Unity in -batchmode logs to a file, not stdout: point it into Logs\ so the console tail shows it.
+      const logDir = path.join(root, 'Logs');
+      await fsp.mkdir(logDir, { recursive: true });
+      args.push('-logFile', path.join(logDir, 'realm-server.log'));
+    }
     this.root = root;
     this.exe = name;
     this.ready = false;
@@ -120,6 +126,18 @@ class ServerManager extends EventEmitter {
     child.once('error', (err) => {
       this.log('sys', `Could not run ${name}.exe: ${err.message}`);
       this.onExit(null, null, err);
+      if (err.code !== 'EACCES') return;
+      // On Windows, EACCES is how Node reports "this program requires administrator rights" or
+      // "access blocked" (antivirus / Controlled Folder Access). Server.exe is only a wrapper
+      // around ROK.exe, the actual game server, so try that instead.
+      if (name === 'Server') {
+        this.log('sys', 'Windows would not start Server.exe (it probably asks for administrator rights). Switching to ROK.exe, the game server itself.');
+        this.emit('exe-fallback', 'ROK');
+        this.start(root, 'ROK').catch((e) => this.log('sys', e.message));
+      } else {
+        this.log('sys', 'Windows refused to run ROK.exe. Either it needs administrator rights (close Realm, right-click it, choose "Run as administrator") ' +
+          'or Windows Security blocked it (Windows Security > Virus & threat protection > Protection history / Controlled folder access: allow ROK.exe).');
+      }
     });
     child.once('exit', (code, signal) => this.onExit(code, signal));
     this.startTail(root);
