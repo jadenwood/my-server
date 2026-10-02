@@ -5,6 +5,7 @@ This is a three-stage check on the owner's Windows PC. Each stage runs only afte
 - **A. Vanilla**: the test copy of the dedicated server starts and you can join it on `127.0.0.1`.
 - **B. Oxide**: Oxide 2.0.3867 loads in the test copy.
 - **C. Plugins**: the Realm plugins compile and load, they write their data files, and the Chronicle web service reads those files.
+- **D. Atmosphere preset** (optional, needs only A): the "grim but readable" Mods preset installs, applies and reverts.
 
 Ground rules for every stage:
 
@@ -113,12 +114,13 @@ Tags used in this doc (see `docs/server-reference.md` and `docs/oxide-rok-api.md
    .\Deploy-Plugins.ps1 -WhatIf
    .\Deploy-Plugins.ps1
    ```
-   This copies `RealmChronicle.cs`, `RealmHouses.cs` and `CrownAndConsequences.cs` into `oxide\plugins`. Oxide hot-reloads them, so there is no restart.
+   This copies `RealmChronicle.cs`, `RealmHouses.cs`, `CrownAndConsequences.cs` and `RealmContracts.cs` into `oxide\plugins`. Oxide hot-reloads them, so there is no restart.
 2. Watch the server console and `oxide\logs` for `Loaded plugin ...` or for compile errors. A compile error gives the file and line. Fix it in the repo and run `Deploy-Plugins.ps1` again.
 3. Give yourself admin in the server console:
    ```
    oxide.grant user <yourname> realmhouses.admin
    oxide.grant user <yourname> crownandconsequences.admin
+   oxide.grant user <yourname> realmcontracts.admin
    ```
 4. In game chat, run:
    - `/chronicle`, which should report that the chronicle is empty or list its events.
@@ -140,7 +142,7 @@ Tags used in this doc (see `docs/server-reference.md` and `docs/oxide-rok-api.md
 
 | # | Check | Pass | Fail → do this |
 |---|---|---|---|
-| C1 | All three plugins report as loaded. `oxide.plugins` lists RealmChronicle, RealmHouses and CrownAndConsequences | ☐ | Fix the compile error in the repo and redeploy |
+| C1 | All four plugins report as loaded. `oxide.plugins` lists RealmChronicle, RealmHouses, CrownAndConsequences and RealmContracts | ☐ | Fix the compile error in the repo and redeploy |
 | C2 | `/chronicle` answers in chat | ☐ | Check that the `[ChatCommand]` methods are private (`docs/oxide-rok-api.md` section 7) |
 | C3 | `/house found ...` succeeds, and a `house_founded` event appears in `RealmChronicle.json` | ☐ | Check that RealmHouses calls RealmChronicle (`[PluginReference]` / `Call("Log", ...)`) |
 | C4 | `RealmState.json` matches the shared contract, and `actors` holds only public names (no positions, no inventory) | ☐ | — |
@@ -149,8 +151,41 @@ Tags used in this doc (see `docs/server-reference.md` and `docs/oxide-rok-api.md
 | C7 | The vanilla behaviour from A6/A7 still works with the plugins loaded | ☐ | Unload plugins one at a time with `oxide.unload <Name>` to find the cause |
 | C8 | Ransom auto-release (needs two clients or a helper): tie a player with rope; `/ransom list` shows them; set `RansomMaxMinutes` to 1 in `oxide/config/CrownAndConsequences.json` and reload; within about a minute after expiry the captive is untied without anyone acting, and a `released` event appears | ☐ | The release uses `PlayerCaptureManager.Captured` / `Release()` (UNVERIFIED semantics). If the captive stays bound, admins get an alert; report what `Captured` showed and whether `/ransom free` worked |
 | C9 | `/crown` reports the king after a throne capture, and the overlay shows the same king (proves `plugin.Call` reaches `GetKingName`) | ☐ | Cross-plugin API methods must be non-public; see `docs/oxide-rok-api.md` section 1 |
+| C10 | Item names: `/contract items wood` lists real item names. Write down the exact names for wood and stone | ☐ | If nothing is found, `InvBlueprints.Instance` may not be ready yet. Retry after the world has loaded |
+| C11 | Escrow without duplication (one client): note your Stone count. Run `/contract post delivery 1 "Wood" 5 "Stone"` with the exact names from C10. Stone **drops by 5 at once** in the inventory window. Then `/contract cancel <id>`: Stone returns to the **exact** original count. Do it twice; the count never ends higher than it started | ☐ | If the server took the items but the client view did not change (UNVERIFIED sync, `docs/oxide-rok-api.md` 3.9), relog and recount. If the counts are wrong, set `"ItemEscrow": false` in `oxide/config/RealmContracts.json` (honour mode) and report it |
+| C12 | Royal Stores: as king, with your house crown-sworn, `/decree stores` gives each online member of a crown-sworn house 25 of the configured item, then again every 15 min while in force. The `decree ... ends` chronicle line reports the total given | ☐ | `cannot be issued: the item ... is not known` means `Item` in `oxide/config/CrownAndConsequences.json` must be set to a name from C10. No authority is spent on that refusal |
+| C13 | Bounty (needs three players A, B, C, with C not in B's house): the king runs `/contract outlaw B`; A posts `/contract post bounty B 5 "Stone"`; C kills B. The reward reaches C's inventory, and a `contract_fulfilled` event appears | ☐ | If nothing happens, check the server log for `Death handling failed`, and whether `KillingDamage.DamageSource.Owner` was null for that weapon (melee vs. ranged) |
+| C14 | Escrow survives a reload: post a delivery with a Stone reward, run `oxide.reload RealmContracts`, then `/contract list` still shows it and `/contract cancel <id>` returns the Stone. Repeat with a full server restart in between | ☐ | Check `oxide/data/RealmContracts.json`. If the plugin refuses to load with `Could not read ...RealmContracts.json`, it is protecting escrow records: fix or move the file, never delete it while contracts are open |
+| C15 | Paid out while away: post a delivery, have a second client deliver it while the poster is **offline**. When the poster rejoins, the delivered goods arrive within about 30 s (`You receive ...`). With a full inventory the message is `Your packs are full`, and `/contract collect` delivers after you make room | ☐ | Report the inventory counts before and after; the ledger only shrinks by what was really added |
+| C16 | Anti-grief (king): `/contract outlaw B` works once; a second `/contract outlaw <other>` within 10 min is refused (`OutlawProclaimCooldownMinutes`). `/contract pardon B` then `/contract outlaw B` is refused for 24 h (`OutlawRepeatCooldownHours`). A bounty on B is refunded to its poster on pardon, and within about 30 s after B's outlawry expires (set `OutlawHours` to 1 to test) | ☐ | — |
+| C17 | Honour mode: set `"ItemEscrow": false`, reload, post a delivery. A second player runs `/contract deliver <id>`; the poster can `/contract confirm <id>` (chronicle shows the honour debt) or `/contract cancel <id>` to refuse the claim. No item counts change in either case | ☐ | — |
+| C18 | Mercenary (needs a declared claim and three players): the claimant house leader posts `/contract post merc 5 "Stone"`; a player of another house runs `/contract accept <id>`; during the window that player kills a member of a crown-sworn house. After the window the reward arrives. Kills of the mercenary's own housemates, and a second kill of the same victim, do not count (`/contract info <id>` shows the kill count) | ☐ | If no kill is counted, see C13 (killer attribution) |
+| C19 | Chronicle flood guard: post and cancel bounties repeatedly (as admin, no post cooldown). After `ChronicleMaxPerHour` (default 20) contract lines in an hour, further contract lines appear only in the server log, not in `RealmChronicle.json` | ☐ | — |
 
-Testing alone covers only part of the plugins. Oaths, treaties, ransom and throne capture need a second player and are beyond this smoke test.
+Testing alone covers only part of the plugins. Oaths, treaties, ransom, throne capture, bounties and mercenary hire need more players and are beyond the solo part of this smoke test.
+
+---
+
+## D. Atmosphere preset (Mods)
+
+Run this only after A passes; it does not need Oxide. Stop the server first: the script refuses to run while it is running.
+
+1. From `mods\presets\grim-but-readable\`:
+   ```powershell
+   .\Apply-Preset.ps1 -WhatIf
+   ```
+   For each preset line it prints the `Mods\<Name>.cfg` it would go to, the server's own default from `Mods\*.defaults.cfg`, and any key the server does not list (skipped, never guessed).
+2. Run `.\Apply-Preset.ps1`, start the server, join, and look at fog, sky and night.
+3. Revert with `.\Apply-Preset.ps1 -Revert`, restart, and check that the defaults are back.
+
+| # | Check | Pass | Fail → do this |
+|---|---|---|---|
+| D1 | `-WhatIf` finds a target file for the `Atmosphere.*`, `Weather.*` keys. **Write down the file name** (UNVERIFIED: the name lives in scene data, not the DLL) | ☐ | If every key is skipped, the dedicated server does not list them (UNVERIFIED for a headless server); the preset cannot apply there |
+| D2 | Defaults printed by `-WhatIf` match the assumed white / `1` values, or the mismatches are written down | ☐ | Adjust the preset values relative to the real defaults |
+| D3 | After a restart the preset lines are still in `<Name>.cfg` and are **not** turned into `#` comments | ☐ | A `#`-commented line means the server did not recognise the key; report it |
+| D4 | In game: fog is visibly denser and cooler, and nights stay readable (you can see your own hands and nearby blocks without a torch at midnight) | ☐ | Lower `Atmosphere.FogDensity` or brighten `MoonColor` |
+| D5 | The decimals in the cfg still use a dot after the server rewrites `<Name>.defaults.cfg` (locale risk on a comma-decimal Windows) | ☐ | Set the Windows format to English (United States) for the server account and retest |
+| D6 | `-Revert` restores the original files exactly | ☐ | Restore from the `.realm-backup` files by hand |
 
 ---
 

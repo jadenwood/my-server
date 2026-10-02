@@ -9,10 +9,11 @@ Everything below comes from source code, from the shipped binaries, or from real
 | **[SRC]** | Read in Oxide source at the pinned commit. The location is cited. |
 | **[OPJ]** | Read in the patch manifest `resources/ReignOfKings.opj` (the list of hooks injected into the game). The line is cited. |
 | **[ASM]** | Confirmed in the .NET metadata of the DLLs inside the official 2.0.3867 release zip. This covers the patched game `Assembly-CSharp.dll`, `Oxide.Core.dll`, `Oxide.CSharp.dll` and `Oxide.ReignOfKings.dll`. Type names, members and signatures were dumped with a metadata reader. No code was executed. |
+| **[IL]** | Read in the **IL bodies** of the shipped patched `Assembly-CSharp.dll` (call sites, field reads, constants), decoded with `System.Reflection.Metadata`. This proves what the game code calls, not how it behaves at runtime. No code was executed. |
 | **[USE]** | Seen in real public RoK plugins (see Sources). Those plugins date from 2016–2018 and were written for older Oxide builds. |
 | **[UNVERIFIED]** | An inference or a gap. Test it on the owner's machine before relying on it. |
 
-Nothing here was compiled. This container has no dotnet/mono and no game install. See section 10 for what still needs a live test.
+The plugins are compile-checked against the shipped DLL metadata with `tools/plugin-compile-check/check.sh` (Roslyn, `-langversion:3`). Nothing has been run against a live game server. See section 10 for what still needs a live test.
 
 ---
 
@@ -302,6 +303,41 @@ Static extension methods on `Player`:
 - `KingsRealm.TaxMaximum` / `TaxMinimum` / `TaxDefault` are static `float` properties.
 - `Server.PlayerIsOnline(ulong)` and `PlayerIsOnline(string)`.
 - `CodeHatch.Thrones.Capture.PlayerCaptureManager` (an `EntityBehaviour`, read with `player.Entity.TryGet<PlayerCaptureManager>()` [USE `LockPickManager.cs:152`]): fields `bool Captured`, `bool HoldingCaptive`, `Entity Captive`, `ulong CaptivePlayerID`, `int CageID`; properties `Entity Captor`, `ulong CaptorPlayerID`, `CaptureType CurrentType`, `bool InCage`; methods `void Release()`, `void Abandon()`, `void BeCaptured(CaptureType, Entity)`. **[UNVERIFIED]** which player's manager has `Captured == true` (expected: the captive's own) and what `Release()` does when the server calls it (expected: drops a rope/chain bind; cages are `CageCaptureManager` and may need `RemovePrisoner`). CrownAndConsequences relies on this for automatic release after a ransom term; smoke test C8 checks it.
+
+### 3.9 Gathering, items and escrow (checked in IL) [ASM][IL]
+
+**No server-side gather hook exists, and none can be added from a plugin.**
+- The OPJ injects nothing into gathering [OPJ]. `ResourceMinedEvent` exists, but nothing in the DLL constructs it [IL].
+- All gather paths feed `ResourceHandler.AddPending(ResourceAmount)` and the public `Action<ResourceAmount> ResourceHandler.BeforeResourceAdded`. The callers are:
+  - `Harvester.Use` (tools)
+  - `CollectResourceOnInteract.CompleteGather`
+  - `CollectableResource.Collect`
+  - `SpriteObjectInstanceGiveResource.GiveDeathResources` / `GiveHealthPointResources` (creatures)
+  - `ItemListener.OnAddResource`
+- Every caller gets the handler from `Entity.LocalPlayer` or `Player.Local`, the **client's** own player. The result goes into the client inventory through `InvEquipment.TryCollectStack` [IL]. A dedicated server has no local player, so its yield cannot be observed or multiplied there.
+- The king's tax is applied on the same client path. `ResourceTax.BeforeResourceAdded` → `TaxResource` takes `Amount * TaxCollector.Tax` [IL], and `TaxCollector.Tax` reads `KingsScheme.GetTax()` [IL]. So the tax is a **fraction** of each gathered amount.
+- On the server, `KingsScheme.SetTax` → `SetKingsRealm` raises `KingUpdateEvent` through `EventManager.CallEvent` [IL]. It is the same call the game's own `AncientThroneListener.OnAncientThroneTax` makes [IL].
+- Consequence for Realm: the old "Harvest Tithe" multiplier was replaced by **Royal Stores** (`crown_provision`), which grants real items server-side (below).
+
+**Item API the game itself uses on the server** [ASM][IL]:
+
+| Purpose | Calls | Server-side precedent in the DLL |
+|---|---|---|
+| Player inventory | `player.GetInventory()` (`CodeHatch.Common.PlayerExtensions`) → `Container`; `.Contents` → `CodeHatch.ItemContainer.ItemCollection`. `GetInventory` is exactly `ItemContainerExtensions.GetContainerOfType(player.Entity, CollectionTypes.Inventory /*16*/)` | `ThronesCommandHandler.Give` (the `/give` admin command) |
+| Look up an item | `InvBlueprints.Instance.GetBlueprintForName(string name, bool tryResourceTypes, bool ignoreCase)` (exact name or `ResourceType` name); `GetBlueprintForResource(ResourceType)`; `InvBlueprints.GetBlueprintsContaining(string)` for search. All are pure lookups over the loaded blueprint list [IL] | `/give`, `ResourceTax.TaxResource` |
+| Count | `static int ItemCollection.AutoCount(ItemCollection, InvItemBlueprint)` | `StationListener.OnStationUpgradeRequest` |
+| Take N | `static bool ItemCollection.AutoSplit(ItemCollection, InvItemBlueprint, int quantity)`: splits from the last slots with broadcast; returns `true` when all N were taken | `StationListener.OnStationUpgradeRequest`, `FuelConsumer.RemoveFuel` |
+| Give N | `new InvGameItemStack(InvItemBlueprint, int count, null)`, at most `blueprint.TryGet<ContainerManagement>().StackLimit` per stack, then `static bool ItemCollection.AutoMergeAdd(ItemCollection, InvGameItemStack)` | `/give`, `TaxCollector.Deposit` |
+
+- `ResourceType` (namespace `CodeHatch`) is an enum. Values include `Wood=0`, `Stone=1`, `IronOre=12`, `Grain=42`, … `Flour=94`, `Count=95` [ASM].
+- **[UNVERIFIED]** Two things need an in-game check:
+  - That these server-side changes show in the client inventory at once. The game's own `/give` and station upgrade rely on it.
+  - Whether hotbar items count. Only the `Inventory` container (16) is read; `Hotbar` is 32.
+- Realm plugins measure each change with `AutoCount` before and after the call. They never trust the requested amount (`plugins/RealmContracts.cs` header).
+
+**Death hook detail** [OPJ][IL][USE]: `OnEntityDeath` is woven in at the start of `EntityHealth.InvokeDeath`. It runs after the god-mode check and before the game's `OnDeath` delegate [IL]. Its callers are `PlayerHealth.Kill`, `PlayerHealth.OnPlayerDeath` and `Health.Kill` [IL]. Use these members:
+- the victim: `evt.Entity.Owner`, with `evt.Entity.IsPlayer`
+- the killer: `evt.KillingDamage.DamageSource.Owner` (`Damage.DamageSource` is an `Entity` [ASM]; `DeathMessages.cs:20` [USE])
 
 ---
 
@@ -704,6 +740,8 @@ Points to check on the first real compile:
 | Declared rebellions in windows | `timer.Every` plus a schedule in config. Gate `OnThroneCapture`, `OnEntityHealthChange` and `OnCubeTakeDamage` with `Cancel()` outside windows. Prior art: `DeclarationOfWar.cs`, `WarTime.cs` in the plugin corpus. |
 | Bounded ransom | `OnPlayerCapture` (captor, target, `CaptureType`), `OnPlayerEscape`, `OnPlayerRelease`. Timers enforce the maximum hold. |
 | Realm Chronicle | Append to `oxide/data`, then POST to a local collector with `webrequest.Enqueue` or let a local process tail the data or log file (`LogToFile`). |
+| Gather bonus | **Not possible server-side** (section 3.9). Royal Stores grants items instead. |
+| Contracts and escrow | Item escrow via `AutoCount`/`AutoSplit`/`AutoMergeAdd` (section 3.9), bounty proof via `OnEntityDeath`. See `plugins/RealmContracts.cs`. |
 
 ---
 

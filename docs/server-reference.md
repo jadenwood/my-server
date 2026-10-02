@@ -160,7 +160,9 @@ Auto-generated on first start if missing. Ranks and permissions are defined here
 | Values are server-authoritative: "the player will then see the changes when they play the game". No client files are modified. | VERIFIED-SECONDARY | guide 575826710 snippet |
 | Categories described in the guide: **Players** (head/torso/leg max health, inventory slots, movement speed/stability, fall damage), **Environment / "Weather & Day-Night"** (colour of fog, sun and moon, speed of the day-night cycle, how often it is cloudy/raining/clear, atmosphere colours and fog density), **block tinting**, **Crafting** (amount crafted, craft time, craftable on/off, required resources), **Armor** (damage reduction, speed penalty, recoil reduction), **Blocks** (damageable by weapons, salvageable, salvage return %, salvage damage), **loot drops**. | VERIFIED-SECONDARY (category descriptions only) | guide 575826710 snippets |
 
-### Exact key names: NOT FOUND
+### Exact key names
+
+**Update:** the atmosphere, weather and clock keys (`Atmosphere.FogDensity`, `Atmosphere.FogColor`, `Atmosphere.SunColor`, `Atmosphere.MoonColor`, `Weather.*Weight`, `Clock.DaySpeed` and others) and the `.cfg` line format have since been read from the game DLL. See [mods-keys-from-dll.md](mods-keys-from-dll.md). The file name that holds those keys is still UNVERIFIED. The paragraph below is the original web-research result.
 
 The research turned up **no** verifiable key names for fog, sun/moon colour, day length, weather frequency, block tint, crafting, gather or building. It also could not confirm any file name other than `Players.cfg` / `Players.defaults.cfg`. Names such as `Environment.cfg` or `Crafting.cfg` are **guesses and are UNVERIFIED**. Get the real names from the generated `*.defaults.cfg` files on the owner's PC:
 

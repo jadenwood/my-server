@@ -2,11 +2,11 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createApp, parseOptions } from '../server.js';
+import { createApp, parseOptions, sanitizeEvent, EVENT_TYPES } from '../server.js';
 
 const SAMPLE = fileURLToPath(new URL('../sample-data', import.meta.url));
 let server;
@@ -95,4 +95,26 @@ test('missing data dir still serves empty but valid responses', async () => {
   const st = await (await fetch(`${b3}/api/state`)).json();
   assert.equal(st.king, null);
   s3.close();
+});
+
+test('contract events are accepted, unknown types are still dropped', () => {
+  for (const type of ['contract_posted', 'contract_fulfilled', 'contract_ended']) {
+    const e = sanitizeEvent({ id: 7, ts: '2026-10-02T10:00:00Z', type, title: 'A price on Wren', detail: 'D', actors: ['Wren'] });
+    assert.equal(e && e.type, type);
+  }
+  assert.equal(sanitizeEvent({ id: 8, ts: '2026-10-02T10:00:00Z', type: 'contract_secret', title: 'x', actors: [] }), null);
+});
+
+test('event types match the RealmChronicle plugin and the page labels', async () => {
+  const cs = await readFile(new URL('../../plugins/RealmChronicle.cs', import.meta.url), 'utf8');
+  const block = cs.match(/KnownTypes\s*=\s*\{([^}]*)\}/);
+  assert.ok(block, 'KnownTypes array not found in RealmChronicle.cs');
+  const pluginTypes = [...block[1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]).sort();
+  assert.deepEqual(pluginTypes, [...EVENT_TYPES].sort());
+
+  const js = await readFile(new URL('../public/assets/common.js', import.meta.url), 'utf8');
+  const meta = js.match(/TYPE_META = \{([\s\S]*?)\n\};/);
+  assert.ok(meta, 'TYPE_META not found in common.js');
+  const labelled = [...meta[1].matchAll(/^\s*([a-z_]+):/gm)].map((m) => m[1]).sort();
+  assert.deepEqual(labelled, [...EVENT_TYPES].sort());
 });

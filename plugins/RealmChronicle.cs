@@ -41,7 +41,8 @@ namespace Oxide.Plugins
         {
             "coronation", "abdication", "claim_declared", "rebellion_started", "rebellion_ended",
             "house_founded", "oath_sworn", "oath_broken", "treaty_signed", "treaty_broken",
-            "decree", "ransom_set", "ransom_paid", "released"
+            "decree", "ransom_set", "ransom_paid", "released",
+            "contract_posted", "contract_fulfilled", "contract_ended"
         };
 
         // [SRC] Oxide.CSharp src/CSharpPlugin.cs:91 (PluginReferenceAttribute; the field is filled with the plugin

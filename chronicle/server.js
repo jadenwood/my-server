@@ -12,10 +12,11 @@ const PUBLIC_DIR = resolve(HERE, 'public');
 // Default: the Realm test copy made by server/New-TestServer.ps1 (never the Steam install).
 const DEFAULT_DATA_DIR = 'G:\\RealmTest\\server\\oxide\\data';
 
-const EVENT_TYPES = new Set([
+export const EVENT_TYPES = new Set([
   'coronation', 'abdication', 'claim_declared', 'rebellion_started', 'rebellion_ended',
   'house_founded', 'oath_sworn', 'oath_broken', 'treaty_signed', 'treaty_broken',
   'decree', 'ransom_set', 'ransom_paid', 'released',
+  'contract_posted', 'contract_fulfilled', 'contract_ended',
 ]);
 
 const MIME = {

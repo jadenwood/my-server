@@ -7,6 +7,7 @@ const FILTERS = [
   { id: 'war', label: 'Claims & Rebellion' },
   { id: 'houses', label: 'Houses & Oaths' },
   { id: 'ransom', label: 'Ransom' },
+  { id: 'contracts', label: 'Contracts' },
 ];
 const POLL_MS = 8000;
 

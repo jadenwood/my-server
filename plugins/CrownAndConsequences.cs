@@ -11,14 +11,26 @@
 // Language level: C# 3 syntax only (no expression-bodied members, index initializers, $"", ?. or nameof),
 // against the .NET 3.5 API surface, so the file builds with any Oxide compiler generation.
 //
-// The plugin.Call API (GetKingName, GetGatherMultiplier, ...) MUST stay non-public: Oxide.CSharp
+// Royal Stores (formerly "Harvest Tithe"): no gather hook can exist server-side. In the shipped patched
+// Assembly-CSharp.dll every gather path (Harvester.Use, CollectResourceOnInteract, CollectableResource,
+// SpriteObjectInstanceGiveResource, ItemListener.OnAddResource) resolves ResourceHandler from
+// Entity.LocalPlayer / Player.Local, i.e. on the game CLIENT, and the OPJ injects no gather hook [IL][OPJ].
+// So the decree now grants real items server-side to online members of crown-sworn houses, using the
+// same calls the game's own server /give command makes (ThronesCommandHandler.Give: GetContainerOfType
+// (entity, CollectionTypes.Inventory) + ItemCollection.AutoMergeAdd) [IL]. See docs/oxide-rok-api.md 3.9.
+//
+// The plugin.Call API (GetKingName, GetOpenClaims, IsSwornToCrown, ...) MUST stay non-public: Oxide.CSharp
 // (CSharpPlugin.cs @49500b8, ctor) registers only NonPublic|Instance methods as callable hooks.
 
 using System;
 using System.Collections.Generic;
+using CodeHatch;                              // ResourceType enum [ASM]
 using CodeHatch.Common;                       // PlayerExtensions: SendMessage, SendError, GetGuild [ASM]
 using CodeHatch.Engine.Modules.SocialSystem;  // SocialAPI [ASM]
 using CodeHatch.Engine.Networking;            // Player, Server [ASM]
+using CodeHatch.Inventory.Blueprints;         // InvItemBlueprint [ASM]
+using CodeHatch.Inventory.Blueprints.Components; // ContainerManagement (StackLimit) [ASM; IL ThronesCommandHandler.Give]
+using CodeHatch.ItemContainer;                // Container, ItemCollection [ASM]
 using CodeHatch.Networking.Events;            // PlayerCaptureEvent (as in the doc skeleton) [ASM]
 using CodeHatch.Thrones.AncientThrone;        // AncientThroneCaptureEvent/ReleaseEvent/TaxEvent [ASM]
 using CodeHatch.Thrones.Capture;              // PlayerCaptureManager [ASM; USE LockPickManager.cs:152]
@@ -47,7 +59,8 @@ namespace Oxide.Plugins
         private const int MaxReleaseAttempts = 8;          // automatic game-release tries after a term ends (~2 min)
 
         private const string EffectProclamation = "proclamation";
-        private const string EffectGather = "gather_multiplier";
+        private const string EffectProvision = "crown_provision";
+        private const string LegacyEffectGather = "gather_multiplier";  // old Harvest Tithe; migrated on load
         private const string EffectTax = "tax_rate";
 
         private PluginConfig config;
@@ -63,8 +76,10 @@ namespace Oxide.Plugins
         {
             public string Id;
             public string Name;
-            public string Effect;              // proclamation | gather_multiplier | tax_rate
-            public float Value;                // multiplier for gather, tax value (game units) for tax_rate
+            public string Effect;              // proclamation | crown_provision | tax_rate
+            public float Value;                // crown_provision: units per member per grant; tax_rate: tax value
+            public string Item;                // crown_provision: ResourceType name (e.g. "Wood") or item name
+            public int IntervalMinutes;        // crown_provision: minutes between grants (first grant at issue)
             public int DurationMinutes;
             public int CooldownMinutes;
             public float AuthorityCost;
@@ -124,9 +139,7 @@ namespace Oxide.Plugins
                     GlobalDecreeCooldownMinutes = 15,
                     Decrees = new List<DecreeDef>
                     {
-                        new DecreeDef { Id = "tithe", Name = "Harvest Tithe", Effect = EffectGather, Value = 1.25f,
-                            DurationMinutes = 60, CooldownMinutes = 240, AuthorityCost = 40f,
-                            Proclamation = "By order of {king}, the fields of every house sworn to the crown yield more this hour." },
+                        StoresDecree(),
                         new DecreeDef { Id = "peace", Name = "King's Peace", Effect = EffectProclamation, Value = 0f,
                             DurationMinutes = 60, CooldownMinutes = 180, AuthorityCost = 20f,
                             Proclamation = "{king} proclaims the King's Peace. Let no blade be drawn on the roads of the realm." },
@@ -167,6 +180,15 @@ namespace Oxide.Plugins
             }
         }
 
+        // Replaces the old Harvest Tithe. Grants are real items (see header); the item name is UNVERIFIED until
+        // seen in-game: if the blueprint is not found the decree refuses to issue and costs nothing.
+        private static DecreeDef StoresDecree()
+        {
+            return new DecreeDef { Id = "stores", Name = "Royal Stores", Effect = EffectProvision, Value = 25f,
+                Item = "Wood", IntervalMinutes = 15, DurationMinutes = 60, CooldownMinutes = 240, AuthorityCost = 40f,
+                Proclamation = "{king} opens the royal stores. Every house sworn to the crown draws timber from them this hour." };
+        }
+
         protected override void LoadDefaultConfig()
         {
             Config.WriteObject(PluginConfig.Defaults(), true);
@@ -193,7 +215,28 @@ namespace Oxide.Plugins
             foreach (DecreeDef def in config.Decrees)
                 if (def != null && def.AuthorityCost < 0f) def.AuthorityCost = 0f;
             config.Decrees.RemoveAll(IsBrokenDecree);
+
+            // Migrate the old Harvest Tithe (an inert gather multiplier) to Royal Stores in existing configs.
+            bool migrated = false;
+            for (int i = 0; i < config.Decrees.Count; i++)
+            {
+                if (config.Decrees[i].Effect != LegacyEffectGather) continue;
+                PrintWarning("Decree '" + config.Decrees[i].Id + "' used gather_multiplier, which cannot work (no server-side "
+                    + "gather hook exists). Replaced with Royal Stores (crown_provision).");
+                config.Decrees[i] = StoresDecree();
+                migrated = true;
+            }
+            foreach (DecreeDef def in config.Decrees)
+            {
+                if (def.Effect != EffectProvision) continue;
+                if (def.IntervalMinutes <= 0) def.IntervalMinutes = 15;
+                if (def.Value < 1f) def.Value = 1f;
+                if (def.Value > MaxProvisionPerGrant) def.Value = MaxProvisionPerGrant;
+            }
+            if (migrated) Config.WriteObject(config, true);
         }
+
+        private const float MaxProvisionPerGrant = 500f;
 
         private static bool IsBrokenDecree(DecreeDef def)
         {
@@ -210,6 +253,8 @@ namespace Oxide.Plugins
             public DateTime ExpiresAt;
             public bool HasPreviousTax;
             public float PreviousTax;
+            public DateTime? NextGrantAt;      // crown_provision only
+            public int UnitsGranted;           // crown_provision: measured units actually placed in inventories
         }
 
         private class Claim
@@ -327,6 +372,9 @@ namespace Oxide.Plugins
                 { "RansomList", "  {0} held by {1}: {2} {3}{4}, free in {5} min" },
                 { "RansomNone", "No one is held for ransom." },
                 { "TaxCapped", "The realm's law caps the crown's tax at {0}." },
+                { "DecreeUnavailable", "That decree cannot be issued: the item '{0}' is not known to this server." },
+                { "ProvisionReceived", "The royal stores grant you {0} {1}." },
+                { "ProvisionFull", "Your packs are full; the royal stores could not give you {0}." },
                 { "AdminAlert", "[Crown] {0}" }
             }, this);
         }
@@ -539,6 +587,8 @@ namespace Oxide.Plugins
                 if (data.ActiveDecrees[i].ExpiresAt <= now) EndDecree(data.ActiveDecrees[i], true);
 
             EnforceTaxCap();
+            try { TickProvisions(now); }
+            catch (Exception ex) { PrintError("Royal Stores tick failed: " + ex.Message); }
             TickClaims(now);
         }
 
@@ -607,6 +657,11 @@ namespace Oxide.Plugins
 
             var issued = new ActiveDecree { Id = def.Id, ExpiresAt = now.AddMinutes(Math.Max(1, def.DurationMinutes)) };
             if (def.Effect == EffectTax && !ApplyTaxDecree(def, issued)) return;
+            if (def.Effect == EffectProvision)
+            {
+                if (ProvisionBlueprint(def) == null) { ReplyError(player, "DecreeUnavailable", def.Item ?? "?"); return; }
+                issued.NextGrantAt = now;                       // first grant right after the proclamation below
+            }
 
             data.Authority -= def.AuthorityCost;
             data.LastDecreeAt = now;
@@ -619,6 +674,7 @@ namespace Oxide.Plugins
             Broadcast(def.Name + ": " + text);
             Reply(player, "DecreeIssued", def.Name);
             if (!king) Puts("Proclamation by " + by);
+            if (def.Effect == EffectProvision) TickProvisions(now);
             SaveData();
         }
 
@@ -642,7 +698,78 @@ namespace Oxide.Plugins
                 if (crown != null) crown.SetTax(Math.Min(active.PreviousTax, TaxCap()));
             }
             if (announce && def != null)
-                Chronicle("decree", def.Name + " ends", "The decree of " + def.Name + " has run its course.", new string[0]);
+            {
+                string detail = "The decree of " + def.Name + " has run its course.";
+                if (def.Effect == EffectProvision)
+                    detail += " The crown gave " + active.UnitsGranted + " " + (def.Item ?? "goods") + " to its sworn houses.";
+                Chronicle("decree", def.Name + " ends", detail, new string[0]);
+            }
+        }
+
+        // Royal Stores: every IntervalMinutes while in force, each online member of a crown-sworn house receives
+        // Value units. Bounded: at most ceil(Duration / Interval) grants per member per decree.
+        private void TickProvisions(DateTime now)
+        {
+            foreach (ActiveDecree a in data.ActiveDecrees.ToArray())
+            {
+                DecreeDef def = FindDecree(a.Id);
+                if (def == null || def.Effect != EffectProvision || !a.NextGrantAt.HasValue) continue;
+                if (a.NextGrantAt.Value > now || a.ExpiresAt <= now) continue;
+                a.NextGrantAt = now.AddMinutes(def.IntervalMinutes);   // set first: a fault below never re-grants
+                InvItemBlueprint bp = ProvisionBlueprint(def);
+                if (bp == null) continue;
+                int per = (int)def.Value;
+                foreach (Player p in Server.ClientPlayers)
+                {
+                    // Players still loading (no entity yet) are skipped rather than told their packs are full.
+                    if (p == null || p.IsServer || p.Entity == null || !IsCrownSworn(HouseOf(p.Id))) continue;
+                    int given = GiveItems(p, bp, per);
+                    a.UnitsGranted += given;
+                    if (given > 0) Reply(p, "ProvisionReceived", given, bp.Name);
+                    if (given < per) ReplyError(p, "ProvisionFull", per - given);
+                }
+                SaveData();
+            }
+        }
+
+        // ResourceType name first: the lookup ResourceTax.TaxResource itself uses [IL]; then an exact item name.
+        private InvItemBlueprint ProvisionBlueprint(DecreeDef def)
+        {
+            if (string.IsNullOrEmpty(def.Item) || InvBlueprints.Instance == null) return null;
+            foreach (ResourceType rt in Enum.GetValues(typeof(ResourceType)))
+                if (string.Equals(rt.ToString(), def.Item, StringComparison.OrdinalIgnoreCase) && rt != ResourceType.Count)
+                {
+                    InvItemBlueprint byResource = InvBlueprints.Instance.GetBlueprintForResource(rt);
+                    if (byResource != null) return byResource;
+                }
+            return InvBlueprints.Instance.GetBlueprintForName(def.Item, true, true);
+        }
+
+        // Server-side grant, same calls as the game's /give (ThronesCommandHandler.Give) [IL]: player inventory via
+        // GetContainerOfType(entity, Inventory) (= PlayerExtensions.GetInventory [IL]), stacks capped at the
+        // blueprint's ContainerManagement.StackLimit, ItemCollection.AutoMergeAdd. The amount actually added is
+        // measured with ItemCollection.AutoCount, so a full inventory never counts as given.
+        // UNVERIFIED (in-game): that the client inventory view refreshes at once (the game's own /give relies on it).
+        private int GiveItems(Player player, InvItemBlueprint bp, int amount)
+        {
+            if (player == null || player.Entity == null || bp == null || amount <= 0) return 0;
+            Container inv = player.GetInventory();
+            ItemCollection items = inv != null ? inv.Contents : null;
+            if (items == null) return 0;
+            ContainerManagement cm = bp.TryGet<ContainerManagement>();
+            int limit = cm != null && cm.StackLimit > 0 ? cm.StackLimit : amount;
+            int given = 0;
+            while (given < amount)
+            {
+                int chunk = Math.Min(limit, amount - given);
+                int before = ItemCollection.AutoCount(items, bp);
+                ItemCollection.AutoMergeAdd(items, new InvGameItemStack(bp, chunk, null));
+                int added = ItemCollection.AutoCount(items, bp) - before;
+                if (added <= 0) break;
+                given += Math.Min(added, chunk);
+                if (added < chunk) break;
+            }
+            return given;
         }
 
         private void EndAllDecrees()
@@ -719,8 +846,9 @@ namespace Oxide.Plugins
         }
 
         // KingsRealm.TaxMaximum is a static float property (get_TaxMaximum in the patched Assembly-CSharp.dll
-        // metadata) [ASM]. UNVERIFIED: the tax units (fraction vs percent); set MaxTaxAbsolute in config once
-        // the real range is seen in-game.
+        // metadata) [ASM]. The tax is a fraction of each gathered amount: ResourceTax.TaxResource computes the
+        // crown's cut as Amount * TaxCollector.Tax, and TaxCollector.Tax reads KingsScheme.GetTax() [IL].
+        // UNVERIFIED: the runtime value of TaxMaximum (a static field set at load); MaxTaxAbsolute overrides it.
         private float GameTaxMaximum()
         {
             float max = KingsRealm.TaxMaximum;
@@ -1170,7 +1298,7 @@ namespace Oxide.Plugins
                 held.Amount = amount;
                 int left = MinutesUntil(held.ExpiresAt);
                 Reply(player, "RansomSet", held.CaptiveName, amount, config.RansomCurrency, left);
-                Player captive = Server.GetPlayerById(held.CaptiveId);
+                Player captive = OnlinePlayer(held.CaptiveId);                 // never message a disconnected player object
                 if (captive != null) Reply(captive, "RansomYouAreHeld", held.CaptorName, amount, config.RansomCurrency, left);
                 Chronicle("ransom_set", held.CaptorName + " names a ransom for " + held.CaptiveName,
                     "A ransom of " + amount + " " + config.RansomCurrency + " is demanded. By law the captive goes free within "
@@ -1406,19 +1534,21 @@ namespace Oxide.Plugins
 
         #region Public API (plugin.Call)
 
-        // Harvest Tithe exposes a multiplier for gather plugins to read. No gather hook is verified for
-        // RoK (doc section 2), so this plugin does not change yields itself.
-        private float GetGatherMultiplier(ulong playerId)
+        // Open claims as "house|status|windowStartIso|windowEndIso" (status: pending or active). Used by RealmContracts.
+        private string[] GetOpenClaims()
         {
-            float best = 1f;
-            if (data == null || data.KingId == 0) return best;
-            foreach (ActiveDecree a in data.ActiveDecrees)
-            {
-                DecreeDef d = FindDecree(a.Id);
-                if (d == null || d.Effect != EffectGather || a.ExpiresAt <= DateTime.UtcNow) continue;
-                if (IsCrownSworn(HouseOf(playerId)) && d.Value > best) best = d.Value;
-            }
-            return best;
+            var list = new List<string>();
+            if (data == null) return list.ToArray();
+            foreach (Claim c in data.Claims)
+                if (c.Status == "pending" || c.Status == "active")
+                    list.Add(c.House + "|" + c.Status + "|" + c.WindowStart.ToString("o") + "|" + c.WindowEnd.ToString("o"));
+            return list.ToArray();
+        }
+
+        // True if the house is the crown's house or sworn (via RealmHouses liege) to it.
+        private bool IsSwornToCrown(string house)
+        {
+            return data != null && IsCrownSworn(house);
         }
 
         private string GetKingName()

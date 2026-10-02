@@ -1,43 +1,86 @@
 # Realm Mods overrides
 
-This folder holds Realm's settings for the game's **built-in server-side Mods system**. Those settings are separate from the Oxide plugins. Nothing here changes game client files: the server sends the values, and players see them in their own unmodified Steam copy [VERIFIED-SECONDARY, guide 575826710].
+This folder holds Realm's settings for the game's **built-in server-side Mods system**. They are separate from the Oxide plugins. Nothing here changes game client files. The server sends the values to each player when they join, and the player's own unmodified Steam copy applies them. That is what the code shows, and the official guide (575826710) says the same.
+
+The key names come from the game's own code. Everything below is backed by [docs/mods-keys-from-dll.md](../docs/mods-keys-from-dll.md), which was read from the `Assembly-CSharp.dll` in the Oxide 2.0.3867 zip.
 
 ## How the built-in Mods system works
 
-These facts come from [docs/server-reference.md](../docs/server-reference.md), section 5. Most of them are **secondary**: they come from search snippets of the official "Server-Side Modding" guide (https://steamcommunity.com/sharedfiles/filedetails/?id=575826710), which could not be opened in full.
+1. The server creates `Mods\` next to the exe. Start the server **twice** before it appears (secondary source: the guide).
+2. Each handler `<Name>` has two files [code]:
+   - `<Name>.defaults.cfg` lists every key with its default value. The server **deletes and rewrites it every time it starts**, so editing it does nothing.
+   - `<Name>.cfg` holds your overrides.
+3. The line format is `key = 'value'`. **Keep the space before `=`**: the parser drops the character just before it. Keys are case-sensitive. Do not repeat a key.
+4. The server applies a key only if that key is also in `<Name>.defaults.cfg`. When the server starts it rewrites `<Name>.cfg`, and a key it does not recognise should come back as a `# ...` comment. That behaviour is inferred from the code and UNVERIFIED in practice.
+5. Stop the server before you edit, then start it again.
 
-1. The server creates a `Mods\` folder next to the exe. **You have to start the server at least twice** before the folder appears.
-2. Each category has two files:
-   - `<Name>.defaults.cfg` lists every setting at its default value. Treat it as reference only. Do not edit it.
-   - `<Name>.cfg` holds your overrides. It starts empty or close to empty.
-3. To change a value, copy **the whole line** from the `.defaults.cfg` file into the `.cfg` file, then edit only the value.
-4. Restart the server so the change takes effect.
+## The "grim but readable" preset
 
-The only file names confirmed in any source are `Players.cfg` and `Players.defaults.cfg`. The guide says other categories exist, including weather and day-night (fog colour and density, sun and moon colour, cycle speed, how often it is cloudy, raining or clear), crafting, armour, blocks and loot. **None of their file names or key names have been verified.** Any name such as `Environment.cfg` is a guess.
+Folder: `presets/grim-but-readable/`
 
-## What is in this folder
-
-| File | Status |
+| File | What it is |
 |---|---|
-| `templates/grim-but-readable.template.cfg` | **A template only.** It describes the "grim but readable" preset: more fog, cooler moonlight, a slightly longer dusk and more storms. Every key is a `<PLACEHOLDER>`, so do not copy it into a server. |
+| `grim-but-readable.cfg` | The override lines. Every key is proven from the DLL. |
+| `Apply-Preset.ps1` | Installs and reverts the preset on the **test copy** (`G:\RealmTest\server`). |
 
-No ready-to-use override file is included. Writing one would mean guessing key names, and the game might ignore a wrong name without any warning.
+What it changes:
 
-## Turning the template into real overrides on the owner's PC
+| Key | Value | Effect (from the code) |
+|---|---|---|
+| `Atmosphere.FogDensity` | `1.25` | Fog visibility is divided by 1.25, so sight distance in fog is about 20% shorter. |
+| `Atmosphere.FogColor` | `rgba(0.9,0.93,0.98,1)` | Multiplies each biome's fog colour: cool grey-blue, about 5% darker. |
+| `Atmosphere.MoonColor` | `rgba(0.84,0.91,1,1)` | Cooler moonlight, about 10% dimmer than white. It is kept bright enough to play at night. |
+| `Atmosphere.SunColor` | `rgba(0.95,0.94,0.91,1)` | Slightly greyed sunlight, about 6% dimmer. |
+| `Weather.ClearWeight` … `PrecipitateHeavyWeight` | `4 / 5 / 4 / 3 / 2` | Odds at each weather change are about: clear 23%, cloudy 43%, light rain 23%, medium rain 8%, heavy rain 1.4%. |
 
-1. Run the vanilla smoke test ([docs/smoke-test.md](../docs/smoke-test.md), part A). Start and stop the test server **twice**.
-2. In PowerShell, from the repo's `server\` folder, run:
+Not changed on purpose:
+
+- `Clock.DaySpeed`: there is no separate dusk key, and slowing the whole cycle is not wanted.
+- `Atmosphere.IslandLatitude` and `IslandLongitude`: these move the sun's path.
+- Ambient light: the Mods system has no key for it.
+
+The colour and fog values assume the scene defaults are white and `1`, which are the code defaults. `Apply-Preset.ps1` prints the server's real defaults next to each preset value and flags any difference, so you can adjust the preset.
+
+### Install (on the owner's PC)
+
+1. Make the test copy and start and stop it **twice** (see [docs/smoke-test.md](../docs/smoke-test.md), part A). This creates `G:\RealmTest\server\Mods\`.
+2. Make sure the server is **stopped**.
+3. In PowerShell:
    ```powershell
-   .\Export-ModKeys.ps1
+   cd <repo>\mods\presets\grim-but-readable
+   .\Apply-Preset.ps1 -WhatIf     # dry run: shows which Mods\<Name>.cfg each line goes to, and the defaults
+   .\Apply-Preset.ps1
    ```
-   The script only reads files. It lists every `Mods\*.defaults.cfg` in `G:\RealmTest\server` and copies out the lines that mention fog, moon, sun, day, weather, rain, storm, cloud and similar words. It writes them to `docs\mods-keys.txt`. Commit that file so the real key names are in the repo.
-3. For each `<PLACEHOLDER>` in the template, find the matching line in `mods-keys.txt`. Add the whole line to `G:\RealmTest\server\Mods\<Name>.cfg` with the target value. Only edit the **test copy**, never the Steam folder.
-4. Restart the test server. Join on `127.0.0.1` and check the preset at noon, at dusk, at night and in a storm. A player should still be visible 30 to 40 m away at night.
-5. When the values look right, save the real `<Name>.cfg` files in this folder (for example `mods/grim-but-readable/<Name>.cfg`), and replace the template's placeholders with the verified key names.
+   The script finds the right file by looking each key up in `Mods\*.defaults.cfg`, because the file name is not in the DLL (UNVERIFIED). A key the server does not list is skipped with a warning and never guessed. Before the first change to each `<Name>.cfg`, the script saves `<Name>.cfg.realm-backup`.
+4. Start the server and open the `Mods\<Name>.cfg` files the script wrote. Every preset line should still be there, not turned into a `# ...` comment.
+5. Join on `127.0.0.1` and check the look at noon, at dusk, at night and in rain. A player should still be visible 30 to 40 m away at night. If nights are too dark, raise `MoonColor` towards `rgba(0.9,0.95,1,1)` or lower `FogDensity` to `1.15`.
 
-## Unverified
+**Manual install, without the script:**
 
-- Every atmosphere, weather and day-night key name, and the file names those keys live in.
-- Whether override files use the same `key = 'value'` format as `Configuration\*.cfg`. Copying whole lines from `.defaults.cfg` works whatever the format is.
-- Whether a separate "dusk length" setting exists. If it does not, leave the overall day-night speed at its default and do not use it as a stand-in.
-- Whether the server reloads Mods files while it is running. Assume a restart is needed.
+1. Find the file that holds the keys:
+   ```powershell
+   Select-String -Path 'G:\RealmTest\server\Mods\*.defaults.cfg' -Pattern '^\s*(Atmosphere|Weather)\.'
+   ```
+2. Copy the matching lines from `grim-but-readable.cfg` into `Mods\<that name>.cfg`, **not** into `.defaults.cfg`.
+3. If the keys are spread over more than one file, put each line in its own file.
+
+Do not copy `grim-but-readable.cfg` into `Mods\` as a file of its own. A `grim-but-readable.cfg` handler does not exist, so the game ignores the file.
+
+### Revert
+
+With the server stopped, run:
+
+```powershell
+.\Apply-Preset.ps1 -Revert
+```
+
+This restores every `<Name>.cfg.realm-backup`. If a `<Name>.cfg` did not exist before the preset, it deletes that file. To revert by hand, delete the preset lines from `Mods\<Name>.cfg`, or delete the whole file, and restart: the defaults apply again.
+
+## Still UNVERIFIED (needs a running server)
+
+- **The Mods file name(s)** that hold the `Atmosphere.`, `Weather.` and `Clock.` keys. The name is set in Unity scene data. It may be something like `Environment.cfg`, but that is not proven, and the script finds it instead.
+- **Whether a headless dedicated server lists the `Atmosphere.*` keys at all.** `FogColor` and `FogDensity` exist only if the server scene has the fog controller. A key that is not listed cannot be applied, and the script reports it.
+- **The real scene defaults** for colours, weather weights and day speed. The code initializers are white, `1`, `0` and `1`, but the scene can override them.
+- **Locale:** colours and numbers are read and written with the server's current culture. On a comma-decimal Windows locale, `rgba(...)` lines and `1.25` can break. Check that the server's own `.defaults.cfg` uses dots.
+- **How long each weather lasts.** The weights set the odds, not the duration.
+- **Build match:** the keys were read from the Oxide-patched server `Assembly-CSharp.dll` (2.0.3867 zip). The owner's server build may differ. The script only writes keys that the owner's server itself lists, so a mismatch shows up as skipped keys, not as silent breakage.

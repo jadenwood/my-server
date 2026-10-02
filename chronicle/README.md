@@ -77,6 +77,7 @@ New events appear as an unrolling parchment proclamation with a wax seal and emb
 - `?since=<id>` returns events with `id > since`, oldest first, up to `limit`. Poll with the last id you saw.
 - A non-integer `since` returns 400.
 - Unknown event types and extra fields are dropped. Timestamps without a zone are read as UTC.
+- The known types are `EVENT_TYPES` in `server.js`. That set must equal `KnownTypes` in `plugins/RealmChronicle.cs` and the keys of `TYPE_META` in `public/assets/common.js`; `npm test` fails if they drift apart. The contract types are `contract_posted`, `contract_fulfilled` and `contract_ended`, written by `plugins/RealmContracts.cs`.
 
 If a file is half-written or unreadable, the service keeps serving the last good copy and adds an `X-Realm-Data-Warning` response header. A missing file gives empty but valid responses.
 

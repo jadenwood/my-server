@@ -15,6 +15,9 @@ export const TYPE_META = {
   ransom_set:        { label: 'Ransom',            icon: 'chain',   tone: 'blood', group: 'ransom' },
   ransom_paid:       { label: 'Ransom Paid',       icon: 'coins',   tone: 'gold',  group: 'ransom' },
   released:          { label: 'Set Free',          icon: 'chainX',  tone: 'moss',  group: 'ransom' },
+  contract_posted:    { label: 'A Price Is Set',   icon: 'scroll',  tone: 'iron',  group: 'contracts' },
+  contract_fulfilled: { label: 'Contract Paid',    icon: 'coins',   tone: 'gold',  group: 'contracts' },
+  contract_ended:     { label: 'Contract Lapses',  icon: 'scrollX', tone: 'iron',  group: 'contracts' },
 };
 
 export const metaFor = (type) => TYPE_META[type] || { label: 'Chronicle', icon: 'scroll', tone: 'iron', group: 'other' };

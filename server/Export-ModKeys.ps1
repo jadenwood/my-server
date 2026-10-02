@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Read-only: lists the real Mods\*.defaults.cfg files and their atmosphere-related lines, so the
-  mods\templates presets can be filled in with verified key names.
+  real Mods file names and scene defaults can be checked (see docs/mods-keys-from-dll.md).
 
 .DESCRIPTION
   The built-in Mods folder appears only after the server has been started at least twice
