@@ -21,7 +21,9 @@
 //
 // Abuse guards: bounties pay only while the target is still a public enemy, and are refunded once they are not
 // (checked only while a monarch reigns and the plugins that decide it are loaded); mercenary kills count once per
-// victim and never on the killer's own housemates; the owed ledger holds one entry per (player, item); the crown's
+// victim and never on the killer's own housemates; a bounty is not paid to a killer whose house is the target house's
+// liege, vassal or treaty partner (BountyExcludeAllies); a merc contract cannot be taken by the other side of the
+// rebellion and a hired sword may be dismissed before the window opens; the owed ledger holds one entry per (player, item); the crown's
 // outlaw proclamations have a global cooldown and a per-player repeat cooldown; contract lines in the chronicle are
 // capped per hour so they cannot push political history out of its retention window.
 //
@@ -99,6 +101,8 @@ namespace Oxide.Plugins
             public int OutlawProclaimCooldownMinutes = 10; // between two proclamations of outlawry by the crown
             public int OutlawRepeatCooldownHours = 24; // after outlawry ends (expiry or pardon) before the same player can be named again
             public int MaxListLines = 15;              // /contract list output cap
+            public bool BountyExcludeAllies = true;    // no bounty for a killer whose house is liege, vassal or treaty partner
+                                                       // of the target's house (the target's friends "collecting" on them)
             public List<string> AllowedItems;          // empty = any item; else exact item names only
         }
 
@@ -182,6 +186,7 @@ namespace Oxide.Plugins
             public string Name;
             public DateTime Until;
             public string By;
+            public bool Court;                         // placed by RealmLaws' court (ProclaimOutlaw), not the crown
         }
 
         private class StoredData
@@ -252,6 +257,8 @@ namespace Oxide.Plugins
                 { "NotLeader", "Only the head of your house may hire swords." },
                 { "NoRebellion", "Your house has no part in a pending or open rebellion." },
                 { "MercOwnHouse", "You cannot be hired by your own house." },
+                { "MercEnemySide", "Your house stands on the other side of this rebellion; House {0} will not hire you." },
+                { "MercDismissed", "House {0} has dismissed you before the fighting began; contract #{1} is withdrawn." },
                 { "NotMerc", "That is not a mercenary contract." },
                 { "NotDelivery", "That is not a delivery contract." },
                 { "AlreadyTaken", "That contract is already taken." },
@@ -297,6 +304,7 @@ namespace Oxide.Plugins
         {
             config = Config.ReadObject<PluginConfig>();
             ClampConfig();
+            bool existed = Interface.Oxide.DataFileSystem.ExistsDatafile(DataName);
             try
             {
                 data = Interface.Oxide.DataFileSystem.ReadObject<StoredData>(DataName);
@@ -304,8 +312,16 @@ namespace Oxide.Plugins
             catch (Exception ex)
             {
                 // Refuse to run on a damaged file rather than overwrite escrow records.
+                data = null;
                 PrintError("Could not read oxide/data/" + DataName + ".json: " + ex.Message + ". Fix or remove the file, then reload.");
                 throw;
+            }
+            if (data == null && existed)
+            {
+                // A file truncated to nothing parses to null. Starting empty would forget every escrowed reward and owed
+                // item (players' real goods), so refuse instead.
+                PrintError("oxide/data/" + DataName + ".json exists but holds no data. Nothing was written. Restore it or delete it, then reload.");
+                throw new InvalidOperationException("RealmContracts data file is empty");
             }
             if (data == null) data = new StoredData();
             if (data.Contracts == null) data.Contracts = new List<Contract>();
@@ -532,6 +548,8 @@ namespace Oxide.Plugins
             if (c.PosterId == player.Id.ToString()) { ReplyError(player, "NoSelf"); return; }
             string myHouse = HouseOf(player.Id);
             if (myHouse != null && string.Equals(myHouse, c.House, StringComparison.OrdinalIgnoreCase)) { ReplyError(player, "MercOwnHouse"); return; }
+            // A sword from the other side could take the contract only to lock the house's coin until the window ends.
+            if (myHouse != null && IsOtherSide(c, myHouse)) { ReplyError(player, "MercEnemySide", c.House); return; }
             c.Status = SAccepted;
             c.FulfillerId = player.Id.ToString();
             c.FulfillerName = player.Name;
@@ -604,10 +622,17 @@ namespace Oxide.Plugins
             // A hired sword cannot be dropped. An honour-mode delivery that someone has only *marked* as delivered
             // (nothing moved) may be refused by the poster; otherwise anyone could lock an order until it expires.
             bool honourClaim = c.Status == SAccepted && c.Type == TDelivery;
-            if (c.Status != SOpen && !honourClaim) { ReplyError(player, "CannotCancel"); return; }
+            // A hired sword may be dismissed only before the fighting begins (nothing has been earned yet); otherwise
+            // anyone could accept a house's contract just to lock its coin until the window ends.
+            bool mercUnstarted = c.Status == SAccepted && c.Type == TMerc && DateTime.UtcNow < c.WindowStart && c.Kills == 0;
+            if (c.Status != SOpen && !honourClaim && !mercUnstarted) { ReplyError(player, "CannotCancel"); return; }
+            string dismissed = mercUnstarted ? c.FulfillerId : null;
             Settle(c, false, honourClaim ? "The poster refused the delivery claimed by " + c.FulfillerName + "."
+                : mercUnstarted ? "House " + c.House + " dismissed " + c.FulfillerName + " before the fighting began."
                 : "Withdrawn by " + c.PosterName + ".");
             Reply(player, "Cancelled", c.Id);
+            Player merc = dismissed != null ? OnlineById(dismissed) : null;
+            if (merc != null) Reply(merc, "MercDismissed", c.House, c.Id);
         }
 
         private void CmdCollect(Player player)
@@ -841,6 +866,7 @@ namespace Oxide.Plugins
                     // A bounty is not paid to its own poster or to the target's housemates (collusion guard),
                     // and only while the target is still a public enemy (outlawry or claim may have ended since posting).
                     if (kid == c.PosterId || sameHouse) continue;
+                    if (config.BountyExcludeAllies && Allied(victimHouse, killerHouse)) continue;
                     if (EnemyReason(victim.Id, victim.Name) == null) continue;
                     c.FulfillerId = kid;
                     c.FulfillerName = killer.Name;
@@ -1115,6 +1141,58 @@ namespace Oxide.Plugins
             return data != null && data.Outlaws.TryGetValue(playerId, out o) && o != null && o.Until > DateTime.UtcNow;
         }
 
+        // Called by RealmLaws when its court sentences a player to outlawry, so the outlaw becomes a bounty target.
+        // A court verdict follows a trial and has its own quotas in RealmLaws, so the crown's proclamation cooldown,
+        // repeat cooldown and MaxOutlaws cap do not apply. Never shortens an existing sentence. No chronicle line:
+        // RealmLaws already writes the verdict. Returns true when the entry was added or extended.
+        private bool ProclaimOutlaw(string playerId, string name, int hours, string by)
+        {
+            if (data == null || string.IsNullOrEmpty(playerId) || hours < 1) return false;
+            ulong check;
+            if (!ulong.TryParse(playerId, NumberStyles.None, CultureInfo.InvariantCulture, out check)) return false;
+            if (hours > 24 * 90) hours = 24 * 90;
+            DateTime now = DateTime.UtcNow;
+            PruneOutlaws(now);
+            DateTime until = now.AddHours(hours);
+            Outlaw o;
+            if (data.Outlaws.TryGetValue(playerId, out o) && o != null)
+            {
+                if (o.Until >= until) return false;
+                o.Until = until;
+                o.Court = true;                            // the longer court sentence now governs; a court pardon lifts it
+            }
+            else
+            {
+                data.Outlaws[playerId] = new Outlaw
+                {
+                    Name = string.IsNullOrEmpty(name) ? playerId : name,
+                    Until = until,
+                    By = string.IsNullOrEmpty(by) ? "the court" : by,
+                    Court = true
+                };
+            }
+            SaveData();
+            return true;
+        }
+
+        // Called by RealmLaws when its court pardons a player. Lifts only outlawry the court placed here (the crown's
+        // own proclamations stay with /contract pardon), and withdraws open bounties as a crown pardon does.
+        private bool PardonOutlaw(string playerId)
+        {
+            Outlaw o;
+            if (data == null || string.IsNullOrEmpty(playerId) || !data.Outlaws.TryGetValue(playerId, out o)) return false;
+            if (o != null && !o.Court) return false;
+            DateTime now = DateTime.UtcNow;
+            data.Outlaws.Remove(playerId);
+            SetOutlawAgainAfter(playerId, now);
+            if (!IsEnemyId(playerId))
+                foreach (Contract c in data.Contracts.ToArray())
+                    if (c.Type == TBounty && c.Status == SOpen && c.TargetId == playerId)
+                        Settle(c, false, "The court pardoned " + (o != null ? o.Name : playerId) + ".");
+            SaveData();
+            return true;
+        }
+
         #endregion
 
         #region Helpers
@@ -1189,6 +1267,17 @@ namespace Oxide.Plugins
             if (RealmHouses == null) return null;
             string h = RealmHouses.Call("GetHouse", playerId.ToString()) as string;
             return string.IsNullOrEmpty(h) ? null : h;
+        }
+
+        // True when two different houses are bound to each other: one is the other's liege, or they hold a treaty.
+        private bool Allied(string a, string b)
+        {
+            if (a == null || b == null || RealmHouses == null || string.Equals(a, b, StringComparison.OrdinalIgnoreCase)) return false;
+            string la = RealmHouses.Call("GetLiege", a) as string, lb = RealmHouses.Call("GetLiege", b) as string;
+            if (la != null && string.Equals(la, b, StringComparison.OrdinalIgnoreCase)) return true;
+            if (lb != null && string.Equals(lb, a, StringComparison.OrdinalIgnoreCase)) return true;
+            object t = RealmHouses.Call("HasTreaty", a, b);
+            return t is bool && (bool)t;
         }
 
         private bool IsHouseLeader(Player player, string house)

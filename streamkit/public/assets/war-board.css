@@ -1,0 +1,157 @@
+/* War Board scene */
+.wb-header {
+  position: absolute;
+  left: 60px;
+  top: 34px;
+  display: flex;
+  align-items: baseline;
+  gap: 34px;
+}
+.wb-crown {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 34px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ember);
+}
+.wb-graph-wrap {
+  position: absolute;
+  left: 40px;
+  top: 96px;
+  width: 1340px;
+  height: 944px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+html:not(.opaque) .wb-graph-wrap {
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(38, 40, 45, 0.82), rgba(12, 13, 15, 0.9));
+}
+.no-ledger .wb-graph-wrap { left: 290px; }
+.no-title .wb-graph-wrap { top: 68px; }
+.wb-graph { width: 1340px; height: 860px; display: block; }
+
+.wb-legend {
+  display: flex;
+  gap: 34px;
+  justify-content: center;
+  font: 600 16px var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.wb-legend .lg { display: flex; align-items: center; gap: 10px; }
+.wb-legend i { width: 38px; height: 0; border-top: 4px solid; display: inline-block; }
+.lg-liege i { border-color: var(--ember); }
+.lg-treaty i { border-color: var(--moss-hot); }
+.lg-broken i { border-color: var(--blood-hot); border-top-style: dashed; }
+.lg-claim i { border-color: var(--blood-hot); border-top-width: 6px; }
+
+/* nodes */
+.node { transition: transform 1.2s cubic-bezier(.5, 0, .2, 1), opacity 0.8s; }
+.node.enter { opacity: 0; }
+.node .halo { fill: none; stroke: transparent; stroke-width: 6; }
+.node .disc { stroke-width: 5; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)); }
+.node .rim { fill: none; stroke: rgba(214, 160, 67, 0.55); stroke-width: 2; }
+.node .sigil-art { color: #f3e3b8; }
+.node .sigil-art .mono { font-size: 40px; }
+.node .name {
+  font: 700 26px var(--font-display);
+  fill: var(--text);
+  letter-spacing: 0.06em;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.85);
+  stroke-width: 5px;
+}
+.node .meta {
+  font: 500 18px var(--font-body);
+  fill: var(--text-dim);
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.85);
+  stroke-width: 4px;
+}
+.node.crown .disc { stroke: var(--ember-hot) !important; stroke-width: 7; }
+.node.crown .halo { stroke: var(--ember-glow); animation: halo 3.2s ease-in-out infinite; }
+.node .crown-mark { fill: var(--ember-hot); stroke: #5a3d10; stroke-width: 2; filter: drop-shadow(0 0 8px var(--ember-glow)); }
+.node.claiming .halo { stroke: rgba(199, 64, 47, 0.75); stroke-dasharray: 10 8; animation: spin 14s linear infinite; }
+.node.betrayed .disc { stroke: var(--blood-hot) !important; }
+.node.focused .name { fill: var(--ember-hot); }
+.node .breaker circle { fill: var(--blood); stroke: #000; stroke-width: 2; }
+.node .breaker text { font: 700 14px var(--font-display); fill: #fff; }
+.node.flash .disc { animation: flash 1.4s ease-out 2; }
+
+@keyframes halo { 50% { stroke-width: 14; stroke-opacity: 0.4; } }
+@keyframes spin { to { stroke-dashoffset: -180; } }
+@keyframes flash { 30% { filter: drop-shadow(0 0 26px var(--ember-hot)) brightness(1.5); } }
+
+/* edges */
+.edge { fill: none; stroke-linecap: round; }
+.edge.liege { stroke: var(--ember); stroke-width: 4; opacity: 0.9; }
+.edge.treaty { stroke: var(--moss-hot); stroke-width: 4; opacity: 0.85; }
+.edge.broken { stroke: var(--blood-hot); stroke-width: 4; stroke-dasharray: 0.02 0.015; opacity: 0.9; }
+.edge.claim { stroke: var(--blood-hot); stroke-width: 6; filter: drop-shadow(0 0 6px rgba(199, 64, 47, 0.6)); }
+.edge.claim.active { stroke-dasharray: 0.04 0.02; animation: march 2s linear infinite; }
+.edge.draw { stroke-dasharray: 1; animation: edge-draw 1.4s ease-out both; }
+@keyframes edge-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes march { to { stroke-dashoffset: -0.12; } }
+.edge-badge circle { fill: var(--iron-900); stroke-width: 2; }
+.edge-badge.active circle { stroke: var(--moss-hot); }
+.edge-badge.broken circle { stroke: var(--blood-hot); }
+.edge-badge text { font: 700 16px var(--font-display); }
+.edge-badge.active text { fill: var(--moss-hot); }
+.edge-badge.broken text { fill: var(--blood-hot); }
+.claim-tag rect { fill: var(--blood); stroke: #000; stroke-width: 2; }
+.claim-tag text { font: 700 17px var(--font-display); fill: #fff; letter-spacing: 0.06em; }
+.claim-tag.active rect { fill: var(--blood-hot); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.65; } }
+.empty { font: 600 30px var(--font-display); fill: var(--text-dim); }
+
+/* ledger */
+.wb-ledger {
+  position: absolute;
+  right: 40px;
+  top: 96px;
+  width: 470px;
+  height: 944px;
+  box-sizing: border-box;
+  padding: 18px 26px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.wb-ledger h2 {
+  font: 700 22px var(--font-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ember);
+  margin: 18px 0 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--iron-600);
+  padding-bottom: 8px;
+}
+.wb-ledger h2:first-child { margin-top: 4px; }
+.wb-ledger .none { color: var(--text-dim); font-style: italic; font-size: 21px; margin: 6px 0; }
+.wb-ledger .row { padding: 8px 0 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.wb-ledger .who {
+  font: 600 22px var(--font-display);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.wb-ledger .arrow { color: var(--text-dim); font: 500 18px var(--font-body); font-style: italic; }
+.wb-ledger .when { color: var(--text-dim); font-size: 20px; margin-top: 2px; }
+.wb-ledger .claim .when { color: #e9a08f; }
+.wb-ledger .claim.active .when { color: var(--blood-hot); font-weight: 600; }
+.wb-ledger .treaty.broken .when { color: var(--blood-hot); }
+.wb-ledger .dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--dye);
+  border: 2px solid var(--dye-light);
+  display: inline-block;
+}

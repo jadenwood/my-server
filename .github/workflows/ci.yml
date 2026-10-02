@@ -1,0 +1,172 @@
+# Realm CI: tests and checks only. No builds for release, no publishing, no deployment, no secrets.
+# Every job runs with a read-only token and touches nothing outside the runner. Actions are pinned to full commit
+# SHAs (a moved tag cannot change what runs here), and checkout does not leave the token in .git/config.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chronicle:
+    name: Chronicle tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: npm test (chronicle has no dependencies)
+        working-directory: chronicle
+        run: npm test
+
+  launcher:
+    name: Launcher check and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # The unit tests do not start Electron; skip its ~100 MB binary download.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: launcher/package-lock.json
+      - name: npm ci
+        working-directory: launcher
+        run: npm ci --no-audit --no-fund
+      - name: npm run check
+        working-directory: launcher
+        run: npm run check
+      - name: npm test
+        working-directory: launcher
+        run: npm test
+
+  plugins:
+    name: Plugin compile check (C# 3, Oxide 2.0.3867 metadata)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      # The script downloads the Oxide 2.0.3867 zip (sha256-checked) and the .NET/Roslyn NuGet
+      # packages it compiles with. Cache them between runs; the key changes when the script does.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/realm-compile-check
+          key: plugin-compile-check-${{ runner.os }}-${{ hashFiles('tools/plugin-compile-check/**') }}
+      - name: Compile plugins/*.cs (0 errors required)
+        run: bash tools/plugin-compile-check/check.sh
+      - name: Cross-plugin wiring, Chronicle types and chat commands (static)
+        run: node tools/realm-integration/check.mjs && node --test tools/realm-integration/check.test.mjs
+      - name: Cross-plugin behaviour test (RealmLaws + RealmContracts, mocks)
+        run: bash tools/realm-integration/cross-tests/run.sh
+
+  powershell:
+    name: PowerShell parse check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Parse every .ps1/.psm1/.psd1 (pwsh is preinstalled on ubuntu runners)
+        shell: bash
+        run: pwsh -NoProfile -NonInteractive -File tools/rok-sim/ci/ps-parse-check.ps1
+
+  rok-sim:
+    name: ROK simulator tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ matrix.node }}
+      # No npm install: the simulator has no dependencies, and the launcher modules its
+      # compatibility tests load use only Node built-ins.
+      - name: npm test
+        working-directory: tools/rok-sim
+        run: npm test
+
+  bot:
+    name: Discord bot tests (no Discord connection, no token)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: bot/package-lock.json
+      - name: npm ci
+        working-directory: bot
+        run: npm ci --no-audit --no-fund
+      - name: npm test
+        working-directory: bot
+        run: npm test
+
+  streamkit-analytics:
+    name: Stream scenes and analytics tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      # Both packages have no dependencies.
+      - name: streamkit npm test
+        working-directory: streamkit
+        run: npm test
+      - name: analytics npm test
+        working-directory: analytics
+        run: npm test
+
+  ops:
+    name: Ops scripts and Set-Mood tests (PowerShell 7, mocks and local fakes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      # Without -Rclone the S3 round-trip tests are reported as skipped; nothing leaves the runner.
+      - name: ops tests
+        shell: bash
+        run: pwsh -NoProfile -NonInteractive -File ops/tests/Run-OpsTests.ps1
+      - name: Windows PowerShell 5.1 syntax rules (ops scripts)
+        shell: bash
+        run: pwsh -NoProfile -NonInteractive -File ops/tests/Test-PS51Syntax.ps1
+      - name: Set-Mood tests
+        shell: bash
+        run: pwsh -NoProfile -NonInteractive -File mods/presets/tests/Test-SetMood.ps1

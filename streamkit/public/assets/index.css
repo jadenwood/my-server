@@ -1,0 +1,13 @@
+:root { color-scheme: dark; }
+body { margin: 0; background: #111215; color: #ece2c8; font: 18px/1.5 Georgia, 'Palatino Linotype', serif; }
+main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+h1, h2 { font-family: 'Palatino Linotype', Georgia, serif; color: #f4c96d; letter-spacing: 0.04em; }
+a { color: #f4c96d; font-weight: bold; }
+code { background: #1e2024; padding: 1px 6px; border-radius: 4px; font-size: 0.9em; }
+.scenes { list-style: none; padding: 0; display: grid; gap: 12px; }
+.scenes li { background: #1b1c20; border: 1px solid #34363c; border-radius: 6px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
+.scenes span { color: #b8ad94; }
+table { border-collapse: collapse; width: 100%; }
+td { border-top: 1px solid #34363c; padding: 8px 10px 8px 0; vertical-align: top; }
+td:first-child { white-space: nowrap; }
+@media (max-width: 560px) { td:first-child { white-space: normal; } }

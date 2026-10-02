@@ -19,6 +19,10 @@
 // same calls the game's own server /give command makes (ThronesCommandHandler.Give: GetContainerOfType
 // (entity, CollectionTypes.Inventory) + ItemCollection.AutoMergeAdd) [IL]. See docs/oxide-rok-api.md 3.9.
 //
+// Anti-abuse (tools/exploit-review/README.md): a claim needs a house of ClaimMinMembers and at most MaxOpenClaims
+// claims run at once (sham one-man rebellions would suspend the King's Peace, open raid hours and farm renown);
+// council changes are capped per day; council and ransom chronicle lines are capped per hour.
+//
 // The plugin.Call API (GetKingName, GetOpenClaims, IsSwornToCrown, ...) MUST stay non-public: Oxide.CSharp
 // (CSharpPlugin.cs @49500b8, ctor) registers only NonPublic|Instance methods as callable hooks.
 
@@ -127,6 +131,13 @@ namespace Oxide.Plugins
             public bool AllowSelfReleaseAfterExpiry;
             public int MaxRansomChanges;
             public int TaxLogCooldownMinutes;
+
+            // Anti-abuse (initialised here so configs written before these keys existed get the safe values).
+            public int ClaimMinMembers = 3;            // a house needs this many members to declare a claim (0 = any)
+            public int MaxOpenClaims = 3;              // pending + active claims at once, realm-wide (0 = no cap)
+            public int CouncilChangesPerDay = 8;       // appointments + dismissals per rolling 24 h (admins exempt)
+            public int MinorChronicleMaxPerHour = 12;  // council changes and ransom lines; coronations, claims and
+                                                       // decrees are never capped. Over the cap: server log only.
 
             public static PluginConfig Defaults()
             {
@@ -303,6 +314,7 @@ namespace Oxide.Plugins
             public Dictionary<string, DateTime> HouseLastClaim = new Dictionary<string, DateTime>();
             public Dictionary<string, Captivity> Captives = new Dictionary<string, Captivity>();
             public Dictionary<string, DateTime> CaptureImmunityUntil = new Dictionary<string, DateTime>();
+            public List<DateTime> CouncilChanges = new List<DateTime>();    // rolling 24 h, for CouncilChangesPerDay
         }
 
         private void SaveData()
@@ -350,6 +362,9 @@ namespace Oxide.Plugins
                 { "ClaimIsCrown", "Your house already holds the crown." },
                 { "ClaimOpen", "Your house already has an open claim." },
                 { "ClaimCooldown", "Your house may press a new claim in {0} h." },
+                { "ClaimTooFewMembers", "A claim to the crown needs a house of at least {0} sworn members (yours has {1})." },
+                { "ClaimTooMany", "The realm already has {0} claims pending or under way. Wait for one to end." },
+                { "CouncilDaily", "The council has been changed {0} times today; the realm will not stand more churn until tomorrow." },
                 { "ClaimNoWindow", "No rebellion window is configured." },
                 { "ClaimLine", "  House {0}: {1}, window {2} to {3} UTC" },
                 { "ClaimNone", "No claims are open." },
@@ -409,6 +424,7 @@ namespace Oxide.Plugins
         {
             config = Config.ReadObject<PluginConfig>();
             FillMissingConfig();
+            bool existed = Interface.Oxide.DataFileSystem.ExistsDatafile(DataName);
             try
             {
                 data = Interface.Oxide.DataFileSystem.ReadObject<StoredData>(DataName);
@@ -416,10 +432,18 @@ namespace Oxide.Plugins
             catch (Exception ex)
             {
                 // Refuse to run on a damaged file rather than overwrite crown, claims and captives.
+                data = null;
                 PrintError("Could not read oxide/data/" + DataName + ".json: " + ex.Message + ". Fix or remove the file, then reload.");
                 throw;
             }
+            if (data == null && existed)
+            {
+                // A file truncated to nothing (power lost mid-write) parses to null: refuse rather than reset the crown.
+                PrintError("oxide/data/" + DataName + ".json exists but holds no data. Nothing was written. Restore it or delete it, then reload.");
+                throw new InvalidOperationException("CrownAndConsequences data file is empty");
+            }
             if (data == null) data = new StoredData();
+            if (data.CouncilChanges == null) data.CouncilChanges = new List<DateTime>();
             if (data.DecreeLastIssued == null) data.DecreeLastIssued = new Dictionary<string, DateTime>();
             if (data.ActiveDecrees == null) data.ActiveDecrees = new List<ActiveDecree>();
             if (data.Council == null) data.Council = new Dictionary<string, ulong>();
@@ -891,6 +915,14 @@ namespace Oxide.Plugins
                     (int)Math.Ceiling(config.CouncilChangeCooldownSeconds - (nowCouncil - lastCouncilChange).TotalSeconds));
                 return;
             }
+            // A short per-change cooldown alone still lets a king appoint and dismiss an alt all day, one chronicle line a
+            // minute, until the realm's history is pushed out of the chronicle's retention window.
+            data.CouncilChanges.RemoveAll(delegate(DateTime t) { return (nowCouncil - t).TotalHours >= 24; });
+            if (!admin && config.CouncilChangesPerDay > 0 && data.CouncilChanges.Count >= config.CouncilChangesPerDay)
+            {
+                ReplyError(player, "CouncilDaily", data.CouncilChanges.Count);
+                return;
+            }
 
             if (sub == "appoint")
             {
@@ -904,7 +936,7 @@ namespace Oxide.Plugins
                 if (oldSeat != null) { data.Council.Remove(oldSeat); data.CouncilNames.Remove(oldSeat); }
                 data.Council[seat] = target.Id;
                 data.CouncilNames[seat] = target.Name;
-                Chronicle("decree", target.Name + " named " + seat,
+                ChronicleMinor("decree", target.Name + " named " + seat,
                     (data.KingName ?? player.Name) + " appoints " + target.Name + " as " + seat + ".",
                     new[] { target.Name, data.KingName ?? player.Name });
                 Broadcast(string.Format(Msg("Appointed", null), target.Name, seat));
@@ -923,11 +955,12 @@ namespace Oxide.Plugins
                 string name = data.CouncilNames[seat];
                 data.Council.Remove(seat);
                 data.CouncilNames.Remove(seat);
-                Chronicle("decree", name + " dismissed as " + seat,
+                ChronicleMinor("decree", name + " dismissed as " + seat,
                     name + " no longer serves as " + seat + ".", new[] { name, data.KingName ?? player.Name });
                 Broadcast(string.Format(Msg("Removed", null), name, seat));
             }
             lastCouncilChange = nowCouncil;
+            if (!admin) data.CouncilChanges.Add(nowCouncil);
             SaveData();
         }
 
@@ -999,6 +1032,21 @@ namespace Oxide.Plugins
                     ReplyError(player, "ClaimOpen");
                     return;
                 }
+            // Sham rebellions: a one-player (alt) house declaring claims would make its "rebels" bounty targets, suspend
+            // the King's Peace (RealmLaws) and hand the crown's side free renown for "defending" (RealmRenown).
+            int members = HouseMemberCount(player, myHouse);
+            if (config.ClaimMinMembers > 0 && members >= 0 && members < config.ClaimMinMembers)
+            {
+                ReplyError(player, "ClaimTooFewMembers", config.ClaimMinMembers, members);
+                return;
+            }
+            int openClaims = 0;
+            foreach (Claim c in data.Claims) if (c.Status != "ended") openClaims++;
+            if (config.MaxOpenClaims > 0 && openClaims >= config.MaxOpenClaims)
+            {
+                ReplyError(player, "ClaimTooMany", openClaims);
+                return;
+            }
 
             DateTime now = DateTime.UtcNow;
             DateTime lastClaim;
@@ -1073,6 +1121,8 @@ namespace Oxide.Plugins
             }
             // Keep history short; the chronicle holds the record.
             while (data.Claims.Count > 50 && data.Claims[0].Status == "ended") { data.Claims.RemoveAt(0); changed = true; }
+            foreach (string h in new List<string>(data.HouseLastClaim.Keys))     // one entry per house ever: keep it bounded
+                if ((now - data.HouseLastClaim[h]).TotalHours >= Math.Max(1, config.ClaimCooldownHours)) { data.HouseLastClaim.Remove(h); changed = true; }
             if (changed) SaveData();
         }
 
@@ -1300,7 +1350,7 @@ namespace Oxide.Plugins
                 Reply(player, "RansomSet", held.CaptiveName, amount, config.RansomCurrency, left);
                 Player captive = OnlinePlayer(held.CaptiveId);                 // never message a disconnected player object
                 if (captive != null) Reply(captive, "RansomYouAreHeld", held.CaptorName, amount, config.RansomCurrency, left);
-                Chronicle("ransom_set", held.CaptorName + " names a ransom for " + held.CaptiveName,
+                ChronicleMinor("ransom_set", held.CaptorName + " names a ransom for " + held.CaptiveName,
                     "A ransom of " + amount + " " + config.RansomCurrency + " is demanded. By law the captive goes free within "
                     + left + " minutes.", new[] { held.CaptorName, held.CaptiveName });
             }
@@ -1312,7 +1362,7 @@ namespace Oxide.Plugins
                 DateTime grace = now.AddMinutes(config.RansomPaidGraceMinutes);
                 if (grace < held.ExpiresAt) held.ExpiresAt = grace;
                 Reply(player, "RansomPaid", held.CaptiveName, MinutesUntil(held.ExpiresAt));
-                Chronicle("ransom_paid", "The ransom of " + held.CaptiveName + " is paid",
+                ChronicleMinor("ransom_paid", "The ransom of " + held.CaptiveName + " is paid",
                     held.CaptorName + " accepts " + (held.Amount > 0 ? held.Amount + " " + config.RansomCurrency : "payment")
                     + " for " + held.CaptiveName + ".", new[] { held.CaptorName, held.CaptiveName });
             }
@@ -1349,7 +1399,7 @@ namespace Oxide.Plugins
                     c.Expired = true;
                     changed = true;
                     GrantImmunity(c.CaptiveId);
-                    Chronicle("released", c.CaptiveName + " goes free",
+                    ChronicleMinor("released", c.CaptiveName + " goes free",
                         "The term of captivity has ended; by the realm's law " + c.CaptiveName + " is free.",
                         new[] { c.CaptiveName, c.CaptorName });
                     Player captor = OnlinePlayer(c.CaptorId);
@@ -1470,7 +1520,7 @@ namespace Oxide.Plugins
             data.Captives.Remove(c.CaptiveId.ToString());
             GrantImmunity(c.CaptiveId);
             if (logRelease)
-                Chronicle("released", c.CaptiveName + " goes free", c.CaptiveName + " " + how,
+                ChronicleMinor("released", c.CaptiveName + " goes free", c.CaptiveName + " " + how,
                     new[] { c.CaptiveName, c.CaptorName });
             SaveData();
         }
@@ -1576,6 +1626,13 @@ namespace Oxide.Plugins
             return data != null && RebellionActive();
         }
 
+        // Realm time offset of the rebellion windows (config "UtcOffsetHours"). RealmEvents schedules in
+        // UTC and uses this to warn when Crown Night no longer lines up with the Saturday window.
+        private double GetUtcOffsetHours()
+        {
+            return config != null ? config.UtcOffsetHours : 0;
+        }
+
         private string GetCouncilSeat(ulong playerId)
         {
             return data != null ? SeatOf(playerId) : null;
@@ -1595,6 +1652,22 @@ namespace Oxide.Plugins
             Puts("[" + type + "] " + title + " - " + detail);
             if (RealmChronicle == null) return;
             RealmChronicle.Call("Log", type, title, detail, actors ?? new string[0]);
+        }
+
+        // Council changes and ransom lines: capped per hour (MinorChronicleMaxPerHour) so captures of an alt or council
+        // churn cannot flood the chronicle, which keeps only its last MaxEvents entries. Over the cap: server log only.
+        private readonly Queue<DateTime> minorChronicleTimes = new Queue<DateTime>();
+        private void ChronicleMinor(string type, string title, string detail, string[] actors)
+        {
+            DateTime now = DateTime.UtcNow;
+            while (minorChronicleTimes.Count > 0 && (now - minorChronicleTimes.Peek()).TotalHours >= 1) minorChronicleTimes.Dequeue();
+            if (config.MinorChronicleMaxPerHour >= 0 && minorChronicleTimes.Count >= config.MinorChronicleMaxPerHour)
+            {
+                Puts("[" + type + "] (not chronicled: MinorChronicleMaxPerHour) " + title + " - " + detail);
+                return;
+            }
+            minorChronicleTimes.Enqueue(now);
+            Chronicle(type, title, detail, actors);
         }
 
         // Optional: lets RealmChronicle refresh RealmState.king/house immediately. RealmChronicle may also
@@ -1620,6 +1693,18 @@ namespace Oxide.Plugins
             GuildScheme guilds = SocialAPI.Get<GuildScheme>();
             Guild g = guilds != null ? guilds.TryGetGuildByMember(playerId) : null;
             return g != null ? g.Name : null;
+        }
+
+        // Members of the house (RealmHouses when loaded, else the player's game guild); -1 if it cannot be told.
+        private int HouseMemberCount(Player player, string house)
+        {
+            if (RealmHouses != null)
+            {
+                List<string> ids = RealmHouses.Call("GetMembers", house) as List<string>;
+                return ids != null ? ids.Count : -1;
+            }
+            Guild g = player.GetGuild();
+            return g != null ? g.Members().MemberCount() : -1;
         }
 
         private bool IsCrownSworn(string house)

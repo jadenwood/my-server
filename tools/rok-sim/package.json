@@ -1,0 +1,14 @@
+{
+  "name": "realm-rok-sim",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fake Reign of Kings dedicated server (ROK.exe stand-in) for Linux tests and CI. Not the game.",
+  "main": "index.js",
+  "bin": { "rok-sim": "bin/rok-sim.js" },
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node bin/rok-sim.js -batchmode -nographics -silentcrash",
+    "test": "node --test --test-concurrency=1 test/*.test.js"
+  },
+  "license": "UNLICENSED"
+}

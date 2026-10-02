@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" data-field="#7a3a1a" data-house="Ashgrove" data-metal="#e8dfc8" viewBox="0 0 256 256">
+  <title>House Ashgrove: the White Oak</title>
+  <desc>
+    A white oak, roots and branches spread, on a rust-red field. Original artwork for the Realm of Ostreval.
+  </desc>
+  <defs>
+    <radialGradient id="ashgrove-field" cx="50%" cy="42%" r="62%">
+      <stop offset="0" stop-color="#8f5a3f"/>
+      <stop offset=".6" stop-color="#7a3a1a"/>
+      <stop offset="1" stop-color="#4c2410"/>
+    </radialGradient>
+  </defs>
+  <circle cx="128" cy="128" r="126" fill="#131417"/>
+  <circle cx="128" cy="128" r="118" fill="url(#ashgrove-field)"/>
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#d6a043" stroke-width="3"/>
+  <g id="charge" transform="translate(28 26)">
+    <g fill="#e8dfc8">
+<!--crown of leaves-->
+      <circle cx="100" cy="40" r="24"/>
+      <circle cx="72" cy="50" r="22"/>
+      <circle cx="128" cy="50" r="22"/>
+      <circle cx="50" cy="74" r="20"/>
+      <circle cx="150" cy="74" r="20"/>
+      <circle cx="78" cy="78" r="22"/>
+      <circle cx="122" cy="78" r="22"/>
+      <circle cx="100" cy="66" r="24"/>
+<!--trunk-->
+      <path d="M92 150c2-22 2-38-2-54h20c-4 16-4 32-2 54Z"/>
+    </g>
+<!--branches showing through the crown-->
+    <g fill="none" stroke="#7a3a1a" stroke-linecap="round" stroke-width="4">
+      <path d="M100 100V46m0 38c-12-8-22-18-28-32m28 32c12-8 22-18 28-32M86 92c-14-4-26-10-34-18m62 18c14-4 26-10 34-18m-48-10c-8-6-12-14-14-24m14 24c8-6 12-14 14-24"/>
+    </g>
+<!--roots-->
+    <g fill="none" stroke="#e8dfc8" stroke-linecap="round" stroke-width="5">
+      <path d="M94 146c-10 14-28 20-48 22m50-18c-6 14-16 24-24 34m28-34v38m4-38c6 14 16 24 24 34m-22-38c10 14 28 20 48 22"/>
+    </g>
+    <path stroke="#e8dfc8" stroke-linecap="round" stroke-width="3" d="M40 158h120" opacity=".55"/>
+  </g>
+</svg>

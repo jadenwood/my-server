@@ -1,0 +1,34 @@
+{
+  "_readme": "Copy to G:\\RealmOps\\realm-ops.json (OUTSIDE the repo) and fill in. Values containing REPLACE are refused. See ops/README.md.",
+  "opsRoot": "G:\\RealmOps",
+  "steamcmdDir": "G:\\RealmOps\\steamcmd",
+  "masterServerDir": "G:\\SteamLibrary\\steamapps\\common\\Reign Of Kings Dedicated Server",
+  "oxideZip": "G:\\RealmOps\\downloads\\Oxide.ReignOfKings-2.0.3867.zip",
+  "servers": [
+    { "name": "Realm 1", "root": "G:\\RealmTest\\server", "host": "127.0.0.1", "gamePort": 7350, "queryPort": 27015 },
+    { "name": "Realm 2", "root": "G:\\Realm\\s2", "host": "127.0.0.1", "gamePort": 7351, "queryPort": 27016, "monitor": false, "backup": false }
+  ],
+  "backup": {
+    "localDir": "G:\\RealmOps\\backups",
+    "keepLocal": 14,
+    "includeConfig": true,
+    "rcloneExe": "G:\\RealmOps\\rclone\\rclone.exe",
+    "rcloneConfig": "G:\\RealmOps\\secure\\rclone.conf",
+    "remote": "REPLACE-remote-name:REPLACE-bucket-name/realm",
+    "remoteKeepDays": 30,
+    "remoteMinKeep": 7,
+    "verifyByDownload": false,
+    "snapshotRetrySeconds": 20,
+    "rcloneExtraArgs": []
+  },
+  "monitor": {
+    "discordWebhookUrl": "REPLACE_WITH_DISCORD_WEBHOOK_URL",
+    "mention": "",
+    "failuresBeforeAlert": 2,
+    "remindEveryMinutes": 60,
+    "timeoutMs": 2000,
+    "backupMaxAgeHours": 26,
+    "notifyBackupFailures": true,
+    "logRetentionDays": 30
+  }
+}

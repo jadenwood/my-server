@@ -1,0 +1,247 @@
+{
+  "Version": 1,
+  "Date": "2026-09-28",
+  "Server": "realm-1",
+  "SaltId": "6454b2b8",
+  "Degraded": false,
+  "SampleMinutes": 5,
+  "Active": [
+    "3e07dc7ea4c0478e",
+    "6f41e62ac57344a2",
+    "06b3191408080b06",
+    "425ebc49e206176d",
+    "85cad1834a6a7f60",
+    "13b6cc5fc3d77d07",
+    "7e04dec7d5cb1e6d",
+    "ccb48feb75ec8153",
+    "d662e4ba9bed5337",
+    "0a997e8501037bf1",
+    "cef594ffbc7c4fbb",
+    "a1725363af59978b",
+    "73a93c0df443dbce",
+    "c9fb3a886da0f22a",
+    "7ad404cf2cd52565",
+    "98f3b4647cf27725",
+    "4e19f4b741721b77",
+    "abcb306d9facaafb"
+  ],
+  "New": [],
+  "Sessions": [
+    {
+      "S": 1790529330,
+      "D": 24300,
+      "E": "leave"
+    },
+    {
+      "S": 1790541030,
+      "D": 12600,
+      "E": "leave"
+    },
+    {
+      "S": 1790541930,
+      "D": 11700,
+      "E": "leave"
+    },
+    {
+      "S": 1790544630,
+      "D": 9000,
+      "E": "leave"
+    },
+    {
+      "S": 1790548230,
+      "D": 5400,
+      "E": "leave"
+    },
+    {
+      "S": 1790548230,
+      "D": 5400,
+      "E": "leave"
+    },
+    {
+      "S": 1790548230,
+      "D": 5400,
+      "E": "leave"
+    },
+    {
+      "S": 1790549130,
+      "D": 4500,
+      "E": "leave"
+    },
+    {
+      "S": 1790550030,
+      "D": 3600,
+      "E": "leave"
+    },
+    {
+      "S": 1790550930,
+      "D": 2700,
+      "E": "leave"
+    },
+    {
+      "S": 1790551830,
+      "D": 1800,
+      "E": "leave"
+    },
+    {
+      "S": 1790551830,
+      "D": 1800,
+      "E": "leave"
+    },
+    {
+      "S": 1790552730,
+      "D": 900,
+      "E": "leave"
+    },
+    {
+      "S": 1790552730,
+      "D": 900,
+      "E": "leave"
+    },
+    {
+      "S": 1790552730,
+      "D": 900,
+      "E": "leave"
+    },
+    {
+      "S": 1790552730,
+      "D": 900,
+      "E": "leave"
+    },
+    {
+      "S": 1790552730,
+      "D": 900,
+      "E": "leave"
+    },
+    {
+      "S": 1790552730,
+      "D": 900,
+      "E": "leave"
+    }
+  ],
+  "Joins": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "Leaves": [
+    18,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "Concurrency": [
+    {
+      "T": 1790553600,
+      "N": 18,
+      "Max": 18
+    }
+  ],
+  "Deaths": {},
+  "Houses": {
+    "Varrow": {
+      "Active": [
+        "3e07dc7ea4c0478e",
+        "425ebc49e206176d",
+        "7e04dec7d5cb1e6d",
+        "a1725363af59978b",
+        "73a93c0df443dbce"
+      ],
+      "Seconds": 150,
+      "Sessions": 0,
+      "Deaths": 0,
+      "Kills": 0
+    },
+    "Dunmere": {
+      "Active": [
+        "6f41e62ac57344a2",
+        "ccb48feb75ec8153",
+        "d662e4ba9bed5337",
+        "4e19f4b741721b77"
+      ],
+      "Seconds": 120,
+      "Sessions": 0,
+      "Deaths": 0,
+      "Kills": 0
+    },
+    "Ashgrove": {
+      "Active": [
+        "06b3191408080b06",
+        "0a997e8501037bf1"
+      ],
+      "Seconds": 60,
+      "Sessions": 0,
+      "Deaths": 0,
+      "Kills": 0
+    },
+    "Merrin": {
+      "Active": [
+        "13b6cc5fc3d77d07",
+        "cef594ffbc7c4fbb"
+      ],
+      "Seconds": 60,
+      "Sessions": 0,
+      "Deaths": 0,
+      "Kills": 0
+    },
+    "Halloran": {
+      "Active": [
+        "c9fb3a886da0f22a"
+      ],
+      "Seconds": 30,
+      "Sessions": 0,
+      "Deaths": 0,
+      "Kills": 0
+    },
+    "Corvane": {
+      "Active": [
+        "abcb306d9facaafb"
+      ],
+      "Seconds": 30,
+      "Sessions": 0,
+      "Deaths": 0,
+      "Kills": 0
+    }
+  },
+  "Dropped": {}
+}

@@ -1,0 +1,138 @@
+{
+  "Version": 1,
+  "Date": "2026-09-01",
+  "Server": "realm-1",
+  "SaltId": "11111111",
+  "Degraded": false,
+  "SampleMinutes": 5,
+  "Active": [
+    "aaaaaaaaaaaaaaaa",
+    "bbbbbbbbbbbbbbbb",
+    "cccccccccccccccc",
+    "dddddddddddddddd"
+  ],
+  "New": [
+    "aaaaaaaaaaaaaaaa",
+    "bbbbbbbbbbbbbbbb",
+    "cccccccccccccccc",
+    "dddddddddddddddd"
+  ],
+  "Sessions": [
+    {
+      "S": 1788289200,
+      "D": 3600,
+      "E": "leave"
+    },
+    {
+      "S": 1788289800,
+      "D": 600,
+      "E": "leave"
+    },
+    {
+      "S": 1788290400,
+      "D": 7200,
+      "E": "recovered"
+    },
+    {
+      "S": 1788292800,
+      "D": 120,
+      "E": "leave"
+    }
+  ],
+  "Joins": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    1,
+    0,
+    0,
+    0
+  ],
+  "Leaves": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    4,
+    0,
+    0
+  ],
+  "Concurrency": [
+    {
+      "T": 1788289200,
+      "N": 1,
+      "Max": 2
+    },
+    {
+      "T": 1788289500,
+      "N": 3,
+      "Max": 3
+    },
+    {
+      "T": 1788292800,
+      "N": 4,
+      "Max": 5
+    }
+  ],
+  "Deaths": {
+    "pvp": 2,
+    "fall": 1
+  },
+  "Houses": {
+    "Varrow": {
+      "Active": [
+        "aaaaaaaaaaaaaaaa",
+        "bbbbbbbbbbbbbbbb",
+        "cccccccccccccccc"
+      ],
+      "Seconds": 10800,
+      "Sessions": 3,
+      "Deaths": 2,
+      "Kills": 1
+    },
+    "Tiny": {
+      "Active": [
+        "dddddddddddddddd"
+      ],
+      "Seconds": 120,
+      "Sessions": 1,
+      "Deaths": 1,
+      "Kills": 1
+    }
+  },
+  "Dropped": {}
+}

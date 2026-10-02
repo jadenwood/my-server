@@ -1,0 +1,6 @@
+# Secrets and per-install state never go in the repo.
+.env
+.env.*
+!.env.example
+state/
+node_modules/

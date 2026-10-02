@@ -1,0 +1,14 @@
+{
+  "_comment": "Copy to schedule.json and make it match your server's configs: rebellionWindows and utcOffsetHours from oxide/config/CrownAndConsequences.json (RebellionWindows, UtcOffsetHours), events from oxide/config/RealmEvents.json (Schedule). Values below are the plugin defaults. Start the server with --schedule schedule.json.",
+  "utcOffsetHours": 0,
+  "rebellionWindows": [
+    { "day": "Wednesday", "start": "19:00", "durationMinutes": 60 },
+    { "day": "Saturday", "start": "19:00", "durationMinutes": 90 }
+  ],
+  "events": [
+    { "id": "crown-night", "name": "Crown Night", "days": ["Saturday"], "startUtc": "19:00", "durationMinutes": 90 },
+    { "id": "royal-tournament", "name": "The Royal Tournament", "days": ["Friday"], "startUtc": "19:00", "durationMinutes": 60 },
+    { "id": "kings-hunt", "name": "The King's Hunt", "days": ["Wednesday"], "startUtc": "21:00", "durationMinutes": 60 },
+    { "id": "truce", "name": "The Truce of the Realm", "days": ["Sunday"], "startUtc": "12:00", "durationMinutes": 240 }
+  ]
+}

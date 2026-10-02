@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Realm Heraldry</title>
+<meta name="description" content="The Realm of Ostreval art pack: house sigils, banners, shields, logo, event icons, Discord and social art.">
+<link rel="icon" href="logo/realm-favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=EB+Garamond:ital,wght@0,500;1,500&display=swap">
+<style>
+:root{--bg:#131417;--panel:#1b1c20;--raised:#26282d;--line:#34363c;--text:#ecdfbf;--muted:#a3a6ad;--gold:#d6a043;--tile:#0c0d0f;
+--display:Cinzel,'Trajan Pro',Georgia,serif;--body:'EB Garamond',Garamond,Georgia,serif}
+:root[data-theme="light"]{--bg:#ecdfbf;--panel:#e0cfa4;--raised:#e0cfa4;--line:#b99a62;--text:#2a1c0f;--muted:#5b4630;--gold:#9c6a1e;--tile:#131417}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#ecdfbf;--panel:#e0cfa4;--raised:#e0cfa4;--line:#b99a62;--text:#2a1c0f;--muted:#5b4630;--gold:#9c6a1e;--tile:#131417}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:19px/1.5 var(--body)}
+a{color:var(--gold)}
+code{overflow-wrap:anywhere}
+main{max-width:1180px;margin:0 auto;padding:24px 16px 80px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:18px}
+.top img{height:84px;max-width:100%}
+.top .light-only{display:none}
+:root[data-theme="light"] .top .dark-only{display:none}:root[data-theme="light"] .top .light-only{display:block}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .top .dark-only{display:none}:root:not([data-theme="dark"]) .top .light-only{display:block}}
+button{font:600 14px var(--display);letter-spacing:.08em;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px 14px;cursor:pointer}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:.04em;margin:0}
+h2{font-size:24px;margin:48px 0 6px;color:var(--gold)}
+h2+p{margin:0 0 18px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.tile{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.tile .frame{background:var(--tile);height:240px;display:grid;place-items:center;padding:16px;min-width:0}
+.tile.on-light .frame{background:#ecdfbf}
+.tile img{max-width:100%;max-height:208px;width:auto;height:auto;min-width:0;object-fit:contain;display:block}
+.wide img{max-height:none}
+.tile figcaption{padding:10px 12px;display:grid;gap:2px;font-size:15px}
+.tile figcaption b{font:600 14px var(--display);letter-spacing:.06em;text-transform:capitalize}
+.tile figcaption span{color:var(--muted)}
+.houses{display:grid;gap:18px}
+.house{background:linear-gradient(135deg,var(--dye-dark),var(--dye) 60%,var(--dye-light));border-radius:12px;padding:18px;color:#ecdfbf;border:1px solid #0c0d0f}
+.house header{display:flex;gap:6px 18px;align-items:baseline;flex-wrap:wrap;margin-bottom:12px}
+.house h3{font-size:22px}
+.house .words{margin:0;font-style:italic}
+.house .sig{margin:0;color:var(--metal);font-family:var(--display);font-size:14px;letter-spacing:.08em}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.house .tile{background:rgba(12,13,15,.55);border-color:rgba(0,0,0,.4);color:#ecdfbf}
+.house .tile .frame{background:rgba(12,13,15,.35)}
+.house .tile figcaption span{color:#e0cfa4}
+.house a{color:#f4c96d}
+.swatches{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-wrap:wrap;gap:8px 18px}
+.sw{display:flex;align-items:center;gap:8px;font-size:15px;flex-wrap:wrap}
+.sw span{width:26px;height:26px;border-radius:6px;border:1px solid rgba(0,0,0,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.sw code{font-size:13px;opacity:.85}
+.sw small{flex-basis:100%;color:var(--muted);font-size:14px;padding-left:34px}
+.palette{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px 18px}
+.icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.icon-tile{margin:0;display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+.ic{display:flex;gap:8px;align-items:center;color:var(--gold)}
+.ic svg{width:48px;height:48px}
+.icon-tile figcaption{display:grid;font-size:14px;line-height:1.3}
+.icon-tile b{font:600 14px var(--display)}
+.icon-tile small,.icon-tile span{color:var(--muted)}
+.wide{grid-column:1/-1}
+.wide .frame{height:auto;max-height:none}
+pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:14px}
+footer{margin-top:56px;color:var(--muted);font-size:15px;border-top:1px solid var(--line);padding-top:16px}
+@media (max-width:640px){.trio{grid-template-columns:1fr 1fr}.top img{height:56px}.tile .frame{height:180px}.tile img{max-height:148px}.wide img{max-height:none}}
+</style>
+</head>
+<body>
+<main>
+<div class="top">
+  <img class="dark-only" src="logo/realm-logo-horizontal-dark.svg" alt="Realm">
+  <img class="light-only" src="logo/realm-logo-horizontal-light.svg" alt="Realm">
+  <button type="button" id="theme">Toggle parchment / iron</button>
+</div>
+<p>The heraldry of the Realm of Ostreval: original art for the six great houses, the Realm logo, Chronicle event icons, and Discord and social images. Every file is a hand-written SVG; PNG previews are in <code>png/</code>. Usage rules are in <a href="../docs/brand.md">docs/brand.md</a>.</p>
+
+<h2>The six great houses</h2>
+<p>Field colours are the exact dyes the Chronicle overlay gives each house name, so these match what viewers see on stream.</p>
+<section class="houses">
+<article class="house" style="--dye:#4a2347;--dye-light:#674664;--dye-dark:#2e162c;--metal:#9aa0a8">
+  <header><h3>House Varrow</h3><p class="words">“We Stand Our Ground.”</p><p class="sig">The Iron Stag</p></header>
+  <div class="trio"><figure class="tile "><div class="frame"><img src="sigils/varrow.svg" alt="Sigil"></div><figcaption><b>Sigil</b><span><a href="sigils/varrow.svg">SVG</a> · <a href="png/sigils/varrow-512.png">512</a> · <a href="png/sigils/varrow-128.png">128</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="banners/varrow.svg" alt="Banner"></div><figcaption><b>Banner</b><span><a href="banners/varrow.svg">SVG</a> · <a href="png/banners/varrow@2x.png">2x</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="shields/varrow.svg" alt="Shield"></div><figcaption><b>Shield</b><span><a href="shields/varrow.svg">SVG</a> · <a href="png/shields/varrow@2x.png">2x</a></span></figcaption></figure></div>
+  <ul class="swatches"><li class="sw"><span style="background:#4a2347"></span><b>Field (overlay dye)</b><code>#4a2347</code></li><li class="sw"><span style="background:#9aa0a8"></span><b>Metal: iron grey</b><code>#9aa0a8</code></li><li class="sw"><span style="background:#c58fc0"></span><b>Discord role</b><code>#c58fc0</code></li></ul>
+</article>
+<article class="house" style="--dye:#7a3a1a;--dye-light:#8f5a3f;--dye-dark:#4c2410;--metal:#e8dfc8">
+  <header><h3>House Ashgrove</h3><p class="words">“Deep Roots, Long Memory.”</p><p class="sig">The White Oak</p></header>
+  <div class="trio"><figure class="tile "><div class="frame"><img src="sigils/ashgrove.svg" alt="Sigil"></div><figcaption><b>Sigil</b><span><a href="sigils/ashgrove.svg">SVG</a> · <a href="png/sigils/ashgrove-512.png">512</a> · <a href="png/sigils/ashgrove-128.png">128</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="banners/ashgrove.svg" alt="Banner"></div><figcaption><b>Banner</b><span><a href="banners/ashgrove.svg">SVG</a> · <a href="png/banners/ashgrove@2x.png">2x</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="shields/ashgrove.svg" alt="Shield"></div><figcaption><b>Shield</b><span><a href="shields/ashgrove.svg">SVG</a> · <a href="png/shields/ashgrove@2x.png">2x</a></span></figcaption></figure></div>
+  <ul class="swatches"><li class="sw"><span style="background:#7a3a1a"></span><b>Field (overlay dye)</b><code>#7a3a1a</code></li><li class="sw"><span style="background:#e8dfc8"></span><b>Metal: bone white</b><code>#e8dfc8</code></li><li class="sw"><span style="background:#e08a5c"></span><b>Discord role</b><code>#e08a5c</code></li></ul>
+</article>
+<article class="house" style="--dye:#2c3b42;--dye-light:#4e5a60;--dye-dark:#1b2529;--metal:#c9ced4">
+  <header><h3>House Corvane</h3><p class="words">“Every Secret Has a Price.”</p><p class="sig">The Black Raven</p></header>
+  <div class="trio"><figure class="tile "><div class="frame"><img src="sigils/corvane.svg" alt="Sigil"></div><figcaption><b>Sigil</b><span><a href="sigils/corvane.svg">SVG</a> · <a href="png/sigils/corvane-512.png">512</a> · <a href="png/sigils/corvane-128.png">128</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="banners/corvane.svg" alt="Banner"></div><figcaption><b>Banner</b><span><a href="banners/corvane.svg">SVG</a> · <a href="png/banners/corvane@2x.png">2x</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="shields/corvane.svg" alt="Shield"></div><figcaption><b>Shield</b><span><a href="shields/corvane.svg">SVG</a> · <a href="png/shields/corvane@2x.png">2x</a></span></figcaption></figure></div>
+  <ul class="swatches"><li class="sw"><span style="background:#2c3b42"></span><b>Field (overlay dye)</b><code>#2c3b42</code></li><li class="sw"><span style="background:#c9ced4"></span><b>Metal: silver</b><code>#c9ced4</code></li><li class="sw"><span style="background:#8fb0bf"></span><b>Discord role</b><code>#8fb0bf</code></li></ul>
+</article>
+<article class="house" style="--dye:#5a5a22;--dye-light:#747445;--dye-dark:#383815;--metal:#e0b56a">
+  <header><h3>House Dunmere</h3><p class="words">“The Tide Returns.”</p><p class="sig">The Drowned Bell</p></header>
+  <div class="trio"><figure class="tile "><div class="frame"><img src="sigils/dunmere.svg" alt="Sigil"></div><figcaption><b>Sigil</b><span><a href="sigils/dunmere.svg">SVG</a> · <a href="png/sigils/dunmere-512.png">512</a> · <a href="png/sigils/dunmere-128.png">128</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="banners/dunmere.svg" alt="Banner"></div><figcaption><b>Banner</b><span><a href="banners/dunmere.svg">SVG</a> · <a href="png/banners/dunmere@2x.png">2x</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="shields/dunmere.svg" alt="Shield"></div><figcaption><b>Shield</b><span><a href="shields/dunmere.svg">SVG</a> · <a href="png/shields/dunmere@2x.png">2x</a></span></figcaption></figure></div>
+  <ul class="swatches"><li class="sw"><span style="background:#5a5a22"></span><b>Field (overlay dye)</b><code>#5a5a22</code></li><li class="sw"><span style="background:#e0b56a"></span><b>Metal: tarnished bronze</b><code>#e0b56a</code></li><li class="sw"><span style="background:#b8b85a"></span><b>Discord role</b><code>#b8b85a</code></li></ul>
+</article>
+<article class="house" style="--dye:#3a2a1a;--dye-light:#5a4c3f;--dye-dark:#241a10;--metal:#e27a2c">
+  <header><h3>House Halloran</h3><p class="words">“Loyal Until the Last Coal.”</p><p class="sig">The Ember Hound</p></header>
+  <div class="trio"><figure class="tile "><div class="frame"><img src="sigils/halloran.svg" alt="Sigil"></div><figcaption><b>Sigil</b><span><a href="sigils/halloran.svg">SVG</a> · <a href="png/sigils/halloran-512.png">512</a> · <a href="png/sigils/halloran-128.png">128</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="banners/halloran.svg" alt="Banner"></div><figcaption><b>Banner</b><span><a href="banners/halloran.svg">SVG</a> · <a href="png/banners/halloran@2x.png">2x</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="shields/halloran.svg" alt="Shield"></div><figcaption><b>Shield</b><span><a href="shields/halloran.svg">SVG</a> · <a href="png/shields/halloran@2x.png">2x</a></span></figcaption></figure></div>
+  <ul class="swatches"><li class="sw"><span style="background:#3a2a1a"></span><b>Field (overlay dye)</b><code>#3a2a1a</code></li><li class="sw"><span style="background:#e27a2c"></span><b>Metal: ember orange</b><code>#e27a2c</code></li><li class="sw"><span style="background:#ec8a3c"></span><b>Discord role</b><code>#ec8a3c</code></li></ul>
+</article>
+<article class="house" style="--dye:#24472d;--dye-light:#47644f;--dye-dark:#162c1c;--metal:#c9ced4">
+  <header><h3>House Merrin</h3><p class="words">“Slip the Net.”</p><p class="sig">The Silver Eel</p></header>
+  <div class="trio"><figure class="tile "><div class="frame"><img src="sigils/merrin.svg" alt="Sigil"></div><figcaption><b>Sigil</b><span><a href="sigils/merrin.svg">SVG</a> · <a href="png/sigils/merrin-512.png">512</a> · <a href="png/sigils/merrin-128.png">128</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="banners/merrin.svg" alt="Banner"></div><figcaption><b>Banner</b><span><a href="banners/merrin.svg">SVG</a> · <a href="png/banners/merrin@2x.png">2x</a></span></figcaption></figure><figure class="tile "><div class="frame"><img src="shields/merrin.svg" alt="Shield"></div><figcaption><b>Shield</b><span><a href="shields/merrin.svg">SVG</a> · <a href="png/shields/merrin@2x.png">2x</a></span></figcaption></figure></div>
+  <ul class="swatches"><li class="sw"><span style="background:#24472d"></span><b>Field (overlay dye)</b><code>#24472d</code></li><li class="sw"><span style="background:#c9ced4"></span><b>Metal: silver</b><code>#c9ced4</code></li><li class="sw"><span style="background:#6fbf85"></span><b>Discord role</b><code>#6fbf85</code></li></ul>
+</article>
+</section>
+
+<h2>Logo</h2>
+<p>Use the dark versions on iron and dark photos, and the light versions on parchment or white. Keep clear space of half the height of the REALM capitals on every side. The one-colour emblem takes the text colour; in an image tag it falls back to black, as shown here.</p>
+<section class="grid">
+<figure class="tile "><div class="frame"><img src="logo/realm-logo-horizontal-dark.svg" alt="logo horizontal dark"></div><figcaption><b>logo horizontal dark</b><span><a href="logo/realm-logo-horizontal-dark.svg">SVG</a> · <a href="png/logo/realm-logo-horizontal-dark@2x.png">2x</a></span></figcaption></figure>
+<figure class="tile on-light"><div class="frame"><img src="logo/realm-logo-horizontal-light.svg" alt="logo horizontal light"></div><figcaption><b>logo horizontal light</b><span><a href="logo/realm-logo-horizontal-light.svg">SVG</a> · <a href="png/logo/realm-logo-horizontal-light@2x.png">2x</a></span></figcaption></figure>
+<figure class="tile "><div class="frame"><img src="logo/realm-logo-stacked-dark.svg" alt="logo stacked dark"></div><figcaption><b>logo stacked dark</b><span><a href="logo/realm-logo-stacked-dark.svg">SVG</a> · <a href="png/logo/realm-logo-stacked-dark@2x.png">2x</a></span></figcaption></figure>
+<figure class="tile on-light"><div class="frame"><img src="logo/realm-logo-stacked-light.svg" alt="logo stacked light"></div><figcaption><b>logo stacked light</b><span><a href="logo/realm-logo-stacked-light.svg">SVG</a> · <a href="png/logo/realm-logo-stacked-light@2x.png">2x</a></span></figcaption></figure>
+<figure class="tile "><div class="frame"><img src="logo/realm-wordmark-dark.svg" alt="wordmark dark"></div><figcaption><b>wordmark dark</b><span><a href="logo/realm-wordmark-dark.svg">SVG</a> · <a href="png/logo/realm-wordmark-dark@2x.png">2x</a></span></figcaption></figure>
+<figure class="tile on-light"><div class="frame"><img src="logo/realm-wordmark-light.svg" alt="wordmark light"></div><figcaption><b>wordmark light</b><span><a href="logo/realm-wordmark-light.svg">SVG</a> · <a href="png/logo/realm-wordmark-light@2x.png">2x</a></span></figcaption></figure>
+<figure class="tile "><div class="frame"><img src="logo/realm-emblem.svg" alt="emblem"></div><figcaption><b>emblem</b><span><a href="logo/realm-emblem.svg">SVG</a> · <a href="png/logo/realm-emblem-1024.png">1024</a> · <a href="png/logo/realm-emblem-512.png">512</a> · <a href="png/logo/realm-emblem-192.png">192</a></span></figcaption></figure>
+<figure class="tile on-light"><div class="frame"><img src="logo/realm-emblem-mono.svg" alt="emblem mono"></div><figcaption><b>emblem mono</b><span><a href="logo/realm-emblem-mono.svg">SVG</a> · <a href="png/logo/realm-emblem-mono-512-gold.png">512-gold</a> · <a href="png/logo/realm-emblem-mono-512-ink.png">512-ink</a></span></figcaption></figure>
+<figure class="tile "><div class="frame"><img src="logo/realm-favicon.svg" alt="favicon"></div><figcaption><b>favicon</b><span><a href="logo/realm-favicon.svg">SVG</a> · <a href="png/logo/realm-favicon-32.png">32</a> · <a href="png/logo/realm-favicon-192.png">192</a></span></figcaption></figure>
+</section>
+
+<h2>Event icons</h2>
+<p>24px grid, 1.75 stroke, <code>currentColor</code>. They take the text colour of wherever they are placed. A sprite of all icons is at <a href="sprite/icons.svg">sprite/icons.svg</a>; a contact sheet is at <a href="png/icons/contact-sheet.png">png/icons/contact-sheet.png</a>.</p>
+<section class="icons">
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Abdication (the crown falls)</title>
+  <path d="M4 18.5h16m-15 0L4 8l4.5 3.5L12 5l3.5 6.5L20 8l-1 10.5M3 3l18 18"/>
+</svg>
+</div><figcaption><b>abdication</b><small>Abdication (the crown falls)</small><span><a href="icons/abdication.svg">SVG</a> · <a href="png/icons/abdication-24.png">24</a> · <a href="png/icons/abdication-48.png">48</a> · <a href="png/icons/abdication-96.png">96</a> · <a href="png/icons/abdication-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Claim (raised at the Hearth)</title>
+  <path d="M6 21V3m0 1h12l-3 4 3 4H6m-2.5 9h5"/>
+</svg>
+</div><figcaption><b>claim</b><small>Claim (raised at the Hearth)</small><span><a href="icons/claim.svg">SVG</a> · <a href="png/icons/claim-24.png">24</a> · <a href="png/icons/claim-48.png">48</a> · <a href="png/icons/claim-96.png">96</a> · <a href="png/icons/claim-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Coins (ransom or contract paid)</title>
+  <ellipse cx="9.5" cy="6" rx="6" ry="2.5"/>
+  <path d="M3.5 6v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V6"/>
+  <path d="M3.5 10v4c0 1.4 2.7 2.5 6 2.5"/>
+  <circle cx="16.5" cy="16.5" r="4.5"/>
+  <circle cx="16.5" cy="16.5" r="1.75"/>
+</svg>
+</div><figcaption><b>coins</b><small>Coins (ransom or contract paid)</small><span><a href="icons/coins.svg">SVG</a> · <a href="png/icons/coins-24.png">24</a> · <a href="png/icons/coins-48.png">48</a> · <a href="png/icons/coins-96.png">96</a> · <a href="png/icons/coins-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Contract (bounty, delivery or sword-for-hire)</title>
+  <path d="M14 3H6a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 6 21h5m3-18v4h4"/>
+  <path d="m14 3 4 4v3M8 9h4m-4 3h6m-6 3h2.5"/>
+  <circle cx="17" cy="17" r="4"/>
+  <path d="M15.5 16.5 17 15l1.5 1.5L17 19z"/>
+</svg>
+</div><figcaption><b>contract</b><small>Contract (bounty, delivery or sword-for-hire)</small><span><a href="icons/contract.svg">SVG</a> · <a href="png/icons/contract-24.png">24</a> · <a href="png/icons/contract-48.png">48</a> · <a href="png/icons/contract-96.png">96</a> · <a href="png/icons/contract-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Crown (coronation)</title>
+  <path d="M4 18.5h16m-15 0L4 8l4.5 3.5L12 5l3.5 6.5L20 8l-1 10.5"/>
+  <circle cx="12" cy="14.5" r="1.25" fill="currentColor" stroke="none"/>
+</svg>
+</div><figcaption><b>crown</b><small>Crown (coronation)</small><span><a href="icons/crown.svg">SVG</a> · <a href="png/icons/crown-24.png">24</a> · <a href="png/icons/crown-48.png">48</a> · <a href="png/icons/crown-96.png">96</a> · <a href="png/icons/crown-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Decree (a proclamation read by the heralds)</title>
+  <path d="M3 7.5v9m0-9 7 3.5h9M3 16.5l7-3.5h9m1.5-3v4"/>
+  <path d="M10 13v6.5l2.5-1.5 2.5 1.5V13"/>
+</svg>
+</div><figcaption><b>decree</b><small>Decree (a proclamation read by the heralds)</small><span><a href="icons/decree.svg">SVG</a> · <a href="png/icons/decree-24.png">24</a> · <a href="png/icons/decree-48.png">48</a> · <a href="png/icons/decree-96.png">96</a> · <a href="png/icons/decree-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>House (founded or claimed)</title>
+  <path d="M12 21c-4.5-1.8-7-5-7-9.5V5l7-2 7 2v6.5c0 4.5-2.5 7.7-7 9.5m0-14v10m-3.5-6h7"/>
+</svg>
+</div><figcaption><b>house</b><small>House (founded or claimed)</small><span><a href="icons/house.svg">SVG</a> · <a href="png/icons/house-24.png">24</a> · <a href="png/icons/house-48.png">48</a> · <a href="png/icons/house-96.png">96</a> · <a href="png/icons/house-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Oath broken (renounced)</title>
+  <path d="M10.5 3h3M12 3v5M7 8h10M7 8v1.5M17 8v1.5M12 8v5l1.5-1m-2 3.5 1 1.5 2.5 2M4 21h16"/>
+</svg>
+</div><figcaption><b>oath-broken</b><small>Oath broken (renounced)</small><span><a href="icons/oath-broken.svg">SVG</a> · <a href="png/icons/oath-broken-24.png">24</a> · <a href="png/icons/oath-broken-48.png">48</a> · <a href="png/icons/oath-broken-96.png">96</a> · <a href="png/icons/oath-broken-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Oath (bending the knee)</title>
+  <path d="M10.5 3h3M12 3v5M7 8h10M7 8v1.5M17 8v1.5M12 8v11m-8 2h16M8 19.5 9 21m7-1.5L15 21"/>
+</svg>
+</div><figcaption><b>oath</b><small>Oath (bending the knee)</small><span><a href="icons/oath.svg">SVG</a> · <a href="png/icons/oath-24.png">24</a> · <a href="png/icons/oath-48.png">48</a> · <a href="png/icons/oath-96.png">96</a> · <a href="png/icons/oath-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Ransom (the ransom-glass)</title>
+  <path d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9"/>
+  <path fill="currentColor" d="M9.5 18.5h5L12 16z"/>
+</svg>
+</div><figcaption><b>ransom</b><small>Ransom (the ransom-glass)</small><span><a href="icons/ransom.svg">SVG</a> · <a href="png/icons/ransom-24.png">24</a> · <a href="png/icons/ransom-48.png">48</a> · <a href="png/icons/ransom-96.png">96</a> · <a href="png/icons/ransom-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Rebellion (fighting in the Lawful Hours)</title>
+  <path d="m4 4 10 10m-2 2 4-4m-2 2 4.5 4.5M20 4 10 14m2-2-4 4m2-2-4.5 4.5"/>
+  <circle cx="19.5" cy="19.5" r="1"/>
+  <circle cx="4.5" cy="19.5" r="1"/>
+</svg>
+</div><figcaption><b>rebellion</b><small>Rebellion (fighting in the Lawful Hours)</small><span><a href="icons/rebellion.svg">SVG</a> · <a href="png/icons/rebellion-24.png">24</a> · <a href="png/icons/rebellion-48.png">48</a> · <a href="png/icons/rebellion-96.png">96</a> · <a href="png/icons/rebellion-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Released (a captive set free)</title>
+  <rect width="10" height="5" x="2" y="14.5" rx="2.5" transform="rotate(-45 7 17)"/>
+  <rect width="10" height="5" x="12" y="4.5" rx="2.5" transform="rotate(-45 17 7)"/>
+  <path d="M10 8.5 9 6m-.5 4L6 9m8 6.5 1 2.5m.5-4 2.5 1"/>
+</svg>
+</div><figcaption><b>released</b><small>Released (a captive set free)</small><span><a href="icons/released.svg">SVG</a> · <a href="png/icons/released-24.png">24</a> · <a href="png/icons/released-48.png">48</a> · <a href="png/icons/released-96.png">96</a> · <a href="png/icons/released-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Treaty (a sealed truce)</title>
+  <path d="M6 4h11a2 2 0 0 1 2 2v1H8"/>
+  <path d="M8 6v12a2 2 0 0 1-2 2 2 2 0 0 1-2-2V6a2 2 0 0 1 2-2m0 16h9m-4-10h5m-5 3h3"/>
+  <circle cx="17" cy="16" r="2.5"/>
+  <path d="M15.75 18.2 15 21.5l2-1 2 1-.75-3.3"/>
+</svg>
+</div><figcaption><b>treaty</b><small>Treaty (a sealed truce)</small><span><a href="icons/treaty.svg">SVG</a> · <a href="png/icons/treaty-24.png">24</a> · <a href="png/icons/treaty-48.png">48</a> · <a href="png/icons/treaty-96.png">96</a> · <a href="png/icons/treaty-96-ink.png">96-ink</a></span></figcaption></figure>
+<figure class="icon-tile"><div class="ic"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Trophy (season or tournament won)</title>
+  <path d="M8 4h8v5a4 4 0 0 1-8 0zm0 2H5a3 3 0 0 0 3 4m8-4h3a3 3 0 0 1-3 4m-4 3v4m-2.5.5h5v3h-5z"/>
+</svg>
+</div><figcaption><b>trophy</b><small>Trophy (season or tournament won)</small><span><a href="icons/trophy.svg">SVG</a> · <a href="png/icons/trophy-24.png">24</a> · <a href="png/icons/trophy-48.png">48</a> · <a href="png/icons/trophy-96.png">96</a> · <a href="png/icons/trophy-96-ink.png">96-ink</a></span></figcaption></figure>
+</section>
+
+<h2>Discord</h2>
+<p>Upload the PNGs, not the SVGs. The server icon is shown as a circle. Sigil PNGs at 128px (<code>png/sigils/*-128.png</code>) work as server emoji.</p>
+<section class="grid">
+<figure class="tile "><div class="frame"><img src="discord/server-icon.svg" alt="Server icon 512"></div><figcaption><b>Server icon 512</b><span><a href="discord/server-icon.svg">SVG</a> · <a href="png/discord/server-icon.png">PNG</a></span></figcaption></figure>
+<figure class="tile wide"><div class="frame"><img src="discord/server-banner.svg" alt="Server banner 960 × 540"></div><figcaption><b>Server banner 960 × 540</b><span><a href="discord/server-banner.svg">SVG</a> · <a href="png/discord/server-banner.png">PNG</a></span></figcaption></figure>
+<figure class="tile wide"><div class="frame"><img src="discord/invite-splash.svg" alt="Invite splash 1920 × 1080"></div><figcaption><b>Invite splash 1920 × 1080</b><span><a href="discord/invite-splash.svg">SVG</a> · <a href="png/discord/invite-splash.png">PNG</a></span></figcaption></figure>
+</section>
+
+<h2>Social card</h2>
+<p>1200 × 630, for link previews and announcements. The template's text needs Cinzel and EB Garamond; post the PNG. Make a filled card with:</p>
+<pre>node art/tools/build.mjs card --house dunmere --kicker "Claim declared" \
+  --title "Dunmere raises a claim at the Hearth" --subtitle "The Lawful Hours open on Saturday." \
+  --footer "The Chronicle of Ostreval" --out card.svg --png card.png</pre>
+<section class="grid">
+<figure class="tile wide"><div class="frame"><img src="social/card-template.svg" alt="Template"></div><figcaption><b>Template</b><span><a href="social/card-template.svg">SVG</a> · <a href="png/social/card-template.png">PNG</a></span></figcaption></figure>
+<figure class="tile wide"><div class="frame"><img src="social/card-example-coronation.svg" alt="Example: coronation"></div><figcaption><b>Example: coronation</b><span><a href="social/card-example-coronation.svg">SVG</a> · <a href="png/social/card-example-coronation.png">PNG</a></span></figcaption></figure>
+<figure class="tile wide"><div class="frame"><img src="social/card-example-treaty-broken.svg" alt="Example: treaty broken"></div><figcaption><b>Example: treaty broken</b><span><a href="social/card-example-treaty-broken.svg">SVG</a> · <a href="png/social/card-example-treaty-broken.png">PNG</a></span></figcaption></figure>
+</section>
+
+<h2>Palette</h2>
+<p>Brand colours match the Chronicle overlay tokens in <code>chronicle/public/assets/theme.css</code>. The full list is in <a href="palette.json">palette.json</a>.</p>
+<ul class="palette">
+<li class="sw"><span style="background:#0c0d0f"></span><b>Iron 950</b><code>#0c0d0f</code><small>Deepest shadow, emblem rim, raven black</small></li>
+<li class="sw"><span style="background:#131417"></span><b>Iron 900</b><code>#131417</code><small>Default dark background, sigil rims</small></li>
+<li class="sw"><span style="background:#1b1c20"></span><b>Iron 800</b><code>#1b1c20</code><small>Panels and cards on dark</small></li>
+<li class="sw"><span style="background:#26282d"></span><b>Iron 700</b><code>#26282d</code><small>Raised panels, borders on dark</small></li>
+<li class="sw"><span style="background:#34363c"></span><b>Iron 600</b><code>#34363c</code><small>Hairlines, emblem highlight</small></li>
+<li class="sw"><span style="background:#a3a6ad"></span><b>Iron 200</b><code>#a3a6ad</code><small>Muted text on dark</small></li>
+<li class="sw"><span style="background:#ecdfbf"></span><b>Parchment</b><code>#ecdfbf</code><small>Light background, text on dark</small></li>
+<li class="sw"><span style="background:#e0cfa4"></span><b>Parchment 2</b><code>#e0cfa4</code><small>Light background gradient end, secondary text on dark</small></li>
+<li class="sw"><span style="background:#b99a62"></span><b>Parchment edge</b><code>#b99a62</code><small>Rules and borders on parchment</small></li>
+<li class="sw"><span style="background:#2a1c0f"></span><b>Ink</b><code>#2a1c0f</code><small>Text on parchment, light-mode wordmark</small></li>
+<li class="sw"><span style="background:#5b4630"></span><b>Ink soft</b><code>#5b4630</code><small>Secondary text on parchment</small></li>
+<li class="sw"><span style="background:#d6a043"></span><b>Ember</b><code>#d6a043</code><small>Brand gold: rings, rules, wordmark on dark, icons on dark</small></li>
+<li class="sw"><span style="background:#f4c96d"></span><b>Ember hot</b><code>#f4c96d</code><small>Gold highlight, sparks</small></li>
+<li class="sw"><span style="background:#fbe3a2"></span><b>Ember pale</b><code>#fbe3a2</code><small>Top stop of the gold gradient only</small></li>
+<li class="sw"><span style="background:#9c6a1e"></span><b>Ember deep</b><code>#9c6a1e</code><small>Bottom stop of the gold gradient, gold on parchment (large sizes only)</small></li>
+<li class="sw"><span style="background:#8b2b22"></span><b>Blood</b><code>#8b2b22</code><small>Warnings, broken oaths, rebellion accents</small></li>
+<li class="sw"><span style="background:#4d6b3a"></span><b>Moss</b><code>#4d6b3a</code><small>Success, treaties signed</small></li>
+</ul>
+
+<footer>Original artwork for the Realm community server. The wordmark letters are outlined from Cinzel (SIL Open Font License 1.1). Generated by <code>art/tools/build.mjs gallery</code>; do not edit by hand.</footer>
+</main>
+<script>
+(function () {
+  var root = document.documentElement, key = 'realm-art-theme';
+  try { var saved = localStorage.getItem(key); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  document.getElementById('theme').addEventListener('click', function () {
+    var cur = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    var next = cur === 'light' ? 'dark' : 'light';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem(key, next); } catch (e) {}
+  });
+})();
+</script>
+</body>
+</html>

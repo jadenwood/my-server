@@ -1,0 +1,15 @@
+{
+  "EnableCrownNight": true,
+  "EnableTournament": true,
+  "EnableKingsHunt": false,
+  "EnableTruce": true,
+  "Schedule": [
+    { "Id": "crown-night", "Event": "crown_night", "Enabled": true, "Days": ["Saturday"], "StartUtc": "19:00", "DurationMinutes": 90 },
+    { "Id": "royal-tournament", "Event": "tournament", "Enabled": true, "Days": ["Friday"], "StartUtc": "19:00", "DurationMinutes": 60 },
+    { "Id": "kings-hunt", "Event": "kings_hunt", "Enabled": true, "Days": ["Wednesday"], "StartUtc": "21:00", "DurationMinutes": 60 },
+    { "Id": "truce", "Event": "truce", "Enabled": true, "Days": ["Weekends"], "StartUtc": "12:00", "DurationMinutes": 240 },
+    { "Id": "broken", "Event": "truce", "Enabled": true, "Days": ["Daily"], "StartUtc": "25:99", "DurationMinutes": 10 },
+    { "Id": "off", "Event": "tournament", "Enabled": false, "Days": ["Daily"], "StartUtc": "08:00", "DurationMinutes": 10 }
+  ],
+  "CountdownMinutes": [60, 30, 10, 5, 1]
+}

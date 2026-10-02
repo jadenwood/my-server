@@ -42,7 +42,16 @@ namespace Oxide.Plugins
             "coronation", "abdication", "claim_declared", "rebellion_started", "rebellion_ended",
             "house_founded", "oath_sworn", "oath_broken", "treaty_signed", "treaty_broken",
             "decree", "ransom_set", "ransom_paid", "released",
-            "contract_posted", "contract_fulfilled", "contract_ended"
+            "contract_posted", "contract_fulfilled", "contract_ended",
+            // RealmSeasons and RealmEvents
+            "season_started", "season_ended", "event_started", "event_ended",
+            "tournament_champion", "hunt_kill", "truce_broken",
+            // RealmLaws, RealmDynasties, RealmRenown
+            "law_proclaimed", "law_repealed", "accusation", "trial_by_combat", "verdict", "pardon",
+            "dynasty_founded", "heir_named", "succession", "blood_claim", "blood_restored", "title_bestowed",
+            "title_earned",
+            // RealmTreasury, RealmRavens
+            "treasury_mint", "treasury_grant", "tithe_levied", "great_trade", "rumour"
         };
 
         // [SRC] Oxide.CSharp src/CSharpPlugin.cs:91 (PluginReferenceAttribute; the field is filled with the plugin

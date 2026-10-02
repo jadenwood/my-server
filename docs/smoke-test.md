@@ -189,6 +189,39 @@ Run this only after A passes; it does not need Oxide. Stop the server first: the
 
 ---
 
+## E. Seasons and realm events (RealmSeasons, RealmEvents)
+
+Run this after C passes. `Deploy-Plugins.ps1` copies every `plugins\*.cs`, so `RealmSeasons.cs` and `RealmEvents.cs` go in with the rest. Both plugins have offline behaviour tests (`plugins/docs/RealmEvents/logic-tests/run.sh`, mocks only); this part checks what only the real game can show. Times are **UTC**.
+
+### Steps
+
+1. Deploy, then check the console for `Loaded plugin RealmSeasons` and `Loaded plugin RealmEvents`. A first load starts **Season 1** by itself (`AutoStartFirstSeason`) and writes a `season_started` event.
+2. Give yourself admin:
+   ```
+   oxide.grant user <yourname> realmseasons.admin
+   oxide.grant user <yourname> realmevents.admin
+   ```
+3. Watch for `Prize item '...' is not known to this server` in the console. If it appears, set the prize `Item` values in `oxide\config\RealmEvents.json` to names from C10 and run `oxide.reload RealmEvents`.
+4. Work through the table. Events can be started at any time with `/event start <kind> [minutes]`, so you do not have to wait for the schedule.
+
+| # | Check | Pass | Fail → do this |
+|---|---|---|---|
+| E1 | `/season` shows `Season 1 - day 1 of 28`. `oxide\data\RealmSeasons.json` and `oxide\data\RealmLegends.json` exist | ☐ | Check the console for `Could not read ...RealmLegends.json`: the plugin refuses to run on a damaged legends file and never overwrites it |
+| E2 | Crown days: take the throne, wait 10 min, run `/season standings`. Your house shows about `0.0` crown days and a growing score after a few ticks (30 s each). `/season hall` lists your reign as `reigns still` | ☐ | If no house shows, the crown has no house: found one with `/house found` first. If the monarch never appears, check `/crown` (CrownAndConsequences must report the king) |
+| E3 | Hall of Kings ending: leave or lose the throne. Within 30 s `/season hall` shows the reign with an end date and `left the throne` or `fell while holding the crown` | ☐ | The wording comes from `OnThroneReleased` (`evt.IsDeath`). If it says `the throne fell empty`, the hook did not fire before the poll: report it; the reign is still recorded |
+| E4 | Chronicle feed (two houses): sign a treaty, then break it. Within 30 s `/season house <breaker>` shows `treaties 0 kept / 1 broken`. Sign another and let it lapse (`/treaty propose <house> 1`, wait a day or set a 1-day term) → both houses show `1 kept` within 5 min of the lapse | ☐ | Standings parse the chronicle texts written by RealmHouses, RealmContracts and CrownAndConsequences (`plugins/RealmSeasons.cs` header). If a count never moves, compare the chronicle `title` with the patterns there |
+| E5 | **Truce enforcement (two clients, the key UNVERIFIED item):** `/event start truce 10`. Hit the other player with a fist, a sword, an arrow and fire. No damage lands; the attacker sees `your blow does not land`. `/truce` says `enforced` | ☐ | If any kind of damage still lands, record which. Set `"TruceEnforced": false` in `oxide\config\RealmEvents.json` (announce-only: kills are still chronicled as `truce_broken` and cost season points) and report it |
+| E6 | Truce breach: with `"TruceEnforced": false`, kill the other player during a truce. One `truce_broken` event appears and `/season house <yours>` shows `-15` event points. A second kill by the same player adds nothing | ☐ | See C13 for killer attribution |
+| E7 | Royal Tournament (three clients A, B, C; B and C in different houses from A): `/event start tournament 15`; all run `/tourney join`. A kills B twice and C once. `/tourney standings` shows A with 3 kills. A third kill of B does not count (cap 2 per victim). A kill of a housemate never counts | ☐ | If nothing counts, check the console for `Death handling failed` |
+| E8 | Tournament prizes: `/event stop tournament`. The herald names the places; A's Stone count rises by **exactly** 300 (default 1st prize). With a full inventory the message is `Your packs are full` and `/event collect` delivers the rest after you make room. `tournament_champion` appears in the chronicle | ☐ | Same item-sync caveat as C11. Report the counts before and after |
+| E9 | King's Hunt: as monarch, `/event start kings_hunt 15`, then `/hunt name <player>`. A player from another house kills the quarry: the herald announces it, the hunter gets the hunt prize (default 200 Wood), and `hunt_kill` appears. With no quarry named for 10 min the hunt is called off | ☐ | `/hunt name` refused for the monarch means `KingsScheme.IsKing` did not recognise you: check `/crown` |
+| E10 | Crown Night: with a claim declared (`/claim declare`), the countdown herald (or `/event start crown_night 30`) names `House <X> (pending)`. A completed throne capture during the night gives the capturing house 10 points once; the house holding the crown at the end gets 30 | ☐ | If capture points never arrive, check E3 and C9 (throne hooks) |
+| E11 | Schedule: set one schedule entry's `StartUtc` to about 65 min from now (UTC) and reload. Countdown heralds arrive at 60, 30, 10, 5 and 1 min, each once, and the event starts on time. `oxide.reload RealmEvents` during the event does not start it a second time | ☐ | Check that the server clock is right; the schedule is UTC |
+| E12 | Season end: `/season end`. The herald proclaims the top houses and the champion; `season_ended` appears in the chronicle and on `/realm`; `/season history` lists it | ☐ | — |
+| E13 | **Wipe survival:** stop the server, delete `oxide\data\RealmSeasons.json` (and wipe the world if you like) but **keep `RealmLegends.json`**. Start again. `/season hall` and `/season history` still show everything; `/season start` begins **Season 2** | ☐ | If the legends are gone, the file was deleted or Oxide created a second data folder (see B4) |
+
+---
+
 ## Resetting
 
 - To roll the world back to a known point, stop the server and run `.\Restore-Saves.ps1 -ZipPath <zip>`. The current state is backed up and moved aside first.

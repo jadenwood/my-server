@@ -1,0 +1,16 @@
+{
+  "name": "realm-streamkit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OBS browser-source scenes for the Realm Chronicle: War Board, Throne Room, Breaking News, Countdown, Starting Soon.",
+  "type": "module",
+  "main": "server.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js",
+    "fixtures": "node server.js --fixtures fixtures --schedule schedule.example.json",
+    "demo": "node server.js --fixtures fixtures --schedule schedule.example.json --demo 12",
+    "test": "node --test test/*.test.js",
+    "shots": "node tools/screenshots.mjs"
+  }
+}

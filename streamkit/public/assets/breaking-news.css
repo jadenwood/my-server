@@ -1,0 +1,137 @@
+/* Breaking News alert */
+.alert {
+  position: absolute;
+  left: 50%;
+  width: 1560px;
+  margin-left: -780px;
+  display: flex;
+  align-items: stretch;
+  min-height: 190px;
+  opacity: 0;
+  filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.65));
+}
+.alert.top { top: 54px; }
+.alert.bottom { bottom: 64px; }
+.alert.enter { opacity: 1; animation: slam 0.75s cubic-bezier(.2, 1.3, .4, 1) both; }
+.alert.bottom.enter { animation-name: slam-up; }
+.alert.leave { animation: fade-up 0.6s ease-in both; }
+
+.alert .tag {
+  flex: none;
+  width: 330px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 26px;
+  color: #fff;
+  background:
+    repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.12) 0 14px, transparent 14px 28px),
+    linear-gradient(180deg, #a8352a, var(--blood) 60%, #4d1510);
+  border: 2px solid #000;
+  box-shadow: inset 0 0 0 2px rgba(255, 210, 160, 0.25);
+  clip-path: polygon(0 0, 100% 0, 92% 100%, 0 100%);
+  padding-right: 46px;
+}
+.alert.sev-alert .tag {
+  background:
+    repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.12) 0 14px, transparent 14px 28px),
+    linear-gradient(180deg, #7a5320, var(--ember-deep) 60%, #3d2a0d);
+}
+.alert .tag-icon {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 52px;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.35));
+  border: 3px solid rgba(255, 220, 170, 0.8);
+  flex: none;
+}
+.alert.sev-urgent.enter .tag-icon { animation: beat 1.1s ease-in-out 0.8s infinite; }
+.alert .tag-text { display: flex; flex-direction: column; }
+.alert .tag-text .big { font: 800 40px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; }
+.alert .tag-text .small { font: 600 13px var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.85; margin-top: 8px; }
+
+.alert .body {
+  flex: 1;
+  margin-left: -26px;
+  padding: 20px 44px 18px 58px;
+  border: 2px solid #000;
+  border-left: none;
+  box-shadow: inset 0 0 0 2px rgba(120, 80, 30, 0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.alert .kind {
+  font: 700 19px var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  color: var(--blood);
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.alert.sev-alert .kind { color: var(--ember-deep); }
+.alert .house { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); letter-spacing: 0.12em; }
+.alert .dot { width: 16px; height: 16px; border-radius: 50%; background: var(--dye); border: 2px solid var(--dye-dark); display: inline-block; }
+.alert .headline {
+  font: 800 50px/1.1 var(--font-display);
+  color: var(--ink);
+  margin-top: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.alert .detail {
+  font: 500 27px/1.25 var(--font-body);
+  color: #4a3622;
+  margin-top: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.alert .meta {
+  display: flex;
+  justify-content: space-between;
+  font: 500 19px var(--font-body);
+  color: #6d5638;
+  margin-top: 8px;
+}
+.alert .more { font: 700 17px var(--font-display); letter-spacing: 0.14em; color: var(--blood); text-transform: uppercase; }
+.alert .timer {
+  position: absolute;
+  left: 330px;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  background: var(--blood-hot);
+  transform-origin: left;
+}
+.alert.enter .timer { animation: drain var(--hold) linear both !important; }
+.alert.sev-alert .timer { background: var(--ember); }
+
+@keyframes slam {
+  0% { transform: translateY(-140%) scaleY(1.1); opacity: 0; }
+  60% { transform: translateY(6px); opacity: 1; }
+  75% { transform: translateY(-3px) rotate(-0.25deg); }
+  88% { transform: translateY(1px) rotate(0.15deg); }
+  100% { transform: none; opacity: 1; }
+}
+@keyframes slam-up {
+  0% { transform: translateY(140%); opacity: 0; }
+  60% { transform: translateY(-6px); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+@keyframes fade-up { to { opacity: 0; transform: translateY(-24px); } }
+@keyframes beat { 50% { transform: scale(1.12); box-shadow: 0 0 26px rgba(255, 120, 90, 0.8); } }
+@keyframes drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* Reduced motion: the alert fades in and out. The timer bar still drains (it is information, not decoration),
+   which is why its rule above carries !important. */
+html.reduced .alert.enter { animation: none; opacity: 1; transition: opacity 0.25s; }
+html.reduced .alert.leave { animation: none; opacity: 0; }

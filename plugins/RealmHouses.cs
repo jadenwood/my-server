@@ -46,6 +46,7 @@ namespace Oxide.Plugins
         private Timer syncTimer;
         private Timer upkeepTimer;
         private bool syncQueued;
+        private readonly Queue<DateTime> foundingNotices = new Queue<DateTime>();   // in memory: losing it on reload is harmless
 
         #region Config and data
 
@@ -74,6 +75,10 @@ namespace Oxide.Plugins
             public int GuildMissingSyncsBeforeUnlink = 5;
             public bool BroadcastEvents = true;
             public bool ChronicleEnabled = true;
+            // Anti-flood: founding and disbanding are free to repeat across many players (and alts), so their realm-wide
+            // broadcasts and chronicle lines are capped per hour. Over the cap they still go to the server log.
+            // Oath and treaty lines are never capped: they are the record of a house breaking its word.
+            public int FoundingNoticesPerHour = 6;
         }
 
         private class HouseMember
@@ -262,6 +267,7 @@ namespace Oxide.Plugins
 
         private void LoadData()
         {
+            bool existed = Interface.Oxide.DataFileSystem.ExistsDatafile(Name);
             try
             {
                 data = Interface.Oxide.DataFileSystem.ReadObject<StoredData>(Name);
@@ -269,8 +275,15 @@ namespace Oxide.Plugins
             catch (Exception ex)
             {
                 // Refuse to run on a damaged file rather than overwrite every house with an empty list.
+                data = null;
                 PrintError("Could not read oxide/data/" + Name + ".json: " + ex.Message + ". Fix or remove the file, then reload.");
                 throw;
+            }
+            if (data == null && existed)
+            {
+                // A file truncated to nothing (e.g. power lost mid-write) parses to null: the same refusal, never a reset.
+                PrintError("oxide/data/" + Name + ".json exists but holds no data. Nothing was written. Restore it from a backup or delete it to start empty, then reload.");
+                throw new InvalidOperationException("RealmHouses data file is empty");
             }
             if (data == null) data = new StoredData();
             if (data.Houses == null) data.Houses = new List<House>();
@@ -422,9 +435,13 @@ namespace Oxide.Plugins
 
             Reply(player, "Founded", name, sigil);
             if (guildId != 0) { Reply(player, "FoundedLinked", guildName); QueueSync(); }
-            Broadcast("BroadcastFounded", player.Name, name, sigil);
-            Chronicle("house_founded", "House " + name + " is founded",
-                player.Name + " raises the sigil of " + sigil + ".", player.Name);
+            if (FoundingNoticeAllowed())
+            {
+                Broadcast("BroadcastFounded", player.Name, name, sigil);
+                Chronicle("house_founded", "House " + name + " is founded",
+                    player.Name + " raises the sigil of " + sigil + ".", player.Name);
+            }
+            else Puts("House " + name + " founded by " + player.Name + " (notice capped: FoundingNoticesPerHour)");
         }
 
         private void HouseInvite(Player player, string[] args)
@@ -1094,7 +1111,8 @@ namespace Oxide.Plugins
                 if (k.StartsWith(key + "|") || k.EndsWith("|" + key)) treatyProposals.Remove(k);
             foreach (Dictionary<string, DateTime> mine in invites.Values) mine.Remove(key);
             guildMisses.Remove(key);
-            Broadcast("BroadcastDisbanded", house.Name);
+            if (FoundingNoticeAllowed()) Broadcast("BroadcastDisbanded", house.Name);
+            else Puts("House " + house.Name + " disbanded (notice capped: FoundingNoticesPerHour)");
         }
 
         #endregion
@@ -1388,6 +1406,16 @@ namespace Oxide.Plugins
             if (config.BroadcastEvents) Server.BroadcastMessage(text);
         }
 
+        // True while fewer than FoundingNoticesPerHour founding/disbanding notices went out in the last hour (and records one).
+        private bool FoundingNoticeAllowed()
+        {
+            DateTime now = DateTime.UtcNow;
+            while (foundingNotices.Count > 0 && (now - foundingNotices.Peek()).TotalHours >= 1) foundingNotices.Dequeue();
+            if (foundingNotices.Count >= Math.Max(0, config.FoundingNoticesPerHour)) return false;
+            foundingNotices.Enqueue(now);
+            return true;
+        }
+
         private void Chronicle(string type, string title, string detail, params string[] actors)
         {
             if (!config.ChronicleEnabled) return;
@@ -1434,6 +1462,15 @@ namespace Oxide.Plugins
             House h = FindHouse(house);
             HouseMember leader = h != null ? LeaderOf(h) : null;
             return leader != null ? leader.Id : null;
+        }
+
+        // When the house now bearing this name was founded (ISO 8601 UTC, full precision), or null if no such house. A house that is
+        // disbanded and founded again under the same name gets a new date, so other plugins (RealmTreasury's vaults)
+        // can tell a new house from the fallen one whose name it took.
+        private string GetHouseFounded(string house)
+        {
+            House h = FindHouse(house);
+            return h != null ? h.Founded.ToUniversalTime().ToString("o", System.Globalization.CultureInfo.InvariantCulture) : null;
         }
 
         private List<string> GetVassals(string house)

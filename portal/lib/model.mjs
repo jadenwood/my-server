@@ -31,6 +31,25 @@ export const TYPE_META = {
   tournament_champion: { label: 'Tournament Champion', icon: 'trophy',    tone: 'gold',  group: 'seasons' },
   hunt_kill:           { label: "The King's Hunt",     icon: 'swords',    tone: 'blood', group: 'seasons' },
   truce_broken:        { label: 'Truce Broken',        icon: 'scrollX',   tone: 'blood', group: 'war' },
+  // RealmLaws, RealmDynasties, RealmRenown, RealmTreasury, RealmRavens (registered in all three Chronicle lists)
+  law_proclaimed:      { label: 'A Law Proclaimed',       icon: 'scroll',  tone: 'gold',  group: 'law' },
+  law_repealed:        { label: 'Law Repealed',           icon: 'scrollX', tone: 'iron',  group: 'law' },
+  accusation:          { label: 'Accused',                icon: 'flag',    tone: 'blood', group: 'law' },
+  trial_by_combat:     { label: 'Trial by Combat',        icon: 'swords',  tone: 'blood', group: 'law' },
+  verdict:             { label: 'Verdict',                icon: 'seal',    tone: 'iron',  group: 'law' },
+  pardon:              { label: 'Pardoned',               icon: 'chainX',  tone: 'moss',  group: 'law' },
+  dynasty_founded:     { label: 'A Line Is Founded',      icon: 'people',  tone: 'gold',  group: 'law' },
+  heir_named:          { label: 'An Heir Is Named',       icon: 'oath',    tone: 'gold',  group: 'law' },
+  succession:          { label: 'Succession',             icon: 'scroll',  tone: 'gold',  group: 'law' },
+  blood_claim:         { label: 'Blood Claim',            icon: 'flag',    tone: 'blood', group: 'law' },
+  blood_restored:      { label: 'The Line Restored',      icon: 'crown',   tone: 'gold',  group: 'law' },
+  title_bestowed:      { label: 'Title Bestowed',         icon: 'seal',    tone: 'gold',  group: 'law' },
+  title_earned:        { label: 'A Title Earned',         icon: 'seal',    tone: 'gold',  group: 'law' },
+  treasury_mint:       { label: 'The Crown Strikes Coin', icon: 'coins',   tone: 'gold',  group: 'treasury' },
+  treasury_grant:      { label: 'Royal Largesse',         icon: 'coins',   tone: 'gold',  group: 'treasury' },
+  tithe_levied:        { label: 'The Tithe Gathered',     icon: 'scroll',  tone: 'iron',  group: 'treasury' },
+  great_trade:         { label: 'A Great Sale',           icon: 'seal',    tone: 'gold',  group: 'treasury' },
+  rumour:              { label: 'A Rumour Spreads',       icon: 'scroll',  tone: 'iron',  group: 'treasury' },
 };
 
 export const GROUPS = [
@@ -41,6 +60,7 @@ export const GROUPS = [
   { id: 'contracts', label: 'Contracts' },
   { id: 'seasons', label: 'Seasons & events' },
   { id: 'law', label: 'Law & dynasty' },
+  { id: 'treasury', label: 'Treasury & rumours' },
   { id: 'other', label: 'Other' },
 ];
 

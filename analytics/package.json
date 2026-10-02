@@ -1,0 +1,15 @@
+{
+  "name": "realm-analytics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Builds a self-contained HTML dashboard from RealmStats day files. No dependencies.",
+  "license": "MIT",
+  "bin": { "realm-analytics": "bin/realm-analytics.js" },
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:plugin": "bash plugin-tests/run.sh",
+    "sample": "node tools/make-sample.js --out sample-data && node bin/realm-analytics.js --data sample-data --out sample-dashboard.html --tz +01:00 --title \"Realm analytics (sample data)\"",
+    "screenshot": "node tools/screenshot.js sample-dashboard.html ../docs/img/analytics.png --full"
+  }
+}

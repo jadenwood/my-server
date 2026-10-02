@@ -1,0 +1,22 @@
+{
+  "Houses": [
+    { "Name": "Varrow", "Sigil": "Iron Stag", "Founded": "2026-09-27T18:02:11Z", "GuildId": 0, "Liege": null,
+      "SwornSince": "0001-01-01T00:00:00", "SwearBlockedUntil": "0001-01-01T00:00:00", "OathsBroken": 0, "TreatiesBroken": 1,
+      "Members": [
+        { "Id": "76561190000000001", "Name": "Aldric Varrow", "Rank": "leader", "Joined": "2026-09-27T18:02:11Z" },
+        { "Id": "76561190000000002", "Name": "Bryn", "Rank": "officer", "Joined": "2026-09-27T19:00:00Z" },
+        { "Id": "76561190000000003", "Name": "Cole", "Rank": "member", "Joined": "2026-09-28T19:00:00Z" }
+      ] },
+    { "Name": "Ashgrove", "Sigil": "White Oak", "Founded": "2026-09-27T20:15:02", "GuildId": 0, "Liege": "Varrow",
+      "SwornSince": "2026-09-28T18:05:12Z", "OathsBroken": 0, "TreatiesBroken": 0,
+      "Members": [ { "Id": "76561190000000004", "Name": "Wren", "Rank": "leader", "Joined": "2026-09-27T20:15:02Z" } ] },
+    { "Name": "Dunmere", "Sigil": "Drowned Bell", "Founded": "2026-09-29T10:00:00Z", "Liege": "Corvane", "OathsBroken": 2, "TreatiesBroken": 0, "Members": [] }
+  ],
+  "Treaties": [
+    { "A": "Varrow", "B": "Merrin", "Signed": "2026-09-30T10:00:00Z", "Expires": "2026-10-07T10:00:00Z" },
+    { "A": "Corvane", "B": "Varrow", "Signed": "2026-09-01T10:00:00Z", "Expires": "2026-09-08T10:00:00Z" }
+  ],
+  "Players": { "76561190000000001": { "Name": "Aldric Varrow", "OathsBroken": 0, "TreatiesBroken": 0 } },
+  "LastFounded": {},
+  "TreatyCooldowns": {}
+}

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" data-field="#2c3b42" data-house="Corvane" data-metal="#c9ced4" viewBox="0 0 256 256">
+  <title>House Corvane: the Black Raven</title>
+  <desc>
+    A black raven with a silver key in its beak, on a slate field. Original artwork for the Realm of Ostreval.
+  </desc>
+  <defs>
+    <radialGradient id="corvane-field" cx="50%" cy="42%" r="62%">
+      <stop offset="0" stop-color="#4e5a60"/>
+      <stop offset=".6" stop-color="#2c3b42"/>
+      <stop offset="1" stop-color="#1b2529"/>
+    </radialGradient>
+  </defs>
+  <circle cx="128" cy="128" r="126" fill="#131417"/>
+  <circle cx="128" cy="128" r="118" fill="url(#corvane-field)"/>
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#d6a043" stroke-width="3"/>
+  <g id="charge" transform="translate(32 22)">
+<!--raven-->
+    <path fill="#0c0d0f" stroke="#c9ced4" stroke-linejoin="round" stroke-width="2.5" d="m26 72 24-14c4-12 16-16 26-14 14 2 22 14 24 26 22 10 46 34 64 64l18 28-22-8-10-4c-10 2-24 2-36-2l-4 22 10 14h-14l-4-10-4 10H84l12-16v-26c-16-10-24-26-26-46-4-8-10-14-16-16l-6-4Z"/>
+    <path fill="none" stroke="#c9ced4" stroke-linecap="round" stroke-width="2" d="M84 96c20 12 42 28 62 46m-54-30c16 10 28 20 40 32"/>
+    <circle cx="70" cy="60" r="3.2" fill="#c9ced4"/>
+<!--silver key-->
+    <g fill="none" stroke="#c9ced4" stroke-linecap="round" stroke-width="4.5">
+      <circle cx="36" cy="74" r="8"/>
+      <path d="M36 82v46m0-12h10m-10 8h10m0-8v8"/>
+    </g>
+  </g>
+</svg>

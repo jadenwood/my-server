@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Realm Stream Scenes</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/index.css">
+</head>
+<body>
+  <main>
+    <h1>Realm Stream Scenes</h1>
+    <p>OBS browser sources for the Chronicle of Ostreval. Add each as a <b>Browser</b> source at <b>1920 × 1080</b>.
+       Every scene reads the local chronicle through this server, so OBS needs nothing else. Full options: <code>streamkit/README.md</code>.</p>
+    <ul class="scenes">
+      <li><a href="/war-board?transparent=0">War Board</a><span>Houses, liege lines, treaties and claims as a live graph. <code>/war-board</code></span></li>
+      <li><a href="/throne-room?transparent=0&amp;replay=1">Throne Room</a><span>Coronation lower third with an animated sigil. <code>/throne-room</code></span></li>
+      <li><a href="/breaking-news?transparent=0&amp;replay=3">Breaking News</a><span>Alert queue for betrayals, claims and rebellions. <code>/breaking-news</code></span></li>
+      <li><a href="/countdown?transparent=0">Countdown</a><span>Time to the next Lawful Hours, claim or realm event. <code>/countdown</code></span></li>
+      <li><a href="/starting-soon?in=10m">Starting Soon</a><span>Full-screen holding scene. <code>/starting-soon</code></span></li>
+    </ul>
+    <h2>Common URL options</h2>
+    <table>
+      <tr><td><code>scale=1.25</code></td><td>Enlarge or shrink the scene's content (0.25 to 4).</td></tr>
+      <tr><td><code>transparent=0</code></td><td>Draw a backdrop (for previewing in a browser). Overlays are transparent by default.</td></tr>
+      <tr><td><code>house=Varrow,Corvane</code></td><td>Only these houses (and, on the War Board, the houses they touch).</td></tr>
+      <tr><td><code>motion=0</code></td><td>Reduced motion: fades only. The OS "reduce motion" setting does the same.</td></tr>
+      <tr><td><code>replay=N</code></td><td>Play the last N matching events on load, for positioning.</td></tr>
+    </table>
+  </main>
+</body>
+</html>

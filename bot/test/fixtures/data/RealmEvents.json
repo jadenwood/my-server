@@ -1,0 +1,14 @@
+{
+  "Active": [
+    { "Kind": "tournament", "SlotId": "royal-tournament", "Start": "2026-10-02T19:00:00Z", "End": "2026-10-02T20:00:00Z",
+      "CaptureHouses": [], "Quarry": [], "Breakers": [], "Blocked": 0,
+      "Entrants": {
+        "76561190000000001": { "Name": "Aldric Varrow", "House": "Varrow", "Kills": 4, "Deaths": 1, "Victims": {} },
+        "76561190000000005": { "Name": "Ysolde Corvane", "House": "Corvane", "Kills": 6, "Deaths": 2, "Victims": {} },
+        "76561190000000006": { "Name": "Tamsin", "House": null, "Kills": 1, "Deaths": 3, "Victims": {} }
+      } },
+    { "Kind": "truce", "SlotId": "manual", "Start": "2026-10-01T12:00:00Z", "End": "2026-10-01T16:00:00Z", "Entrants": {}, "Quarry": [] },
+    { "Kind": "dragon_raid", "Start": "2026-10-02T19:00:00Z", "End": "2026-10-02T23:00:00Z" }
+  ],
+  "Fired": {}, "Announced": {}, "Owed": [], "History": []
+}

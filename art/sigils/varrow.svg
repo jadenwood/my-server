@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" data-field="#4a2347" data-house="Varrow" data-metal="#9aa0a8" viewBox="0 0 256 256">
+  <title>House Varrow: the Iron Stag</title>
+  <desc>
+    An iron-grey stag, rearing, on a plum field. Original artwork for the Realm of Ostreval.
+  </desc>
+  <defs>
+    <radialGradient id="varrow-field" cx="50%" cy="42%" r="62%">
+      <stop offset="0" stop-color="#674664"/>
+      <stop offset=".6" stop-color="#4a2347"/>
+      <stop offset="1" stop-color="#2e162c"/>
+    </radialGradient>
+  </defs>
+  <circle cx="128" cy="128" r="126" fill="#131417"/>
+  <circle cx="128" cy="128" r="118" fill="url(#varrow-field)"/>
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#d6a043" stroke-width="3"/>
+  <g id="charge" transform="translate(24 30)">
+    <g fill="#9aa0a8">
+<!--antlers-->
+      <g fill="none" stroke="#9aa0a8" stroke-linecap="round" stroke-linejoin="round" stroke-width="5">
+        <path d="M62 48c2-16 10-28 26-38M65 36 52 26m18 0L60 13m19 4V4M69 46c7-12 17-18 33-22M77 36V22m10 8 5-14m3 10 13-9"/>
+      </g>
+<!--head and neck-->
+      <path d="m40 68 4-8 12-10 10-3 12-7-4 12 12 14 10 20-16 12-10-18-12-6H48Z"/>
+<!--body-->
+      <path d="M76 84c16-10 42-2 64 14 16 10 24 24 18 38l6-2-4 10c-10 6-24 4-36-2-14-6-28-18-38-30Z"/>
+<!--raised forelegs-->
+      <path d="m86 104-16 8-12-4-6 10-4-4 6-14 16 2 10-8Zm8 12-12 12H66l-4 12-5-3 3-15 16-2 10-10Z"/>
+<!--hind legs-->
+      <path d="M150 140c2 12 0 22 4 32l6 18h-10l-4-14c-6-10-8-20-10-30Zm-20 0c0 12-2 22-4 32l-2 18h-10l3-18c1-10 1-22 1-36Z"/>
+    </g>
+    <circle cx="56" cy="60" r="2.4" fill="#2e162c"/>
+  </g>
+</svg>

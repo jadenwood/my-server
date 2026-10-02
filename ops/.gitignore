@@ -1,0 +1,5 @@
+# Never commit a filled-in ops config or rclone config: they hold the webhook URL and bucket keys.
+realm-ops.json
+rclone.conf
+*.local.json
+tests/.work/

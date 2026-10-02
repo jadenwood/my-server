@@ -1,0 +1,92 @@
+{
+  "Version": 1,
+  "Date": "2026-09-02",
+  "Server": "realm-1",
+  "SaltId": "11111111",
+  "Degraded": false,
+  "SampleMinutes": 5,
+  "Active": [
+    "aaaaaaaaaaaaaaaa",
+    "bbbbbbbbbbbbbbbb",
+    "eeeeeeeeeeeeeeee"
+  ],
+  "New": [
+    "eeeeeeeeeeeeeeee"
+  ],
+  "Sessions": [],
+  "Joins": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "Leaves": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "Concurrency": [
+    {
+      "T": 1788375600,
+      "N": 2,
+      "Max": 2
+    }
+  ],
+  "Deaths": {
+    "pvp": 1
+  },
+  "Houses": {
+    "Varrow": {
+      "Active": [
+        "aaaaaaaaaaaaaaaa",
+        "eeeeeeeeeeeeeeee"
+      ],
+      "Seconds": 3600,
+      "Sessions": 2,
+      "Deaths": 0,
+      "Kills": 0
+    }
+  },
+  "Dropped": {}
+}

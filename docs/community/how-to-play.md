@@ -135,7 +135,7 @@ Every public act is written to the Chronicle. You can read it:
 - In game: `/chronicle [count]` shows the latest entries (default 5, max 15).
 - On the public page `/realm` and the stream overlay, served by the Chronicle service. These are currently local to the server PC; see [`streamer-kit.md`](streamer-kit.md).
 
-Event types: `coronation`, `abdication`, `claim_declared`, `rebellion_started`, `rebellion_ended`, `house_founded`, `oath_sworn`, `oath_broken`, `treaty_signed`, `treaty_broken`, `decree`, `ransom_set`, `ransom_paid`, `released`.
+Event types: `coronation`, `abdication`, `claim_declared`, `rebellion_started`, `rebellion_ended`, `house_founded`, `oath_sworn`, `oath_broken`, `treaty_signed`, `treaty_broken`, `decree`, `ransom_set`, `ransom_paid`, `released`, `season_started`, `season_ended`, `event_started`, `event_ended`, `tournament_champion`, `hunt_kill`, `truce_broken`.
 
 The Chronicle shows **only public player names**. It never shows locations or inventories. Reading it is never stream sniping.
 
@@ -160,8 +160,55 @@ Contracts let small groups and lone blades earn a place in the realm. Rewards ar
 
 Rules worth knowing: you can't collect a bounty you posted or one on your own housemate; a mercenary's kills of their own housemates don't count, and each victim counts once per contract; bounties pay only while the target is still a public enemy, and none pay while the throne is empty.
 
+## 11. Seasons and the Hall of Kings
+
+The realm is played in numbered **seasons** (default 28 days). During a season every house earns points:
+
+| What | Points (default) |
+|---|---|
+| Each day your house holds the crown (counted by the minute) | +10 per day |
+| A rebellion your house **won** (your claim took the crown) | +25 |
+| A rebellion your house **defended** (you held the crown) | +15 |
+| A treaty kept to the end of its term (both houses) | +5 |
+| A treaty you broke / an oath you renounced | −10 each |
+| A contract fulfilled by one of your members | +2 |
+| Realm events (below) | as listed there |
+
+| Command | What it does |
+|---|---|
+| `/season` | The season, its day and end date, the leading house and your house's place |
+| `/season standings` | The top houses with their crown days, rebellions, treaties, contracts and event points |
+| `/season house [name]` | One house's standing and honours (your own by default) |
+| `/season hall [page]` | **The Hall of Kings**: every reign, newest first, with its house, length and how it ended |
+| `/season history` | Past seasons, their champion houses and longest reigns |
+
+When a season ends, the herald proclaims the standings and the **champion house**; it goes into the Chronicle (`season_ended`) and into the realm's legends. **The Hall of Kings and past seasons survive server wipes.** Only the running standings start again.
+
+## 12. Realm events
+
+Scheduled events with countdown heralds (60, 30, 10, 5 and 1 minute before). Default times, all **UTC**; the server operator can change or disable each one. `/events` always shows what is on now and what comes next.
+
+| Event | Default | What happens |
+|---|---|---|
+| **Crown Night** | Saturday 19:00, 90 min (the Saturday rebellion window) | The night the throne is fought for. The countdown names the houses with a claim. A house whose member takes the throne during the night earns **+10** (once); the house holding the crown when the night ends earns **+30**. The normal claim rules (section 7) still decide who may capture. |
+| **Royal Tournament** | Friday 19:00, 60 min | A PvP ranking. `/tourney join` (you can join during the countdown). Each kill of another entrant scores 1; the same victim counts at most **twice** for you; housemates never count. Places 1–3 earn your house **+30 / +20 / +10** and prizes (default 300 / 200 / 100 Stone). |
+| **The King's Hunt** | Wednesday 21:00, 60 min | The monarch names up to **3** quarry with `/hunt name <player>` within the first 10 minutes (or the hunt is called off). Whoever slays a quarry (not one of the quarry's housemates) gets the prize (default 200 Wood) and **+15** for their house. Quarry still free at the end earn **+10** for their house. Each quarry can be taken once. |
+| **Truce of the Realm** | Sunday 12:00, 240 min | No player may harm another: blows simply do not land. Killing during the truce is a breach: it is chronicled (`truce_broken`) and costs your house **−15**. The truce **yields to an open rebellion**. *UNVERIFIED: that every kind of damage (arrows, fire, siege) is stopped; if not, the server runs the truce as announce-only and breaches are still punished.* |
+
+| Command | What it does |
+|---|---|
+| `/events` | What is running now, what comes next, and the last result |
+| `/tourney join` / `leave` / `standings` | Enter, withdraw from, or see the Royal Tournament |
+| `/hunt` | The quarry and who has taken them; `/hunt name <player>` (monarch only) |
+| `/truce` | Whether a truce holds and until when |
+| `/event collect` | Prizes that did not fit in your packs, or arrived while you were offline |
+
+Prizes are real items. If your packs are full, the rest waits for you: rejoin or use `/event collect`. Nothing is lost and nothing is paid twice.
+
 ## Admin-only commands (for reference)
 
 These need the `realmhouses.admin` / `crownandconsequences.admin` permission. Their use is governed by `rules.md`.
 
 `/house disband <house>`, `/house pardon <house>` (clears marks and the oath cooldown), `/house unlink` (on any house the admin belongs to), `/house sync`, `/claim cancel <house>` (recorded as "set aside by the realm's stewards"), `/council appoint|remove` without being monarch. Admin permission also **bypasses the throne-capture gate**.
+
+Seasons and events (permissions `realmseasons.admin` / `realmevents.admin`): `/season start [days] [name]`, `/season end` (holds the ceremony now), `/season status`; `/event start <crown_night|tournament|kings_hunt|truce> [minutes]`, `/event stop <kind>` (ends it now, with results and prizes), `/event cancel <kind>` (ends it with no results). An admin may also name hunt quarry.

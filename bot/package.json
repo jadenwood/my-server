@@ -1,0 +1,19 @@
+{
+  "name": "realm-discord-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Interactive Discord bot for the Realm server: /realm slash commands, a live status message and self-service house roles. Reads the local Realm Chronicle service and the Oxide data files; never writes to them.",
+  "type": "module",
+  "main": "index.js",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node index.js",
+    "register": "node scripts/register-commands.js",
+    "commands": "node scripts/register-commands.js --print",
+    "check-config": "node index.js --check",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0"
+  }
+}

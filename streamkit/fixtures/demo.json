@@ -1,0 +1,10 @@
+[
+  { "event": { "type": "oath_broken", "title": "House Merrin renounces its oath to House Varrow", "detail": "Odo Merrin breaks the oath of House Merrin. The house now bears the oathbreaker mark (x1).", "actors": ["Odo Merrin", "Aldric Varrow"] }, "lieges": { "Merrin": null } },
+  { "event": { "type": "treaty_signed", "title": "House Merrin and House Halloran sign a treaty", "detail": "The treaty holds for 4 days, until 2026-10-08 (UTC).", "actors": ["Odo Merrin", "Petra Halloran"] } },
+  { "event": { "type": "rebellion_started", "title": "House Dunmere rises", "detail": "The rebellion of House Dunmere has begun. The throne may be contested until 20:30 UTC.", "actors": ["Hale Dunmere"] } },
+  { "event": { "type": "abdication", "title": "Aldric Varrow no longer reigns", "detail": "Aldric Varrow fell while holding the crown.", "actors": ["Aldric Varrow"] }, "state": { "king": null, "house": null } },
+  { "event": { "type": "coronation", "title": "Hale Dunmere of Dunmere takes the throne", "detail": "Hale Dunmere is crowned.", "actors": ["Hale Dunmere"] }, "state": { "king": "Hale Dunmere", "house": "Dunmere" } },
+  { "event": { "type": "rebellion_ended", "title": "The rebellion of House Dunmere ends", "detail": "House Dunmere prevailed and holds the crown.", "actors": ["Hale Dunmere", "Hale Dunmere"] } },
+  { "event": { "type": "treaty_broken", "title": "House Ashgrove breaks its treaty with House Halloran", "detail": "Wren tears up the treaty before its term. House Ashgrove now bears the treaty-breaker mark (x1).", "actors": ["Wren", "Petra Halloran"] } },
+  { "event": { "type": "claim_declared", "title": "House Varrow claims the crown", "detail": "Aldric Varrow of House Varrow declares a claim against Hale Dunmere of Dunmere. The rebellion opens Wednesday 19:00 UTC.", "actors": ["Aldric Varrow", "Hale Dunmere"] } }
+]

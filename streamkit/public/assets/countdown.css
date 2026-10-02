@@ -1,0 +1,106 @@
+/* Countdown scene */
+.countdown {
+  --dye: #7a1f1c;
+  --dye-light: #8f3a37;
+  position: absolute;
+  box-sizing: border-box;
+  text-align: center;
+  border-radius: 10px;
+  animation: cd-in 0.9s cubic-bezier(.2, 1.2, .4, 1) both;
+}
+.countdown.full {
+  left: 50%;
+  top: 50%;
+  width: 1240px;
+  margin-left: -620px;
+  transform: translateY(-50%);
+  padding: 40px 60px 44px;
+}
+.countdown.compact {
+  right: 48px;
+  top: 48px;
+  width: 560px;
+  padding: 18px 26px 20px;
+}
+.countdown .glass {
+  position: absolute;
+  left: 50%;
+  top: -46px;
+  margin-left: -46px;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 50px;
+  color: var(--ember-hot);
+  background: radial-gradient(circle at 50% 35%, #3a3c42, var(--iron-950));
+  border: 3px solid var(--ember);
+  box-shadow: 0 0 0 3px #000, 0 0 30px var(--ember-glow);
+}
+.countdown .hourglass { animation: flip 6s ease-in-out infinite; }
+.countdown.compact .glass { display: none; }
+
+.countdown .eyebrow { font-size: 30px; letter-spacing: 0.26em; margin-top: 26px; }
+.countdown.compact .eyebrow { font-size: 16px; margin-top: 0; letter-spacing: 0.18em; }
+
+.countdown .digits {
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+  margin: 26px 0 18px;
+}
+.countdown.compact .digits { gap: 10px; margin: 10px 0 6px; }
+.countdown .unit { display: flex; flex-direction: column; align-items: center; }
+.countdown.no-days .u-d { display: none; }
+.countdown .num {
+  font: 800 150px/1 var(--font-display);
+  min-width: 2.3ch;
+  padding: 18px 16px 10px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #0f1012, #1e2024 50%, #0f1012 50.5%, #17181b);
+  box-shadow: inset 0 0 0 2px #000, inset 0 2px 0 rgba(255, 255, 255, 0.06), 0 0 0 2px var(--iron-600);
+  color: var(--ember-hot);
+  text-shadow: 0 0 22px rgba(244, 177, 76, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+.countdown.compact .num { font-size: 56px; padding: 8px 8px 4px; border-radius: 5px; }
+.countdown .num.tick { animation: tick 0.45s ease-out; }
+.countdown .lbl {
+  font: 700 18px var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--text-dim);
+  margin-top: 10px;
+}
+.countdown.compact .lbl { font-size: 11px; letter-spacing: 0.18em; margin-top: 4px; }
+.countdown .sub { font: italic 500 34px var(--font-body); color: var(--text); }
+.countdown.compact .sub { font-size: 19px; }
+.countdown .foot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  font: 600 24px var(--font-display);
+  letter-spacing: 0.12em;
+  color: var(--ember);
+}
+.countdown.compact .foot { font-size: 15px; margin-top: 6px; gap: 8px; }
+.countdown .house { display: inline-flex; align-items: center; gap: 8px; color: var(--text); margin-left: 16px; }
+.countdown .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--dye); border: 2px solid var(--dye-light); display: inline-block; }
+
+/* Kinds: claims and live rebellions burn red; realm events stay gold. */
+.countdown.kind-claim .num, .countdown.live .num { color: #ff9a7f; text-shadow: 0 0 24px rgba(199, 64, 47, 0.7); }
+.countdown.kind-claim .glass, .countdown.live .glass { border-color: var(--blood-hot); color: #ff9a7f; box-shadow: 0 0 0 3px #000, 0 0 34px rgba(199, 64, 47, 0.7); }
+.countdown.live { animation: cd-in 0.9s both, war-glow 2.4s ease-in-out infinite; }
+.countdown.final .num { animation: final 1s ease-in-out infinite; }
+.countdown.arrived .num { color: #fff; animation: arrive 0.6s ease-out 3; }
+.countdown.idle .digits { opacity: 0.35; }
+
+@keyframes cd-in { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: none; } }
+@keyframes flip { 0%, 40% { transform: rotate(0); } 50%, 90% { transform: rotate(180deg); } 100% { transform: rotate(360deg); } }
+@keyframes tick { 0% { transform: translateY(-8px); opacity: 0.4; } 100% { transform: none; opacity: 1; } }
+@keyframes final { 50% { text-shadow: 0 0 40px rgba(255, 120, 90, 1); } }
+@keyframes arrive { 50% { transform: scale(1.08); } }
+@keyframes war-glow { 50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 2px var(--blood), 0 0 0 3px #000, 0 0 60px rgba(199, 64, 47, 0.55); } }
