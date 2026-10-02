@@ -5,6 +5,11 @@
 //
 // The plugin.Call API (GetHouse, GetLiege, GetMembers, ...) MUST stay non-public: Oxide.CSharp
 // (CSharpPlugin.cs @49500b8, ctor) registers only NonPublic|Instance methods as callable hooks.
+//
+// Popups (UsePopups, on by default): /swear <house> and /renounce ask Yes/No in the game's own window, the liege's
+// leader can accept an offered oath in one, and /house found without a name or sigil asks for them in input windows.
+// Every window comes with its chat fallback (/swear confirm, /renounce confirm, /swear accept|deny, the full
+// /house found line). See the "Popups" region; all of it is UNVERIFIED in game.
 
 using System;
 using System.Collections.Generic;
@@ -12,6 +17,7 @@ using CodeHatch.Common;                       // PlayerExtensions: SendMessage, 
 using CodeHatch.Engine.Modules.SocialSystem;  // SocialAPI, Members, Member                          [ASM]
 using CodeHatch.Engine.Networking;            // Player, Server                                      [ASM]
 using CodeHatch.Thrones.SocialSystem;         // GuildScheme, Guild                                  [ASM]
+using CodeHatch.UserInterface.Dialogues;      // Dialogue.OnSubmit, Options (popup answers)          [ASM]
 using Oxide.Core;                             // Interface.Oxide.DataFileSystem                      [SRC]
 using Oxide.Core.Plugins;                     // Plugin (for [PluginReference])
 
@@ -29,6 +35,8 @@ namespace Oxide.Plugins
         // [SRC] Oxide.CSharp src/CSharpPlugin.cs:91 (PluginReferenceAttribute) and Oxide.Core
         // src/Plugins/Plugin.cs:311 (Plugin.Call). If RealmChronicle is absent, events are only printed.
         [PluginReference] private Plugin RealmChronicle;
+        // Optional: RealmHerald.PopupsWanted(playerId) is false after a player types /realm popups off.
+        [PluginReference] private Plugin RealmHerald;
 
         private PluginConfig config;
         private StoredData data;
@@ -41,6 +49,7 @@ namespace Oxide.Plugins
         private readonly Dictionary<string, Offer> fealtyRequests = new Dictionary<string, Offer>();   // vassalKey -> liege
         private readonly Dictionary<string, Offer> treatyProposals = new Dictionary<string, Offer>();  // "from|to" -> days
         private readonly Dictionary<string, DateTime> renounceConfirm = new Dictionary<string, DateTime>();
+        private readonly Dictionary<string, Offer> swearConfirm = new Dictionary<string, Offer>();      // leader id -> liege
         private readonly Dictionary<string, int> guildMisses = new Dictionary<string, int>();
 
         private Timer syncTimer;
@@ -79,6 +88,11 @@ namespace Oxide.Plugins
             // broadcasts and chronicle lines are capped per hour. Over the cap they still go to the server log.
             // Oath and treaty lines are never capped: they are the record of a house breaking its word.
             public int FoundingNoticesPerHour = 6;
+            // The game's popup windows: Yes/No for swearing, accepting and renouncing an oath, and the name and sigil
+            // when founding a house. Every window has a chat fallback that is sent with it (docs/realm-commands.md).
+            // With popups off, /swear <house> offers the oath at once, as before. UNVERIFIED in game.
+            public bool UsePopups = true;
+            public int PopupAnswerSeconds = 120;            // how long a /swear or founding window may be answered
         }
 
         private class HouseMember
@@ -221,6 +235,33 @@ namespace Oxide.Plugins
                 { "BroadcastSworn", "[D6A043]Herald[FFFFFF]: House {0} bends the knee to House {1}." },
                 { "NotSworn", "Your house is sworn to no one." },
                 { "RenounceWarn", "Renouncing your oath to House {0} marks your house and you as oathbreakers. Type [F4C96D]/renounce confirm[FFFFFF] within {1} seconds." },
+                { "RenounceWarnPopup", "Renouncing your oath to House {0} marks your house and you as oathbreakers. Answer the window, or type [F4C96D]/renounce confirm[FFFFFF] within {1} seconds." },
+                { "RenounceKept", "Your house keeps its oath to House {0}." },
+                { "SwearAsk", "Answer the window, or type [F4C96D]/swear confirm[FFFFFF] within {0} to offer the oath of your house to House {1}." },
+                { "SwearCancelled", "Your house swears no oath." },
+                { "NoSwearPending", "No oath is waiting to be confirmed. Type [F4C96D]/swear[FFFFFF] <house> first." },
+                { "FoundAsk", "Name your house in the window, or type [F4C96D]/house found[FFFFFF] \"<name>\" <sigil>" },
+                { "FoundAskSigil", "Choose the sigil of House {0} in the window, or type [F4C96D]/house found[FFFFFF] \"{0}\" <sigil>" },
+                { "FoundCancelled", "No house is founded." },
+                { "PopupFoundTitle", "Found a house" },
+                { "PopupFoundName", "Name your house: {0} to {1} letters, digits, spaces, ' or -, starting with a letter." },
+                { "PopupFoundSigil", "Choose the sigil House {0} will bear, for example: a grey wolf on green." },
+                { "PopupNext", "Next" },
+                { "PopupFound", "Found the house" },
+                { "PopupCancel", "Cancel" },
+                { "PopupSwearTitle", "An oath of fealty" },
+                { "PopupSwear", "Offer the oath of House {0} to House {1}? Your house becomes its vassal. Breaking the oath later marks your house and you as oathbreakers." },
+                { "PopupSwearLiege", "The leader of House {0} must still accept it." },
+                { "PopupSwearYes", "Swear" },
+                { "PopupNotNow", "Not now" },
+                { "PopupFealtyTitle", "An oath is offered" },
+                { "PopupFealty", "House {0} offers fealty to your house. Accept it as your vassal?" },
+                { "PopupAccept", "Accept" },
+                { "PopupRefuse", "Refuse" },
+                { "PopupRenounceTitle", "Break your oath?" },
+                { "PopupRenounce", "Renounce the oath of House {0} to House {1}? Your house and you will bear the oathbreaker mark, and your house cannot swear again for {2}." },
+                { "PopupRenounceYes", "Renounce" },
+                { "PopupRenounceNo", "Keep the oath" },
                 { "Renounced", "House {0} has renounced its oath to House {1}." },
                 { "BroadcastRenounced", "[D6A043]Herald[FFFFFF]: House {0} breaks its oath to House {1}. Let the realm remember." },
                 { "VassalFreed", "Your liege, House {0}, is gone. Your house is sworn to no one." },
@@ -238,7 +279,7 @@ namespace Oxide.Plugins
                 { "TreatyLapsed", "The treaty between House {0} and House {1} has lapsed." },
                 { "TreatyListLine", "  {0} - {1} left" },
                 { "TreatyUsage", "Usage: [F4C96D]/treaty propose[FFFFFF] <house> [days] | accept <house> | break <house> | list" },
-                { "SwearUsage", "Usage: [F4C96D]/swear[FFFFFF] <house> | [F4C96D]/swear accept[FFFFFF] <house> | [F4C96D]/swear deny[FFFFFF] <house>" }
+                { "SwearUsage", "Usage: [F4C96D]/swear[FFFFFF] <house> | [F4C96D]/swear confirm[FFFFFF] | [F4C96D]/swear accept[FFFFFF] <house> | [F4C96D]/swear deny[FFFFFF] <house>" }
             }, this);
         }
 
@@ -266,6 +307,8 @@ namespace Oxide.Plugins
 
         private void Unload()
         {
+            popupsClosed = true;                            // a window answered after a reload does nothing
+            popupAsks.Clear();
             SaveData();
         }
 
@@ -397,23 +440,111 @@ namespace Oxide.Plugins
 
         private void HouseFound(Player player, string[] args)
         {
+            if (!CanFound(player)) return;
+            if (args.Length < 3)
+            {
+                // Without a name or a sigil, ask for them in input windows (chat fallback: the full command line).
+                string given = args.Length == 2 ? HouseNameFrom(args[1]) : null;
+                if (given == null) { if (AskFoundName(player, null)) { Reply(player, "FoundAsk"); return; } }
+                else if (PopupsFor(player))
+                {
+                    string problem = NameProblem(player, given);
+                    if (problem != null) { player.SendError(Styled(Msg("Speaker", player), ChatError, problem)); return; }
+                    if (AskFoundSigil(player, given, null)) { Reply(player, "FoundAskSigil", given); return; }
+                }
+                ShowHelp(player);
+                return;
+            }
+            FoundHouse(player, CleanText(args[1]), CleanText(JoinFrom(args, 2)));
+        }
+
+        // Reports the reason to `player` and returns false while they may not found a house.
+        private bool CanFound(Player player)
+        {
             string id = player.Id.ToString();
             House current = HouseOf(id);
-            if (current != null) { Error(player, "AlreadyInHouse", current.Name); return; }
-            if (args.Length < 3) { ShowHelp(player); return; }
-
-            string name = CleanText(args[1]);
-            string sigil = CleanText(JoinFrom(args, 2));
-            if (!ValidName(name)) { Error(player, "BadName", config.NameMinLength, config.NameMaxLength); return; }
-            if (!ValidSigil(sigil)) { Error(player, "BadSigil", config.SigilMaxLength); return; }
-            if (FindHouse(name) != null || IsReserved(name)) { Error(player, "NameTaken"); return; }
-            if (config.MaxHouses > 0 && data.Houses.Count >= config.MaxHouses) { Error(player, "TooManyHouses"); return; }
+            if (current != null) { Error(player, "AlreadyInHouse", current.Name); return false; }
+            if (config.MaxHouses > 0 && data.Houses.Count >= config.MaxHouses) { Error(player, "TooManyHouses"); return false; }
             DateTime lastFounded;
             if (config.FoundCooldownMinutes > 0 && data.LastFounded.TryGetValue(id, out lastFounded))
             {
                 DateTime ready = lastFounded.AddMinutes(config.FoundCooldownMinutes);
-                if (ready > DateTime.UtcNow) { Error(player, "FoundCooldown", Duration(ready - DateTime.UtcNow)); return; }
+                if (ready > DateTime.UtcNow) { Error(player, "FoundCooldown", Duration(ready - DateTime.UtcNow)); return false; }
             }
+            return true;
+        }
+
+        // The error text for a house name that cannot be used, or null when it can.
+        private string NameProblem(Player player, string name)
+        {
+            if (!ValidName(name)) return Msg("BadName", player, config.NameMinLength, config.NameMaxLength);
+            if (FindHouse(name) != null || IsReserved(name)) return Msg("NameTaken", player);
+            return null;
+        }
+
+        // A name typed into a window or after /house found: spaces tidied, surrounding quotes and a leading
+        // "House " dropped. Null when nothing is left.
+        private static string HouseNameFrom(string text)
+        {
+            string s = CleanText(text);
+            if (string.IsNullOrEmpty(s)) return null;
+            s = s.Trim('"', '\'').Trim();
+            if (s.StartsWith("House ", StringComparison.OrdinalIgnoreCase)) s = s.Substring(6).Trim();
+            return s.Length > 0 ? s : null;
+        }
+
+        private bool AskFoundName(Player player, string problem)
+        {
+            string message = Msg("PopupFoundName", player, config.NameMinLength, config.NameMaxLength);
+            if (problem != null) message = problem + "\n\n" + message;
+            return AskText(player, "found-name", null, config.PopupAnswerSeconds, Msg("PopupFoundTitle", player), message, "",
+                Msg("PopupNext", player), Msg("PopupCancel", player), FoundNameAnswered);
+        }
+
+        private void FoundNameAnswered(Player player, PopupAsk ask, bool ok, string text)
+        {
+            if (!ok) { Reply(player, "FoundCancelled"); return; }
+            if (!CanFound(player)) return;
+            string name = HouseNameFrom(text);
+            string problem = name == null ? Msg("BadName", player, config.NameMinLength, config.NameMaxLength) : NameProblem(player, name);
+            if (problem != null)
+            {
+                player.SendError(Styled(Msg("Speaker", player), ChatError, problem));
+                AskFoundName(player, problem);
+                return;
+            }
+            if (!AskFoundSigil(player, name, null)) Reply(player, "FoundAskSigil", name);
+        }
+
+        private bool AskFoundSigil(Player player, string name, string problem)
+        {
+            string message = Msg("PopupFoundSigil", player, name);
+            if (problem != null) message = problem + "\n\n" + message;
+            return AskText(player, "found-sigil", name, config.PopupAnswerSeconds, Msg("PopupFoundTitle", player), message, "",
+                Msg("PopupFound", player), Msg("PopupCancel", player), FoundSigilAnswered);
+        }
+
+        private void FoundSigilAnswered(Player player, PopupAsk ask, bool ok, string text)
+        {
+            if (!ok) { Reply(player, "FoundCancelled"); return; }
+            string sigil = CleanText(text);
+            if (!ValidSigil(sigil))
+            {
+                string problem = Msg("BadSigil", player, config.SigilMaxLength);
+                player.SendError(Styled(Msg("Speaker", player), ChatError, problem));
+                AskFoundSigil(player, ask.Data, problem);
+                return;
+            }
+            FoundHouse(player, ask.Data, sigil);
+        }
+
+        private void FoundHouse(Player player, string name, string sigil)
+        {
+            string id = player.Id.ToString();
+            if (!CanFound(player)) return;
+            if (!ValidName(name)) { Error(player, "BadName", config.NameMinLength, config.NameMaxLength); return; }
+            if (!ValidSigil(sigil)) { Error(player, "BadSigil", config.SigilMaxLength); return; }
+            if (FindHouse(name) != null || IsReserved(name)) { Error(player, "NameTaken"); return; }
 
             ulong guildId = 0;
             string guildName = null;
@@ -705,23 +836,12 @@ namespace Oxide.Plugins
             string sub = args[0].ToLowerInvariant();
             if ((sub == "accept" || sub == "deny") && args.Length >= 2)
             {
-                House vassal = FindHouse(JoinFrom(args, 1));
-                if (vassal == null) { Error(player, "NoSuchHouse", JoinFrom(args, 1)); return; }
-                Offer req;
-                if (!fealtyRequests.TryGetValue(Key(vassal.Name), out req) || req.Target != Key(house.Name) || req.Expires < DateTime.UtcNow)
-                {
-                    Error(player, "NoFealtyRequest", vassal.Name);
-                    return;
-                }
-                fealtyRequests.Remove(Key(vassal.Name));
-                if (sub == "deny")
-                {
-                    Reply(player, "FealtyDeniedSelf", vassal.Name);
-                    NotifyLeader(vassal, "FealtyDenied", house.Name);
-                    return;
-                }
-                if (!CanSwear(player, vassal, house)) return;
-                Swear(vassal, house);
+                AnswerFealty(player, JoinFrom(args, 1), sub == "accept");
+                return;
+            }
+            if (sub == "confirm" && args.Length == 1)
+            {
+                ConfirmSwear(player, null);
                 return;
             }
 
@@ -729,7 +849,58 @@ namespace Oxide.Plugins
             House liege = FindHouse(wanted);
             if (liege == null) { Error(player, "NoSuchHouse", wanted); return; }
             if (!CanSwear(player, house, liege)) return;
+            if (config.RequireLiegeAcceptance && OnlineLeader(liege) == null) { Error(player, "NoLeaderOnline", liege.Name); return; }
 
+            // With popups on, the oath is asked Yes/No first; /swear confirm is the chat answer.
+            if (PopupsFor(player))
+            {
+                string id = player.Id.ToString();
+                swearConfirm[id] = new Offer { Target = Key(liege.Name), Expires = DateTime.UtcNow.AddSeconds(config.PopupAnswerSeconds) };
+                string message = Msg("PopupSwear", player, house.Name, liege.Name);
+                if (config.RequireLiegeAcceptance) message += "\n\n" + Msg("PopupSwearLiege", player, liege.Name);
+                if (AskYesNo(player, "swear", Key(liege.Name), config.PopupAnswerSeconds, Msg("PopupSwearTitle", player), message,
+                    Msg("PopupSwearYes", player), Msg("PopupNotNow", player), SwearAnswered))
+                {
+                    Reply(player, "SwearAsk", Duration(TimeSpan.FromSeconds(config.PopupAnswerSeconds)), liege.Name);
+                    return;
+                }
+                swearConfirm.Remove(id);                    // the window could not open: offer at once, as without popups
+            }
+            OfferOath(player, house, liege);
+        }
+
+        private void SwearAnswered(Player player, PopupAsk ask, bool yes, string text)
+        {
+            if (yes) { ConfirmSwear(player, ask.Data); return; }
+            swearConfirm.Remove(player.Id.ToString());
+            Reply(player, "SwearCancelled");
+        }
+
+        // The oath the leader was asked about (by window or /swear confirm), checked again now: the house, the leader
+        // and the liege must still be what they were, and every rule of /swear still holds.
+        private void ConfirmSwear(Player player, string liegeKey)
+        {
+            string id = player.Id.ToString();
+            Offer pending;
+            if (!swearConfirm.TryGetValue(id, out pending) || pending.Expires < DateTime.UtcNow || (liegeKey != null && pending.Target != liegeKey))
+            {
+                Error(player, "NoSwearPending");
+                return;
+            }
+            swearConfirm.Remove(id);
+            DropAsk(id, "swear");
+            House house = RequireHouse(player);
+            if (house == null) return;
+            if (!IsLeader(house, id)) { Error(player, "NotLeader"); return; }
+            House liege = FindHouse(pending.Target);
+            if (liege == null) { Error(player, "NoSuchHouse", pending.Target); return; }
+            if (!CanSwear(player, house, liege)) return;
+            OfferOath(player, house, liege);
+        }
+
+        // Swears at once, or offers the oath to the liege's leader (a chat line and, with popups on, an Accept/Refuse window).
+        private void OfferOath(Player player, House house, House liege)
+        {
             if (!config.RequireLiegeAcceptance) { Swear(house, liege); return; }
 
             Player liegeLeader = OnlineLeader(liege);
@@ -741,6 +912,39 @@ namespace Oxide.Plugins
             };
             Reply(player, "FealtyRequested", liege.Name, Duration(TimeSpan.FromSeconds(config.FealtyRequestExpireSeconds)));
             Reply(liegeLeader, "FealtyRequestReceived", house.Name);
+            AskYesNo(liegeLeader, "fealty", Key(house.Name), config.FealtyRequestExpireSeconds, Msg("PopupFealtyTitle", liegeLeader),
+                Msg("PopupFealty", liegeLeader, house.Name), Msg("PopupAccept", liegeLeader), Msg("PopupRefuse", liegeLeader), FealtyAnswered);
+        }
+
+        private void FealtyAnswered(Player player, PopupAsk ask, bool yes, string text)
+        {
+            AnswerFealty(player, ask.Data, yes);
+        }
+
+        // The liege's leader accepts or refuses an offered oath (by window or /swear accept|deny <house>).
+        private void AnswerFealty(Player player, string vassalName, bool accept)
+        {
+            House house = RequireHouse(player);
+            if (house == null) return;
+            if (!IsLeader(house, player.Id.ToString())) { Error(player, "NotLeader"); return; }
+            House vassal = FindHouse(vassalName);
+            if (vassal == null) { Error(player, "NoSuchHouse", vassalName); return; }
+            Offer req;
+            if (!fealtyRequests.TryGetValue(Key(vassal.Name), out req) || req.Target != Key(house.Name) || req.Expires < DateTime.UtcNow)
+            {
+                Error(player, "NoFealtyRequest", vassal.Name);
+                return;
+            }
+            fealtyRequests.Remove(Key(vassal.Name));
+            DropAsk(player.Id.ToString(), "fealty");
+            if (!accept)
+            {
+                Reply(player, "FealtyDeniedSelf", vassal.Name);
+                NotifyLeader(vassal, "FealtyDenied", house.Name);
+                return;
+            }
+            if (!CanSwear(player, vassal, house)) return;
+            Swear(vassal, house);
         }
 
         // Reports the reason to `player` and returns false when the oath is not allowed.
@@ -784,10 +988,14 @@ namespace Oxide.Plugins
             if (!confirmed)
             {
                 renounceConfirm[id] = DateTime.UtcNow.AddSeconds(config.RenounceConfirmSeconds);
-                Reply(player, "RenounceWarn", house.Liege, config.RenounceConfirmSeconds);
+                bool asked = AskYesNo(player, "renounce", Key(house.Liege), config.RenounceConfirmSeconds, Msg("PopupRenounceTitle", player),
+                    Msg("PopupRenounce", player, house.Name, house.Liege, Duration(TimeSpan.FromHours(config.RenounceCooldownHours))),
+                    Msg("PopupRenounceYes", player), Msg("PopupRenounceNo", player), RenounceAnswered);
+                Reply(player, asked ? "RenounceWarnPopup" : "RenounceWarn", house.Liege, config.RenounceConfirmSeconds);
                 return;
             }
             renounceConfirm.Remove(id);
+            DropAsk(id, "renounce");
 
             string liegeName = house.Liege;
             House liege = FindHouse(liegeName);
@@ -803,6 +1011,160 @@ namespace Oxide.Plugins
             Chronicle("oath_broken", "House " + house.Name + " renounces its oath to House " + liegeName,
                 player.Name + " breaks the oath of House " + house.Name + ". The house now bears the oathbreaker mark (x" + house.OathsBroken + ").",
                 liege != null ? LeaderNames(house, liege) : new[] { player.Name });
+        }
+
+        // "Renounce" in the window is /renounce confirm, for the oath the window named; "Keep the oath" withdraws it.
+        private void RenounceAnswered(Player player, PopupAsk ask, bool yes, string text)
+        {
+            string id = player.Id.ToString();
+            House house = HouseOf(id);
+            if (!yes)
+            {
+                renounceConfirm.Remove(id);
+                if (house != null && house.Liege != null) Reply(player, "RenounceKept", house.Liege);
+                return;
+            }
+            if (house == null || house.Liege == null || Key(house.Liege) != ask.Data) { Error(player, "NotSworn"); return; }
+            CmdRenounce(player, "renounce", new[] { "confirm" });
+        }
+
+        #endregion
+
+        #region Popups
+
+        // Realm popups (docs/realm-commands.md, "Popups"): the game's own windows, opened with the Player extension
+        // methods in CodeHatch.Common.PlayerExtensions. Signatures read from the 2.0.3867 Assembly-CSharp.dll metadata:
+        //   void ShowConfirmPopup(this Player, string title, string message, string confirmText = "Confirm",
+        //       string cancelText = "Cancel", Dialogue.OnSubmit handler = null, bool interupt = false, bool broadcast = true)
+        //   void ShowInputPopup(this Player, string title, string message, string initialInput = "Confirm",
+        //       string confirmText = "Confirm", string cancelText = "Cancel", Dialogue.OnSubmit handler = null,
+        //       bool interupt = false, bool broadcast = true)
+        //   delegate void Dialogue.OnSubmit(Options selection, Dialogue dialogue, object contextData)
+        // The confirm button answers Options.Yes, the cancel button Options.No; an input window's text comes back in
+        // dialogue.ValueMessage. On a dedicated server the window reaches the client only with broadcast = true.
+        //
+        // How an answer arrives (read from the IL, not seen running): the server keeps the handler in a static table
+        // keyed by a timestamp and calls it when the client's reply event comes back. The reply carries no proof of
+        // who sent it. So an answer here is only a request: it must match the one question this plugin has open for
+        // that player (token, kind, deadline), it is used once, and then it runs the same checks as the chat command it
+        // stands in for. A question that is never answered simply lapses; its chat fallback works the whole time.
+        // A popup is plain text: chat colour tags are stripped (whether the window would draw them is UNVERIFIED).
+        // UNVERIFIED in game: that the windows show, how they look, and that the answers come back.
+        private class PopupAsk
+        {
+            public int Token;
+            public string Kind;
+            public string Data;
+            public DateTime Expires;
+        }
+
+        private readonly Dictionary<string, PopupAsk> popupAsks = new Dictionary<string, PopupAsk>();   // player id -> open question
+        private int popupToken;
+        private bool popupsClosed;                          // set on Unload: answers to windows still open are ignored
+
+        private bool PopupsFor(Player player)
+        {
+            if (player == null || player.IsServer || !config.UsePopups || popupsClosed) return false;
+            if (RealmHerald == null) return true;
+            object wanted = RealmHerald.Call("PopupsWanted", player.Id.ToString());
+            return !(wanted is bool) || (bool)wanted;
+        }
+
+        private bool AskYesNo(Player player, string kind, string data, int seconds, string title, string message, string yes, string no,
+            Action<Player, PopupAsk, bool, string> answer)
+        {
+            if (!PopupsFor(player)) return false;
+            string id = player.Id.ToString();
+            int token = OpenAsk(id, kind, data, seconds);
+            try
+            {
+                player.ShowConfirmPopup(PopupText(title), PopupText(message), PopupText(yes), PopupText(no), Answered(id, token, kind, answer), false, true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                popupAsks.Remove(id);
+                PrintWarning("ShowConfirmPopup failed (" + ex.Message + "); the chat fallback stands.");
+                return false;
+            }
+        }
+
+        private bool AskText(Player player, string kind, string data, int seconds, string title, string message, string initial,
+            string ok, string cancel, Action<Player, PopupAsk, bool, string> answer)
+        {
+            if (!PopupsFor(player)) return false;
+            string id = player.Id.ToString();
+            int token = OpenAsk(id, kind, data, seconds);
+            try
+            {
+                player.ShowInputPopup(PopupText(title), PopupText(message), initial ?? "", PopupText(ok), PopupText(cancel),
+                    Answered(id, token, kind, answer), false, true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                popupAsks.Remove(id);
+                PrintWarning("ShowInputPopup failed (" + ex.Message + "); the chat fallback stands.");
+                return false;
+            }
+        }
+
+        // One open question per player: a new one replaces the last, whose answer is then ignored.
+        private int OpenAsk(string id, string kind, string data, int seconds)
+        {
+            var ask = new PopupAsk { Token = ++popupToken, Kind = kind, Data = data, Expires = DateTime.UtcNow.AddSeconds(Math.Max(10, seconds)) };
+            popupAsks[id] = ask;
+            return ask.Token;
+        }
+
+        // The question `token` if it is still the open one for this player, of this kind and in time; it is used up.
+        private PopupAsk TakeAsk(string id, int token, string kind)
+        {
+            PopupAsk ask;
+            if (popupsClosed || !popupAsks.TryGetValue(id, out ask) || ask.Token != token || ask.Kind != kind) return null;
+            popupAsks.Remove(id);
+            return ask.Expires >= DateTime.UtcNow ? ask : null;
+        }
+
+        // The question was answered in chat instead: a later answer from its window is ignored.
+        private void DropAsk(string id, string kind)
+        {
+            PopupAsk ask;
+            if (popupAsks.TryGetValue(id, out ask) && ask.Kind == kind) popupAsks.Remove(id);
+        }
+
+        // The game calls this when the window is answered. Never throws back into the game.
+        private Dialogue.OnSubmit Answered(string id, int token, string kind, Action<Player, PopupAsk, bool, string> answer)
+        {
+            return delegate(Options selection, Dialogue dialogue, object context)
+            {
+                try
+                {
+                    PopupAsk ask = TakeAsk(id, token, kind);
+                    if (ask == null) return;
+                    Player player = FindOnlineById(id);
+                    if (player == null) return;
+                    answer(player, ask, selection == Options.Yes, dialogue != null ? dialogue.ValueMessage : null);
+                }
+                catch (Exception ex)
+                {
+                    PrintError("Popup answer (" + kind + ") failed: " + ex.Message);
+                }
+            };
+        }
+
+        // Chat colour tags out, so the window shows plain text.
+        private static string PopupText(string text)
+        {
+            if (string.IsNullOrEmpty(text) || text.IndexOf('[') < 0) return text;
+            var sb = new System.Text.StringBuilder(text.Length);
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '[' && i + 7 < text.Length && text[i + 7] == ']' && IsChatHex(text.Substring(i + 1, 6))) { i += 7; continue; }
+                if (text[i] == '[' && i + 2 < text.Length && text[i + 1] == '-' && text[i + 2] == ']') { i += 2; continue; }
+                sb.Append(text[i]);
+            }
+            return sb.ToString();
         }
 
         #endregion
@@ -1448,7 +1810,7 @@ namespace Oxide.Plugins
         };
         private static readonly HashSet<string> WarnKeys = new HashSet<string>
         {
-            "RenounceWarn", "YouWereKicked", "VassalFreed", "TreatyLapsed", "TreatyBroken", "Renounced", "FealtyDenied", "Disbanded"
+            "RenounceWarn", "RenounceWarnPopup", "YouWereKicked", "VassalFreed", "TreatyLapsed", "TreatyBroken", "Renounced", "FealtyDenied", "Disbanded"
         };
 
         private static string ToneOf(string key)

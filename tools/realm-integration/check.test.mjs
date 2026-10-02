@@ -202,3 +202,65 @@ test('the real plugins keep the chat style and a complete /realm catalogue', () 
   assert.ok(r.chat.langStrings > 900);
   assert.equal(r.chat.catalogue, Object.keys(r.commands).length - 2);   // all but RealmCourt's two console commands
 });
+
+const POPUPS_OK = `
+    private class PluginConfig { public bool UsePopups = true; }
+    private bool popupsClosed;
+    private void Unload() {
+      popupsClosed = true;
+    }
+    #region Popups
+    private bool PopupsFor(Player p) { return true; }
+    private bool Ask(Player p) {
+      try { p.ShowConfirmPopup("t", "m", "Yes", "No", Answered(), false, true); return true; }
+      catch (Exception ex) { return false; }
+    }
+    private bool Info(Player p) {
+      try { p.ShowPopup("t", "m", "Ok", null, false, true); return true; }
+      catch (Exception ex) { return false; }
+    }
+    #endregion`;
+
+test('popups: a plugin with gated, guarded windows passes', () => {
+  const dir = fakeRepo({ RealmA: plugin('RealmA', POPUPS_OK) });
+  try {
+    const r = analyse(dir);
+    assert.deepEqual(r.problems, []);
+    assert.deepEqual(r.chat.popupPlugins, ['RealmA']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('popups: every kind of drift is reported', () => {
+  const dir = fakeRepo({
+    RealmA: plugin('RealmA', `
+    private void Unload() { }
+    private void Go(Player p) {
+      p.ShowPopup("t", "m");
+    }
+    #region Popups
+    private void Ask(Player p) {
+      p.ShowConfirmPopup("t", "m", "Yes", "No", Answered(), false, false);
+    }
+    private void Name(Player p) {
+      try { p.ShowInputPopup("t", "m", "", "Ok", "Cancel", Answered(), false); } catch (Exception ex) { }
+    }
+    #endregion`),
+  });
+  try {
+    const text = analyse(dir).problems.join('\n');
+    assert.match(text, /ShowPopup outside the "Popups" region/);
+    assert.match(text, /ShowPopup needs all 6 arguments/);
+    assert.match(text, /ShowConfirmPopup: broadcast must be true/);
+    assert.match(text, /ShowConfirmPopup is not inside try/);
+    assert.match(text, /ShowInputPopup needs all 8 arguments/);
+    assert.match(text, /no UsePopups switch/);
+    assert.match(text, /without a PopupsFor\(player\) gate/);
+    assert.match(text, /Unload does not set popupsClosed = true/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the real plugins open popups only through their guarded helpers', () => {
+  const r = analyse();
+  assert.ok(r.chat.popupPlugins.includes('RealmHerald'));
+  assert.ok(r.chat.popupPlugins.includes('RealmHouses'));
+});

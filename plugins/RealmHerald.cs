@@ -22,6 +22,10 @@
 //                (/realm tips off). A tip that names a command of a plugin that is not loaded is skipped.
 //   MOTD         configurable lines shown on every later join (MotdDelaySeconds after it) and on /realm motd. Admins edit
 //                them in game with /realm admin motd. Placeholders: {player} {online} {max} {monarch} {season}.
+//   Popups       /realm opens the hub in the game's own popup window, and a newcomer's welcome opens one too. The chat
+//                version is always sent as well (/realm list prints the hub in chat). UsePopups switches them off for the
+//                server; /realm popups off for one player, and RealmHouses asks PopupsWanted before its own popups.
+//                UNVERIFIED in game: see the "Popups" region.
 //
 // Chat: every line follows the Realm chat style (docs/realm-commands.md). Text an admin writes (MOTD, tips) gets its
 // /commands coloured at send time and goes out through the single-string overloads, so braces are harmless.
@@ -34,6 +38,7 @@
 //   CrownAndConsequences.GetKingName() / GetKingHouse()       /realm crown, {monarch}
 //   RealmContracts.HasContractHistory(string playerId) -> bool step 3
 //   RealmSeasons.GetSeasonName() -> string                    {season}
+// Offered to other plugins: PopupsWanted(string playerId) -> bool (false after /realm popups off).
 // No Chronicle entries: a welcome is not realm history.
 //
 // Language level: C# 3 syntax only, .NET 3.5 API surface. Cross-plugin API methods MUST stay non-public: Oxide.CSharp
@@ -186,6 +191,8 @@ namespace Oxide.Plugins
                 "The Realm Chronicle remembers every crowning and every betrayal. /chronicle",
                 "A named heir keeps a bloodline's claim alive when its monarch falls. /dynasty"
             };
+            public bool UsePopups = true;               // the game's popup windows for the /realm hub and the welcome
+            public bool WelcomePopup = true;            // a newcomer's welcome also opens as a popup
             public float TickSeconds = 30f;
             public int MaxPlayersKept = 20000;          // oldest records (by last seen) are dropped beyond this
             public int MaxMotdLines = 6;
@@ -234,6 +241,7 @@ namespace Oxide.Plugins
             public bool PathDone;          // all three, congratulated once
             public bool PathOff;           // no reminders (/realm path off)
             public bool TipsOff;           // no tips (/realm tips off)
+            public bool PopupsOff;         // no Realm popups (/realm popups off); chat only
         }
 
         private class StoredData
@@ -317,7 +325,21 @@ namespace Oxide.Plugins
                 { "Speaker", "Realm" },
                 { "Herald", "[D6A043]Herald[FFFFFF]: " },
                 { "Tip", "[A3A6AD]Tip[FFFFFF]: " },
-                { "Usage", "Usage: [F4C96D]/realm[FFFFFF] [subject|command] | [F4C96D]/realm path[FFFFFF] [on|off] | [F4C96D]/realm skip[FFFFFF] | [F4C96D]/realm crown[FFFFFF] | [F4C96D]/realm tips[FFFFFF] on|off | [F4C96D]/realm motd[FFFFFF]" },
+                { "Usage", "Usage: [F4C96D]/realm[FFFFFF] [list|subject|command] | [F4C96D]/realm path[FFFFFF] [on|off] | [F4C96D]/realm skip[FFFFFF] | [F4C96D]/realm crown[FFFFFF] | [F4C96D]/realm motd[FFFFFF]" },
+                { "Usage2", "  Settings: [F4C96D]/realm tips[FFFFFF] on|off | [F4C96D]/realm popups[FFFFFF] on|off" },
+                { "HubPopup", "Every command is open in a window. [F4C96D]/realm list[FFFFFF] shows them here in chat." },
+                { "PopupsOff", "No more popup windows from the realm; everything comes in chat. [F4C96D]/realm popups on[FFFFFF] brings them back." },
+                { "PopupsOn", "Popup windows are on again." },
+                { "PopupsServerOff", "This server does not use popup windows; everything comes in chat." },
+                { "PopupHubTitle", "The Realm of Ostreval" },
+                { "PopupHubIntro", "Every command, by subject. Type one alone in chat for its own help." },
+                { "PopupHubLine", "{0}: {1}" },
+                { "PopupHubFooter", "[F4C96D]/realm <subject>[FFFFFF] gives a line on each command. [F4C96D]/realm path[FFFFFF] shows your first steps." },
+                { "PopupClose", "To the realm" },
+                { "PopupWelcomeTitle", "Welcome to Ostreval" },
+                { "PopupWelcomeSteps", "Your first steps:" },
+                { "PopupWelcomeStep", "{0}. {1}" },
+                { "PopupWelcomeFooter", "[F4C96D]/realm[FFFFFF] lists every command. [F4C96D]/realm path[FFFFFF] shows how far you have come." },
                 { "HubHeader", "Every command, by subject. [F4C96D]/realm <subject>[FFFFFF] gives a line on each:" },
                 { "HubLine", "  {0} ({1}): {2}" },
                 { "SubjectHeader", "{0}. Each command shows its own help when typed alone:" },
@@ -365,7 +387,7 @@ namespace Oxide.Plugins
                 { "Cmd.raven", "letters to players and houses, your inbox, and intrigue" },
                 { "Cmd.rumour", "whisper an anonymous rumour, or hear the latest" },
                 { "Cmd.rumor", "the same as [F4C96D]/rumour[FFFFFF]" },
-                { "Cmd.realm", "this help, your first steps, tips and the message of the day" },
+                { "Cmd.realm", "this help, your first steps, tips, popups and the message of the day" },
                 { "Cmd.warden", "your protection, the raid hours, the rules, and reports" },
                 { "Cmd.stats", "what the server's statistics record about you, and opting out" },
                 { "Welcome1", "Hail, {0}, and well met. Six great houses contend for the Old Throne, and the realm remembers what you do." },
@@ -448,7 +470,7 @@ namespace Oxide.Plugins
         // Tone of a reply (chat style): done, or take care; everything else is news.
         private static readonly HashSet<string> OkKeys = new HashSet<string>
         {
-            "StepDone", "PathComplete", "PathOn", "TipsOn", "MotdAdded", "MotdCleared", "TipSent", "ResetDone"
+            "StepDone", "PathComplete", "PathOn", "TipsOn", "PopupsOn", "MotdAdded", "MotdCleared", "TipSent", "ResetDone"
         };
         private static readonly HashSet<string> WarnKeys = new HashSet<string> { "NextStep", "Paused" };
 
@@ -558,6 +580,7 @@ namespace Oxide.Plugins
         private void Welcome(Player player)
         {
             if (player == null) return;
+            if (config.WelcomePopup) ShowWelcomePopup(player);
             Reply(player, "Welcome1", Clean(player.Name));
             if (config.ShowMotdOnJoin) foreach (string raw in config.Motd) player.SendMessage("  " + ColourCommands(Fill(raw, player)));
             Line(player, "Welcome2");
@@ -822,8 +845,22 @@ namespace Oxide.Plugins
             switch (sub)
             {
                 case "":
+                    if (ShowHubPopup(player)) Reply(player, "HubPopup");
+                    else ShowHub(player);
+                    return;
                 case "help":
+                case "list":
                     ShowHub(player);
+                    return;
+                case "popups":
+                    if (args.Length > 1 && args[1].ToLowerInvariant() == "off") { rec.PopupsOff = true; dirty = true; Reply(player, "PopupsOff"); return; }
+                    if (args.Length > 1 && args[1].ToLowerInvariant() == "on")
+                    {
+                        rec.PopupsOff = false; dirty = true;
+                        Reply(player, config.UsePopups ? "PopupsOn" : "PopupsServerOff");
+                        return;
+                    }
+                    ShowUsage(player);
                     return;
                 case "path":
                 case "steps":
@@ -861,7 +898,7 @@ namespace Oxide.Plugins
                 case "tips":
                     if (args.Length > 1 && args[1].ToLowerInvariant() == "off") { rec.TipsOff = true; dirty = true; Reply(player, "TipsOff"); return; }
                     if (args.Length > 1 && args[1].ToLowerInvariant() == "on") { rec.TipsOff = false; dirty = true; Reply(player, "TipsOn"); return; }
-                    Error(player, "Usage");
+                    ShowUsage(player);
                     return;
                 case "motd":
                     ShowMotd(player, true);
@@ -871,6 +908,46 @@ namespace Oxide.Plugins
                     return;
             }
             ShowTopic(player, sub);
+        }
+
+        private void ShowUsage(Player player)
+        {
+            Error(player, "Usage");
+            Line(player, "Usage2");
+        }
+
+        // The hub as one popup window: a line per subject with its commands. False when popups are off for this player
+        // or the window could not be opened; the caller then prints the hub in chat.
+        private bool ShowHubPopup(Player player)
+        {
+            if (!PopupsFor(player)) return false;
+            var sb = new StringBuilder();
+            sb.Append(Msg("PopupHubIntro", player)).Append('\n');
+            foreach (string subject in Subjects)
+            {
+                var names = new List<string>();
+                foreach (Entry e in Catalogue) if (e.Subject == subject && Loaded(e.Plugin)) names.Add("/" + e.Command);
+                if (names.Count == 0) continue;
+                sb.Append('\n').Append(Msg("PopupHubLine", player, Msg("Subject." + subject, player), string.Join("  ", names.ToArray())));
+            }
+            sb.Append("\n\n").Append(Msg("PopupHubFooter", player));
+            return ShowInfoPopup(player, Msg("PopupHubTitle", player), sb.ToString(), Msg("PopupClose", player));
+        }
+
+        // A newcomer's welcome as a popup window: the greeting, the MOTD and the three first steps.
+        private bool ShowWelcomePopup(Player player)
+        {
+            if (!PopupsFor(player)) return false;
+            var sb = new StringBuilder();
+            sb.Append(Msg("Welcome1", player, Clean(player.Name)));
+            if (config.ShowMotdOnJoin) foreach (string raw in config.Motd) sb.Append("\n\n").Append(Fill(raw, player));
+            if (config.FirstStepsPath)
+            {
+                sb.Append("\n\n").Append(Msg("PopupWelcomeSteps", player));
+                for (int step = 1; step <= Steps; step++) sb.Append('\n').Append(Msg("PopupWelcomeStep", player, step, StepText(player, step)));
+            }
+            sb.Append("\n\n").Append(Msg("PopupWelcomeFooter", player));
+            return ShowInfoPopup(player, Msg("PopupWelcomeTitle", player), sb.ToString(), Msg("PopupClose", player));
         }
 
         private void ShowHub(Player player)
@@ -981,6 +1058,62 @@ namespace Oxide.Plugins
                 return;
             }
             Error(player, "AdminUsage");
+        }
+
+        #endregion
+
+        #region Popups
+
+        // Realm popups (docs/realm-commands.md, "Popups"): the game's own windows, opened with the Player extension
+        // methods in CodeHatch.Common.PlayerExtensions. Signatures read from the 2.0.3867 Assembly-CSharp.dll metadata:
+        //   MessageDialogue ShowPopup(this Player, string title, string message, string buttonText = "Ok",
+        //                             Dialogue.OnSubmit handler = null, bool interupt = false, bool broadcast = true)
+        // On a dedicated server the window reaches the client only with broadcast = true (the server sends the
+        // "codehatch.ui.popup.basic.show" event). The herald's windows ask nothing, so no answer is awaited.
+        // A popup is plain text: chat colour tags are stripped (whether the window would draw them is UNVERIFIED).
+        // UNVERIFIED in game: that the window shows, its size, and that "\n" breaks lines in it.
+        private bool PopupsFor(Player player)
+        {
+            if (player == null || player.IsServer || !config.UsePopups) return false;
+            PlayerRec rec;
+            return !(data.Players.TryGetValue(player.Id.ToString(), out rec) && rec.PopupsOff);
+        }
+
+        private bool ShowInfoPopup(Player player, string title, string message, string button)
+        {
+            try
+            {
+                player.ShowPopup(PopupText(title), PopupText(message), PopupText(button), null, false, true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                PrintWarning("ShowPopup failed (" + ex.Message + "); the chat version stands.");
+                return false;
+            }
+        }
+
+        // Chat colour tags out, so the window shows plain text.
+        private static string PopupText(string text)
+        {
+            if (string.IsNullOrEmpty(text) || text.IndexOf('[') < 0) return text;
+            var sb = new StringBuilder(text.Length);
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '[' && i + 7 < text.Length && text[i + 7] == ']' && IsChatHex(text.Substring(i + 1, 6))) { i += 7; continue; }
+                if (text[i] == '[' && i + 2 < text.Length && text[i + 1] == '-' && text[i + 2] == ']') { i += 2; continue; }
+                sb.Append(text[i]);
+            }
+            return sb.ToString();
+        }
+
+        // API for other Realm plugins (non-public: Oxide only calls non-public methods): false when this player turned
+        // Realm popups off with /realm popups off. Each plugin keeps its own UsePopups switch for the server.
+        // RealmHouses asks before each of its own popups.
+        private bool PopupsWanted(string playerId)
+        {
+            PlayerRec rec;
+            return !(playerId != null && data.Players.TryGetValue(playerId, out rec) && rec.PopupsOff);
         }
 
         #endregion

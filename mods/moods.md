@@ -6,7 +6,7 @@ There are eleven moods. Seven are **season moods**, which last a whole season: f
 
 | Mood | Kind | In one line | Folder |
 |---|---|---|---|
-| Grim but Readable | season | The baseline: cool grey light and mixed weather. Used for the Thaw season and between arcs. | `presets/grim-but-readable/` (made by an earlier team, read-only here) |
+| Grim but Readable | season | The baseline: cool grey light and mixed weather. Used for the Thaw season and between arcs. | `presets/grim-but-readable/` |
 | Golden Summer | season | Warm honey light, thin haze, almost no rain, slightly longer days. | `presets/golden-summer/` |
 | Storm Season | season | Rain most of the time, slate light, wet fog. Clear skies are rare. | `presets/storm-season/` |
 | Long Winter | season | Pale cold sun, low grey skies, icy fog, a bright cold moon. | `presets/long-winter/` |
@@ -322,7 +322,7 @@ Here is what it does to keep the server safe:
 
 ## Tests
 
-[`presets/tests/presets.test.mjs`](presets/tests/presets.test.mjs) (Node, runs anywhere: `node --test mods/presets/tests/`) checks every mood file with the same rules as Set-Mood.ps1 (only the proven keys, the line format, value types and every readability floor), that `rotation.json` names only moods that exist and every mood has an entry, that the weather odds in each mood file's comments and in the table above are the exact odds of its weights, that every mood is described here, and that Apply-Preset.ps1 and Set-Mood.ps1 allow the same twelve keys.
+[`presets/tests/presets.test.mjs`](presets/tests/presets.test.mjs) (Node, runs anywhere: `node --test mods/presets/tests/`) checks every mood file with the same rules as Set-Mood.ps1 (only the proven keys, the line format, value types and every readability floor), that `rotation.json` names only moods that exist and every mood has an entry, that the weather odds in each mood file's comments and in the table above are the exact odds of its weights, that every mood is described here, that Apply-Preset.ps1 and Set-Mood.ps1 allow the same twelve keys, and that every mood has the `# Identity:` line `Apply-Preset.ps1 -List` prints and an id its `-Mood` check accepts.
 
 [`presets/tests/Test-SetMood.ps1`](presets/tests/Test-SetMood.ps1) builds a fake test copy, with a marker, made-up `Environment.defaults.cfg` and unrelated override files, and runs Set-Mood.ps1 through 75 checks (the five new list checks and the new `crown_night` mapping were not run in this environment, which has no PowerShell: UNVERIFIED until the next `pwsh` run). They cover: list and odds, `-WhatIf` writing nothing, apply, swap, relative `DaySpeed`, a no-op re-apply, stacked overlays and return, season rotation, drift in `-Status`, clear, restore, Steam and marker and backup-location refusals, ten kinds of bad mood file, undeclared keys and comma-decimal refusal.
 

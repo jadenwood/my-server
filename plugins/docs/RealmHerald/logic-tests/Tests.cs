@@ -123,11 +123,19 @@ static class T
         Ok(all.Contains("[F4C96D]/realm path[FFFFFF] shows the way"), "the welcome points to the first steps", all);
         Ok(ada.Messages.Count == 4, "welcome is short: four lines", ada.Messages.Count.ToString());
         Ok(ada.Messages.Skip(1).All(m => m.StartsWith("  ")), "welcome lines after the first are indented, no repeated speaker", all);
+        var wp = ada.LastPopup;
+        Ok(ada.Popups.Count == 1 && wp.Kind == "basic" && wp.Title == "Welcome to Ostreval" && wp.Buttons[0] == "To the realm" && wp.Broadcast,
+            "the welcome also opens as a popup window, sent to the client (broadcast)", wp == null ? "none" : wp.Title);
+        Ok(wp.Message.StartsWith("Hail, Ada, and well met.") && wp.Message.Contains("Hail, Ada. 1 of the realm are here")
+            && wp.Message.Contains("1. Swear to a house: /house list") && wp.Message.Contains("3. Take a first contract"),
+            "the welcome window holds the greeting, the MOTD and the three first steps", wp.Message);
+        Ok(!Regex.IsMatch(wp.Message + wp.Title, @"\[[0-9A-Fa-f]{6}\]"), "the window is plain text: no chat colour tags", wp.Message);
 
         Leave(ada); Server.Broadcasts.Clear(); ada.Messages.Clear();
         Join(ada);
         H.timer.RunPending();
         Ok(Server.Broadcasts.Count == 0 && ada.Messages.Count == 1 && ada.Messages[0].StartsWith("[D6A043]Realm[FFFFFF]: Hail, Ada. 1 of the realm"), "a returning player gets the MOTD only, in the herald voice", ada.All());
+        Ok(ada.Popups.Count == 1, "a returning player gets no welcome window");
 
         // ---------------- Newcomer heralds are capped ----------------
         Clock = Clock.AddHours(1.1);                                  // Ada's herald falls out of the hour
@@ -217,10 +225,50 @@ static class T
         // ---------------- The hub ----------------
         var edda = Mk(76561190000000005, "Edda");
         Join(edda); H.timer.RunPending(); edda.Messages.Clear();
+        edda.Popups.Clear();
         Cmd(edda);
+        var hp = edda.LastPopup;
+        Ok(edda.Popups.Count == 1 && hp.Kind == "basic" && hp.Title == "The Realm of Ostreval" && hp.Broadcast, "/realm opens the hub as a popup window", hp == null ? "none" : hp.Title);
+        Ok(listed.All(c => Regex.IsMatch(hp.Message, @"(^|\s)/" + c + @"(\s|$)")) && hp.Message.Contains("Houses and oaths: /house  /swear  /renounce  /treaty"),
+            "the window lists every command under its subject", hp.Message);
+        Ok(hp.Message.Split('\n').Length == 12 && !Regex.IsMatch(hp.Message, @"\[[0-9A-Fa-f]{6}\]"), "the window: intro, eight subject lines, footer; plain text", hp.Message);
+        Ok(edda.Messages.Count == 1 && edda.Messages[0] == "[D6A043]Realm[FFFFFF]: Every command is open in a window. [F4C96D]/realm list[FFFFFF] shows them here in chat.",
+            "with the window comes one chat line: the chat fallback", edda.All());
+        edda.Messages.Clear();
+        Cmd(edda, "list");
         string hub = edda.All();
-        Ok(edda.Messages.Count == 9 && edda.Messages[0].StartsWith("[D6A043]Realm[FFFFFF]: Every command, by subject"), "/realm is a header and one line per subject (9 lines)", hub);
-        Ok(listed.All(c => Regex.IsMatch(hub, @"\[F4C96D\]/" + c + @"\[FFFFFF\]")), "every command appears in the hub, coloured", hub);
+        Ok(edda.Messages.Count == 9 && edda.Messages[0].StartsWith("[D6A043]Realm[FFFFFF]: Every command, by subject"), "/realm list is a header and one line per subject (9 lines)", hub);
+        Ok(listed.All(c => Regex.IsMatch(hub, @"\[F4C96D\]/" + c + @"\[FFFFFF\]")), "every command appears in the chat hub, coloured", hub);
+        Ok(edda.Popups.Count == 1, "/realm list opens no window");
+
+        // Popups switched off by the player, by the server, or failing in the game: the chat hub instead
+        edda.Messages.Clear();
+        Cmd(edda, "popups", "off");
+        Ok(RB(edda, "PopupsOff") && edda.All().Contains("No more popup windows"), "/realm popups off", edda.All());
+        Ok((bool)Inv(H, "PopupsWanted", edda.Id.ToString()) == false && (bool)Inv(H, "PopupsWanted", ada.Id.ToString()), "PopupsWanted tells other plugins the player's choice");
+        Ok((bool)Inv(H, "PopupsWanted", "123") && (bool)Inv(H, "PopupsWanted", (string)null), "PopupsWanted is true for an unknown or missing id");
+        edda.Messages.Clear();
+        Cmd(edda);
+        Ok(edda.Popups.Count == 1 && edda.Messages.Count == 9, "with popups off, /realm prints the hub in chat", edda.All());
+        Cmd(edda, "popups", "on");
+        Ok(!RB(edda, "PopupsOff") && edda.All().Contains("Popup windows are on again"), "/realm popups on");
+        SetF(Cfg(), "UsePopups", false);
+        edda.Messages.Clear();
+        Cmd(edda);
+        Ok(edda.Popups.Count == 1 && edda.Messages.Count == 9, "with UsePopups off for the server, /realm prints the hub in chat");
+        edda.Messages.Clear();
+        Cmd(edda, "popups", "on");
+        Ok(edda.All().Contains("This server does not use popup windows"), "/realm popups on says when the server has them off", edda.All());
+        Ok((bool)Inv(H, "PopupsWanted", edda.Id.ToString()), "PopupsWanted is the player's choice only; each plugin has its own switch");
+        SetF(Cfg(), "UsePopups", true);
+        CodeHatch.Common.PlayerExtensions.PopupsFail = true;
+        edda.Messages.Clear();
+        Cmd(edda);
+        Ok(edda.Messages.Count == 9 && H.Log.Any(l => l.StartsWith("WARN ShowPopup failed")), "a window the game cannot open falls back to the chat hub", edda.All());
+        CodeHatch.Common.PlayerExtensions.PopupsFail = false;
+        edda.Messages.Clear();
+        Cmd(edda, "popups");
+        Ok(edda.All().Contains("ERR") && edda.All().Contains("/realm popups[FFFFFF] on|off"), "/realm popups alone shows the usage", edda.All());
         edda.Messages.Clear();
         Cmd(edda, "events");
         Ok(edda.Messages.Count == 8 && edda.All().Contains("  [F4C96D]/tourney[FFFFFF] - join, leave or follow the Royal Tournament"), "/realm events lists each command with its line", edda.All());
@@ -237,10 +285,20 @@ static class T
         // A server without some plugins: their commands are left out
         var lean = NewHerald(null, new[] { "RealmHouses", "CrownAndConsequences", "RealmHerald" });
         var finn = Mk(76561190000000006, "Finn");
-        Inv(lean, "CmdRealm", finn, "realm", new string[0]);
+        Inv(lean, "CmdRealm", finn, "realm", new[] { "list" });
         string leanHub = finn.All();
         Ok(!leanHub.Contains("/law") && !leanHub.Contains("/raven") && leanHub.Contains("/house") && leanHub.Contains("/realm"), "the hub leaves out plugins that are not loaded", leanHub);
         Ok(finn.Messages.Count == 4, "subjects with nothing loaded are left out (header + houses + crown + help)", finn.Messages.Count.ToString());
+        Inv(lean, "CmdRealm", finn, "realm", new string[0]);
+        Ok(finn.LastPopup != null && !finn.LastPopup.Message.Contains("/law") && finn.LastPopup.Message.Split('\n').Length == 7,
+            "the hub window leaves them out too (intro, three subjects, footer)", finn.LastPopup == null ? "none" : finn.LastPopup.Message);
+        finn.Messages.Clear();
+        var quiet = NewHerald("{ \"WelcomePopup\": false }");
+        var ivo = Mk(76561190000000010, "Ivo");
+        Inv(quiet, "OnPlayerConnected", ivo);
+        quiet.timer.RunPending();
+        Ok(ivo.Popups.Count == 0 && ivo.All().Contains("Hail, Ivo, and well met"), "WelcomePopup off: the welcome comes in chat only", ivo.All());
+        Server.ClientPlayers.Remove(ivo);
         finn.Messages.Clear();
         Inv(lean, "CmdRealm", finn, "realm", new[] { "court" });
         Ok(finn.All().Contains("ERR") && finn.All().Contains("RealmLaws, which is not running"), "/realm <command> of a missing plugin says so", finn.All());
@@ -362,7 +420,7 @@ static class T
         Join(hana); H.timer.RunPending(); Advance(TimeSpan.FromMinutes(2)); Inv(H, "OnServerSave"); Inv(H, "Unload");
         Ok(File.ReadAllText(file) == "{ \"Players\": { \"1\": ", "a damaged data file is never overwritten");
         hana.Messages.Clear();
-        Cmd(hana); Cmd(hana, "path");
+        Cmd(hana); Cmd(hana, "list"); Cmd(hana, "path");
         Ok(hana.All().Contains("Every command, by subject") && hana.All().Contains("not being saved"), "the hub still answers and /realm path says the records are damaged", hana.All());
         File.Delete(file);
 

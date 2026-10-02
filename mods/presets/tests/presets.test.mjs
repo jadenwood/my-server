@@ -7,7 +7,9 @@
 //   - the weather odds written in each mood file's comments and in mods/moods.md are the exact odds of its weights
 //     (the game's rule from Weather.ChangeTheWeather, the same enumeration Set-Mood.ps1 uses);
 //   - every mood is described in mods/moods.md;
-//   - Apply-Preset.ps1 allows exactly the keys Set-Mood.ps1 allows.
+//   - Apply-Preset.ps1 allows exactly the keys Set-Mood.ps1 allows;
+//   - every mood has the "# Identity:" line Apply-Preset.ps1 -List prints and an id its -Mood check accepts;
+//   - mods/README.md states Grim's exact heavy-rain odds.
 // What it does NOT prove: how any mood looks in game (UNVERIFIED).
 import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -216,6 +218,27 @@ test('Apply-Preset.ps1 allows the same keys as Set-Mood.ps1', () => {
   const allowed = [...block.matchAll(/'([A-Za-z.]+)'/g)].map((m) => m[1]).sort();
   assert.deepEqual(allowed, Object.keys(KEYS).sort());
   assert.match(apply, /\[string\]\$Mood = 'grim-but-readable'/);
+});
+
+test('Apply-Preset.ps1 -List and -Mood can name every mood', () => {
+  const apply = readFileSync(join(PRESETS, 'grim-but-readable', 'Apply-Preset.ps1'), 'utf8');
+  const idRe = new RegExp((apply.match(/\$Mood -notmatch '([^']+)'/) || [])[1] || '^$');
+  for (const id of ids) {
+    assert.match(id, idRe, `${id} passes Apply-Preset.ps1's mood id check`);
+    const text = readFileSync(join(PRESETS, id, id + '.cfg'), 'utf8');
+    const identity = text.match(/^#\s*Identity:\s*(.*)$/m);
+    assert.ok(identity && identity[1].length > 20, `${id}.cfg has the "# Identity:" line that -List prints`);
+  }
+  // Every assumed default Apply-Preset.ps1 compares against is a proven key.
+  const assumed = (apply.match(/\$assumedDefaults\s*=\s*@\{([\s\S]*?)\}/) || [])[1] || '';
+  for (const m of assumed.matchAll(/'([A-Za-z.]+)'\s*=/g)) assert.ok(KEYS[m[1]], `${m[1]} is a proven key`);
+});
+
+test('mods/README.md gives Grim\'s exact heavy-rain odds', () => {
+  const readme = readFileSync(join(PRESETS, '..', 'README.md'), 'utf8');
+  const m = readme.match(/heavy rain (\d+\.\d)%/);
+  assert.ok(m, 'README states the heavy-rain odds');
+  assert.equal(m[1] + '%', pct(weatherOdds([4, 5, 4, 3, 2])[4]));
 });
 
 test('the odds enumeration matches the documented Grim and Storm values', () => {

@@ -21,6 +21,10 @@
 //      /command a lang string mentions is registered by some plugin and drawn in the command colour;
 //   6. RealmHerald's /realm catalogue lists every chat command exactly once, under the plugin that registers it,
 //      with a "Cmd.<command>" description.
+//   7. popups (docs/realm-commands.md, "Popups"): the game's ShowPopup / ShowConfirmPopup / ShowInputPopup are called
+//      only inside a plugin's "Popups" region, inside try, with every argument spelled out and broadcast = true; the
+//      plugin has a UsePopups config switch and a PopupsFor gate, and one that waits for answers ignores them after
+//      Unload (popupsClosed = true).
 // Argument TYPES are not compared (they need the compiler's view); the arity check catches most drift.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
@@ -313,6 +317,49 @@ export function chatStyleProblems(p, raw, ctx) {
   return problems;
 }
 
+// ---- Popups (docs/realm-commands.md, "Popups") ------------------------------------------------------------------
+// The game's popup windows, with the full parameter lists read from the 2.0.3867 Assembly-CSharp.dll metadata
+// (CodeHatch.Common.PlayerExtensions). The last parameter, broadcast, must be true or a dedicated server never sends
+// the window to the client.
+export const POPUP_METHODS = {
+  ShowPopup: ['title', 'message', 'buttonText', 'handler', 'interupt', 'broadcast'],
+  ShowConfirmPopup: ['title', 'message', 'confirmText', 'cancelText', 'handler', 'interupt', 'broadcast'],
+  ShowInputPopup: ['title', 'message', 'initialInput', 'confirmText', 'cancelText', 'handler', 'interupt', 'broadcast'],
+};
+
+export function popupProblems(p, raw) {
+  const problems = [];
+  const src = stripComments(raw);
+  const P = (line, msg) => problems.push({ line, msg });
+  const region = src.match(/#region Popups\b[\s\S]*?#endregion/);
+  const start = region ? region.index : -1;
+  const end = region ? start + region[0].length : -1;
+  let calls = 0;
+  let handlers = 0;
+  const re = /\.(ShowPopup|ShowConfirmPopup|ShowInputPopup)\s*\(/g;
+  let m;
+  while ((m = re.exec(src))) {
+    calls++;
+    const line = lineAt(src, m.index);
+    if (m.index < start || m.index > end) P(line, `${m[1]} outside the "Popups" region (every window goes through its helpers and chat fallback)`);
+    const { args } = splitArgs(src, m.index + m[0].length);
+    const want = POPUP_METHODS[m[1]];
+    if (args.length !== want.length) { P(line, `${m[1]} needs all ${want.length} arguments spelled out (${want.join(', ')}); it has ${args.length}`); continue; }
+    if (args[want.length - 1] !== 'true') P(line, `${m[1]}: broadcast must be true, or a dedicated server never sends the window`);
+    if (args[want.indexOf('handler')] !== 'null') handlers++;
+    const before = src.slice(Math.max(0, m.index - 400), m.index);
+    if (before.lastIndexOf('try') < 0 || before.lastIndexOf('try') < before.lastIndexOf('catch')) P(line, `${m[1]} is not inside try: a failed window must fall back to chat`);
+  }
+  if (!calls) return problems;
+  if (!/\bbool\s+UsePopups\s*=/.test(src)) P(1, 'opens popups but its config has no UsePopups switch');
+  if (!/\bPopupsFor\s*\(/.test(src)) P(1, 'opens popups without a PopupsFor(player) gate');
+  if (handlers) {
+    const unload = (src.match(/void\s+Unload\s*\(\s*\)\s*\{([\s\S]*?)\n\s*\}/) || [])[1] || '';
+    if (!/popupsClosed\s*=\s*true/.test(unload)) P(1, 'waits for popup answers but Unload does not set popupsClosed = true');
+  }
+  return problems;
+}
+
 // RealmHerald's /realm hub must list every chat command once, under the plugin that registers it, with a description.
 export function catalogueProblems(raw, owners) {
   const problems = [];
@@ -380,10 +427,13 @@ export function analyse(repo = REPO) {
   for (const p of plugins) for (const c of p.commands) if (!c.gameTable) ownerOf[c.name] = p.name;
   const ctx = { commands: new Set(Object.keys(ownerOf)), tints: houseTints(repo) };
   let langCount = 0;
+  const popupPlugins = [];
   for (const p of plugins) {
     const raw = readFileSync(join(repo, p.file), 'utf8');
     langCount += langStrings(stripComments(raw)).length;
     for (const q of chatStyleProblems(p, raw, ctx)) P(p.file, q.line, q.msg);
+    for (const q of popupProblems(p, raw)) P(p.file, q.line, q.msg);
+    if (/\.(ShowPopup|ShowConfirmPopup|ShowInputPopup)\s*\(/.test(stripComments(raw))) popupPlugins.push(p.name);
   }
   let catalogue = null;
   const herald = plugins.find((p) => p.name === 'RealmHerald');
@@ -394,7 +444,7 @@ export function analyse(repo = REPO) {
   }
 
   return { plugins, registered: { plugin: [...reg.plugin], server: [...reg.server], page: [...reg.page] }, commands: owners,
-    chat: { langStrings: langCount, catalogue }, problems };
+    chat: { langStrings: langCount, catalogue, popupPlugins }, problems };
 }
 
 export function commandsMarkdown(result) {
@@ -414,7 +464,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     for (const msg of result.problems) console.log('PROBLEM ' + msg);
     console.log(`${result.plugins.length} plugins, ${calls} cross-plugin calls, ${cmds} chat commands, `
       + `${result.registered.plugin.length} Chronicle types, ${result.chat.langStrings} chat lines`
-      + `${result.chat.catalogue != null ? `, /realm lists ${result.chat.catalogue} commands` : ''}: `
+      + `${result.chat.catalogue != null ? `, /realm lists ${result.chat.catalogue} commands` : ''}`
+      + `${result.chat.popupPlugins.length ? `, popups in ${result.chat.popupPlugins.join(' ')}` : ''}: `
       + `${result.problems.length ? result.problems.length + ' problem(s)' : 'OK'}`);
   }
   process.exit(result.problems.length ? 1 : 0);

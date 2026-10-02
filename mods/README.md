@@ -31,7 +31,7 @@ What it changes:
 | `Atmosphere.FogColor` | `rgba(0.9,0.93,0.98,1)` | Multiplies each biome's fog colour: cool grey-blue, about 5% darker. |
 | `Atmosphere.MoonColor` | `rgba(0.84,0.91,1,1)` | Cooler moonlight, about 10% dimmer than white. It is kept bright enough to play at night. |
 | `Atmosphere.SunColor` | `rgba(0.95,0.94,0.91,1)` | Slightly greyed sunlight, about 6% dimmer. |
-| `Weather.ClearWeight` … `PrecipitateHeavyWeight` | `4 / 5 / 4 / 3 / 2` | Odds at each weather change are about: clear 23%, cloudy 43%, light rain 23%, medium rain 8%, heavy rain 1.4%. |
+| `Weather.ClearWeight` … `PrecipitateHeavyWeight` | `4 / 5 / 4 / 3 / 2` | Odds at each weather change are about: clear 23%, cloudy 43%, light rain 23%, medium rain 8%, heavy rain 1.3% (exact odds in [moods.md](moods.md#how-weather-weights-become-odds)). |
 
 Not changed on purpose:
 

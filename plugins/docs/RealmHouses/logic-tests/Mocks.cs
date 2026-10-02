@@ -1,4 +1,5 @@
-// Behavioural test mocks for RealmHerald: only the surface the plugin touches. Not the real game or Oxide.
+// Behavioural test mocks for RealmHouses: only the surface the plugin touches. Not the real game or Oxide.
+// The popup part (PlayerExtensions.Show*Popup, Dialogue, Options) is the same as RealmHerald's mocks.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,6 +15,7 @@ namespace CodeHatch.Common
         public static bool PopupsFail;                      // simulate a game that throws when a window is opened
         public static void SendMessage(this Player p, string m) { p.Messages.Add(m); }
         public static void SendError(this Player p, string m) { p.Messages.Add("ERR " + m); }
+        public static CodeHatch.Thrones.SocialSystem.Guild GetGuild(this Player p) { return p.Guild; }
         // The real parameter lists and defaults (2.0.3867 Assembly-CSharp.dll metadata).
         public static MessageDialogue ShowPopup(this Player p, string title, string message, string buttonText = "Ok",
             Dialogue.OnSubmit handler = null, bool interupt = false, bool broadcast = true)
@@ -65,6 +67,7 @@ namespace CodeHatch.Engine.Networking
         public ulong Id; public string Name; public bool IsServer;
         public List<string> Messages = new List<string>();
         public List<Popup> Popups = new List<Popup>();
+        public CodeHatch.Thrones.SocialSystem.Guild Guild;
         public Player(ulong id, string name) { Id = id; Name = name; }
         public string All() { return string.Join("\n", Messages); }
         public Popup LastPopup { get { return Popups.Count > 0 ? Popups[Popups.Count - 1] : null; } }
@@ -75,6 +78,38 @@ namespace CodeHatch.Engine.Networking
         public static int PlayerLimit = 50;
         public static List<string> Broadcasts = new List<string>();
         public static void BroadcastMessage(string m) { Broadcasts.Add(m); }
+    }
+}
+
+namespace CodeHatch.Engine.Modules.SocialSystem
+{
+    public class Member { public ulong PlayerId; public string Name; }
+    public class Members
+    {
+        public List<Member> List = new List<Member>();
+        public int MemberCount() { return List.Count; }
+        public List<Member> GetAllMembers() { return List; }
+    }
+    public static class SocialAPI
+    {
+        public static object Scheme;
+        public static T Get<T>() where T : class { return Scheme as T; }
+    }
+}
+
+namespace CodeHatch.Thrones.SocialSystem
+{
+    using CodeHatch.Engine.Modules.SocialSystem;
+    public class Guild
+    {
+        public ulong BaseID; public string Name; public ulong OwnerId;
+        public Members Roster = new Members();
+        public Members Members() { return Roster; }
+    }
+    public class GuildScheme
+    {
+        public List<Guild> Guilds = new List<Guild>();
+        public Guild TryGetGuild(ulong id) { return Guilds.Find(g => g.BaseID == id); }
     }
 }
 
@@ -97,6 +132,7 @@ namespace Oxide.Core
         public static JsonSerializerOptions Opts = new JsonSerializerOptions { IncludeFields = true, WriteIndented = true };
         public int Writes;
         string P(string n) { return Path.Combine(Dir, n + ".json"); }
+        public bool ExistsDatafile(string n) { return File.Exists(P(n)); }
         public T ReadObject<T>(string n) where T : new()
         {
             if (!File.Exists(P(n))) { var t = new T(); WriteObject(n, t); return t; }
