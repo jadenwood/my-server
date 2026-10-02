@@ -101,6 +101,8 @@ async function writeZip(out, files, buffers = [], { onProgress, signal } = {}) {
         }, signal)
       );
       src.on('error', (e) => counted.destroy(e));
+      // Without a listener, a read error on "counted" is an uncaught exception that kills the app.
+      counted.on('error', (e) => zip.outputStream.destroy(e));
       zip.addReadStream(counted, f.name, { mtime: f.mtime || new Date(), size: f.size });
     }
     for (const b of buffers) zip.addBuffer(b.data, b.name, { mtime: new Date() });

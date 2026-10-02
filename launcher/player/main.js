@@ -14,6 +14,7 @@
 // The require graph of this file is checked by test/player-edition.test.js.
 
 const { app, BrowserWindow, ipcMain, shell, clipboard, net, Tray, Menu, Notification, nativeImage, screen } = require('electron');
+const LOG = require('../lib/shared/applog');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
@@ -458,8 +459,9 @@ function registerIpc() {
   handle('player:copyAddress', (id) => {
     const s = serverById(asId(id));
     if (!s) throw friendly('That server is not in the signed list.');
-    clipboard.writeText(`${s.address}:${s.port}`);
-    return `${s.address}:${s.port}`;
+    // Address only: the game's Direct Connect takes the port in its own box.
+    clipboard.writeText(String(s.address));
+    return `${s.address} (port ${s.port})`;
   });
   handle('player:openLink', async (id) => {
     asEnum(id, ['discord', 'rules', 'steam'], 'link');
@@ -550,6 +552,9 @@ if (!app.requestSingleInstanceLock()) {
     handleLinkArg(url);
   });
   app.whenReady().then(async () => {
+    LOG.init(path.join(app.getPath('userData'), 'logs'));
+    LOG.write('info', `Realm ${app.getVersion()} starting`);
+    LOG.installCrashGuards();
     // The installer registers realm:// for this user (electron-builder "protocols"); this keeps the
     // registration pointing at the current exe. Never done from a development run.
     if (app.isPackaged) app.setAsDefaultProtocolClient('realm');

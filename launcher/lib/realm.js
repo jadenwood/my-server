@@ -417,8 +417,19 @@ async function createBackup(root, { label = '', onProgress, signal } = {}) {
   for (const rel of ['Saves', 'oxide/data']) if (await F.isDir(path.join(root, ...rel.split('/')))) sources.push(rel);
   if (!sources.length) throw friendly('Nothing to back up yet: neither Saves nor oxide\\data exists. Has the server run?');
   const files = [];
+  const skipped = [];
   for (const rel of sources) {
     for (const f of await F.listFiles(path.join(root, ...rel.split('/')), signal)) {
+      // *.lock files are held open by a running server and mean nothing in a backup.
+      if (/\.lock$/i.test(f.abs)) { skipped.push(`${rel}/${f.rel.split(path.sep).join('/')}`); continue; }
+      // A file the running server has locked (EBUSY/EPERM on Windows) is skipped, not fatal.
+      try {
+        const fh = await fsp.open(f.abs, 'r');
+        await fh.close();
+      } catch {
+        skipped.push(`${rel}/${f.rel.split(path.sep).join('/')}`);
+        continue;
+      }
       const st = await fsp.stat(f.abs);
       files.push({ abs: f.abs, size: f.size, mtime: st.mtime, name: `${rel}/${f.rel.split(path.sep).join('/')}` });
     }
@@ -426,10 +437,10 @@ async function createBackup(root, { label = '', onProgress, signal } = {}) {
   const bytes = files.reduce((s, f) => s + f.size, 0);
   const suffix = label ? '-' + S.sanitizeLabel(label) : '';
   const out = path.join(dir, `realm-saves-${S.timestamp()}${suffix}.zip`);
-  const manifest = { tool: 'Realm client', source: root, created: new Date().toISOString(), folders: sources, files: files.length, bytes };
+  const manifest = { tool: 'Realm client', source: root, created: new Date().toISOString(), folders: sources, files: files.length, bytes, skipped };
   await Z.writeZip(out, files, [{ name: 'realm-backup.json', data: Buffer.from(JSON.stringify(manifest, null, 2)) }], { onProgress, signal });
   const size = (await fsp.stat(out)).size;
-  return { file: out, name: path.basename(out), files: files.length, bytes, size };
+  return { file: out, name: path.basename(out), files: files.length, bytes, size, skipped };
 }
 
 const BACKUP_NAME_RE = /^realm-saves-[A-Za-z0-9_-]+\.zip$/;

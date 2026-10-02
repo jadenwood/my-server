@@ -180,7 +180,7 @@
     $('tagline').textContent = config.tagline;
     document.title = config.realmName;
     $('server-name').textContent = config.server.name;
-    $('server-address').textContent = config.server.address + ':' + config.server.port;
+    $('server-address').textContent = config.server.address + '   port ' + config.server.port;
     const links = $('links');
     links.replaceChildren();
     for (const link of config.links) {
@@ -307,15 +307,22 @@
   $('play').addEventListener('click', async () => {
     try {
       await api.play();
-      toast('Opening Steam. Then direct connect to ' + config.server.address + ':' + config.server.port + '.', 'ok');
+      toast('Opening Steam. Then Direct Connect: address ' + config.server.address + ', port ' + config.server.port + '.', 'ok');
     } catch {
       toast('Could not open Steam. Is it installed?', 'bad');
     }
   });
+  $('console-logs').addEventListener('click', async () => {
+    try {
+      await api.settings.openFolder('applogs');
+    } catch (e) {
+      fail(e);
+    }
+  });
   $('copy-address').addEventListener('click', async () => {
     try {
-      const text = await api.copyAddress();
-      toast('Copied ' + text + '. Paste it in the direct connect field.', 'ok');
+      const a = await api.copyAddress();
+      toast('Copied ' + a.address + '. In Direct Connect paste it in the address box, and type ' + a.port + ' in the port box.', 'ok');
     } catch (e) {
       fail(e);
     }

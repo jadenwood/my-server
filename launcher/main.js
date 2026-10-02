@@ -15,6 +15,7 @@
 // The player edition ("Realm") has its own entry point (player/main.js) and contains none of this.
 
 const { app, BrowserWindow, ipcMain, shell, clipboard, dialog, net, session, safeStorage } = require('electron');
+const LOG = require('./lib/shared/applog');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
@@ -874,10 +875,11 @@ function registerIpc() {
     return { state, stateError, crown: await readCrownData() };
   });
   handle('realm:copyAddress', async () => {
+    // The game's Direct Connect has separate address and port boxes; "host:port" in the address
+    // box fails with "Unable to resolve host name". Copy the address only.
     const s = await displayServer();
-    const text = `${s.address}:${s.port}`;
-    clipboard.writeText(text);
-    return text;
+    clipboard.writeText(String(s.address));
+    return { address: String(s.address), port: s.port };
   });
   handle('realm:play', async () => {
     await openExternalAllowed(`steam://rungameid/${config.steamAppId}`);
@@ -1002,9 +1004,10 @@ function registerIpc() {
   });
 
   handle('settings:openFolder', async (kind, id) => {
-    S.asEnum(kind, ['server', 'backups', 'logs', 'publish'], 'kind');
+    S.asEnum(kind, ['server', 'backups', 'logs', 'publish', 'applogs'], 'kind');
     let dir;
-    if (kind === 'publish') dir = publishPrefs().outDir || defaultOutDir();
+    if (kind === 'applogs') dir = LOG.logDir();
+    else if (kind === 'publish') dir = publishPrefs().outDir || defaultOutDir();
     else {
       const root = await requireRootFor(idArg(id));
       dir = kind === 'server' ? root : kind === 'backups' ? R.backupsDir(root) : path.join(root, 'Logs');
@@ -1603,6 +1606,7 @@ function wireServerEvents(id, m) {
   let pending = [];
   let timer = null;
   m.on('line', (line) => {
+    LOG.serverLine(id, line);
     pending.push(line);
     if (!timer) {
       timer = setTimeout(() => {
@@ -1654,6 +1658,15 @@ if (!app.requestSingleInstanceLock()) {
     }
   });
   app.whenReady().then(async () => {
+    LOG.init(path.join(app.getPath('userData'), 'logs'));
+    LOG.write('info', `Realm Steward ${app.getVersion()} starting`);
+    LOG.installCrashGuards((err) => {
+      try {
+        push({ type: 'server-lines', id: 's1', lines: [{ src: 'sys', text: `Realm hit an error and logged it (Settings > Open logs): ${err && err.message ? err.message : err}` }] });
+      } catch {
+        /* window may be gone */
+      }
+    });
     config = loadConfig();
     settings = new Settings(app.getPath('userData'));
     await settings.load();
