@@ -136,6 +136,10 @@
     bar.appendChild(fill);
     barRow.append(bar, el('span', 'count', players != null ? `${st.approx ? '~' : ''}${players} / ${max}` : `? / ${max}`));
     card.appendChild(barRow);
+    if (allegiance && st && Array.isArray(st.houses) && st.houses.some((h) => h && h.name.toLowerCase() === allegiance.name.toLowerCase())) {
+      card.classList.add('sworn');
+      card.appendChild(el('p', 'sc-house', (st.house && st.house.toLowerCase() === allegiance.name.toLowerCase() ? 'Your house holds the crown here' : 'House ' + allegiance.name + ' plays here')));
+    }
     if (players != null && max && players >= max) card.appendChild(el('p', 'sc-note', 'Full right now. If you join, the game puts you in its queue and lets you in when a place opens.'));
     const actions = el('div', 'sc-actions');
     const joinBtn = el('button', 'btn primary');
@@ -144,7 +148,8 @@
     if (st && st.online === false) joinBtn.disabled = true;
     const copyBtn = el('button', 'btn ghost small');
     copyBtn.dataset.copy = s.id;
-    copyBtn.title = 'Copy the address';
+    copyBtn.title = 'Copy the address (the port goes in its own box)';
+    copyBtn.setAttribute('aria-label', `Copy the address of ${s.name}`);
     copyBtn.append(icon('i-copy', 'ico'));
     actions.append(joinBtn, copyBtn);
     card.appendChild(actions);
@@ -163,6 +168,7 @@
     $('join-best-sub').textContent = b ? `${list.servers.length > 1 ? 'Best now: ' : ''}${b.name}${best && best.why ? ' · ' + best.why : ''}` : Object.keys(statuses).length ? 'No server is reachable right now' : 'Checking the servers...';
     renderCrown();
     renderTitle();
+    renderBanner();
   }
 
   function renderTitle() {
@@ -240,19 +246,131 @@
     }
   };
 
+  // ---------------------------------------------------------------- join progress
+  // Checking server -> Launching Steam -> Game starting -> Joining <server>. Realm cannot see inside
+  // the game, so the last two steps are timed guidance, not a report; the address/port boxes stay on
+  // screen for the "stopped at the main menu" case. Step timings are estimates (UNVERIFIED per PC).
+  const JF_STEPS = ['check', 'steam', 'game', 'join'];
+  let jfTimers = [];
+  let jfServer = null;
+  let jfReturnFocus = null;
+
+  function jfSet(step, state, sub) {
+    const li = $('jf-steps').querySelector(`[data-step="${step}"]`);
+    if (!li) return;
+    li.className = state || '';
+    if (sub != null) $('jf-sub-' + step).textContent = sub;
+  }
+  function jfStatus(text) {
+    $('jf-status').textContent = text;
+  }
+  function jfOpen(title) {
+    for (const t of jfTimers) clearTimeout(t);
+    jfTimers = [];
+    jfServer = null;
+    jfReturnFocus = document.activeElement;
+    $('jf-title').textContent = title;
+    $('jf-join-label').textContent = 'Joining';
+    $('jf-addr').textContent = '-';
+    $('jf-port').textContent = '-';
+    $('jf-manual').hidden = true;
+    jfSet('check', 'now', 'Is it up, and is there room?');
+    jfSet('steam', '', 'Steam starts your own copy of Reign of Kings.');
+    jfSet('game', '', prefs && prefs.joinMethod === 'classic' ? 'Steam starts the game at its main menu.' : 'Steam may ask once to allow the launch options: choose OK.');
+    jfSet('join', '', prefs && prefs.joinMethod === 'classic' ? 'Paste the address and type the port in Direct Connect.' : 'The game connects by itself.');
+    jfStatus('Checking the server...');
+    $('joinflow').hidden = false;
+    $('jf-close').focus();
+  }
+  function jfClose() {
+    for (const t of jfTimers) clearTimeout(t);
+    jfTimers = [];
+    $('joinflow').hidden = true;
+    if (jfReturnFocus && document.contains(jfReturnFocus)) jfReturnFocus.focus();
+  }
+  function jfFail(step, text) {
+    jfSet(step, 'bad');
+    jfStatus(text);
+  }
+  function jfShowAddress(address, port) {
+    jfServer = { address: String(address), port: String(port) };
+    $('jf-addr').textContent = jfServer.address;
+    $('jf-port').textContent = jfServer.port;
+    $('jf-manual').hidden = false;
+  }
+
   async function doJoin(id, viaBest) {
+    const target = viaBest ? null : list && list.servers.find((s) => s.id === id);
+    jfOpen(target ? target.name : 'The best server');
+    // 1. checking server
     try {
-      const r = viaBest ? await api.joinBest() : await api.join(id);
-      if (r.needInstall) {
-        const ok = await confirmBox({ title: r.steam === false ? 'Steam is needed' : 'Install Reign of Kings first', text: r.steam === false ? 'Realm plays through your own Steam copy of Reign of Kings. Install Steam, then the game, then press Join again.' : 'Realm plays through your own Steam copy of Reign of Kings, and it is not installed yet. Steam can install it now.', ok: r.steam === false ? 'Get Steam' : 'Install in Steam' });
-        if (ok) installGame(r.steam === false);
-        return;
-      }
-      toast(r.method === 'quick' ? `Opening Steam to join ${r.name}${r.why ? ' (' + r.why + ')' : ''}. The address is copied too.` : `Opening Steam. Then Direct Connect to ${r.address} port ${r.port} (address copied).`, 'ok');
+      const r = await api.status(true);
+      statuses = r.statuses || {};
+      best = r.best || null;
+      renderServers();
+    } catch {
+      /* status is advisory; Steam can still try */
+    }
+    const pickId = viaBest ? bestId() : id;
+    const pick = list && list.servers.find((s) => s.id === pickId);
+    const st = pick ? statuses[pick.id] : null;
+    if (viaBest && !pick) return jfFail('check', 'No server is reachable right now. Try again in a minute, or press Can\'t join?.');
+    if (st && st.online === false) return jfFail('check', `${pick.name} is not answering right now. Pick another server, or press Can't join? to see why.`);
+    if (pick) $('jf-title').textContent = pick.name;
+    const full = st && Number.isInteger(st.players) && st.maxPlayers && st.players >= st.maxPlayers;
+    jfSet('check', 'done', !st || st.online == null ? 'Could not confirm it is up; trying anyway.' : full ? `Full (${st.players}/${st.maxPlayers}): the game queues you.` : `Up${Number.isInteger(st.players) ? `, ${st.approx ? '~' : ''}${st.players}/${st.maxPlayers} players` : ''}${Number.isFinite(st.pingMs) ? `, ${Math.round(st.pingMs)} ms` : ''}.`);
+    // 2. launching steam
+    jfSet('steam', 'now');
+    jfStatus('Asking Steam to start Reign of Kings...');
+    let r;
+    try {
+      r = viaBest ? await api.joinBest() : await api.join(id);
     } catch (e) {
-      fail(e);
+      return jfFail('steam', (e && e.message) || String(e));
+    }
+    if (r.needInstall) {
+      jfClose();
+      const ok = await confirmBox({ title: r.steam === false ? 'Steam is needed' : 'Install Reign of Kings first', text: r.steam === false ? 'Realm plays through your own Steam copy of Reign of Kings. Install Steam, then the game, then press Join again.' : 'Realm plays through your own Steam copy of Reign of Kings, and it is not installed yet. Steam can install it now.', ok: r.steam === false ? 'Get Steam' : 'Install in Steam' });
+      if (ok) installGame(r.steam === false);
+      return;
+    }
+    $('jf-title').textContent = r.name;
+    $('jf-join-label').textContent = 'Joining ' + r.name;
+    jfShowAddress(r.address, r.port);
+    jfSet('steam', 'done', 'Steam has the request. The address is copied.');
+    // 3. game starting, 4. joining (timed guidance)
+    jfSet('game', 'now');
+    jfStatus(r.method === 'quick' ? 'Steam is starting your game. Choose OK if it asks about launch options.' : 'Steam is starting your game at its main menu.');
+    jfTimers.push(
+      setTimeout(() => {
+        jfSet('game', 'done');
+        jfSet('join', 'now');
+        jfStatus(r.method === 'quick' ? `The game should now be connecting to ${r.name}. If it stays at the main menu, use the two boxes below.` : `In the game: Direct Connect, paste the address, type port ${r.port}, Join.`);
+      }, 9000)
+    );
+    jfTimers.push(setTimeout(() => jfSet('join', 'done'), 30000));
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
     }
   }
+  $('jf-copy-addr').addEventListener('click', async () => {
+    if (!jfServer) return;
+    toast((await copyText(jfServer.address)) ? `Copied the address ${jfServer.address}. Paste it in the address box.` : `Could not copy. Type ${jfServer.address} in the address box.`, 'ok');
+  });
+  $('jf-copy-port').addEventListener('click', async () => {
+    if (!jfServer) return;
+    toast((await copyText(jfServer.port)) ? `Copied the port ${jfServer.port}. Paste it in the port box.` : `Could not copy. Type ${jfServer.port} in the port box.`, 'ok');
+  });
+  $('jf-close').addEventListener('click', jfClose);
+  $('joinflow').addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') jfClose();
+  });
 
   function installGame(steamMissing) {
     (steamMissing ? api.openLink('steam') : api.installGame()).catch(fail);
@@ -265,7 +383,7 @@
     const c = ev.target.closest('[data-copy]');
     if (c) {
       try {
-        toast('Copied ' + (await api.copyAddress(c.dataset.copy)) + '.', 'ok');
+        toast('Copied ' + (await api.copyAddress(c.dataset.copy)) + '. In Direct Connect, paste it in the address box and type the port in the port box.', 'ok');
       } catch (e) {
         fail(e);
       }
@@ -276,6 +394,7 @@
   $('list-refresh').addEventListener('click', async () => {
     $('list-pill').textContent = 'Checking';
     await loadAll(true);
+    loadFeed(true);
     toast('Server list and status refreshed.', 'ok');
   });
 
@@ -304,28 +423,147 @@
 
   views.guide = { show: renderGuide };
 
-  let introStep = 0;
-  function renderIntro() {
-    const c = CARDS[introStep];
+  // ================================================================ FIRST RUN
+  // Sigil reveal -> sworn allegiance (six great houses, docs/community/lore.md) -> 4-card crown tour.
+
+  // Colours: primary = the overlay dye for that name (chronicle/public/assets/common.js), secondary = lore.
+  const HOUSES = [
+    { id: 'varrow', name: 'Varrow', sigil: 'Iron Stag', emblem: 'em-stag', field: '#4a2347', metal: '#b7bcc4', words: 'We Stand Our Ground.', hook: 'Crown-holders: take the throne and keep it.' },
+    { id: 'ashgrove', name: 'Ashgrove', sigil: 'White Oak', emblem: 'em-oak', field: '#7a3a1a', metal: '#efe6d2', words: 'Deep Roots, Long Memory.', hook: 'Steady liege or loyal vassal; builders and diplomats.' },
+    { id: 'corvane', name: 'Corvane', sigil: 'Black Raven', emblem: 'em-raven', field: '#2c3b42', metal: '#d4d9de', words: 'Every Secret Has a Price.', hook: 'Intrigue: treaties, timing and the right betrayal.' },
+    { id: 'dunmere', name: 'Dunmere', sigil: 'Drowned Bell', emblem: 'em-bell', field: '#5a5a22', metal: '#c9a46a', words: 'The Tide Returns.', hook: 'Rebels: declare the claim, fight in the Lawful Hours.' },
+    { id: 'halloran', name: 'Halloran', sigil: 'Ember Hound', emblem: 'em-hound', field: '#3a2a1a', metal: '#f08a3a', words: 'Loyal Until the Last Coal.', hook: 'Hired swords and fair, fast ransoms.' },
+    { id: 'merrin', name: 'Merrin', sigil: 'Silver Eel', emblem: 'em-eel', field: '#24472d', metal: '#d4d9de', words: 'Slip the Net.', hook: 'Traders and go-betweens who stay neutral and matter.' }
+  ];
+  const houseById = (id) => HOUSES.find((h) => h.id === id) || null;
+
+  // The allegiance lives in this PC's browser storage for the Realm window only; it is never sent anywhere.
+  const ALLEGIANCE_KEY = 'realm.allegiance';
+  function loadAllegiance() {
+    try {
+      return houseById(localStorage.getItem(ALLEGIANCE_KEY));
+    } catch {
+      return null;
+    }
+  }
+  function saveAllegiance(h) {
+    try {
+      if (h) localStorage.setItem(ALLEGIANCE_KEY, h.id);
+      else localStorage.removeItem(ALLEGIANCE_KEY);
+    } catch {
+      /* storage blocked: the choice lasts for this session only */
+    }
+  }
+  let allegiance = loadAllegiance();
+
+  function shieldSvg(h, cls) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 120 140');
+    svg.setAttribute('aria-hidden', 'true');
+    if (cls) svg.setAttribute('class', cls);
+    const field = document.createElementNS(NS, 'path');
+    field.setAttribute('d', 'M10 8h100v52c0 38-24 62-50 74C34 122 10 98 10 60z');
+    field.setAttribute('fill', h.field);
+    field.setAttribute('stroke', h.metal);
+    field.setAttribute('stroke-width', '4');
+    const shine = document.createElementNS(NS, 'path');
+    shine.setAttribute('d', 'M10 8h100v52c0 38-24 62-50 74C34 122 10 98 10 60z');
+    shine.setAttribute('fill', 'url(#fieldShine)');
+    const em = document.createElementNS(NS, 'use');
+    em.setAttribute('href', '#' + h.emblem);
+    em.setAttribute('x', '28');
+    em.setAttribute('y', '26');
+    em.setAttribute('width', '64');
+    em.setAttribute('height', '64');
+    em.setAttribute('fill', h.metal);
+    em.setAttribute('color', h.metal);
+    svg.append(field, shine, em);
+    return svg;
+  }
+
+  // "How the crown works": four cards, matching the plugins (see docs/community/how-to-play.md).
+  const TOUR = [
+    { glyph: 'i-shield', title: 'Houses and oaths', text: 'A house is your faction: a name, a sigil, a leader and officers. Houses swear fealty to a stronger liege. Breaking an oath brands your house an oathbreaker for all to see.', cmd: '/house found Varrow Iron Stag' },
+    { glyph: 'i-crown', title: 'The crown is the seat', text: 'Whoever sits the Old Throne is king. The crown spends authority on decrees, names a council of three and sets the tax, always within the Charter\'s limits.', cmd: '/crown' },
+    { glyph: 'i-flame', title: 'Claims and the Lawful Hours', text: 'No crown is taken by stealth. Declare your claim at least an hour before a rebellion window, then fight for the throne while the window is open. /crown shows the next one.', cmd: '/claim declare' },
+    { glyph: 'i-scroll', title: 'The Chronicle remembers', text: 'Coronations, oaths, betrayals and ransoms are written down with player names only. Captives are held 10 minutes at most. Betrayal is the game; harassment is not.', cmd: '/chronicle' }
+  ];
+
+  let tourStep = 0;
+  let pickedHouse = null;
+
+  function stage(name) {
+    for (const id of ['ob-reveal', 'ob-houses', 'ob-tour']) $(id).hidden = id !== name;
+    const focusTarget = { 'ob-reveal': 'ob-begin', 'ob-houses': null, 'ob-tour': 'onboard-next' }[name];
+    if (name === 'ob-houses') {
+      const first = $('house-grid').querySelector('input:checked') || $('house-grid').querySelector('input');
+      if (first) first.focus();
+    } else if (focusTarget) $(focusTarget).focus();
+  }
+
+  function renderHouseGrid() {
+    const grid = $('house-grid');
+    grid.replaceChildren();
+    for (const h of HOUSES) {
+      const label = el('label', 'house-opt');
+      const input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'allegiance';
+      input.value = h.id;
+      input.checked = !!(pickedHouse && pickedHouse.id === h.id);
+      const body = el('span', 'house-body');
+      body.append(el('b', 'house-name', 'House ' + h.name), el('span', 'house-sigil', 'The ' + h.sigil), el('i', 'house-words', '"' + h.words + '"'), el('span', 'house-hook', h.hook));
+      label.append(input, shieldSvg(h, 'house-shield'), body);
+      grid.appendChild(label);
+    }
+    syncSwear();
+  }
+
+  function syncSwear() {
+    $('ob-swear').disabled = !pickedHouse;
+    $('ob-swear').textContent = pickedHouse ? 'Swear to House ' + pickedHouse.name : 'Choose a house';
+    for (const l of $$('.house-opt', $('house-grid'))) l.classList.toggle('on', !!pickedHouse && l.querySelector('input').value === pickedHouse.id);
+  }
+
+  function renderTour() {
+    const c = TOUR[tourStep];
     $('onboard-glyph').firstElementChild.setAttribute('href', '#' + c.glyph);
-    $('onboard-kicker').textContent = `${introStep + 1} of ${CARDS.length}`;
+    $('onboard-kicker').textContent = `How the crown works · ${tourStep + 1} of ${TOUR.length}`;
     $('onboard-title').textContent = c.title;
     $('onboard-text').textContent = c.text;
     $('onboard-cmd').textContent = c.cmd;
     const dots = $('onboard-dots');
     dots.replaceChildren();
-    CARDS.forEach((_, i) => dots.appendChild(el('i', i === introStep ? 'on' : '')));
-    const last = introStep === CARDS.length - 1;
-    $('onboard-next').textContent = last ? 'Enter the Realm' : 'Next';
+    TOUR.forEach((_, i) => dots.appendChild(el('i', i === tourStep ? 'on' : '')));
+    const last = tourStep === TOUR.length - 1;
+    $('onboard-next').textContent = last ? 'Take the road' : 'Next';
+    $('onboard-back').hidden = false;
     $('onboard-rules').hidden = !last || !(config && config.links.some((l) => l.id === 'rules'));
+    const card = $('ob-tour');
+    card.classList.remove('flip');
+    void card.offsetWidth; // restart the card animation
+    card.classList.add('flip');
   }
-  function openIntro() {
-    introStep = 0;
-    renderIntro();
+
+  // fromStep: 'reveal' (first run), 'houses' (change allegiance from Home) or 'tour' (Guide button).
+  let introMode = 'first';
+  function openIntro(fromStep = 'reveal') {
+    introMode = fromStep === 'reveal' ? 'first' : fromStep;
+    tourStep = 0;
+    pickedHouse = allegiance;
+    $('ob-heading').textContent = (config && config.realmName) || 'The Realm';
+    $('ob-tagline').textContent = (config && config.tagline) || '';
+    renderHouseGrid();
+    renderTour();
     $('onboard').hidden = false;
+    $('onboard').classList.toggle('replay', fromStep !== 'reveal');
+    stage(fromStep === 'houses' ? 'ob-houses' : fromStep === 'tour' ? 'ob-tour' : 'ob-reveal');
   }
   async function closeIntro() {
     $('onboard').hidden = true;
+    renderServers(); // also redraws the banner and the "your house plays here" marks
+    if (introMode !== 'first') return;
     try {
       prefs = await api.setPrefs({ onboarded: true });
     } catch {
@@ -333,15 +571,152 @@
     }
     checkLink();
   }
+  $('ob-begin').addEventListener('click', () => stage('ob-houses'));
+  $('house-grid').addEventListener('change', (ev) => {
+    if (ev.target.name !== 'allegiance') return;
+    pickedHouse = houseById(ev.target.value);
+    syncSwear();
+  });
+  function swear(h) {
+    allegiance = h;
+    saveAllegiance(h);
+    if (introMode === 'houses') {
+      if (h) toast(`You are sworn to House ${h.name}. "${h.words}"`, 'ok');
+      closeIntro();
+    } else stage('ob-tour');
+  }
+  $('ob-swear').addEventListener('click', () => pickedHouse && swear(pickedHouse));
+  $('ob-unsworn').addEventListener('click', () => swear(null));
   $('onboard-next').addEventListener('click', () => {
-    if (introStep < CARDS.length - 1) {
-      introStep++;
-      renderIntro();
+    if (tourStep < TOUR.length - 1) {
+      tourStep++;
+      renderTour();
     } else closeIntro();
+  });
+  $('onboard-back').addEventListener('click', () => {
+    if (tourStep > 0) {
+      tourStep--;
+      renderTour();
+    } else if (introMode === 'first') stage('ob-houses');
+    else closeIntro();
   });
   $('onboard-skip').addEventListener('click', closeIntro);
   $('onboard-rules').addEventListener('click', () => api.openLink('rules').catch(fail));
-  $('guide-intro').addEventListener('click', openIntro);
+  $('guide-intro').addEventListener('click', () => openIntro('tour'));
+  $('onboard').addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && introMode !== 'first') closeIntro();
+  });
+
+  // ================================================================ ALLEGIANCE ON HOME
+
+  // Where the sworn house already plays: its king's server, else the server where it has the most
+  // members, else the best pick (and the in-game command to found it).
+  function suggestion() {
+    if (!allegiance || !list) return null;
+    const name = allegiance.name.toLowerCase();
+    let crowned = null;
+    let most = null;
+    for (const s of list.servers) {
+      const st = statuses[s.id];
+      if (!st || st.online === false) continue;
+      if (st.house && st.house.toLowerCase() === name) crowned = crowned || s;
+      const h = Array.isArray(st.houses) ? st.houses.find((x) => x && x.name.toLowerCase() === name) : null;
+      if (h && (!most || (h.members || 0) > (most.members || 0))) most = { server: s, members: h.members };
+    }
+    if (crowned) return { server: crowned, text: `House ${allegiance.name} holds the crown on ${crowned.name}. Ride to defend it.` };
+    if (most) return { server: most.server, text: `House ${allegiance.name} has ${most.members != null ? most.members + ' sworn' : 'a seat'} on ${most.server.name}.` };
+    const b = list.servers.find((s) => s.id === bestId());
+    return { server: b || null, found: true, text: `No server has a House ${allegiance.name} yet. Be its founder: /house found ${allegiance.name} ${allegiance.sigil}` };
+  }
+
+  function renderBanner() {
+    const h = allegiance;
+    $('banner-card').classList.toggle('sworn', !!h);
+    $('banner-field').setAttribute('fill', h ? h.field : '#2a1d14');
+    $('banner-field').setAttribute('stroke', h ? h.metal : '#7a5a1e');
+    $('banner-emblem').setAttribute('href', '#' + (h ? h.emblem : 'i-banners'));
+    $('banner-emblem').setAttribute('fill', h ? h.metal : '#a3927a');
+    $('banner-emblem').setAttribute('color', h ? h.metal : '#a3927a');
+    $('banner-name').textContent = h ? 'House ' + h.name : 'Unsworn';
+    $('banner-words').textContent = h ? `"${h.words}"` : 'Pick a great house to follow its story.';
+    $('banner-change').lastChild.textContent = h ? 'Change' : 'Choose a house';
+    const sg = suggestion();
+    $('banner-suggest').textContent = sg ? sg.text : '';
+    const canJoin = !!(sg && sg.server && !(statuses[sg.server.id] && statuses[sg.server.id].online === false));
+    $('banner-join').hidden = !canJoin;
+    if (canJoin) {
+      $('banner-join').dataset.join = sg.server.id;
+      $('banner-join-label').textContent = 'Join ' + sg.server.name;
+    }
+  }
+  $('banner-change').addEventListener('click', () => openIntro('houses'));
+  $('banner-join').addEventListener('click', (ev) => {
+    const id = ev.currentTarget.dataset.join;
+    if (id) doJoin(id);
+  });
+
+  // ================================================================ REALM FEED
+  // Latest public Chronicle events from every listed server, plus a countdown to the next event when
+  // a server's Chronicle announces one (lib/shared/feed.js documents that optional field).
+
+  const FEED_GLYPH = { coronation: 'i-crown', abdication: 'i-crown', claim_declared: 'i-flame', rebellion_started: 'i-flame', rebellion_ended: 'i-flame', house_founded: 'i-shield', oath_sworn: 'i-chain', oath_broken: 'i-chain', treaty_signed: 'i-seal', treaty_broken: 'i-seal', decree: 'i-scroll', ransom_set: 'i-chest', ransom_paid: 'i-chest', released: 'i-chest' };
+  let feed = null;
+  let countTimer = null;
+
+  function renderFeed() {
+    const ol = $('feed-list');
+    ol.replaceChildren();
+    const items = (feed && feed.events) || [];
+    if (!items.length) {
+      const anyChronicle = list && list.servers.some((s) => s.hasChronicle);
+      ol.appendChild(el('li', 'feed-empty', anyChronicle ? 'The Chronicle is quiet. Oaths, claims and coronations appear here as they happen.' : 'No server in the list shares its Chronicle yet, so there is no news to show.'));
+    }
+    const many = list && list.servers.length > 1;
+    for (const e of items.slice(0, 6)) {
+      const li = el('li', 'feed-item t-' + e.type);
+      const body = el('div');
+      body.append(el('p', 'feed-title', e.title), el('p', 'feed-meta', [ago(e.ts), many ? e.serverName : null].filter(Boolean).join(' · ')));
+      li.append(icon(FEED_GLYPH[e.type] || 'i-banners', 'feed-ico'), body);
+      ol.appendChild(li);
+    }
+    $('feed-updated').textContent = feed && feed.at ? 'updated ' + ago(feed.at) : '';
+    const n = feed && feed.next;
+    $('feed-next').hidden = !n;
+    clearInterval(countTimer);
+    if (n) {
+      $('feed-next-title').textContent = n.title;
+      $('feed-next-where').textContent = `${many ? n.serverName + ' · ' : ''}${new Date(Date.parse(n.at)).toLocaleString(undefined, { weekday: 'long', hour: '2-digit', minute: '2-digit' })}`;
+      tickCount();
+      countTimer = setInterval(tickCount, 1000);
+    }
+  }
+
+  function tickCount() {
+    const n = feed && feed.next;
+    if (!n) return;
+    const ms = Math.max(0, Date.parse(n.at) - Date.now());
+    const t = Math.floor(ms / 1000);
+    const pad = (v) => String(v).padStart(2, '0');
+    $('feed-count-d').textContent = String(Math.floor(t / 86400));
+    $('feed-count-h').textContent = pad(Math.floor((t % 86400) / 3600));
+    $('feed-count-m').textContent = pad(Math.floor((t % 3600) / 60));
+    $('feed-count-s').textContent = pad(t % 60);
+    $('feed-count').setAttribute('aria-label', ms ? `Starts in ${Math.floor(t / 86400)} days ${Math.floor((t % 86400) / 3600)} hours ${Math.floor((t % 3600) / 60)} minutes` : 'Starting now');
+    if (!ms) {
+      clearInterval(countTimer);
+      $('feed-next-where').textContent = 'Starting now. Join in!';
+    }
+  }
+
+  async function loadFeed(refresh) {
+    if (!api.feed) return;
+    try {
+      feed = await api.feed(refresh === true);
+    } catch {
+      /* the Chronicle is optional */
+    }
+    renderFeed();
+  }
 
   // ================================================================ SETTINGS
 
@@ -464,7 +839,12 @@
     } catch {
       /* ignore */
     }
-    if (prefs && !prefs.onboarded) openIntro();
+    renderBanner();
+    loadFeed(false);
+    setInterval(() => {
+      if (current === 'home' && !document.hidden) loadFeed(false);
+    }, 60000);
+    if (prefs && !prefs.onboarded) openIntro('reveal');
     else checkLink();
   }
 

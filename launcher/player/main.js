@@ -24,6 +24,7 @@ const A2S = require('../lib/shared/a2s');
 const DL = require('../lib/shared/deeplink');
 const PK = require('../lib/shared/pick');
 const NT = require('../lib/shared/notify');
+const FD = require('../lib/shared/feed');
 
 const DEV = !app.isPackaged;
 const ROOT = path.join(__dirname, '..');
@@ -209,6 +210,8 @@ async function statusOf(server) {
     if (Number.isInteger(chron.maxPlayers) && chron.maxPlayers > 0) st.maxPlayers = chron.maxPlayers;
     if (typeof chron.king === 'string') st.king = chron.king.slice(0, 64);
     if (typeof chron.house === 'string') st.house = chron.house.slice(0, 64);
+    // Onboarding: house names and sizes, so the app can suggest where a sworn house already plays.
+    if (Array.isArray(chron.houses)) st.houses = chron.houses.filter((h) => h && typeof h.name === 'string' && h.name).slice(0, 16).map((h) => ({ name: h.name.slice(0, 64), members: Number.isInteger(h.members) && h.members >= 0 ? h.members : null }));
   }
   if (st.players == null && a2s.ok && a2s.info.players != null) {
     // UNVERIFIED that the game's A2S player count is right; shown as approximate.
@@ -229,6 +232,27 @@ async function refreshStatus() {
 
 function statusSnapshot() {
   return { statuses, best: PK.pickBest(list.servers, statuses), at: statusAt ? new Date(statusAt).toISOString() : null };
+}
+
+// ---------- Realm feed (onboarding panel): latest Chronicle events + next announced event ----------
+
+let feedCache = null;
+let feedAt = 0;
+async function realmFeed(refresh) {
+  if (!refresh && feedCache && Date.now() - feedAt < 20000) return feedCache;
+  const withChronicle = list.servers.slice(0, 16).filter((s) => s.chronicleUrl);
+  const entries = await Promise.all(
+    withChronicle.map(async (s) => {
+      const [events, state] = await Promise.all([
+        fetchText(`${s.chronicleUrl}/api/events?limit=8`, 256 * 1024).then(JSON.parse, () => []).catch(() => []),
+        chronicleState(s.chronicleUrl)
+      ]);
+      return { server: { id: s.id, name: s.name }, events, state };
+    })
+  );
+  feedCache = { ...FD.mergeFeed(entries, { limit: 8 }), sources: withChronicle.length, at: new Date().toISOString() };
+  feedAt = Date.now();
+  return feedCache;
 }
 
 // ---------- joining ----------
@@ -450,6 +474,7 @@ function registerIpc() {
   });
   handle('player:status', async (refresh) => (refresh === true || Date.now() - statusAt > 15000 ? refreshStatus() : statusSnapshot()));
   handle('player:installState', () => installState());
+  handle('player:feed', (refresh) => realmFeed(refresh === true));
   handle('player:join', (id) => join(asId(id)));
   handle('player:joinBest', () => joinBest());
   handle('player:installGame', async () => {
@@ -561,6 +586,17 @@ if (!app.requestSingleInstanceLock()) {
     await loadPrefs();
     await loadServers();
     registerIpc();
+    // ----- Connection Doctor, "Can't join?" (lib/shared/joincheck.js): read-only player checks -----
+    require('../lib/shared/joincheck').registerPlayer({
+      handle,
+      app: { getVersion: () => (app.isPackaged ? app.getVersion() : require('../package.json').version) },
+      clipboard,
+      servers: () => list.servers,
+      installState,
+      appId: cfg.steamAppId,
+      devGameDir: DEV ? process.env.REALM_DEV_GAME_DIR || null : null
+    });
+    // ----- end Connection Doctor -----
     createWindow();
     updateTray();
     const first = DL.findDeepLinkArg(process.argv);

@@ -51,7 +51,10 @@ test('player main and preload only reach lib/shared and the player folder', () =
   const users = requireGraph('player/main.js').files.filter((f) => f.endsWith('.js') && /require\(['"]child_process['"]\)/.test(fs.readFileSync(path.join(ROOT, f), 'utf8')));
   assert.deepEqual(users, ['lib/shared/steam.js']);
   const steamSrc = fs.readFileSync(path.join(ROOT, 'lib/shared/steam.js'), 'utf8');
-  assert.deepEqual([...steamSrc.matchAll(/runFile\('([^']+)'/g)].map((m) => m[1]), ['reg']);
+  // Every child process it starts is "reg" (install check and the Doctor's Steam-running check).
+  const runs = [...steamSrc.matchAll(/runFile\('([^']+)'/g)].map((m) => m[1]);
+  assert.ok(runs.length >= 1);
+  assert.deepEqual([...new Set(runs)], ['reg']);
 });
 
 test('player main registers only app: and player: IPC channels', () => {
@@ -83,7 +86,7 @@ test('player preload exposes only player calls, and every call stays on app:/pla
   }
   assert.equal(exposed.name, 'realm');
   const keys = Object.keys(exposed.api).sort();
-  assert.deepEqual(keys, ['appInfo', 'copyAddress', 'getConfig', 'installGame', 'installState', 'join', 'joinBest', 'onPush', 'openLink', 'prefs', 'servers', 'setPrefs', 'status', 'takeLink', 'windowAction']);
+  assert.deepEqual(keys, ['appInfo', 'copyAddress', 'doctorClassify', 'doctorReport', 'doctorRun', 'feed', 'getConfig', 'installGame', 'installState', 'join', 'joinBest', 'onPush', 'openLink', 'prefs', 'servers', 'setPrefs', 'status', 'takeLink', 'windowAction']);
   for (const k of keys) assert.equal(typeof exposed.api[k], 'function', k);
   return Promise.all(keys.filter((k) => k !== 'onPush').map((k) => exposed.api[k]('x'))).then(() => {
     assert.equal(invoked.length, keys.length - 1);
@@ -111,7 +114,7 @@ test('the player build config packs only player files and lib/shared', () => {
   assert.deepEqual(cfg.protocols, [{ name: 'Realm link', schemes: ['realm'] }]);
   for (const pattern of cfg.files) {
     if (pattern.startsWith('!')) continue;
-    assert.match(pattern, /^(player\/|lib\/shared\/|renderer\/(player|coach|styles)\.|renderer\/(player|coach)\.|renderer\/fonts\/|build\/icon\.png$)/, pattern);
+    assert.match(pattern, /^(player\/|lib\/shared\/|renderer\/(player|coach|styles)\.|renderer\/(player|coach)\.|renderer\/doctor\.(js|css)$|renderer\/fonts\/|build\/icon\.png$)/, pattern);
   }
   assert.ok(cfg.files.includes('!node_modules/**/*'));
   // Every file the player renderer page loads is packed.

@@ -1,0 +1,30 @@
+{
+  "Houses": [
+    { "Name": "Varrow", "Sigil": "Iron Stag", "Founded": "2026-09-27T18:02:11Z", "GuildId": 0, "Liege": null, "SwornSince": "0001-01-01T00:00:00", "SwearBlockedUntil": "0001-01-01T00:00:00", "OathsBroken": 0, "TreatiesBroken": 0,
+      "Members": [
+        { "Id": "76561190000000001", "Name": "Aldric Varrow", "Rank": "leader", "Joined": "2026-09-27T18:02:11Z" },
+        { "Id": "76561190000000002", "Name": "Odo the Tall", "Rank": "officer", "Joined": "2026-09-27T19:10:00Z" },
+        { "Id": "76561190000000003", "Name": "76561190000000003", "Rank": "member", "Joined": "2026-09-27T19:20:00Z" }
+      ] },
+    { "Name": "Ashgrove", "Sigil": "White Oak", "Founded": "2026-09-27T20:15:02Z", "GuildId": 0, "Liege": "Varrow", "SwornSince": "2026-09-28T18:05:12Z", "OathsBroken": 0, "TreatiesBroken": 0,
+      "Members": [ { "Id": "76561190000000010", "Name": "Wren", "Rank": "leader", "Joined": "2026-09-27T20:15:02Z" } ] },
+    { "Name": "Corvane", "Sigil": "Black Raven", "Founded": "2026-09-27T18:40:55Z", "GuildId": 0, "Liege": null, "OathsBroken": 0, "TreatiesBroken": 0,
+      "Members": [
+        { "Id": "76561190000000020", "Name": "Ysolde Corvane", "Rank": "leader", "Joined": "2026-09-27T18:40:55Z" },
+        { "Id": "76561190000000021", "Name": "Bramwell", "Rank": "officer", "Joined": "2026-09-27T19:00:00Z" }
+      ] },
+    { "Name": "Dunmere", "Sigil": "Drowned Bell", "Founded": "2026-09-28T12:00:00Z", "GuildId": 0, "Liege": "Corvane", "SwornSince": "2026-10-01T18:40:00Z", "OathsBroken": 1, "TreatiesBroken": 0,
+      "Members": [ { "Id": "76561190000000030", "Name": "Hale Dunmere", "Rank": "leader", "Joined": "2026-09-28T12:00:00Z" } ] },
+    { "Name": "Halloran", "Sigil": "Ember Hound", "Founded": "2026-09-28T13:00:00Z", "GuildId": 0, "Liege": null, "OathsBroken": 0, "TreatiesBroken": 1,
+      "Members": [ { "Id": "76561190000000040", "Name": "Petra Halloran", "Rank": "leader", "Joined": "2026-09-28T13:00:00Z" } ] },
+    { "Name": "Merrin", "Sigil": "Silver Eel", "Founded": "2026-09-29T09:00:00Z", "GuildId": 0, "Liege": "Varrow", "SwornSince": "2026-09-29T10:00:00Z", "OathsBroken": 0, "TreatiesBroken": 0,
+      "Members": [ { "Id": "76561190000000050", "Name": "Tamsin Merrin", "Rank": "leader", "Joined": "2026-09-29T09:00:00Z" } ] }
+  ],
+  "Treaties": [
+    { "A": "Corvane", "B": "Merrin", "Signed": "2026-10-01T12:00:00Z", "Expires": "2026-10-08T12:00:00Z" },
+    { "A": "Varrow", "B": "Halloran", "Signed": "2026-09-25T12:00:00Z", "Expires": "2026-09-28T12:00:00Z" }
+  ],
+  "Players": { "76561190000000040": { "Name": "Petra Halloran", "OathsBroken": 0, "TreatiesBroken": 1 } },
+  "LastFounded": {},
+  "TreatyCooldowns": {}
+}

@@ -1523,6 +1523,14 @@
     }
   });
 
+  // ================================================================ connection doctor (renderer/doctor.js)
+
+  views.doctor = { show: () => window.RealmDoctor && window.RealmDoctor.show() };
+
+  // ================================================================ the court (renderer/court.js)
+
+  views.court = { show: () => window.RealmCourt && window.RealmCourt.show() };
+
   // ================================================================ push events
 
   api.onPush((msg) => {

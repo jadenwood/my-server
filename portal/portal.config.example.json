@@ -1,0 +1,18 @@
+{
+  "realmName": "The Realm of Ostreval",
+  "kicker": "A Reign of Kings community server",
+  "tagline": "Swear an oath. Claim a crown. Answer for it.",
+  "siteUrl": "",
+  "discordInvite": "",
+  "download": {
+    "url": "https://example.invalid/Realm-Setup.exe",
+    "version": "0.3.0",
+    "sha256": ""
+  },
+  "server": { "address": "", "port": 7350 },
+  "streamers": [],
+  "events": [
+    { "title": "Crown Night: the first Lawful Hours", "at": "2026-10-17T19:00:00Z", "end": "2026-10-17T20:30:00Z", "detail": "Declared claims only. Swear your oaths before dusk." }
+  ],
+  "staleAfterMinutes": 10
+}

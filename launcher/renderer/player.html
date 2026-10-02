@@ -9,6 +9,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="player.css">
+  <link rel="stylesheet" href="doctor.css">
 </head>
 <body data-view="home" class="player">
   <!-- Glyphs: original artwork, no third-party marks. -->
@@ -76,6 +77,13 @@
     <symbol id="i-globe" viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20 10 10 0 010-20zm-1.6 2.2A8 8 0 004.3 11h3.2c.1-2.6.9-5 2.9-6.8zm3.2 0c2 1.8 2.8 4.2 2.9 6.8h3.2a8 8 0 00-6.1-6.8zM9.5 11h5c-.1-2.3-.9-4.4-2.5-6-1.6 1.6-2.4 3.7-2.5 6zm-5.2 2a8 8 0 006.1 6.8c-2-1.8-2.8-4.2-2.9-6.8zm5.2 0c.1 2.3.9 4.4 2.5 6 1.6-1.6 2.4-3.7 2.5-6zm7 0c-.1 2.6-.9 5-2.9 6.8a8 8 0 006.1-6.8z" fill="currentColor"/></symbol>
     <symbol id="i-seal" viewBox="0 0 24 24"><path d="M12 2l2.2 1.6 2.7-.2.9 2.6 2.3 1.4-.7 2.6.7 2.6-2.3 1.4-.9 2.6-2.7-.2L12 18l-2.2-1.6-2.7.2-.9-2.6L3.9 12.6l.7-2.6-.7-2.6L6.2 6l.9-2.6 2.7.2zm0 5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zM8 17.5l-1.5 4.5 2.5-1 1.6 2 1-3.4zm8 0l-3.6 2.1 1 3.4 1.6-2 2.5 1z" fill="currentColor"/></symbol>
     <symbol id="i-key" viewBox="0 0 24 24"><path d="M8 7a5 5 0 014.6 7H22v3h-2v3h-3v-3h-4.4A5 5 0 118 7zm0 3a2 2 0 100 4 2 2 0 000-4z" fill="currentColor"/></symbol>
+    <!-- The six great houses of Ostreval (docs/community/lore.md): original emblems, drawn for Realm. -->
+    <symbol id="em-stag" viewBox="0 0 48 48"><path d="M24 44c-3 0-5-3-5-7v-6l-5-5c-2-2-1-4 1-4h4l-6-6-4 1-3-4 3-1-2-5h3l2 4 3-2 1 3-2 2 6 6 4 2 4-2 6-6-2-2 1-3 3 2 2-4h3l-2 5 3 1-3 4-4-1-6 6h4c2 0 3 2 1 4l-5 5v6c0 4-2 7-5 7z" fill="currentColor"/></symbol>
+    <symbol id="em-oak" viewBox="0 0 48 48"><path d="M24 4c5 0 8 3 9 6 5 0 9 4 9 9 0 4-3 7-6 8 0 4-4 7-8 7h-1v4l6 6h-4l-5-4-5 4h-4l6-6v-4h-1c-4 0-8-3-8-7-3-1-6-4-6-8 0-5 4-9 9-9 1-3 4-6 9-6z" fill="currentColor"/></symbol>
+    <symbol id="em-raven" viewBox="0 0 48 48"><path d="M8 18l7-3c2-5 6-8 11-8 6 0 10 4 10 10 0 3-1 5-2 7l8 9-10-2-4 9h-3l1-7-5 5h-3l3-6c-6-1-10-5-10-11l-3-3z" fill="currentColor"/><path d="M2 14h7v3H5v2H3v-2H2z" fill="currentColor"/><circle cx="20" cy="13" r="1.6" fill="#0b0907"/></symbol>
+    <symbol id="em-bell" viewBox="0 0 48 48"><path d="M24 4a3 3 0 013 3v1c6 1 9 6 9 12v8l3 4H9l3-4v-8c0-6 3-11 9-12V7a3 3 0 013-3zm-4 30h8a4 4 0 01-8 0z" fill="currentColor"/><path d="M4 40c3-2 5-2 8 0s5 2 8 0 5-2 8 0 5 2 8 0 5-2 8 0M4 45c3-2 5-2 8 0s5 2 8 0 5-2 8 0 5 2 8 0 5-2 8 0" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="em-hound" viewBox="0 0 48 48"><path d="M10 12l6 2 6-4 10 2 4 6 8 4-1 5-8 1-4 3v13h-5l-1-10-6 2-2 8h-5l1-11-4-6 1-8z" fill="currentColor"/><circle cx="31" cy="17" r="1.6" fill="#0b0907"/><path d="M40 6l2 4-3-1zM6 26l-3 3 4 0zM43 32l3 3-4 0z" fill="currentColor" opacity=".75"/></symbol>
+    <symbol id="em-eel" viewBox="0 0 48 48"><path d="M36 8c6 2 7 9 1 12-5 3-14 1-17 6-2 4 2 8 8 8 5 0 8-3 10-2 1 1 0 3-2 4-8 5-23 4-24-5-1-9 11-10 17-13 3-1 4-4 1-5-2-1-5 0-7 1l1-4c4-2 8-3 12-2z" fill="currentColor"/><circle cx="38" cy="12" r="1.4" fill="#0b0907"/><path d="M4 4l14 14M4 14l10 10M14 4l10 10M30 34l14 14M36 32l10 10" stroke="currentColor" stroke-width="1.2" opacity=".55"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.4 5L12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4L12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z" fill="currentColor"/></symbol>
   </svg>
 
@@ -226,6 +234,21 @@
       </div>
 
       <aside class="home-side">
+        <!-- Sworn allegiance (first run; stored only on this PC) -->
+        <article class="card banner-card" id="banner-card">
+          <svg class="banner-shield" id="banner-shield" viewBox="0 0 120 140" aria-hidden="true"><path id="banner-field" d="M10 8h100v52c0 38-24 62-50 74C34 122 10 98 10 60z" fill="#2a1d14" stroke="#7a5a1e" stroke-width="4"/><use id="banner-emblem" href="#i-banners" x="30" y="28" width="60" height="60" fill="#a3927a"/></svg>
+          <div class="banner-body">
+            <p class="eyebrow">Your allegiance</p>
+            <p class="banner-name" id="banner-name">Unsworn</p>
+            <p class="banner-words" id="banner-words">Pick a great house to follow its story.</p>
+            <p class="fine banner-suggest" id="banner-suggest"></p>
+            <div class="row gap banner-actions">
+              <button class="btn primary small" id="banner-join" hidden><svg class="ico"><use href="#i-play"/></svg><span id="banner-join-label">Join</span></button>
+              <button class="btn ghost small" id="banner-change"><svg class="ico"><use href="#i-shield"/></svg><span>Choose a house</span></button>
+            </div>
+          </div>
+        </article>
+
         <article class="card crown-card">
           <div class="crown-medal"><svg><use href="#i-crown"/></svg></div>
           <div>
@@ -233,6 +256,20 @@
             <p class="king" id="king">The throne is empty</p>
             <p class="fine" id="king-detail"></p>
           </div>
+        </article>
+
+        <!-- Realm feed: latest Chronicle events of every listed server, and the next announced event -->
+        <article class="card feed-card" aria-labelledby="feed-h">
+          <header class="card-head">
+            <h2 id="feed-h">Realm feed</h2>
+            <span class="fine" id="feed-updated"></span>
+          </header>
+          <div class="feed-next" id="feed-next" hidden>
+            <p class="eyebrow">Next: <span id="feed-next-title"></span></p>
+            <p class="feed-count" id="feed-count"><span id="feed-count-d">0</span><small>d</small> <span id="feed-count-h">00</span><small>h</small> <span id="feed-count-m">00</span><small>m</small> <span id="feed-count-s">00</span><small>s</small></p>
+            <p class="fine" id="feed-next-where"></p>
+          </div>
+          <ol class="feed-list" id="feed-list"></ol>
         </article>
 
         <article class="card">
@@ -251,6 +288,7 @@
             <li>Steam may ask you to allow the launch options. Choose <b>OK</b>.</li>
             <li>The game connects by itself. If it stops at the main menu, a small Realm card shows exactly what to paste.</li>
           </ol>
+          <button class="btn small doc-open" data-doctor-open><svg class="ico"><use href="#i-shield"/></svg><span>Can't join?</span></button>
         </article>
 
         <nav class="links" id="links" aria-label="Community links"></nav>
@@ -317,19 +355,76 @@
     </section>
   </main>
 
-  <!-- ================= FIRST-RUN INTRO ================= -->
-  <div class="onboard" id="onboard" hidden>
-    <div class="onboard-card">
+  <!-- ================= FIRST-RUN: sigil reveal, sworn allegiance, the crown tour ================= -->
+  <div class="onboard" id="onboard" role="dialog" aria-modal="true" aria-labelledby="ob-heading" hidden>
+    <!-- 1. the reveal -->
+    <section class="ob-stage ob-reveal" id="ob-reveal">
+      <div class="ob-sigil-wrap" aria-hidden="true">
+        <span class="ob-rays"></span>
+        <svg class="ob-sigil" viewBox="0 0 120 140"><use href="#sigil"/></svg>
+        <svg class="ob-outline" viewBox="0 0 120 140"><path d="M10 8h100v52c0 38-24 62-50 74C34 122 10 98 10 60z" pathLength="1"/></svg>
+      </div>
+      <p class="eyebrow ob-kicker">A community realm of Reign of Kings</p>
+      <h2 class="ob-title" id="ob-heading">The Realm</h2>
+      <p class="ob-tagline" id="ob-tagline"></p>
+      <p class="ob-lore">The Builder's line is gone. By the Hearth Charter the crown belongs to whoever holds the Old Throne, and every oath, betrayal and coronation is written in the Chronicle.</p>
+      <div class="row gap center">
+        <button class="btn primary big" id="ob-begin"><span>Enter the Realm</span></button>
+      </div>
+    </section>
+
+    <!-- 2. sworn allegiance -->
+    <section class="ob-stage ob-houses" id="ob-houses" hidden>
+      <p class="eyebrow">Step 1 of 2</p>
+      <h2 class="ob-h">Swear your allegiance</h2>
+      <p class="ob-sub">Six great houses contest the crown of Ostreval. Pick the story you want to follow. It is kept only on this PC: in game you found or join a house with <span class="mono">/house</span>.</p>
+      <div class="house-grid" id="house-grid" role="radiogroup" aria-label="The six great houses"></div>
+      <div class="row gap end">
+        <button class="btn ghost" id="ob-unsworn">Stay unsworn for now</button>
+        <button class="btn primary" id="ob-swear" disabled>Choose a house</button>
+      </div>
+    </section>
+
+    <!-- 3. how the crown works (4 cards) -->
+    <section class="ob-stage ob-tour onboard-card" id="ob-tour" hidden>
       <div class="onboard-art"><svg id="onboard-glyph"><use href="#i-shield"/></svg></div>
-      <p class="eyebrow" id="onboard-kicker">1 of 5</p>
+      <p class="eyebrow" id="onboard-kicker">Step 2 of 2 · 1 of 4</p>
       <h2 id="onboard-title"></h2>
       <p class="onboard-text" id="onboard-text"></p>
       <p class="onboard-cmd mono" id="onboard-cmd"></p>
-      <div class="onboard-dots" id="onboard-dots"></div>
+      <div class="onboard-dots" id="onboard-dots" aria-hidden="true"></div>
       <div class="row gap end">
         <button class="btn ghost" id="onboard-skip">Skip</button>
+        <button class="btn ghost" id="onboard-back">Back</button>
         <button class="btn ghost" id="onboard-rules" hidden><svg class="ico"><use href="#i-link"/></svg><span>Read the rules</span></button>
         <button class="btn primary" id="onboard-next">Next</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= JOIN PROGRESS ================= -->
+  <div class="joinflow" id="joinflow" hidden>
+    <div class="joinflow-card" role="dialog" aria-modal="true" aria-labelledby="jf-title">
+      <p class="eyebrow">Riding for</p>
+      <h2 id="jf-title">The Realm</h2>
+      <ol class="jf-steps" id="jf-steps">
+        <li data-step="check"><span class="jf-dot"></span><b>Checking server</b><small id="jf-sub-check">Is it up, and is there room?</small></li>
+        <li data-step="steam"><span class="jf-dot"></span><b>Launching Steam</b><small id="jf-sub-steam">Steam starts your own copy of Reign of Kings.</small></li>
+        <li data-step="game"><span class="jf-dot"></span><b>Game starting</b><small id="jf-sub-game">Steam may ask once to allow the launch options: choose OK.</small></li>
+        <li data-step="join"><span class="jf-dot"></span><b id="jf-join-label">Joining</b><small id="jf-sub-join">The game connects by itself.</small></li>
+      </ol>
+      <p class="jf-status" id="jf-status" role="status" aria-live="polite"></p>
+      <div class="jf-manual" id="jf-manual">
+        <p class="jf-manual-h">If the game stops at its main menu</p>
+        <p class="fine">Open <b>Direct Connect</b>. The game has <b>two boxes</b>: the address goes in the address box and the port in the port box. Never type them together as "address:port", or the game says "Unable to resolve host name".</p>
+        <div class="jf-fields">
+          <div class="jf-field"><span class="eyebrow">Address box</span><span class="mono" id="jf-addr">-</span><button class="btn ghost small" id="jf-copy-addr"><svg class="ico"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+          <div class="jf-field"><span class="eyebrow">Port box</span><span class="mono" id="jf-port">-</span><button class="btn ghost small" id="jf-copy-port"><svg class="ico"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+        </div>
+      </div>
+      <div class="row gap end">
+        <button class="btn ghost small" data-doctor-open><svg class="ico"><use href="#i-shield"/></svg><span>Can't join?</span></button>
+        <button class="btn" id="jf-close">Done</button>
       </div>
     </div>
   </div>
@@ -349,6 +444,7 @@
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
+  <script src="doctor.js"></script>
   <script src="player.js"></script>
 </body>
 </html>

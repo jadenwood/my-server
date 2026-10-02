@@ -1,0 +1,87 @@
+/* The Court (renderer/court.js). Uses the tokens and base classes of styles.css. */
+
+.view-court { display: flex; flex-direction: column; min-height: 0; }
+.court-headright { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.court-port { min-width: 110px; }
+.court-servers { display: flex; gap: 6px; }
+.court-srv {
+  display: flex; align-items: baseline; gap: 6px; padding: 6px 10px; border-radius: var(--radius);
+  border: 1px solid var(--panel-edge); background: rgba(11, 9, 7, 0.55); color: var(--parchment-2);
+  font-family: var(--display); font-size: 11px; letter-spacing: 0.08em; cursor: pointer;
+}
+.court-srv b { color: var(--gold); }
+.court-srv.active { border-color: var(--gold); color: var(--gold-hi); box-shadow: 0 0 0 1px rgba(207, 166, 76, 0.25) inset; }
+.court-srv.up b::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 5px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 6px var(--ok); vertical-align: middle; }
+
+.court-banner {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 10px 14px; border-radius: var(--radius);
+  border: 1px solid rgba(219, 166, 62, 0.45); background: rgba(219, 166, 62, 0.08); color: var(--parchment);
+}
+.court-banner-ico { width: 18px; height: 18px; color: var(--warn); flex: none; }
+
+.court-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(290px, 1fr) minmax(260px, 0.9fr) minmax(320px, 1.3fr); gap: 16px; }
+.court-col { display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow-y: auto; padding-right: 2px; }
+.court-card { padding: 14px; }
+.court-card .card-title { margin-bottom: 8px; }
+.court-meta { margin-bottom: 8px; }
+.court-find, .court-inline input, .court-form input, .court-plug-arg, .court-message {
+  width: 100%; background: rgba(8, 6, 5, 0.7); border: 1px solid var(--panel-edge); color: var(--parchment);
+  border-radius: var(--radius); padding: 7px 9px; font: 13px var(--sans);
+}
+.court-message { resize: vertical; min-height: 64px; font-family: var(--serif); font-size: 15px; margin-bottom: 10px; }
+.court-find { margin-bottom: 10px; }
+.court-find:focus, .court-form input:focus, .court-message:focus, .court-plug-arg:focus, .court-inline input:focus { outline: none; border-color: var(--gold); }
+.court-players, .court-bans { display: flex; flex-direction: column; gap: 2px; }
+.court-player, .court-ban {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px;
+  border-bottom: 1px solid rgba(207, 166, 76, 0.1);
+}
+.court-player:hover, .court-ban:hover { background: rgba(207, 166, 76, 0.05); }
+.court-who { display: flex; flex-direction: column; min-width: 0; }
+.court-who b { font-family: var(--serif); font-size: 16px; color: var(--parchment); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.court-who .fine { font-size: 11px; }
+.court-row-acts { display: flex; gap: 4px; flex: none; }
+.court-row-acts .btn.small { padding: 4px 7px; font-size: 10px; }
+.court-form { padding: 10px; margin: 2px 0 8px; border-left: 2px solid var(--gold); background: rgba(207, 166, 76, 0.05); display: flex; flex-direction: column; gap: 8px; }
+.court-form.ban { border-left-color: var(--bad); background: rgba(208, 80, 63, 0.06); }
+.court-form .row { flex-wrap: nowrap; }
+.court-form .court-days { width: 120px; flex: none; }
+.court-inline { margin-top: 10px; }
+.court-inline .grow, .court-form .grow { flex: 1; min-width: 0; }
+.court-actions { flex-wrap: wrap; }
+.court-empty { padding: 8px 2px; font-style: italic; }
+
+.court-plugins .mini-h { margin: 10px 0 4px; }
+.court-plug { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-bottom: 1px solid rgba(207, 166, 76, 0.08); }
+.court-plug-label { color: var(--parchment); font-size: 13px; }
+.court-plug-cmd { color: var(--gold); font-size: 12px; }
+.court-plug .row { align-items: center; }
+.court-plug-arg { max-width: 160px; padding: 5px 8px; }
+
+.court-col-wide .court-card:first-child { flex: 1; min-height: 300px; display: flex; flex-direction: column; }
+.court-filters { display: flex; gap: 12px; }
+.court-filters .check { font-size: 12px; }
+.court-feed { flex: 1; min-height: 220px; max-height: none; }
+.court-ln .lv { display: inline-block; width: 16px; color: #6e6352; }
+.court-ln.chat { color: #e8d6a8; }
+.court-ln.chat .lv { color: var(--gold); }
+.court-ln.warning { color: var(--warn); }
+.court-ln.error, .court-ln.exception { color: #f08a72; }
+.court-ln.debug { color: #7c7465; }
+.court-ln.steward { color: var(--gold); font-style: italic; }
+.court-feed[data-chat="0"] .court-ln[data-k="chat"],
+.court-feed[data-log="0"] .court-ln[data-k="log"],
+.court-feed[data-debug="0"] .court-ln[data-k="debug"] { display: none; }
+.court-cmd { margin-top: 8px; }
+
+.court-rolls { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; }
+.court-roll { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: baseline; padding: 5px 2px; border-bottom: 1px solid rgba(207, 166, 76, 0.08); font-size: 13px; }
+.court-roll b { color: var(--gold-hi); font-family: var(--display); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+.court-roll i { color: var(--muted); }
+.court-roll-res { color: var(--ok); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+.court-roll.failed .court-roll-res { color: var(--bad); }
+
+@media (max-width: 1250px) {
+  .court-grid { grid-template-columns: minmax(240px, 1fr) minmax(300px, 1.2fr); }
+  .court-col-wide { grid-column: 1 / -1; }
+}

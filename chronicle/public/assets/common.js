@@ -18,6 +18,33 @@ export const TYPE_META = {
   contract_posted:    { label: 'A Price Is Set',   icon: 'scroll',  tone: 'iron',  group: 'contracts' },
   contract_fulfilled: { label: 'Contract Paid',    icon: 'coins',   tone: 'gold',  group: 'contracts' },
   contract_ended:     { label: 'Contract Lapses',  icon: 'scrollX', tone: 'iron',  group: 'contracts' },
+  // RealmSeasons and RealmEvents
+  season_started:      { label: 'A New Season',     icon: 'hourglass', tone: 'gold',  group: 'seasons' },
+  season_ended:        { label: 'Season\'s End',    icon: 'trophy',    tone: 'gold',  group: 'seasons' },
+  event_started:       { label: 'Realm Event',      icon: 'horn',      tone: 'iron',  group: 'seasons' },
+  event_ended:         { label: 'Event Ends',       icon: 'horn',      tone: 'iron',  group: 'seasons' },
+  tournament_champion: { label: 'Tournament Champion', icon: 'trophy', tone: 'gold',  group: 'seasons' },
+  hunt_kill:           { label: 'The King\'s Hunt',  icon: 'swords',    tone: 'blood', group: 'seasons' },
+  truce_broken:        { label: 'Truce Broken',     icon: 'scrollX',   tone: 'blood', group: 'seasons' },
+  // RealmLaws, RealmDynasties, RealmRenown, RealmTreasury, RealmRavens (plugins/docs/*/EVENTS.json)
+  law_proclaimed:      { label: 'A Law Proclaimed',        icon: 'scroll',  tone: 'gold',  group: 'law' },
+  law_repealed:        { label: 'Law Repealed',            icon: 'scrollX', tone: 'iron',  group: 'law' },
+  accusation:          { label: 'Accused',                 icon: 'flag',    tone: 'blood', group: 'law' },
+  trial_by_combat:     { label: 'Trial by Combat',         icon: 'swords',  tone: 'blood', group: 'law' },
+  verdict:             { label: 'Verdict',                 icon: 'seal',    tone: 'iron',  group: 'law' },
+  pardon:              { label: 'Pardoned',                icon: 'chainX',  tone: 'moss',  group: 'law' },
+  dynasty_founded:     { label: 'A Line Is Founded',       icon: 'people',  tone: 'gold',  group: 'law' },
+  heir_named:          { label: 'An Heir Is Named',        icon: 'oath',    tone: 'gold',  group: 'law' },
+  succession:          { label: 'Succession',              icon: 'scroll',  tone: 'gold',  group: 'law' },
+  blood_claim:         { label: 'Blood Claim',             icon: 'flag',    tone: 'blood', group: 'law' },
+  blood_restored:      { label: 'The Line Restored',       icon: 'crown',   tone: 'gold',  group: 'law' },
+  title_bestowed:      { label: 'Title Bestowed',          icon: 'seal',    tone: 'gold',  group: 'law' },
+  title_earned:        { label: 'A Title Earned',          icon: 'seal',    tone: 'gold',  group: 'law' },
+  treasury_mint:       { label: 'The Crown Strikes Coin',  icon: 'coins',   tone: 'gold',  group: 'treasury' },
+  treasury_grant:      { label: 'Royal Largesse',          icon: 'coins',   tone: 'gold',  group: 'treasury' },
+  tithe_levied:        { label: 'The Tithe Gathered',      icon: 'scroll',  tone: 'iron',  group: 'treasury' },
+  great_trade:         { label: 'A Great Sale',            icon: 'seal',    tone: 'gold',  group: 'treasury' },
+  rumour:              { label: 'A Rumour Spreads',        icon: 'scroll',  tone: 'iron',  group: 'treasury' },
 };
 
 export const metaFor = (type) => TYPE_META[type] || { label: 'Chronicle', icon: 'scroll', tone: 'iron', group: 'other' };
@@ -38,6 +65,9 @@ const ICON_PATHS = {
   scrollX: 'M6 4h11a2 2 0 0 1 2 2v12a2 2 0 0 0 2 2H8a2 2 0 0 1-2-2V4zM6 4a2 2 0 0 0-2 2v2h2M10 9l6 5M16 9l-6 5',
   coins: 'M8 7a5 2 0 1 0 10 0 5 2 0 1 0-10 0M8 7v4c0 1.1 2.2 2 5 2s5-.9 5-2V7M6 12a5 2 0 1 0 10 0M6 12v4c0 1.1 2.2 2 5 2s5-.9 5-2v-3',
   people: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 2.7-5 6-5s6 2 6 5M16 5a3 3 0 0 1 0 6M21 20c0-2.5-1.7-4.3-4-4.8',
+  trophy: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9 17h6',
+  hourglass: 'M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9',
+  horn: 'M4 10v4l3 1 11 5V4L7 9zM7 9v6M18 9a3 3 0 0 1 0 6',
 };
 
 export function icon(name, cls = 'icon') {

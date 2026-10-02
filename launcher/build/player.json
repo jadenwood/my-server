@@ -14,6 +14,8 @@
     "renderer/player.html",
     "renderer/player.js",
     "renderer/player.css",
+    "renderer/doctor.js",
+    "renderer/doctor.css",
     "renderer/styles.css",
     "renderer/coach.html",
     "renderer/coach.js",

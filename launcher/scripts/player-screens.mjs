@@ -139,6 +139,18 @@ async function launch(extraArgs = [], extraEnv = {}) {
 }
 
 const opened = (app) => app.evaluate(() => globalThis.__opened.slice());
+// The join panel checks the server first (up to the A2S timeout), then hands the URL to Steam.
+async function openedAfter(app, n, ms = 8000) {
+  for (let t = 0; t < ms; t += 200) {
+    const o = await opened(app);
+    if (o.length > n) return o;
+    await sleep(200);
+  }
+  return opened(app);
+}
+async function closeJoinPanel(page) {
+  if (await page.isVisible('#joinflow')) await page.click('#jf-close');
+}
 
 async function shot(page, name) {
   await sleep(600);
@@ -167,7 +179,7 @@ try {
   // ---- the bridge is the player bridge only
   const sec = await page.evaluate(() => ({ require: typeof require, process: typeof process, keys: Object.keys(window.realm || {}).sort() }));
   check('renderer has no require/process', sec.require === 'undefined' && sec.process === 'undefined');
-  check('player bridge has no server, setup, firewall or publish calls', sec.keys.join(',') === 'appInfo,copyAddress,getConfig,installGame,installState,join,joinBest,onPush,openLink,prefs,servers,setPrefs,status,takeLink,windowAction', sec.keys.join(','));
+  check('player bridge has no server, setup, firewall or publish calls', sec.keys.join(',') === 'appInfo,copyAddress,doctorClassify,doctorReport,doctorRun,feed,getConfig,installGame,installState,join,joinBest,onPush,openLink,prefs,servers,setPrefs,status,takeLink,windowAction', sec.keys.join(','));
   const steward = await page.evaluate(() => ['server', 'setup', 'fleet', 'goPublic', 'publish', 'settings'].filter((k) => k in window.realm));
   check('steward APIs are absent', steward.length === 0, steward.join(','));
   const badJoin = await page.evaluate(() => window.realm.join('../../etc').then(() => 'ran', (e) => e.message));
@@ -176,9 +188,11 @@ try {
   check('join refuses ids that are not in the signed list', /not in the signed list/.test(notListed), notListed);
 
   // ---- first-run intro
+  // First run (sigil reveal -> allegiance -> 4-card crown tour); scripts/onboarding-screens.mjs covers it in depth.
   await page.waitForSelector('#onboard:not([hidden])', { timeout: 10000 });
   check('60-second intro opens on first run', true);
-  await page.click('#onboard-next');
+  await page.click('#ob-begin');
+  await page.click('#ob-unsworn');
   await page.click('#onboard-next');
   await shot(page, 'intro');
   await page.click('#onboard-next');
@@ -194,8 +208,7 @@ try {
   await page.waitForFunction(() => /87 of 120 players/.test(document.querySelector('#modal-text').textContent), null, { timeout: 10000 }).catch(() => {});
   await shot(page, 'deeplink');
   await page.click('#modal-ok');
-  await sleep(800);
-  const firstOpen = await opened(app);
+  const firstOpen = await openedAfter(app, 0);
   check('JOIN opens the quick-join Steam URL for that server', firstOpen[0] === 'steam://run/344760//-ip%20127.0.0.1%20-port%2047350/', firstOpen.join(' '));
   const coach = await coachPage(app);
   check('the always-on-top join card opens', !!coach);
@@ -220,13 +233,15 @@ try {
   check('best pick is the lively, not-full server', cards[0].best && !cards[1].best, cards.filter((c) => c.best).map((c) => c.id).join(','));
   check('offline server cannot be joined', await page.isDisabled('.server-card[data-id="s3"] [data-join]'));
   check('crown read from the Chronicle', /Aldric Varrow/.test(await page.textContent('#king')));
+  await closeJoinPanel(page);
   await shot(page, 'home');
+  const nBefore = (await opened(app)).length;
   await page.click('#join-best');
-  await sleep(800);
-  const afterBest = await opened(app);
+  const afterBest = await openedAfter(app, nBefore);
   check('Join best server picks Realm I', afterBest[afterBest.length - 1] === 'steam://run/344760//-ip%20127.0.0.1%20-port%2047350/', afterBest[afterBest.length - 1]);
   const c2w = await coachPage(app);
   if (c2w) await c2w.close().catch(() => {});
+  await closeJoinPanel(page);
 
   // ---- a bad link from a second launch is refused with a message
   await new Promise((resolve) => {
@@ -262,9 +277,10 @@ try {
   await shot(page, 'settings');
   await page.click('.rail-btn[data-go="home"]');
   await sleep(400);
+  await closeJoinPanel(page);
+  const nClassic = (await opened(app)).length;
   await page.click('.server-card[data-id="s4"] [data-join]');
-  await sleep(800);
-  const classic = await opened(app);
+  const classic = await openedAfter(app, nClassic);
   check('classic join only starts the game through Steam', classic[classic.length - 1] === 'steam://rungameid/344760', classic[classic.length - 1]);
   const c3w = await coachPage(app);
   if (c3w) {
@@ -277,6 +293,7 @@ try {
   }
   const clip = await app.evaluate(({ clipboard }) => clipboard.readText());
   check('address copied for pasting', clip === '127.0.0.1', clip);
+  await closeJoinPanel(page);
   await page.click('.rail-btn[data-go="guide"]');
   await sleep(500);
   await shot(page, 'guide');

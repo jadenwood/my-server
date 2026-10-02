@@ -131,6 +131,8 @@ let win = null;
 let quitting = false;
 const managers = new Map();
 const supervision = new Map();
+// Live admin console and the Court view (lib/court-host.js); set once IPC is registered.
+let court = null;
 const chronicle = new ChronicleHost(CHRONICLE_DIR);
 
 // ---------- helpers ----------
@@ -216,6 +218,7 @@ function mgr(id) {
     const m = new ServerManager();
     managers.set(id, m);
     wireServerEvents(id, m);
+    if (court) court.adopt(id, m); // live admin console (lib/court-host.js)
   }
   return managers.get(id);
 }
@@ -303,7 +306,8 @@ function supSummary(id) {
     plannedAt: s.plannedAt,
     crashes24h: s.crashes.filter((t) => t > day).length,
     lastAction: s.lastAction,
-    lastBackup: s.lastBackup
+    lastBackup: s.lastBackup,
+    lastCrashAt: s.lastCrashAt || null // Home dashboard strip
   };
 }
 
@@ -480,6 +484,7 @@ function onInstanceExit(id, ex) {
     return;
   }
   if (ex.requested) return pushFleet();
+  supOf(id).lastCrashAt = new Date().toISOString(); // Home dashboard: "last crash" (this session only)
   if (!inst.autoRestart) {
     m.log('sys', 'The server stopped without being asked to. Automatic restart is off for this server.');
     return pushFleet();
@@ -1673,6 +1678,44 @@ if (!app.requestSingleInstanceLock()) {
     for (const inst of fleet()) mgr(inst.id);
     allowOverlayPreview();
     registerIpc();
+    // ----- Connection Doctor (lib/doctor.js): read-only join checks, game/server log classifier -----
+    require('./lib/doctor').registerSteward({
+      handle,
+      app,
+      clipboard,
+      instOf,
+      mgr,
+      rootCheckFor,
+      externalProcesses,
+      gameInstall: () => ST.detectGameInstall({ appId: config.steamAppId || ST.GAME_APP_ID }),
+      devGameDir: DEV ? process.env.REALM_DEV_GAME_DIR || null : null
+    });
+    // ----- end Connection Doctor -----
+    // ----- Live console + Court (lib/court-host.js): -cport admin channel, moderation -----
+    court = require('./lib/court-host').createCourt({
+      userData: app.getPath('userData'),
+      settings,
+      instOf,
+      rootOf: (id) => {
+        const c = rootCheckFor(instOf(id), null);
+        return c.ok ? c.root : null;
+      },
+      clipboard,
+      shell,
+      log: (level, msg) => LOG.write(level, msg)
+    });
+    for (const [id, m] of managers) court.adopt(id, m);
+    court.register(handle);
+    // ----- end Live console + Court -----
+    // ----- Discord herald (lib/discord.js): opt-in webhook relay of new Chronicle events -----
+    require('./lib/discord').registerSteward({
+      handle,
+      userData: app.getPath('userData'),
+      dataDir: () => chronicle.dataDir,
+      safeStorage,
+      log: (level, msg) => LOG.write(level, msg)
+    });
+    // ----- end Discord herald -----
     createWindow();
     startChronicle().catch((e) => console.error('[chronicle]', e));
   });

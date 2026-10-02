@@ -1,0 +1,319 @@
+'use strict';
+
+// The Court: moderation actions for Realm Steward, built on the game's own console commands.
+// Every command name, argument order and output format here was read from the decompiled command
+// handlers ([DEC] CodeHatch.Engine.CoreCommandHandler, CodeHatch.Thrones.ThronesCommandHandler)
+// unless marked UNVERIFIED. docs/admin-console.md lists them with their sources.
+//
+// The console runs commands as the server player, which has every permission
+// ([DEC] PlayerExtensions.HasPermission: player.IsServer -> true). Commands only work while
+// enableCommands is True in ServerSettings.cfg (the default) ([DEC] CommandManager.ExecuteCommand).
+
+const fs = require('fs');
+const fsp = require('fs/promises');
+const path = require('path');
+const AC = require('./admin-console');
+
+const MAX_REASON = 200;
+const MAX_MESSAGE = 300;
+const MAX_NAME = 64;
+
+function clean(text, max, what) {
+  const s = String(text == null ? '' : text).replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (s.length > max) throw new Error(`${what} is limited to ${max} characters.`);
+  return s;
+}
+
+// Free text that goes through the game's argument parser (reasons, notices): it splits on spaces
+// and swallows quote characters ([DEC] CommandInfo.Args), so quotes become a backtick.
+function argText(text, max, what) {
+  return clean(text, max, what).replace(/["']/g, '`');
+}
+
+function needName(name) {
+  const s = clean(name, MAX_NAME, 'A player name');
+  if (!s) throw new Error('Choose a player first.');
+  return s;
+}
+
+// Each builder returns { command, summary }. The command is exactly one console line.
+const BUILD = {
+  // [DEC] ThronesCommandHandler.list (aliases online, players): "Online Players(N):\nA, B" or
+  // "There are no players online."
+  list: () => ({ command: '/list', summary: 'List online players' }),
+
+  // [DEC] CoreCommandHandler.Kick: /kick [userName] (reason...). The game joins the reason words
+  // WITHOUT spaces (string.Join(string.Empty, ...)), so Realm sends the reason as one quoted
+  // argument to keep its spaces. Matching is the game's MatchFirstPlayerByName. UNVERIFIED: whether
+  // that prefers an exact name over a prefix match; the Court always sends the full listed name.
+  kick: ({ name, reason }) => {
+    const n = needName(name);
+    const r = argText(reason, MAX_REASON, 'The reason');
+    return { command: `/kick ${AC.quoteArg(n)}${r ? ' ' + AC.quoteArg(r) : ''}`, summary: `Kick ${n}${r ? ` (${r})` : ''}` };
+  },
+
+  // [DEC] CoreCommandHandler.Ban: /ban [userName] (days|reason). A whole number of days first
+  // (0 or absent = forever), then the reason. Offline players are found in the user registry.
+  ban: ({ name, days, reason }) => {
+    const n = needName(name);
+    const r = argText(reason, MAX_REASON, 'The reason');
+    const d = days == null || days === '' ? 0 : Number(days);
+    if (!Number.isInteger(d) || d < 0 || d > 36500) throw new Error('Days must be a whole number from 0 (forever) to 36500.');
+    const parts = [`/ban ${AC.quoteArg(n)}`];
+    if (d > 0) parts.push(String(d));
+    // For a ban forever the game reads the reason from the 2nd word, after trying it as days: a
+    // reason that starts with a number would become the number of days.
+    if (r) parts.push(d === 0 && /^-?\d+$/.test(r.split(' ')[0]) ? `Reason: ${r}` : r);
+    return { command: parts.join(' '), summary: `Ban ${n} ${d > 0 ? `for ${d} day${d === 1 ? '' : 's'}` : 'forever'}${r ? ` (${r})` : ''}` };
+  },
+
+  // [DEC] CoreCommandHandler.Unban: /unban [userName|index|steamId].
+  unban: ({ name }) => {
+    const n = needName(name);
+    return { command: `/unban ${AC.quoteArg(n)}`, summary: `Unban ${n}` };
+  },
+
+  // [DEC] CoreCommandHandler.Banlist: one line per ban "#i Name |id| (ip) <N days left>".
+  banlist: () => ({ command: '/banlist', summary: 'Read the ban list' }),
+
+  // [DEC] CoreCommandHandler.notice: on-screen notice to everyone (Server.Notice).
+  notice: ({ message }) => {
+    const m = argText(message, MAX_MESSAGE, 'The message');
+    if (!m) throw new Error('Write the message first.');
+    return { command: `/notice ${m}`, summary: `Notice: ${m}` };
+  },
+
+  // [DEC] ThronesCommandHandler popup (alias alert): a popup window for every player.
+  popup: ({ message }) => {
+    const m = argText(message, MAX_MESSAGE, 'The message');
+    if (!m) throw new Error('Write the message first.');
+    return { command: `/popup ${m}`, summary: `Popup: ${m}` };
+  },
+
+  // [DEC] Console.Submit: text without "/" is said in chat by the server.
+  say: ({ message }) => {
+    const m = clean(message, MAX_MESSAGE, 'The message');
+    if (!m) throw new Error('Write the message first.');
+    if (m.startsWith('/')) throw new Error('A chat message cannot start with "/".');
+    return { command: m, chat: true, summary: `Chat: ${m}` };
+  },
+
+  // [DEC] CoreCommandHandler whitelist subcommands enable|disable.
+  whitelist: ({ on }) => ({ command: on ? '/whitelist enable' : '/whitelist disable', summary: on ? 'Whitelist on' : 'Whitelist off' }),
+
+  // [DEC] CoreCommandHandler.Mute: /mute [userName|id] (days); /unmute [userName|id].
+  mute: ({ name, days }) => {
+    const n = needName(name);
+    const d = days == null || days === '' ? 0 : Number(days);
+    if (!Number.isInteger(d) || d < 0 || d > 36500) throw new Error('Days must be a whole number (0 = forever).');
+    return { command: `/mute ${AC.quoteArg(n)}${d > 0 ? ' ' + d : ''}`, summary: `Mute ${n}${d > 0 ? ` for ${d} days` : ''}` };
+  },
+  unmute: ({ name }) => {
+    const n = needName(name);
+    return { command: `/unmute ${AC.quoteArg(n)}`, summary: `Unmute ${n}` };
+  },
+
+  // There is no save command in the game. /realm.save comes from plugins/RealmCourt.cs, which
+  // registers it in the game's own command table (server-only permission) and calls Game.Save().
+  save: () => ({ command: '/realm.save', summary: 'Save the world', needsPlugin: 'RealmCourt' }),
+
+  // Structured player list from plugins/RealmCourt.cs: names and Steam IDs.
+  roster: () => ({ command: '/realm.players', summary: 'Read the roster', needsPlugin: 'RealmCourt' }),
+
+  // [DEC] CoreCommandHandler.Shutdown: saves and stops; with the admin console attached the game
+  // also sends a Disconnect packet (RestartAfterShutdown = false).
+  shutdown: () => ({ command: '/shutdown', summary: 'Save and shut down' })
+};
+
+const ACTIONS = Object.keys(BUILD);
+
+function build(action, args = {}) {
+  if (!Object.prototype.hasOwnProperty.call(BUILD, action)) throw new Error(`Unknown Court action "${action}".`);
+  return BUILD[action](args && typeof args === 'object' ? args : {});
+}
+
+// Admin commands of the Realm plugins (plugins/*.cs). They are chat commands checked against an
+// Oxide permission on the PLAYER who types them. From the server console Oxide only runs a chat
+// command when it can find the sender as a Covalence player ([DEC] Oxide.ReignOfKings
+// ReignOfKingsCore.IOnServerCommand), and the server is not one, so these are for an admin to
+// type in game. UNVERIFIED at run time; the Court therefore shows them with a Copy button.
+const PLUGIN_ADMIN = [
+  { plugin: 'RealmHouses', perm: 'realmhouses.admin', template: '/house sync', label: 'Re-sync houses with guilds', args: [] },
+  { plugin: 'RealmHouses', perm: 'realmhouses.admin', template: '/house disband {house}', label: 'Disband a house', args: ['house'] },
+  { plugin: 'RealmHouses', perm: 'realmhouses.admin', template: '/house pardon {house}', label: 'Pardon a house (clear broken oaths)', args: ['house'] },
+  { plugin: 'RealmHouses', perm: 'realmhouses.admin', template: '/house unlink', label: 'Unlink your house from its guild', args: [] },
+  { plugin: 'CrownAndConsequences', perm: 'crownandconsequences.admin', template: '/claim cancel {house}', label: 'Set aside a claim on the throne', args: ['house'] },
+  { plugin: 'CrownAndConsequences', perm: 'crownandconsequences.admin', template: '/council', label: 'Change the council (admin may skip the cooldown)', args: [] },
+  { plugin: 'CrownAndConsequences', perm: null, template: '/crown', label: 'Show the crown', args: [] },
+  { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin cancel {id}', label: 'Cancel a contract', args: ['id'] },
+  { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin refund {id}', label: 'Refund a contract to its poster', args: ['id'] },
+  { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin pay {id}', label: 'Pay a contract to its fulfiller', args: ['id'] }
+];
+
+function pluginCommand(index, values = {}) {
+  const def = PLUGIN_ADMIN[index];
+  if (!def) throw new Error('Unknown plugin command.');
+  return def.template.replace(/\{(\w+)\}/g, (_m, k) => {
+    const v = clean(values[k], MAX_NAME, k);
+    if (!v) throw new Error(`Fill in "${k}" first.`);
+    return v;
+  });
+}
+
+// ---------- reading command output ----------
+
+function texts(lines) {
+  return (lines || []).map((l) => (typeof l === 'string' ? l : l.text)).filter((t) => typeof t === 'string');
+}
+
+// /list output. Returns { count, names } or null when the lines hold no list.
+function parsePlayerList(lines) {
+  const t = texts(lines);
+  for (let i = 0; i < t.length; i++) {
+    if (/^There are no players online\.?$/.test(t[i].trim())) return { count: 0, names: [] };
+    const m = /^Online Players\((\d+)\):\s*$/.exec(t[i].trim());
+    if (m) {
+      const count = Number(m[1]);
+      const rest = (t[i + 1] || '').trim();
+      // Names are joined with ", " by the game; a name containing ", " cannot be told apart.
+      const names = rest ? rest.split(', ').map((s) => s.trim()).filter(Boolean) : [];
+      return { count, names };
+    }
+  }
+  return null;
+}
+
+// RealmCourt roster: "REALMCOURT|<seq>|players|<n>" then "REALMCOURT|<seq>|p|<steamId>|<name>".
+function parseRoster(lines) {
+  const t = texts(lines);
+  let seq = null;
+  let count = null;
+  const players = [];
+  for (const line of t) {
+    const parts = line.trim().split('|');
+    if (parts[0] !== 'REALMCOURT') continue;
+    if (parts[2] === 'players') {
+      seq = parts[1];
+      count = Number(parts[3]);
+      players.length = 0;
+    } else if (parts[2] === 'p' && parts[1] === seq) {
+      players.push({ id: parts[3], name: parts.slice(4).join('|') });
+    }
+  }
+  return count == null ? null : { count, players };
+}
+
+// /banlist output.
+function parseBanList(lines) {
+  const out = [];
+  for (const line of texts(lines)) {
+    const m = /^#(\d+) (.*) \|(\d+)\| \((.*)\) <(.+) left>$/.exec(line.trim());
+    if (m) out.push({ index: Number(m[1]), name: m[2], id: m[3], ip: m[4], left: m[5] });
+  }
+  return out;
+}
+
+// True when the game rejected the command outright ([DEC] PlayerListener.OnPlayerCommand).
+function unknownCommand(lines) {
+  return texts(lines).some((t) => /^Unknown command '/.test(t));
+}
+
+// ---------- moderation log ----------
+
+// Every Court action is appended to <userData>\court\court-log.jsonl (one JSON object per line).
+// The file is rotated at 2 MB (court-log.1.jsonl keeps the previous one).
+class CourtLog {
+  constructor(dir, { maxBytes = 2 * 1024 * 1024 } = {}) {
+    this.dir = dir;
+    this.file = path.join(dir, 'court-log.jsonl');
+    this.maxBytes = maxBytes;
+  }
+
+  async append(entry) {
+    const rec = {
+      at: new Date().toISOString(),
+      server: String(entry.server || ''),
+      action: String(entry.action || ''),
+      target: entry.target ? String(entry.target).slice(0, MAX_NAME) : null,
+      reason: entry.reason ? String(entry.reason).slice(0, MAX_REASON) : null,
+      command: entry.command ? String(entry.command).slice(0, AC.MAX_COMMAND) : null,
+      ok: entry.ok !== false,
+      result: entry.result ? String(entry.result).slice(0, 1000) : null,
+      via: entry.via || 'console'
+    };
+    await fsp.mkdir(this.dir, { recursive: true });
+    try {
+      const st = await fsp.stat(this.file);
+      if (st.size > this.maxBytes) await fsp.rename(this.file, path.join(this.dir, 'court-log.1.jsonl'));
+    } catch {
+      /* no log yet */
+    }
+    await fsp.appendFile(this.file, JSON.stringify(rec) + '\n');
+    return rec;
+  }
+
+  // Newest first.
+  async read({ limit = 200, server = null } = {}) {
+    let text = '';
+    try {
+      text = await fsp.readFile(this.file, 'utf8');
+    } catch {
+      return [];
+    }
+    const out = [];
+    const lines = text.split('\n');
+    for (let i = lines.length - 1; i >= 0 && out.length < limit; i--) {
+      if (!lines[i].trim()) continue;
+      try {
+        const rec = JSON.parse(lines[i]);
+        if (!server || rec.server === server) out.push(rec);
+      } catch {
+        /* a torn line from a crash: skip it */
+      }
+    }
+    return out;
+  }
+}
+
+// ---------- per-server console preference ----------
+
+// Whether Steward starts ROK.exe with -cport and holds the admin console. Default on. Kept in
+// <userData>\court\console.json so it does not depend on the shape of the main settings file.
+class ConsolePrefs {
+  constructor(dir) {
+    this.file = path.join(dir, 'console.json');
+    this.data = {};
+    try {
+      const raw = JSON.parse(fs.readFileSync(this.file, 'utf8'));
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) this.data = raw;
+    } catch {
+      /* first run */
+    }
+  }
+
+  enabled(id) {
+    const v = this.data[id];
+    return !(v && v.enabled === false);
+  }
+
+  async set(id, enabled) {
+    if (!/^s[1-4]$/.test(id)) throw new Error('Unknown server.');
+    this.data[id] = { ...(this.data[id] || {}), enabled: !!enabled };
+    await fsp.mkdir(path.dirname(this.file), { recursive: true });
+    await fsp.writeFile(this.file, JSON.stringify(this.data, null, 2));
+    return this.enabled(id);
+  }
+}
+
+module.exports = {
+  ACTIONS,
+  PLUGIN_ADMIN,
+  build,
+  pluginCommand,
+  parsePlayerList,
+  parseRoster,
+  parseBanList,
+  unknownCommand,
+  CourtLog,
+  ConsolePrefs
+};

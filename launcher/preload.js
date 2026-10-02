@@ -91,6 +91,35 @@ contextBridge.exposeInMainWorld('realm', {
     copyKey: c0('publish:copyKey')
   },
 
+  // Connection Doctor (read-only checks and log reading; see lib/doctor.js).
+  doctor: {
+    run: c1('doctor:run'),
+    log: c1('doctor:log'),
+    classify: c1('doctor:classify'),
+    copyReport: c1('doctor:copyReport')
+  },
+
+  // Live admin console and the Court (moderation; see lib/court-host.js). Server id first.
+  court: {
+    status: c1('court:status'),
+    act: (id, action, args) => call('court:act', id, action, args),
+    players: c1('court:players'),
+    feed: c2('court:feed'),
+    log: c1('court:log'),
+    setConsole: c2('court:setConsole'),
+    pluginCommands: c0('court:pluginCommands'),
+    copyPluginCommand: c2('court:copyPluginCommand'),
+    openLog: c0('court:openLog')
+  },
+
+  // Discord herald (opt-in webhook relay; see lib/discord.js). The webhook token never comes back.
+  discord: {
+    get: c0('discord:get'),
+    save: c1('discord:save'),
+    test: c0('discord:test'),
+    forget: c0('discord:forget')
+  },
+
   // Main -> renderer notifications (progress, console lines, status). Only known types pass.
   onPush: (fn) => {
     if (typeof fn !== 'function') return;

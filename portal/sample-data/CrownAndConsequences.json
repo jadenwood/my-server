@@ -1,0 +1,15 @@
+{
+  "KingId": 76561190000000001,
+  "KingName": "Aldric Varrow",
+  "KingHouse": "Varrow",
+  "Since": "2026-09-30T19:42:10Z",
+  "Authority": 64.5,
+  "ActiveDecrees": [ { "Id": "kings_peace", "ExpiresAt": "2026-10-02T06:00:00Z", "HasPreviousTax": false, "PreviousTax": 0 } ],
+  "Council": { "voice": 76561190000000002 },
+  "CouncilNames": { "Voice of the Crown": "Odo the Tall", "Marshal": "Tamsin Merrin" },
+  "Claims": [
+    { "House": "Corvane", "DeclaredBy": "Ysolde Corvane", "CrownHouseAtDeclaration": "Varrow", "DeclaredAt": "2026-10-01T21:30:00Z", "WindowStart": "2026-10-10T19:00:00Z", "WindowEnd": "2026-10-10T20:30:00Z", "Status": "pending", "Outcome": null },
+    { "House": "Varrow", "DeclaredBy": "Aldric Varrow", "CrownHouseAtDeclaration": "Corvane", "DeclaredAt": "2026-09-29T18:00:00Z", "WindowStart": "2026-09-29T20:00:00Z", "WindowEnd": "2026-09-29T22:00:00Z", "Status": "ended", "Outcome": "held" }
+  ],
+  "HouseLastClaim": {}
+}

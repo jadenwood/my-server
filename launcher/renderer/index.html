@@ -8,6 +8,9 @@
   <title>Realm</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="doctor.css">
+  <link rel="stylesheet" href="court.css">
+  <link rel="stylesheet" href="discord.css">
 </head>
 <body data-view="home">
   <!-- Glyphs: original artwork, no third-party marks. -->
@@ -185,10 +188,12 @@
   <nav class="rail" aria-label="Screens">
     <button class="rail-btn" data-go="home"><svg><use href="#i-keep"/></svg><span>Home</span></button>
     <button class="rail-btn" data-go="server"><svg><use href="#i-forge"/></svg><span>Servers</span></button>
+    <button class="rail-btn" data-go="court"><svg><use href="#i-crown"/></svg><span>Court</span></button>
     <button class="rail-btn" data-go="realm"><svg><use href="#i-banners"/></svg><span>Realm</span></button>
     <button class="rail-btn" data-go="overlay"><svg><use href="#i-eye"/></svg><span>Overlay</span></button>
     <button class="rail-btn" data-go="public"><svg><use href="#i-globe"/></svg><span>Public</span></button>
     <button class="rail-btn" data-go="publish"><svg><use href="#i-seal"/></svg><span>Publish</span></button>
+    <button class="rail-btn" data-go="doctor"><svg><use href="#i-shield"/></svg><span>Doctor</span></button>
     <button class="rail-btn" data-go="settings"><svg><use href="#i-gear"/></svg><span>Settings</span></button>
     <div class="rail-spacer"></div>
     <button class="rail-btn small" id="open-setup"><svg><use href="#i-compass"/></svg><span>Setup</span></button>
@@ -207,6 +212,9 @@
             <p class="tagline" id="tagline"></p>
           </div>
         </div>
+
+        <!-- Owner dashboard strip (renderer/dashboard.js): instances, players, last crash/backup, next restart. -->
+        <section class="dash-strip" id="dash-strip" aria-label="Your realm at a glance" hidden></section>
 
         <div class="play-block">
           <button class="play" id="play">
@@ -568,6 +576,12 @@
       </div>
     </section>
 
+    <!-- ================= THE COURT (built by court.js) ================= -->
+    <section class="view view-court" data-view="court" id="court-root" hidden></section>
+
+    <!-- ================= CONNECTION DOCTOR (built by doctor.js) ================= -->
+    <section class="view view-doctor" data-view="doctor" id="doctor-root" hidden></section>
+
     <!-- ================= SETTINGS ================= -->
     <section class="view view-settings" data-view="settings" hidden>
       <header class="view-head">
@@ -707,6 +721,10 @@
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
   <script src="mock-preload.js"></script>
+  <script src="doctor.js"></script>
+  <script src="court.js"></script>
+  <script src="discord.js"></script>
   <script src="app.js"></script>
+  <script src="dashboard.js"></script>
 </body>
 </html>

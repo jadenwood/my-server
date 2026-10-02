@@ -13,15 +13,42 @@ Everything here runs on the server side or next to it. The game client is never 
 - Oxide replaces `Assembly-CSharp.dll` **in the server's test copy only** (`server/Install-Oxide.ps1`). Clients are never touched. This respects the EULA and Easy Anti-Cheat.
 - The lore is original. Do not use Westeros or other franchise names in houses, sigils, decrees or news.
 
+## What Realm does now
+
+| Feature | Where | What it is for |
+|---|---|---|
+| **Connection Doctor** | Steward: **Doctor** screen. Player app: **Can't join?** on the Join panel | Answers "why can't I connect?" in one verdict with one fix. It checks the server process, the real ready line, the UDP/TCP ports, A2S, Steam sign-in, the address advice (address and port in **separate** boxes), firewall rules, the admin-console exposure and public reachability. It reads the game's own logs (see below), highlights 34 known messages taken word for word from the game DLL, explains a pasted error popup, and copies a redacted report. [`docs/connection-doctor.md`](docs/connection-doctor.md) |
+| **Where the errors really are** | Doctor, Servers console | The game's own logger writes every message to `Logs\Log[yyMMdd-hhmmss].txt` in the working folder, **not** to `-logFile`; that file only gets Unity's lines. Server errors are therefore in `<server>\Logs\Log[...].txt`, client errors in `<game install>\Logs\Log[...].txt`, Steamworks errors in `ROK_Data\output_log.txt`. Most join refusals (password, full, version, ban) are only a popup on the player's screen. |
+| **Live admin console** | Steward: Servers console | Steward starts `ROK.exe` with `-cport 11000..11003` and holds the game's admin-console socket on `127.0.0.1`. Commands get real answers, and every warning, error and exception the game logs streams into the Servers console as it happens. Stop sends `/shutdown` (the game saves, then exits). [`docs/admin-console.md`](docs/admin-console.md) |
+| **The Court** | Steward: **Court** screen | Online players, kick, mute, ban with reason and days, the ban list, notices, chat as the server, whitelist, Save world (via the new `RealmCourt.cs` plugin), a live chat/log feed and a moderation log on disk. |
+| **Seasons and the Hall of Kings** | `plugins/RealmSeasons.cs` | Numbered seasons with house standings (crown days, rebellions, treaties kept and broken, contracts, events). Every reign goes into a Hall of Kings that survives wipes (`RealmLegends.json`). [`plugins/docs/RealmSeasons.md`](plugins/docs/RealmSeasons.md) |
+| **Realm events** | `plugins/RealmEvents.cs` | Crown Night, the Royal Tournament, the King's Hunt and the Truce of the Realm on a UTC schedule, with countdown heralds, item prizes that are never duplicated, and season points. [`plugins/docs/RealmEvents.md`](plugins/docs/RealmEvents.md) |
+| **More plugins** | `RealmLaws`, `RealmDynasties`, `RealmRenown`, `RealmTreasury`, `RealmRavens`, `RealmWarden` | Laws and trials, bloodlines and heirs, titles, a royal treasury and market, letters and rumours, and moderation helpers. Their Chronicle event types are registered, so they show up in the Chronicle, overlay, portal and Discord. Docs in `plugins/docs/`. |
+| **Realm Portal** | `portal/` | A static website generator: home with the current monarch and season, the Chronicle, every house, the Hall of Kings, how to play, rules, lore, download, an Atom feed and `status.json`. No server, no dependencies, strict CSP. [`portal/README.md`](portal/README.md) |
+| **Discord herald** | Steward: Settings | Opt-in relay of new Chronicle events to a Discord webhook, as rich embeds in house colours, rate-limited, with the webhook token stored encrypted and never shown again. [`docs/discord-herald.md`](docs/discord-herald.md) |
+| **Player onboarding** | Player app | A first-run reveal, "Swear your allegiance" to one of the six houses, a four-card tour, a merged Realm feed of every server's Chronicle, and a Join panel that walks through each step. |
+| **Owner dashboard** | Steward: Home | Servers up, players online, last crash, last backup and next restart at a glance. |
+
+## If you cannot connect to your own server
+
+1. Open Realm Steward and go to **Doctor**. Pick the server and press **Run checks**. The verdict at the top names the problem and the fix.
+2. In the game's direct-connect window type **`127.0.0.1` in the address box and `7350` in the port box**. Typing `127.0.0.1:7350` into the address box gives "Unable to resolve host name".
+3. If the game shows a popup, paste its text into the Doctor's box: it is matched against the game's own messages.
+4. To see the server's own errors, pick **Server game log** in the Doctor's log view, or start the server with the live console on (the default with `ROK.exe`) and watch the Servers console.
+5. **Copy report** gives a text you can share: public IPs, Steam IDs, the Steam auth ticket, passwords and your Windows user name are removed.
+
+The Windows notice "eac_usermode blocked from loading into LSA" is harmless and unrelated.
+
 ## Repository layout
 
 | Path | What it is |
 |---|---|
-| `plugins/` | Oxide C# plugins (namespace `Oxide.Plugins`, `[Info(name, "Realm", "0.1.0")]`). <br>• `RealmHouses.cs`: houses, oaths, treaties. Commands `/house`, `/swear`, `/renounce`, `/treaty`. <br>• `CrownAndConsequences.cs`: crown tracking, decrees, council, claims and rebellion windows, tax cap, bounded ransom. Commands `/crown`, `/decree`, `/council`, `/claim`, `/ransom`. <br>• `RealmChronicle.cs`: the event log and the realm snapshot. Command `/chronicle`. |
+| `plugins/` | Oxide C# plugins (namespace `Oxide.Plugins`, `[Info(name, "Realm", "0.1.0")]`). <br>• `RealmHouses.cs`: houses, oaths, treaties. Commands `/house`, `/swear`, `/renounce`, `/treaty`. <br>• `CrownAndConsequences.cs`: crown tracking, decrees, council, claims and rebellion windows, tax cap, bounded ransom. Commands `/crown`, `/decree`, `/council`, `/claim`, `/ransom`. <br>• `RealmChronicle.cs`: the event log and the realm snapshot. Command `/chronicle`. <br>• `RealmContracts.cs`, `RealmSeasons.cs`, `RealmEvents.cs`, `RealmLaws.cs`, `RealmDynasties.cs`, `RealmRenown.cs`, `RealmTreasury.cs`, `RealmRavens.cs`, `RealmWarden.cs`, `RealmStats.cs`, `RealmCourt.cs`: see `plugins/docs/`. |
 | `chronicle/` | A Node 22 service with no dependencies, bound to `127.0.0.1:8787`. It serves `GET /api/state`, `GET /api/events?since=<id>&limit=<n>`, `/healthz`, the OBS overlay `/overlay` and the public page `/realm`. It only reads data. See `chronicle/README.md`. |
 | `launcher/` | The two Electron desktop apps from one codebase. <br>• **Realm Steward** (`Realm-Steward-Setup-<version>.exe`, `npm run dist:steward` or `dist:win`): the owner app. Setup wizard, up to four server copies with their own ports and up to 120 players each, live consoles, crash and daily restarts with backups, world backup and restore, the in-process Chronicle overlay, **Go Public** (opt-in firewall rules, router ports, checks) and **Publish server list** (a signed `servers.json`, written locally). <br>• **Realm** (`Realm-Setup-<version>.exe`, `npm run dist:player`): the player app. Signed server list, live status, Join and Join best server through the player's own Steam, `realm://join/<id>` links. It has no server controls. <br>It re-implements the `server/*.ps1` safety rules in Node. See `launcher/README.md` and `docs/going-public.md`. |
 | `server/` | Windows PowerShell 5.1 scripts that work only on a **test copy** of the dedicated server: `New-TestServer`, `Start-LocalServer`, `Backup-Saves`, `Restore-Saves`, `Install-Oxide`, `Deploy-Plugins`, `Export-ModKeys`. |
 | `mods/` | Notes on the built-in Mods system and a **template** for the "grim but readable" atmosphere preset. It holds placeholders only, because no Mods key names are verified yet. |
+| `portal/` | The Realm Portal static site generator (`node build.mjs --data <server>\\oxide\\data`). Writes `portal/dist`. See `portal/README.md`. |
 | `docs/` | `oxide-rok-api.md` (the plugin API reference, every claim tagged), `server-reference.md` (server files, ports, config keys), `smoke-test.md` (the step-by-step test plan), and screenshots in `img/`. |
 
 ## How the parts fit together
@@ -41,7 +68,7 @@ The data files follow this contract:
 - **`RealmChronicle.json`** is a JSON array of events, each `{id, ts, type, title, detail, actors}`:
   - `id` is an increasing integer.
   - `ts` is an ISO-8601 UTC timestamp.
-  - `type` is one of `coronation`, `abdication`, `claim_declared`, `rebellion_started`, `rebellion_ended`, `house_founded`, `oath_sworn`, `oath_broken`, `treaty_signed`, `treaty_broken`, `decree`, `ransom_set`, `ransom_paid`, `released`.
+  - `type` is one of the types in `RealmChronicle.cs` `KnownTypes` (the same list as `chronicle/server.js` `EVENT_TYPES`; a test keeps them in step): the crown, war, house and ransom types (`coronation`, `abdication`, `claim_declared`, `rebellion_started`, `rebellion_ended`, `house_founded`, `oath_sworn`, `oath_broken`, `treaty_signed`, `treaty_broken`, `decree`, `ransom_set`, `ransom_paid`, `released`), contracts, seasons and events, law and dynasty, treasury and `rumour`.
   - `actors` holds public player names only, never locations or inventory.
 - **`RealmState.json`** is `{king, house, since, houses:[{name, sigil, liege, members}], online, maxPlayers, updated}`.
 - **`/api/state`** returns that state plus `stale: bool`.
@@ -122,9 +149,15 @@ npm run sample
 | Oxide zip | **Verified**: SHA-256 and entry list checked against the real 2.0.3867 release. |
 | Config keys in `ServerSettings.cfg` and `ConsoleSettings.cfg` used by the scripts | **Verified (primary)** from a maintained hosting template. The scripts only edit keys that already exist and never add new ones. |
 | Ports (7350 game, 27015 Steam auth) and the direct-connect method | Ports are verified (primary). The connect UI wording is **secondary**. |
-| Chronicle service | **Tested here**: `npm test` (6/6 pass), every endpoint checked with curl, and the pages rendered in Chromium. |
+| Chronicle service | **Tested here**: `npm test` (8/8 pass), every endpoint checked with curl, and the pages rendered in Chromium. |
 | Realm Steward and Realm (`launcher/`) | **Tested here** on Linux only. <br>• Unit tests cover the path, cfg, zip, vdf and hash rules, Ed25519 list signing and verification, A2S, deep links, the `steam://` allow-list, ports, restart logic and firewall command construction. <br>• Automated walks through both apps ran under Electron, the steward against an imitation server that answers A2S and the player against a signed list and imitation servers (see `launcher/README.md`). <br>• A test proves the player app carries no server-control code. <br>Both Windows installers were **built** here but **never run on Windows**. **Unverified:** real `Server.exe` piped I/O, the registry lookup, the process check, the firewall scripts and their UAC prompt, DPAPI key storage, the `realm://` registration, and two or more real servers on one PC. |
-| Plugins (`plugins/*.cs`) | **Compile-checked, never run in game.** All four plugins compile with 0 errors at C# 3 against the shipped Oxide 2.0.3867 and patched game DLLs (`tools/plugin-compile-check/check.sh`). Behaviour on a live server is untested; spots that rely on unverified behaviour are marked `// UNVERIFIED:`. |
+| Plugins (`plugins/*.cs`) | **Compile-checked, never run in game.** All plugins compile with 0 errors at C# 3 against the shipped Oxide 2.0.3867 and patched game DLLs (`tools/plugin-compile-check/check.sh`). Behaviour on a live server is untested; spots that rely on unverified behaviour are marked `// UNVERIFIED:`. |
+| Connection Doctor (`launcher/lib/doctor.js`, `lib/shared/gamelog.js`) | **Tested here** (unit tests, and an Electron walk-through against an imitation `ROK.exe` and game install). Every classifier string is copied from the decompiled game DLL. **Unverified on Windows:** the PowerShell socket and firewall listings, the Steam `ActiveProcess` registry read, that the client writes `Logs\Log[...].txt` in the install folder, and the location of `output_log.txt` for Unity 5.1. |
+| Live admin console and Court (`lib/admin-console.js`, `lib/court-host.js`, `RealmCourt.cs`) | **Wire protocol proven from the decompiled DLL and tested here** byte for byte against an independent fake. **Never run against the real `ROK.exe`.** Unverified: that the dedicated server enables the console ("Admin console enabled." in its log), that Steward connects within the game's 10 s window, the exact wording of kick/ban replies, and `RealmCourt.cs` in game. If the console is never reached and the server exits early, Steward turns `-cport` off for that server automatically. **Behaviour change:** with the console on, closing Steward makes its servers save and stop. |
+| RealmSeasons, RealmEvents and the other new plugins | **Compile-checked** at C# 3 against the 2.0.3867 DLLs and **behaviour-tested against mocks** (`plugins/docs/*/logic-tests/run.sh`: 89 to 140 checks each). **Never run in game.** Smoke tests: `docs/smoke-test.md` part E and each plugin doc. |
+| Realm Portal (`portal/`) | **Tested here**: `npm test` (28 tests, including hostile-text escaping and no Steam IDs on any page) and screenshots. Hosting is left to the owner. |
+| Discord herald (`launcher/lib/discord.js`) | **Tested here with a stubbed network** (URL validation, token redaction, rate limits, retries, 404 shut-off). **No post to a real webhook has been made.** DPAPI encryption on Windows is untested. |
+| Player onboarding, Realm feed, Steward dashboard | **Tested here** in Electron walk-throughs with mock data. The feed's next-event countdown needs a plugin to publish the next event; no plugin does yet, so only the latest events show. The "Game starting / Joining" steps are timed guidance, not read from the game. |
 | PowerShell scripts | **Never run or parsed**, because there is no PowerShell here. Always use `-WhatIf` first. |
 | Mods atmosphere preset | **Key names read from the server DLL** (`docs/mods-keys-from-dll.md`). Which Mods file holds them, and whether a headless server applies fog, is untested; `Apply-Preset.ps1` checks against the server's own `*.defaults.cfg`. |
 | Which exe to run (`Server.exe` or `ROK.exe`), the `ROK_Data`/`Server_Data` folder, the Oxide data path (`oxide\` or `Saves\oxide\`), `Assembly-CSharp_Original.dll`, and whether `bindIP=127.0.0.1` still lets clients authenticate | **Unverified.** The smoke test resolves each of these. |
@@ -133,6 +166,8 @@ npm run sample
 ## Known limitations
 
 - Chronicle event ids continue from the highest id still in the file. If `RealmChronicle.json` is deleted, ids restart at 1. Overlays and the launcher that are already open then need a reload to see new events.
-- The status pill in the launcher shows whether the Chronicle is fresh. It does not show whether the game port is reachable.
+- The status pill in the launcher shows whether the Chronicle is fresh. It does not show whether the game port is reachable; the **Doctor** screen does.
+- Steward's "ready" flag still fires on Unity's `Initialize engine version:` banner, which comes before the world is loaded. The game's real ready line ("Server for N players started on port P.") is in its own log file and, with the live console, in the Servers console; the Doctor checks for it.
+- RealmEvents schedules in UTC and CrownAndConsequences in realm time (UTC + `UtcOffsetHours`); neither follows daylight saving. If you set an offset, shift RealmEvents' `StartUtc` times too (the plugin logs the corrected time at start-up).
 - Ransom payment is honour-based: the captor confirms it. Contracts use real item escrow (untested in game; `ItemEscrow: false` switches to honour mode). Harvest Tithe was replaced by Royal Stores because gathering happens client-side and no server hook can boost it.
 - The default rebellion windows are Wednesday 19:00 and Saturday 19:00 **UTC**. Change them in `oxide\config\CrownAndConsequences.json` to suit your time zone.

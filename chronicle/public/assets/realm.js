@@ -8,6 +8,9 @@ const FILTERS = [
   { id: 'houses', label: 'Houses & Oaths' },
   { id: 'ransom', label: 'Ransom' },
   { id: 'contracts', label: 'Contracts' },
+  { id: 'seasons', label: 'Seasons & Events' },
+  { id: 'law', label: 'Law & Dynasty' },
+  { id: 'treasury', label: 'Treasury & Rumours' },
 ];
 const POLL_MS = 8000;
 

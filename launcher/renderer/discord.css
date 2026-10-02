@@ -1,0 +1,16 @@
+/* Discord herald card (renderer/discord.js) in Steward Settings. */
+.discord-card { grid-column: 1 / -1; }
+.discord-lead { margin: 6px 0 14px; }
+.discord-card input[type='checkbox'] { width: 16px; height: 16px; padding: 0; margin: 0; accent-color: var(--gold); flex: none; }
+.discord-toggle { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-weight: 600; color: var(--gold-hi); cursor: pointer; }
+.discord-types { border: 1px solid var(--panel-edge); border-radius: 8px; padding: 10px 14px 12px; margin: 0 0 14px; }
+.discord-types legend { font-family: var(--display); font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); padding: 0 6px; }
+.discord-type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 14px; align-items: center; }
+.discord-group { grid-column: 1 / -1; margin: 8px 0 2px; font-family: var(--display); font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.discord-group:first-child { margin-top: 0; }
+.discord-type { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.discord-twin { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.discord-stats { min-height: 1.2em; margin: 10px 0 0; }
+.discord-how { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.discord-how summary { cursor: pointer; color: var(--gold); }
+.discord-how ol { margin: 6px 0 0; padding-left: 20px; }

@@ -103,7 +103,8 @@ class ServerManager extends EventEmitter {
 
   // Start-LocalServer.ps1: Server.exe with no arguments (default) or ROK.exe -batchmode -nographics -silentcrash,
   // working directory = server root so Oxide creates <server>\oxide.
-  async start(root, exeName = 'Server') {
+  // opts.extraArgs: extra ROK.exe arguments (the live console adds -cport, lib/court-host.js).
+  async start(root, exeName = 'Server', opts = {}) {
     if (this.child) throw Object.assign(new Error('The server is already running.'), { friendly: true });
     const name = exeName === 'ROK' ? 'ROK' : 'Server';
     const exePath = path.join(root, `${name}.exe`);
@@ -118,6 +119,7 @@ class ServerManager extends EventEmitter {
       const logDir = path.join(root, 'Logs');
       await fsp.mkdir(logDir, { recursive: true });
       args.push('-logFile', path.join(logDir, 'realm-server.log'));
+      if (opts && Array.isArray(opts.extraArgs)) args.push(...opts.extraArgs.map(String));
     }
     this.root = root;
     this.exe = name;

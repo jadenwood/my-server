@@ -32,6 +32,12 @@ contextBridge.exposeInMainWorld('realm', {
   setPrefs: c1('player:setPrefs'),
   takeLink: c0('player:takeLink'),
   windowAction: c1('player:window'),
+  // Connection Doctor ("Can't join?"): read-only checks, log classifier, redacted report.
+  doctorRun: c0('player:doctorRun'),
+  doctorClassify: c1('player:doctorClassify'),
+  doctorReport: c1('player:doctorReport'),
+  // Realm feed (home panel): latest public Chronicle events and the next announced event.
+  feed: c1('player:feed'),
   onPush: (fn) => {
     if (typeof fn !== 'function') return;
     ipcRenderer.on('realm:push', (_event, msg) => {

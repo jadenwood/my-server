@@ -1,0 +1,17 @@
+{
+  "Number": 1,
+  "Name": "The Season of the Thaw",
+  "Active": true,
+  "StartedAt": "2026-09-27T00:00:00Z",
+  "EndsAt": "2026-10-25T19:00:00Z",
+  "ChronicleCursor": 18,
+  "LastCrownTick": "2026-10-01T21:05:00Z",
+  "Houses": {
+    "Corvane": { "House": "Corvane", "CrownSeconds": 180551, "RebellionsWon": 0, "RebellionsDefended": 1, "TreatiesKept": 0, "TreatiesBroken": 0, "OathsBroken": 0, "ContractsFulfilled": 1, "EventPoints": 0, "Honours": [] },
+    "Varrow": { "House": "Varrow", "CrownSeconds": 91560, "RebellionsWon": 0, "RebellionsDefended": 0, "TreatiesKept": 0, "TreatiesBroken": 0, "OathsBroken": 0, "ContractsFulfilled": 2, "EventPoints": 20, "Honours": ["Royal Tournament champion: Odo the Tall"] },
+    "Ashgrove": { "House": "Ashgrove", "CrownSeconds": 0, "RebellionsWon": 0, "RebellionsDefended": 0, "TreatiesKept": 0, "TreatiesBroken": 0, "OathsBroken": 0, "ContractsFulfilled": 3, "EventPoints": 5, "Honours": [] },
+    "Halloran": { "House": "Halloran", "CrownSeconds": 0, "RebellionsWon": 0, "RebellionsDefended": 0, "TreatiesKept": 0, "TreatiesBroken": 1, "OathsBroken": 0, "ContractsFulfilled": 0, "EventPoints": 0, "Honours": [] },
+    "Dunmere": { "House": "Dunmere", "CrownSeconds": 0, "RebellionsWon": 0, "RebellionsDefended": 0, "TreatiesKept": 0, "TreatiesBroken": 0, "OathsBroken": 1, "ContractsFulfilled": 1, "EventPoints": 0, "Honours": [] }
+  },
+  "Treaties": [ { "A": "Corvane", "B": "Merrin", "Signed": "2026-10-01T12:00:00Z" } ]
+}

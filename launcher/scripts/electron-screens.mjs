@@ -218,7 +218,7 @@ try {
   // ---- security posture of the renderer
   const sec = await page.evaluate(() => ({ require: typeof require, process: typeof process, keys: Object.keys(window.realm || {}).sort() }));
   check('renderer has no require/process', sec.require === 'undefined' && sec.process === 'undefined');
-  check('bridge exposes only the named API', sec.keys.join(',') === 'appInfo,copyAddress,copyText,fleet,getConfig,getEvents,getNews,getRealm,getState,goPublic,onPush,openLink,overlay,play,publish,server,settings,setup,windowAction', sec.keys.join(','));
+  check('bridge exposes only the named API', sec.keys.join(',') === 'appInfo,copyAddress,copyText,court,doctor,fleet,getConfig,getEvents,getNews,getRealm,getState,goPublic,onPush,openLink,overlay,play,publish,server,settings,setup,windowAction', sec.keys.join(','));
   const blocked = await page.evaluate(() => window.realm.openLink('file:///etc/passwd').then(() => 'opened', (e) => e.message));
   check('openLink rejects unknown ids', /not one of/.test(blocked), blocked);
   const badStep = await page.evaluate(() => window.realm.setup.run('rm -rf', 's1').then(() => 'ran', (e) => e.message));

@@ -185,3 +185,38 @@ module.exports = {
   detectGameInstall,
   isInstalledManifest
 };
+
+// ---------- Steam client running / signed in (Connection Doctor) ----------
+// [SEC] The Steam client keeps HKCU\Software\Valve\Steam\ActiveProcess: "pid" is its process id
+// while it runs (0 after a clean exit) and "ActiveUser" is the signed-in account id (0 when signed
+// out). Read-only; a stale pid is caught by checking that the process still exists.
+// UNVERIFIED on the owner's PC: Steam's exact behaviour in offline mode.
+function parseActiveProcess(stdout) {
+  const num = (name) => {
+    const m = new RegExp(`^\\s*${name}\\s+REG_DWORD\\s+0x([0-9a-f]+)\\s*$`, 'im').exec(String(stdout || ''));
+    return m ? parseInt(m[1], 16) : null;
+  };
+  return { pid: num('pid'), activeUser: num('ActiveUser') };
+}
+
+function processAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === 'EPERM';
+  }
+}
+
+// { running: true|false|null, signedIn: true|false|null, pid } ; null means "could not tell".
+async function steamState({ platform = process.platform, execFileImpl, isAlive = processAlive } = {}) {
+  if (platform !== 'win32') return { running: null, signedIn: null, pid: null };
+  const out = await runFile('reg', ['query', 'HKCU\\Software\\Valve\\Steam\\ActiveProcess'], execFileImpl);
+  if (!out) return { running: false, signedIn: false, pid: null };
+  const { pid, activeUser } = parseActiveProcess(out);
+  const running = !!pid && isAlive(pid);
+  return { running, signedIn: running ? (activeUser == null ? null : activeUser !== 0) : false, pid: running ? pid : null };
+}
+
+module.exports.parseActiveProcess = parseActiveProcess;
+module.exports.steamState = steamState;

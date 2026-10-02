@@ -17,6 +17,11 @@ const files = [
   'renderer/player.js',
   'renderer/coach.js',
   'renderer/mock-preload.js',
+  // Views that build their own markup (Connection Doctor, Court, Discord card, Home dashboard strip).
+  'renderer/doctor.js',
+  'renderer/court.js',
+  'renderer/discord.js',
+  'renderer/dashboard.js',
   ...readdirSync(path.join(root, 'build')).filter((f) => f.endsWith('.js')).map((f) => `build/${f}`),
   ...readdirSync(path.join(root, 'scripts')).filter((f) => f.endsWith('.mjs')).map((f) => `scripts/${f}`),
   ...readdirSync(path.join(root, 'test')).filter((f) => f.endsWith('.js')).map((f) => `test/${f}`)

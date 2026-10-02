@@ -1,0 +1,15 @@
+{
+  "name": "realm-portal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Static website generator for the Realm: home, Chronicle, Great Houses, Hall of Kings, codex, download and streamer pages. No runtime server, no dependencies.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node build.mjs",
+    "sample": "node build.mjs --data ../chronicle/sample-data --data sample-data",
+    "watch": "node build.mjs --watch 60",
+    "test": "node --test test/*.test.mjs",
+    "screens": "node scripts/screens.mjs"
+  }
+}
