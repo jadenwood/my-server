@@ -236,7 +236,9 @@ test('IPC helpers', () => {
 });
 
 test('console line patterns', () => {
-  assert.ok(S.READY_LINE.test('Initialize engine version: 5.x'));
+  assert.ok(S.READY_LINE.test('Server for 120 players started on port 7350.'));
+  assert.ok(!S.READY_LINE.test('Initialize engine version: 5.x'), 'the Unity banner is not the ready line');
+  assert.ok(S.ENGINE_LINE.test('Initialize engine version: 5.x'));
   assert.equal(S.JOIN_LINE.exec('Authentication verified for Wren (76561190000000000).')[1], 'Wren');
   assert.equal(S.LEAVE_LINE.exec('Wren has disconnected.')[1], 'Wren');
 });

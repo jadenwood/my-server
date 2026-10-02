@@ -20,7 +20,7 @@ Ground rules that do not change:
    - **Restart by itself after a crash** and **Back up the world before every restart** are on by default.
    - **Restart every day at**: pick a quiet hour, for example 06:00. The game announces it in chat from 60 minutes before. **UNVERIFIED:** that the announcements show and that the server exits by itself; Realm restarts it either way.
    - Save, with the server stopped.
-4. **Start**. Wait for `Initialize engine version` in the console. Then open Reign of Kings through Steam and direct connect to `127.0.0.1`, port `7350`.
+4. **Start**. Wait for `Server for N players started on port P.` in the console (the earlier `Initialize engine version` line is only Unity starting up). Then open Reign of Kings through Steam and direct connect to `127.0.0.1`, port `7350`.
 
 ### More servers (up to four)
 

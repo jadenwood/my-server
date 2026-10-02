@@ -67,6 +67,7 @@ const port = Number(get('portNumber') || 7350);
 const query = Number(get('steamAuthPort') || 27015);
 const max = Number(get('maxPlayers') || 30);
 const sockets = [];
+say('Initialize engine version: 5.x (imitation for tests)');
 say('Loading level CrownLand...');
 setTimeout(() => {
   const managed = fs.readdirSync(root).filter((d) => /_Data$/.test(d)).map((d) => path.join(root, d, 'Managed'));
@@ -109,7 +110,6 @@ setTimeout(() => {
   q.bind(query, '0.0.0.0');
   sockets.push(game, ping, q);
   say('Server for ' + max + ' players started on port ' + port + '.');
-  say('Initialize engine version: 5.x (imitation for tests)');
   setTimeout(() => say('Steam game server started. (IP: 203.0.113.50, Logged: True, Secure: True)'), 300);
   setTimeout(() => say('Authentication verified for Wren (76561190000000002).'), 600);
   setTimeout(() => say('Authentication verified for Odo the Tall (76561190000000003).'), 900);
@@ -278,7 +278,7 @@ try {
   let cfgText = fs.readFileSync(path.join(testRoot, 'Configuration', 'ServerSettings.cfg'), 'utf8');
   check('server name, 120 slots and join pacing written to ServerSettings.cfg', /serverName = 'Realm I - Ashveil'/.test(cfgText) && /maxPlayers = '120'/.test(cfgText) && /timeBetweenPlayerJoin = '3'/.test(cfgText));
   await page.click('#srv-start');
-  await consoleHas(/Initialize engine version/);
+  await consoleHas(/players started on port/);
   await sleep(1500);
   cfgText = fs.readFileSync(path.join(testRoot, 'Configuration', 'ServerSettings.cfg'), 'utf8');
   const rt = Number((/restartTime = '(\d+)'/.exec(cfgText) || [])[1]);
@@ -341,7 +341,7 @@ try {
   await page.click('#inst-save');
   await sleep(800);
   await page.click('#srv-start');
-  await consoleHas(/Initialize engine version/);
+  await consoleHas(/players started on port/);
   const s2cfg = fs.readFileSync(path.join(s2Root, 'Configuration', 'ServerSettings.cfg'), 'utf8');
   check('server 2 runs on 7360 / 27025 / RCON port 27026', /portNumber = '7360'/.test(s2cfg) && /steamAuthPort = '27025'/.test(s2cfg) && /rConPort = '27026'/.test(fs.readFileSync(path.join(s2Root, 'Configuration', 'ConsoleSettings.cfg'), 'utf8')));
   await page.click('.fleet-card[data-inst="s1"]');

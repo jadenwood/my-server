@@ -229,7 +229,7 @@
     } else if (srv.state === 'running' || srv.state === 'starting') {
       kind = 'warn';
       label = 'Loading';
-      detail = 'The server is starting. It is ready when the console shows "Initialize engine version".';
+      detail = 'The server is starting. It is ready when the console shows "Server for N players started on port P".';
     } else if (srv.state === 'stopping') {
       kind = 'warn';
       label = 'Stopping';
@@ -335,7 +335,7 @@
 
   function lineNode(l) {
     const cls = l.src === 'err' ? 'err' : l.src === 'sys' ? 'sys' : l.src === 'log' ? 'log' : '';
-    const n = el('span', 'ln ' + cls + (/^\s*Initialize engine version:/.test(l.text) ? ' ready' : ''));
+    const n = el('span', 'ln ' + cls + (/Server for \d+ players started on port \d+/i.test(l.text) ? ' ready' : ''));
     const d = new Date(l.t);
     const p = (x) => String(x).padStart(2, '0');
     n.append(el('span', 't', `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`), document.createTextNode(l.text));
@@ -618,7 +618,7 @@
     }
   }
 
-  $('srv-start').addEventListener('click', () => guarded(() => api.server.start(selId), 'Server starting. Watch the console for "Initialize engine version".'));
+  $('srv-start').addEventListener('click', () => guarded(() => api.server.start(selId), 'Server starting. It is ready when the console shows "Server for N players started on port P".'));
   $('srv-stop').addEventListener('click', () => guarded(() => api.server.stop(selId), 'Sent "quit". The server saves and closes.'));
   $('srv-restart').addEventListener('click', async () => {
     toast('Restarting: sending "quit" first...');

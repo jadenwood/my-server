@@ -280,7 +280,10 @@ function sha256Matches(actual, expected) {
 
 // ---------- server console ----------
 
-const READY_LINE = /^\s*Initialize engine version:/;
+// [DEC] CoreServer, after Network.InitializeServer: the world is loaded and players can join.
+// ("Initialize engine version:" is Unity's start-up banner, printed long before that.)
+const READY_LINE = /Server for \d+ players started on port \d+/i;
+const ENGINE_LINE = /^\s*Initialize engine version:/;
 const JOIN_LINE = /Authentication verified for (.+?) \(\d+\)\./;
 const LEAVE_LINE = /^\s*(.+?) has disconnected\./;
 
@@ -377,6 +380,7 @@ module.exports = {
   LOCAL_SERVER_SETTINGS,
   LOCAL_CONSOLE_SETTINGS,
   READY_LINE,
+  ENGINE_LINE,
   JOIN_LINE,
   LEAVE_LINE,
   pathFor,

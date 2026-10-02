@@ -1,25 +1,28 @@
 'use strict';
 
 // Runs the dedicated server from the test copy with piped stdio (no console window), streams its
-// output, tails the newest file in <server>\Logs when stdout stays empty, and stops it with "quit".
+// output, tails the server's log files in <server>\Logs and stops it with "quit".
 
 const { EventEmitter } = require('events');
 const { spawn, execFile } = require('child_process');
 const { StringDecoder } = require('string_decoder');
-const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const S = require('./safety');
 const N = require('./netcheck');
+const G = require('./shared/gamelog');
 
 const MAX_LINES = 3000;
 const STOP_GRACE_MS = 60 * 1000;
 const TAIL_AFTER_MS = 6000;
+const TAIL_EVERY_MS = 1000;
 
 class ServerManager extends EventEmitter {
-  constructor({ platform = process.platform } = {}) {
+  constructor({ platform = process.platform, tailAfterMs = TAIL_AFTER_MS, tailEveryMs = TAIL_EVERY_MS } = {}) {
     super();
     this.platform = platform;
+    this.tailAfterMs = tailAfterMs;
+    this.tailEveryMs = tailEveryMs;
     this.child = null;
     this.state = 'stopped';
     this.root = null;
@@ -67,14 +70,22 @@ class ServerManager extends EventEmitter {
     this.lines.push(line);
     if (this.lines.length > MAX_LINES) this.lines.splice(0, this.lines.length - MAX_LINES);
     this.emit('line', line);
-    if (src !== 'sys') this.inspect(line.text);
+    // Output read after the process exited (a final log drain, a late stdout flush) is shown but
+    // must not mark a stopped server ready or add players.
+    if (src !== 'sys' && this.child) this.inspect(line.text);
     return line;
   }
 
   inspect(text) {
-    if (!this.ready && S.READY_LINE.test(text)) {
-      this.ready = true;
-      this.readyAt = new Date().toISOString();
+    // [DEC] CoreServer logs "Server for N players started on port P." after Network.InitializeServer:
+    // the world is loaded and players can join. ("Initialize engine version:" is only Unity's banner.)
+    const listening = S.READY_LINE.test(text) ? N.parseListeningLine(text) : null;
+    if (listening) {
+      this.listening = listening;
+      if (!this.ready) {
+        this.ready = true;
+        this.readyAt = new Date().toISOString();
+      }
       this.emitStatus();
     }
     const steam = N.parseSteamLine(text);
@@ -82,8 +93,6 @@ class ServerManager extends EventEmitter {
       this.steam = steam;
       this.emitStatus();
     }
-    const listening = N.parseListeningLine(text);
-    if (listening) this.listening = listening;
     const j = S.JOIN_LINE.exec(text);
     if (j) {
       this.players.add(j[1].slice(0, 64));
@@ -115,9 +124,13 @@ class ServerManager extends EventEmitter {
     const args = name === 'ROK' ? ['-batchmode', '-nographics', '-silentcrash'] : [];
     if (name === 'ROK') {
       // Unity in -batchmode logs to a file, not stdout: point it into Logs\ so the console tail shows it.
-      const logDir = path.join(root, 'Logs');
+      const logDir = G.logsDir(root);
       await fsp.mkdir(logDir, { recursive: true });
-      args.push('-logFile', path.join(logDir, 'realm-server.log'));
+      const logFile = path.join(logDir, G.UNITY_LOG);
+      // Unity overwrites -logFile on start. Keep the last run's copy aside so the tail reads the
+      // new one from its first byte instead of from the old file's length.
+      await fsp.rename(logFile, path.join(logDir, 'realm-server.prev.log')).catch(() => {});
+      args.push('-logFile', logFile);
     }
     this.root = root;
     this.exe = name;
@@ -191,7 +204,7 @@ class ServerManager extends EventEmitter {
     this.child = null;
     clearTimeout(this.stopTimer);
     this.stopTimer = null;
-    this.stopTail();
+    this.stopTail({ drain: true });
     this.state = 'stopped';
     this.ready = false;
     this.players.clear();
@@ -273,69 +286,79 @@ class ServerManager extends EventEmitter {
     });
   }
 
-  // When the server writes nothing to stdout (Unity -batchmode often logs to a file instead),
-  // follow the newest file in <server>\Logs from the point where it was when the server started.
+  // Follows both server logs in <server>\Logs from where they were when the server started:
+  //  - the game's own Log[yyMMdd-hhmmss].txt, always: the game writes its messages (including the
+  //    ready line) there and not to Unity's -logFile;
+  //  - Unity's realm-server.log, only while stdout stays empty (with -batchmode Unity logs to that
+  //    file instead of stdout; otherwise it would repeat what stdout already showed).
+  // Each file keeps its own offset, so switching between them never skips or repeats a line.
   startTail(root) {
     this.stopTail();
-    const dir = path.join(root, 'Logs');
     const startMs = Date.now();
-    const offsets = new Map();
-    try {
-      for (const n of fs.readdirSync(dir)) {
-        const p = path.join(dir, n);
-        const st = fs.statSync(p);
-        if (st.isFile()) offsets.set(p, st.size);
-      }
-    } catch {
-      /* no Logs folder yet */
-    }
-    let current = null;
-    let pending = '';
+    const offsets = new Map(G.serverLogCandidates(root).map((e) => [e.path, e.size]));
+    const files = new Map();
+    let chain = Promise.resolve();
     let busy = false;
-    const timer = setInterval(async () => {
-      if (busy || this.stdoutSeen || Date.now() - startMs < TAIL_AFTER_MS) return;
-      busy = true;
-      try {
-        let newest = null;
-        for (const n of await fsp.readdir(dir)) {
-          const p = path.join(dir, n);
-          const st = await fsp.stat(p);
-          if (st.isFile() && (!newest || st.mtimeMs > newest.mtimeMs)) newest = { p, mtimeMs: st.mtimeMs, size: st.size };
-        }
-        if (!newest) return;
-        if (current !== newest.p) {
-          current = newest.p;
-          pending = '';
-          if (!offsets.has(current)) offsets.set(current, 0);
-          this.log('sys', `No console output; following ${path.relative(root, current)}`);
-        }
-        const from = offsets.get(current) || 0;
-        if (newest.size < from) offsets.set(current, 0);
-        if (newest.size <= from) return;
-        const fh = await fsp.open(current, 'r');
-        try {
-          const len = Math.min(newest.size - from, 256 * 1024);
-          const buf = Buffer.alloc(len);
-          await fh.read(buf, 0, len, from);
-          offsets.set(current, from + len);
-          const parts = (pending + buf.toString('utf8')).split(/\r?\n/);
-          pending = parts.pop();
-          for (const p of parts) if (p.trim()) this.log('log', p);
-        } finally {
-          await fh.close();
-        }
-      } catch {
-        /* Logs folder missing or file locked; try again next tick */
-      } finally {
-        busy = false;
+
+    const follow = async (entry) => {
+      let f = files.get(entry.path);
+      if (!f) {
+        f = { offset: offsets.has(entry.path) ? offsets.get(entry.path) : 0, dec: new StringDecoder('utf8'), pending: '' };
+        files.set(entry.path, f);
+        this.log('sys', `Following ${path.relative(root, entry.path)}`);
       }
-    }, 1000);
-    this.tail = timer;
+      for (;;) {
+        const r = await G.readFrom(entry.path, f.offset);
+        if (r.reset) {
+          f.dec = new StringDecoder('utf8');
+          f.pending = '';
+        }
+        f.offset = r.next;
+        if (!r.buf.length) break;
+        const parts = (f.pending + f.dec.write(r.buf)).split(/\r?\n|\r/);
+        f.pending = parts.pop();
+        for (const p of parts) if (p.trim()) this.log('log', p);
+        if (r.next >= r.size) break;
+      }
+    };
+
+    const tick = async (final = false) => {
+      const logs = await G.resolveLogs(root, startMs - 2000);
+      const list = [...logs.game];
+      const unityDue = !this.stdoutSeen && (final || Date.now() - startMs >= this.tailAfterMs);
+      if (logs.unity && unityDue && (files.has(logs.unity.path) || logs.unity.mtimeMs >= startMs - 2000)) list.unshift(logs.unity);
+      for (const e of list) {
+        try {
+          await follow(e);
+        } catch {
+          /* file locked or removed; try again next tick */
+        }
+      }
+      if (final) {
+        for (const f of files.values()) {
+          const rest = f.pending + f.dec.end();
+          if (rest.trim()) this.log('log', rest);
+        }
+      }
+    };
+
+    // Ticks never overlap: each read waits for the previous one, the final drain included.
+    const run = (final) => (chain = chain.then(() => tick(final)).catch(() => {}));
+    const timer = setInterval(() => {
+      if (busy) return;
+      busy = true;
+      run(false).finally(() => { busy = false; });
+    }, this.tailEveryMs);
+    this.tail = { timer, drain: () => run(true) };
   }
 
-  stopTail() {
-    if (this.tail) clearInterval(this.tail);
+  // drain: read what the server wrote just before it exited, so the last lines are not lost.
+  stopTail({ drain = false } = {}) {
+    const t = this.tail;
     this.tail = null;
+    if (!t) return Promise.resolve();
+    clearInterval(t.timer);
+    return drain ? t.drain() : Promise.resolve();
   }
 }
 
