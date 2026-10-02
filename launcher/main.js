@@ -389,7 +389,7 @@ async function startInstanceNow(id, { reason = 'owner' } = {}) {
   const inUse = await portsInUse(inst);
   if (inUse.length) {
     const owners = await N.portOwners(inst.ports.game, 'udp');
-    const who = owners.length ? ` It is ${owners.map((o) => `${o.name}.exe (pid ${o.pid}${o.path ? ', ' + o.path : ''})`).join(', ')}.` : '';
+    const who = owners.length ? ` It is ${N.describeOwners(owners, root)}.` : '';
     throw friendly(`Another program already uses ${inUse.join(', ')}.${who} Stop it (Task Manager > Details), or change Server ${id.slice(1)}'s ports.`);
   }
   const m = mgr(id);
@@ -508,8 +508,7 @@ function onInstanceExit(id, ex) {
     sup.halted = 'The game port was already in use when the server started.';
     sup.nextAt = null;
     N.portOwners(inst.ports.game, 'udp').then((owners) => {
-      const who = owners.length ? owners.map((o) => `${o.name}.exe (pid ${o.pid}${o.path ? ', ' + o.path : ''})`).join(', ') : 'another program';
-      m.log('sys', `Not restarting: port ${inst.ports.game} is held by ${who}. If that is an older ROK.exe from this folder, end it in Task Manager > Details, then press Start once.`);
+      m.log('sys', `Not restarting: port ${inst.ports.game} is held by ${N.describeOwners(owners, inst.root)}. Then press Start once.`);
       pushFleet();
     });
     return pushFleet();

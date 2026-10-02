@@ -91,7 +91,9 @@ function tcpConnect(host, port, timeoutMs = 2500) {
 function portOwners(port, proto, { platform = process.platform } = {}) {
   if (platform !== 'win32' || !Number.isInteger(port) || port < 1 || port > 65535) return Promise.resolve([]);
   const cmd = proto === 'tcp' ? `Get-NetTCPConnection -LocalPort ${port} -State Listen` : `Get-NetUDPEndpoint -LocalPort ${port}`;
-  const script = `${cmd} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { $p = Get-Process -Id $_ -ErrorAction SilentlyContinue; if ($p) { '' + $p.Id + '|' + $p.ProcessName + '|' + $p.Path } }`;
+  // Get-Process cannot read the path of protected processes (the game client runs under Easy Anti-Cheat);
+  // Win32_Process sometimes can, so it is the fallback.
+  const script = `${cmd} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { $p = Get-Process -Id $_ -ErrorAction SilentlyContinue; if ($p) { $path = $p.Path; if (-not $path) { $c = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $_) -ErrorAction SilentlyContinue; if ($c) { $path = $c.ExecutablePath } }; '' + $p.Id + '|' + $p.ProcessName + '|' + $path } }`;
   const { execFile } = require('child_process');
   return new Promise((resolve) => {
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { windowsHide: true, timeout: 15000 }, (err, stdout) => {
@@ -106,4 +108,19 @@ function portOwners(port, proto, { platform = process.platform } = {}) {
   });
 }
 
-module.exports = { portOwners, STEAM_STARTED_RE, parseSteamLine, parseListeningLine, isPrivateIPv4, isCgnat, lanAddresses, probePort, tcpConnect };
+// Plain-English description of who holds a port, for the console and errors.
+function describeOwners(owners, serverRoot) {
+  if (!owners || !owners.length) return 'another program';
+  return owners.map((o) => {
+    const base = `${o.name}.exe (pid ${o.pid}${o.path ? ', ' + o.path : ''})`;
+    if (/^rok$/i.test(o.name)) {
+      const p = (o.path || '').toLowerCase();
+      if (serverRoot && p && p.startsWith(String(serverRoot).toLowerCase())) return `${base}: an older copy of this server still running. End it in Task Manager > Details`;
+      if (!p || /\\steamapps\\common\\reign of kings\\/i.test(o.path)) return `${base}: most likely the Reign of Kings GAME. Close the game, start the server first, then launch the game`;
+      return `${base}: another Reign of Kings server`;
+    }
+    return base;
+  }).join('; ');
+}
+
+module.exports = { portOwners, describeOwners, STEAM_STARTED_RE, parseSteamLine, parseListeningLine, isPrivateIPv4, isCgnat, lanAddresses, probePort, tcpConnect };
