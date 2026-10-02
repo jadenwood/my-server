@@ -29,3 +29,16 @@ test('EACCES on Server.exe falls back to ROK.exe and logs to Logs\\realm-server.
   assert.ok(fs.existsSync(path.join(root, 'Logs')));
   m.removeAllListeners();
 });
+
+test('the server is started with the GAME app id so Steam logins match', { skip: process.platform === 'win32' }, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'realm-appid-'));
+  fs.writeFileSync(path.join(root, 'ROK.exe'), `#!${process.execPath}\nconsole.log('APPID ' + process.env.SteamAppId + ' ' + process.env.SteamGameId);\n`, { mode: 0o755 });
+  const m = new ServerManager();
+  const lines = [];
+  m.on('line', (l) => lines.push(typeof l === 'string' ? l : l.text));
+  const exited = new Promise((resolve) => m.on('exit', resolve));
+  await m.start(root, 'ROK');
+  await exited;
+  assert.match(lines.join('\n'), /APPID 344760 344760/);
+  m.removeAllListeners();
+});

@@ -256,6 +256,24 @@ const RULES = [
     fix: 'Start the server again. Realm then applies its settings; restart once more if Realm says so.'
   },
   {
+    id: 'steam-auth-game-mismatch',
+    severity: 'bad',
+    title: 'Steam login rejected: the server is registered as the wrong Steam app',
+    re: /Failed to authenticate .*k_EBeginAuthSessionResultGameMismatch/i,
+    evidence: '[LOG] seen on the owner\'s server; SteamGameServer registered under app 381690 while players hold 344760 tickets',
+    cause: 'The server was started without SteamAppId=344760, so Steam ties it to the dedicated-server tool (381690) and refuses every player\'s Reign of Kings login.',
+    fix: 'Update Realm Steward (it now starts the server with SteamAppId=344760) and restart the server. Without Steward: set the server folder\'s steam_appid.txt to 344760.'
+  },
+  {
+    id: 'steam-auth-failed',
+    severity: 'bad',
+    title: 'A player failed Steam authentication',
+    re: /Failed to authenticate (.+?) with Steam\. \((k_\w+)\)/i,
+    evidence: '[LOG] CoreServer.WaitForSteamAuthenicateThenApprove',
+    cause: 'Steam did not accept the player\'s login ticket for this server.',
+    fix: 'Check the reason code in the line. The player should restart Steam and the game; make sure the server is not in Steam offline mode.'
+  },
+  {
     id: 'game-port-taken',
     severity: 'bad',
     title: 'The game port is used by another program',

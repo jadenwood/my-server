@@ -24,3 +24,9 @@ test('describeOwners tells the game client apart from a leftover server', () => 
   assert.match(N.describeOwners([{ pid: 3, name: 'svchost', path: 'C:\\Windows\\System32\\svchost.exe' }], root), /^svchost\.exe/);
   assert.strictEqual(N.describeOwners([], root), 'another program');
 });
+
+test('Doctor explains the Steam GameMismatch refusal', () => {
+  const r = G.classify('Failed to authenticate 420LUFFY (76561198211695796) with Steam. (k_EBeginAuthSessionResultGameMismatch)');
+  assert.strictEqual(r.id, 'steam-auth-game-mismatch');
+  assert.match(r.fix, /344760/);
+});

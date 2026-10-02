@@ -5,6 +5,8 @@
 
 const { EventEmitter } = require('events');
 const { spawn, execFile } = require('child_process');
+
+const GAME_APP_ID = 344760; // Reign of Kings (the game players own), not 381690 (the server tool)
 const { StringDecoder } = require('string_decoder');
 const fs = require('fs');
 const fsp = require('fs/promises');
@@ -136,7 +138,11 @@ class ServerManager extends EventEmitter {
     this.state = 'starting';
     this.log('sys', `Starting ${name}.exe ${args.join(' ')} in ${root}`);
 
-    const child = spawn(exePath, args, { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, env: process.env });
+    // Players' Steam tickets are issued for the GAME (344760). Without this the server registers with
+    // Steam under the dedicated-server app (381690, from its steam_appid.txt) and every join fails with
+    // "Failed to authenticate ... (k_EBeginAuthSessionResultGameMismatch)". Hosting panels set the same.
+    const env = Object.assign({}, process.env, { SteamAppId: String(GAME_APP_ID), SteamGameId: String(GAME_APP_ID) });
+    const child = spawn(exePath, args, { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, env });
     this.child = child;
     this.hookStream(child.stdout, 'out');
     this.hookStream(child.stderr, 'err');
