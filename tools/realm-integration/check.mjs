@@ -15,6 +15,12 @@
 //      TYPE_META; and no plugins/docs/*/EVENTS.json is left waiting for registration;
 //   4. no two plugins register the same chat command, and none uses a command the game itself owns
 //      (only the names this repo has evidence for, see GAME_COMMANDS).
+//   5. chat style (docs/realm-commands.md): every plugin that registers lang messages has the chat style block with
+//      the palette's tone colours, a "Speaker" key and the one Herald voice; every colour tag in a string is in the
+//      chat palette (house tints read from art/palette.json); no lang string is over 200 visible characters; every
+//      /command a lang string mentions is registered by some plugin and drawn in the command colour;
+//   6. RealmHerald's /realm catalogue lists every chat command exactly once, under the plugin that registers it,
+//      with a "Cmd.<command>" description.
 // Argument TYPES are not compared (they need the compiler's view); the arity check catches most drift.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
@@ -221,6 +227,114 @@ export function pendingEventFiles(repo = REPO) {
   return out;
 }
 
+// ---- Chat style (docs/realm-commands.md, "Chat style") ----------------------------------------------------------
+// The colours every Realm chat line may use. Tone colours open a reply's speaker; the command colour marks a /command;
+// muted is for timestamps and quiet voices (tips, rumours); house tints come from art/palette.json "discordRole".
+export const CHAT_PALETTE = {
+  gold: 'D6A043', ok: '8FC97A', warn: 'E8913A', error: 'E86A5C', command: 'F4C96D', muted: 'A3A6AD', text: 'FFFFFF',
+};
+export const HOUSE_ORDER = ['varrow', 'ashgrove', 'corvane', 'dunmere', 'halloran', 'merrin'];
+export const MAX_CHAT_LINE = 200;                       // visible characters of one lang string
+const CHAT_EXEMPT = new Set(['RealmCourt']);           // speaks a console protocol to Realm Steward, not to players
+const TAG = /\[([0-9A-Fa-f]{6})\]/g;
+
+export function houseTints(repo = REPO) {
+  const f = join(repo, 'art/palette.json');
+  if (!existsSync(f)) return null;
+  const pal = JSON.parse(readFileSync(f, 'utf8'));
+  return HOUSE_ORDER.map((h) => ((pal.houses[h] || {}).discordRole || '').replace('#', '').toUpperCase());
+}
+
+const unescape = (s) => s.replace(/\\(.)/g, '$1');
+export const visible = (s) => unescape(s).replace(TAG, '').replace(/\[-\]/g, '');
+
+// Lang strings: { "Key", "value" }, m["Key"] = "value" and m.Add("Key", "value"), with + concatenation.
+export function langStrings(src) {
+  const out = [];
+  const re = /(?:\{\s*"([A-Za-z0-9_.]+)",\s*|m\["([A-Za-z0-9_.]+)"\]\s*=\s*|m\.Add\("([A-Za-z0-9_.]+)",\s*)("(?:[^"\\]|\\.)*"(?:\s*\+\s*"(?:[^"\\]|\\.)*")*)/g;
+  if (!/lang\.RegisterMessages/.test(src)) return out;
+  let m;
+  while ((m = re.exec(src))) {
+    const value = [...m[4].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((x) => x[1]).join('');
+    out.push({ key: m[1] || m[2] || m[3], value, line: lineAt(src, m.index) });
+  }
+  return out;
+}
+
+// Every "/word" mention in a text that is not part of a path ("oxide/data").
+export function commandMentions(text) {
+  const out = [];
+  const re = /(^|[^\w/])\/([a-z]+)/g;
+  let m;
+  while ((m = re.exec(text))) out.push({ name: m[2], index: m.index + m[1].length });
+  return out;
+}
+
+export function chatStyleProblems(p, raw, ctx) {
+  const problems = [];
+  if (CHAT_EXEMPT.has(p.name)) return problems;
+  const src = stripComments(raw);
+  const strings = langStrings(src);
+  if (!strings.length) return problems;
+  const P = (line, msg) => problems.push({ line, msg });
+  const allowed = new Set([...Object.values(CHAT_PALETTE), ...(ctx.tints || [])]);
+
+  if (!/#region Chat style/.test(src)) P(1, 'has lang messages but no "Chat style" block (copy it from any Realm plugin)');
+  for (const [name, key] of [['ChatGold', 'gold'], ['ChatOk', 'ok'], ['ChatWarn', 'warn'], ['ChatError', 'error']]) {
+    const c = src.match(new RegExp(`const\\s+string\\s+${name}\\s*=\\s*"([0-9A-Fa-f]{6})"`));
+    if (!c) P(1, `chat style constant ${name} is missing`);
+    else if (c[1].toUpperCase() !== CHAT_PALETTE[key]) P(lineAt(src, c.index), `${name} is ${c[1]}, the chat palette says ${CHAT_PALETTE[key]}`);
+  }
+  if (/HouseTintColours/.test(src)) {
+    const names = (src.match(/HouseTintNames\s*=\s*\{([^}]*)\}/) || [])[1] || '';
+    const cols = (src.match(/HouseTintColours\s*=\s*\{([^}]*)\}/) || [])[1] || '';
+    const n = [...names.matchAll(/"([a-z]+)"/g)].map((x) => x[1]);
+    const c = [...cols.matchAll(/"([0-9A-Fa-f]{6})"/g)].map((x) => x[1].toUpperCase());
+    if (n.join() !== HOUSE_ORDER.join()) P(1, `HouseTintNames must list ${HOUSE_ORDER.join(', ')}`);
+    if (ctx.tints && c.join() !== ctx.tints.join()) P(1, `HouseTintColours ${c.join(' ')} differ from art/palette.json discordRole ${ctx.tints.join(' ')}`);
+  }
+  // Every colour tag in any string literal of the plugin.
+  for (const lit of src.matchAll(/"((?:[^"\\]|\\.)*)"/g)) {
+    for (const t of lit[1].matchAll(TAG)) {
+      if (!allowed.has(t[1].toUpperCase())) P(lineAt(src, lit.index), `colour [${t[1]}] is not in the chat palette`);
+    }
+  }
+  const keys = new Set(strings.map((s) => s.key));
+  if (!keys.has('Speaker')) P(1, 'lang has no "Speaker" key (the name that opens its replies)');
+  for (const s of strings) {
+    if (s.key === 'Herald' && s.value !== `[${CHAT_PALETTE.gold}]Herald[FFFFFF]: `) P(s.line, `"Herald" must be "[${CHAT_PALETTE.gold}]Herald[FFFFFF]: "`);
+    const v = visible(s.value);
+    if (v.length > MAX_CHAT_LINE) P(s.line, `"${s.key}" is ${v.length} characters; split it (chat style: at most ${MAX_CHAT_LINE})`);
+    for (const c of commandMentions(s.value)) {
+      if (!ctx.commands.has(c.name)) { P(s.line, `"${s.key}" mentions /${c.name}, which no plugin registers`); continue; }
+      if (!s.value.slice(0, c.index).endsWith(`[${CHAT_PALETTE.command}]`)) P(s.line, `"${s.key}" mentions /${c.name} without the command colour [${CHAT_PALETTE.command}]`);
+    }
+  }
+  return problems;
+}
+
+// RealmHerald's /realm hub must list every chat command once, under the plugin that registers it, with a description.
+export function catalogueProblems(raw, owners) {
+  const problems = [];
+  const src = stripComments(raw);
+  const entries = [...src.matchAll(/new Entry\("([a-z]+)",\s*"([a-z]+)",\s*"(\w+)"\)/g)].map((m) => ({ cmd: m[1], subject: m[2], plugin: m[3], line: lineAt(src, m.index) }));
+  const subjects = [...(((src.match(/Subjects\s*=\s*\{([^}]*)\}/) || [])[1] || '').matchAll(/"([a-z]+)"/g))].map((m) => m[1]);
+  const keys = new Set(langStrings(src).map((s) => s.key));
+  const seen = new Set();
+  for (const e of entries) {
+    if (seen.has(e.cmd)) problems.push({ line: e.line, msg: `/realm catalogue lists /${e.cmd} twice` });
+    seen.add(e.cmd);
+    const owner = owners[e.cmd];
+    if (!owner) problems.push({ line: e.line, msg: `/realm catalogue lists /${e.cmd}, which no plugin registers` });
+    else if (owner !== e.plugin) problems.push({ line: e.line, msg: `/realm catalogue says /${e.cmd} belongs to ${e.plugin}; ${owner} registers it` });
+    if (!subjects.includes(e.subject)) problems.push({ line: e.line, msg: `/realm catalogue puts /${e.cmd} under unknown subject "${e.subject}"` });
+    if (!keys.has('Cmd.' + e.cmd)) problems.push({ line: e.line, msg: `lang key "Cmd.${e.cmd}" (its one-line description) is missing` });
+  }
+  for (const s of subjects) if (!keys.has('Subject.' + s)) problems.push({ line: 1, msg: `lang key "Subject.${s}" is missing` });
+  for (const cmd of Object.keys(owners)) if (!seen.has(cmd)) problems.push({ line: 1, msg: `/${cmd} (${owners[cmd]}) is missing from the /realm catalogue` });
+  return { problems, entries: entries.length };
+}
+
 export function analyse(repo = REPO) {
   const dir = join(repo, 'plugins');
   const plugins = readdirSync(dir).filter((f) => f.endsWith('.cs')).sort()
@@ -261,7 +375,26 @@ export function analyse(repo = REPO) {
     if (GAME_COMMANDS.includes(name)) P(where[0].split(':')[0], +where[0].split(':')[1], `chat command /${name} is a game command`);
   }
 
-  return { plugins, registered: { plugin: [...reg.plugin], server: [...reg.server], page: [...reg.page] }, commands: owners, problems };
+  // Chat style in every plugin that talks to players, and the /realm catalogue in RealmHerald.
+  const ownerOf = {};
+  for (const p of plugins) for (const c of p.commands) if (!c.gameTable) ownerOf[c.name] = p.name;
+  const ctx = { commands: new Set(Object.keys(ownerOf)), tints: houseTints(repo) };
+  let langCount = 0;
+  for (const p of plugins) {
+    const raw = readFileSync(join(repo, p.file), 'utf8');
+    langCount += langStrings(stripComments(raw)).length;
+    for (const q of chatStyleProblems(p, raw, ctx)) P(p.file, q.line, q.msg);
+  }
+  let catalogue = null;
+  const herald = plugins.find((p) => p.name === 'RealmHerald');
+  if (herald) {
+    const c = catalogueProblems(readFileSync(join(repo, herald.file), 'utf8'), ownerOf);
+    catalogue = c.entries;
+    for (const q of c.problems) P(herald.file, q.line, q.msg);
+  }
+
+  return { plugins, registered: { plugin: [...reg.plugin], server: [...reg.server], page: [...reg.page] }, commands: owners,
+    chat: { langStrings: langCount, catalogue }, problems };
 }
 
 export function commandsMarkdown(result) {
@@ -280,7 +413,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     if (process.argv.includes('--commands')) console.log(commandsMarkdown(result) + '\n');
     for (const msg of result.problems) console.log('PROBLEM ' + msg);
     console.log(`${result.plugins.length} plugins, ${calls} cross-plugin calls, ${cmds} chat commands, `
-      + `${result.registered.plugin.length} Chronicle types: ${result.problems.length ? result.problems.length + ' problem(s)' : 'OK'}`);
+      + `${result.registered.plugin.length} Chronicle types, ${result.chat.langStrings} chat lines`
+      + `${result.chat.catalogue != null ? `, /realm lists ${result.chat.catalogue} commands` : ''}: `
+      + `${result.problems.length ? result.problems.length + ' problem(s)' : 'OK'}`);
   }
   process.exit(result.problems.length ? 1 : 0);
 }
