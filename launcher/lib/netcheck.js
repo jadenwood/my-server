@@ -116,7 +116,8 @@ function describeOwners(owners, serverRoot) {
     if (/^rok$/i.test(o.name)) {
       const p = (o.path || '').toLowerCase();
       if (serverRoot && p && p.startsWith(String(serverRoot).toLowerCase())) return `${base}: an older copy of this server still running. End it in Task Manager > Details`;
-      if (!p || /\\steamapps\\common\\reign of kings\\/i.test(o.path)) return `${base}: most likely the Reign of Kings GAME. Close the game, start the server first, then launch the game`;
+      if (/\\steamapps\\common\\reign of kings\\/i.test(o.path)) return `${base}: the Reign of Kings GAME. Close the game, start the server first, then launch the game`;
+      if (!p) return `${base}: Windows hides where it runs from, which happens when it runs as administrator. It is either the GAME, or a server started by the game's own Server.exe watchdog (Server.exe restarts ROK.exe by itself). Open Task Manager > Details: end Server.exe first, then ROK.exe (if Windows says access denied, open Task Manager as administrator). If it is the game, just close the game`;
       return `${base}: another Reign of Kings server`;
     }
     return base;

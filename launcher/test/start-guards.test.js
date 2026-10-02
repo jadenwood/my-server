@@ -18,7 +18,7 @@ test('the port-clash message points at a leftover ROK.exe', () => {
 
 test('describeOwners tells the game client apart from a leftover server', () => {
   const root = 'G:\\RealmTest\\server';
-  assert.match(N.describeOwners([{ pid: 4356, name: 'ROK', path: '' }], root), /most likely the Reign of Kings GAME/);
+  assert.match(N.describeOwners([{ pid: 4356, name: 'ROK', path: '' }], root), /Server\.exe watchdog/);
   assert.match(N.describeOwners([{ pid: 1, name: 'ROK', path: 'G:\\SteamLibrary\\steamapps\\common\\Reign Of Kings\\ROK.exe' }], root), /GAME/);
   assert.match(N.describeOwners([{ pid: 2, name: 'ROK', path: 'G:\\RealmTest\\server\\ROK.exe' }], root), /older copy of this server/);
   assert.match(N.describeOwners([{ pid: 3, name: 'svchost', path: 'C:\\Windows\\System32\\svchost.exe' }], root), /^svchost\.exe/);
