@@ -132,8 +132,18 @@ check('a player-founded house never gets a great house charge', ART.greatHouse('
 // 5. Packaging: the player build lists its renderer files one by one (launcher/build/player.json).
 const playerBuild = JSON.parse(read(path.join(launcher, 'build', 'player.json')));
 const packs = (p) => playerBuild.files.some((f) => f === p || (f.endsWith('/**/*') && p.startsWith(f.slice(0, -4))));
-const unpacked = ['renderer/heraldry.js', 'renderer/assets/icons.svg'].filter((p) => !packs(p));
-if (unpacked.length) warnings.push(`launcher/build/player.json does not package ${unpacked.join(' or ')}: add "renderer/heraldry.js" and "renderer/assets/**/*" to its "files", or the installed player app shows no art (it still works).`);
+const unpacked = ['renderer/heraldry.js', 'renderer/assets/icons.svg', 'renderer/assets/keyart/old-throne-1920.svg'].filter((p) => !packs(p));
+check('the player build packs heraldry.js and the art', !unpacked.length, unpacked.join(', '));
+
+// 6. In app.js and player.js, $ is getElementById and $$ is querySelectorAll. A selector given to $
+// returns null, and iterating it throws (this once broke the rail in both apps).
+const misused = [];
+for (const f of fs.readdirSync(renderer).filter((x) => x.endsWith('.js'))) {
+  const src = read(path.join(renderer, f));
+  if (!/const \$ = \(id\) => document\.getElementById\(id\)/.test(src)) continue;
+  for (const m of src.matchAll(/(?<![\w$])\$\((['"`])([^'"`]*)\1/g)) if (/[.#\[\s>:]/.test(m[2])) misused.push(`${f}: $(${m[1]}${m[2]}${m[1]})`);
+}
+check('$ is only given element ids ($$ takes selectors)', !misused.length, misused.join(', '));
 
 // ---------------------------------------------------------------- browser checks
 
@@ -325,6 +335,16 @@ try {
   await off.waitForTimeout(400);
   await off.screenshot({ path: path.join(imgDir, 'steward-home-offline.png') });
   log('saved docs/img/steward-home-offline.png');
+  // The Realm view without the Chronicle: an error with a fix, not "No houses yet".
+  await off.click('.rail-btn[data-go="realm"]');
+  await off.waitForSelector('#realm-tree .error-inline');
+  const realmErr = await off.textContent('#realm-tree');
+  check('Realm view: an unreachable Chronicle is an error, not an empty realm', /did not answer/.test(realmErr) && !/No houses yet/.test(realmErr), realmErr.trim().replace(/\s+/g, ' '));
+  check('the rail marks the open screen for screen readers', (await off.getAttribute('.rail-btn[data-go="realm"]', 'aria-current')) === 'page' && !(await off.getAttribute('.rail-btn[data-go="home"]', 'aria-current')));
+  await off.focus('.rail-btn[data-go="realm"]');
+  await off.keyboard.press('ArrowDown');
+  const railNext = await off.evaluate(() => document.activeElement && document.activeElement.dataset.go);
+  check('Arrow keys move along the rail', railNext === 'overlay', railNext);
   await off.close();
 
   // ---- the design system sheet
@@ -402,9 +422,9 @@ try {
     set('.ds-sec', { display: 'flex', flexDirection: 'column', gap: '8px' });
     set('.ds-sec:nth-child(4), .ds-sec:nth-child(5), .ds-sec:nth-child(6)', { gridColumn: '1 / -1' });
     set('.ds-row', { display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' });
-    set('.ds-swatch', { display: 'flex', flexDirection: 'column', gap: '3px', width: '74px' });
+    set('.ds-swatch', { display: 'flex', flexDirection: 'column', gap: '3px', width: '82px' });
     set('.ds-chip', { display: 'block', height: '30px', borderRadius: '4px', border: '1px solid rgba(214,160,67,.25)' });
-    set('.ds-swatch code', { fontSize: '9px', color: 'var(--text-muted)', whiteSpace: 'nowrap' });
+    set('.ds-swatch code', { fontSize: '9px', lineHeight: '1.2', color: 'var(--text-muted)', overflowWrap: 'anywhere' });
     set('.ds-icon code', { fontSize: '9px', lineHeight: '1.15', color: 'var(--text-muted)', textAlign: 'center', whiteSpace: 'normal' });
     set('.ds-type', { display: 'flex', flexDirection: 'column', gap: '4px' });
     set('.ds-prose', { fontFamily: 'var(--font-body)', fontSize: '17px', color: 'var(--text-2)' });
@@ -418,6 +438,9 @@ try {
     f.style.boxShadow = 'var(--focus-ring)';
   });
   await page.waitForFunction(() => Array.from(document.querySelectorAll('.ds-overlay img')).every((i) => i.complete));
+  // Tall enough for the whole sheet, so the states row is not cut off.
+  const sheetH = await page.evaluate(() => document.querySelector('.ds-sheet').scrollHeight + 40 + 44 + 8);
+  await page.setViewportSize({ width: 1320, height: Math.max(840, Math.min(1400, sheetH)) });
   await page.waitForTimeout(300);
   const dsBroken = await page.evaluate(() => Array.from(document.querySelectorAll('.ds-overlay img')).filter((i) => !i.naturalWidth).map((i) => i.getAttribute('src')));
   check('every sigil, shield and badge in the sheet loads', !dsBroken.length, dsBroken.join(', '));

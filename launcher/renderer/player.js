@@ -123,7 +123,7 @@
     current = name;
     document.body.dataset.view = name;
     for (const v of $$('.view')) v.hidden = v.dataset.view !== name;
-    for (const b of $('.rail-btn[data-go]')) {
+    for (const b of $$('.rail-btn[data-go]')) {
       b.classList.toggle('active', b.dataset.go === name);
       if (b.dataset.go === name) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
@@ -844,7 +844,7 @@
 
   // Rail: Up and Down move between screens.
   document.querySelector('.rail').addEventListener('keydown', (ev) => {
-    const btns = $('.rail .rail-btn');
+    const btns = $$('.rail .rail-btn');
     const i = btns.indexOf(document.activeElement);
     if (i < 0 || (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp')) return;
     ev.preventDefault();

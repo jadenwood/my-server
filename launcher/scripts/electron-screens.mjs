@@ -366,7 +366,7 @@ try {
   await page.click('#pub-net-save');
   await sleep(700);
   await page.click('#pub-test');
-  await page.waitForFunction(() => document.querySelectorAll('#pub-checks li:not(.empty)').length > 3, null, { timeout: 30000 });
+  await page.waitForFunction(() => !document.querySelector('#pub-checks[aria-busy]') && document.querySelectorAll('#pub-checks li:not(.empty):not(.skel-row)').length > 3, null, { timeout: 30000 });
   const checksText = await page.textContent('#pub-checks');
   check('self-test sees the A2S answer on this PC', /Steam query on this PC.*Answered/.test(checksText), checksText.slice(0, 300));
   check('self-test reads the public IP from the Steam line', /203\.0\.113\.50/.test(checksText));

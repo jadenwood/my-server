@@ -21,6 +21,8 @@
     "renderer/coach.js",
     "renderer/coach.css",
     "renderer/fonts/**/*",
+    "renderer/heraldry.js",
+    "renderer/assets/**/*",
     "build/icon.png",
     "!node_modules/**/*"
   ],

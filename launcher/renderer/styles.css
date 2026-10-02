@@ -223,6 +223,15 @@ body:not([data-view="home"]) .embers, .player .embers { opacity: 0.4; }
     radial-gradient(ellipse 80% 70% at 62% 40%, transparent 35%, rgba(12, 13, 15, 0.75) 100%),
     linear-gradient(90deg, rgba(12, 13, 15, 0.94) 0%, rgba(12, 13, 15, 0.62) 38%, rgba(12, 13, 15, 0.18) 62%, rgba(12, 13, 15, 0.55) 100%);
 }
+/* Work screens: the moon (top right of the key art) sits between the header and the panels, where
+   a blurred disc reads as a smudge. Dim that corner so only the warm glow of the Hearth remains. */
+body:not([data-view="home"]) .vignette,
+.player:not([data-view="home"]) .vignette {
+  background:
+    radial-gradient(ellipse 34% 40% at 92% 14%, rgba(12, 13, 15, 0.9) 0%, rgba(12, 13, 15, 0.7) 60%, transparent 100%),
+    radial-gradient(ellipse 80% 70% at 62% 40%, transparent 35%, rgba(12, 13, 15, 0.75) 100%),
+    linear-gradient(90deg, rgba(12, 13, 15, 0.94) 0%, rgba(12, 13, 15, 0.62) 38%, rgba(12, 13, 15, 0.18) 62%, rgba(12, 13, 15, 0.55) 100%);
+}
 @media (prefers-reduced-motion: reduce) {
   .embers { display: none; }
   .keyart { transition: none; }

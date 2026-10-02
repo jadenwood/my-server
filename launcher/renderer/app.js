@@ -52,6 +52,11 @@
     return Math.round(h / 24) + ' days ago';
   }
 
+  // "1 server", "2 servers".
+  function plural(n, word) {
+    return `${n} ${word}${n === 1 ? '' : 's'}`;
+  }
+
   function bytes(n) {
     if (n >= 1024 ** 3) return (n / 1024 ** 3).toFixed(1) + ' GB';
     if (n >= 1024 ** 2) return (n / 1024 ** 2).toFixed(1) + ' MB';
@@ -188,7 +193,7 @@
     current = name;
     document.body.dataset.view = name;
     for (const v of $$('.view')) v.hidden = v.dataset.view !== name;
-    for (const b of $('.rail-btn[data-go]')) {
+    for (const b of $$('.rail-btn[data-go]')) {
       b.classList.toggle('active', b.dataset.go === name);
       if (b.dataset.go === name) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
@@ -464,7 +469,7 @@
     const running = s.state !== 'stopped';
     $('srv-meta-1').textContent = running ? `${s.exe || 'Server'}.exe · pid ${s.pid || '-'}` : s.copied === false ? 'No test copy yet' : 'Not running';
     $('srv-meta-2').textContent = running
-      ? `started ${ago(s.startedAt)} · ${(s.players || []).length} player(s)`
+      ? `started ${ago(s.startedAt)} · ${plural((s.players || []).length, 'player')}`
       : s.lastExit
         ? `last stop ${ago(s.lastExit.at)}${s.lastExit.code != null ? ' (exit ' + s.lastExit.code + ')' : ''}`
         : '';
@@ -825,7 +830,7 @@
   $('act-plugins').addEventListener('click', () =>
     guarded(
       () => api.server.deployPlugins('all'),
-      (r) => (r.copied ? `Deployed ${r.copied} plugin file(s) to ${r.servers} server(s). Oxide reloads them while the server runs.` : `All plugins are already up to date on ${r.servers} server(s).`)
+      (r) => (r.copied ? `Deployed ${plural(r.copied, 'plugin file')} to ${plural(r.servers, 'server')}. Oxide reloads them while the server runs.` : `All plugins are already up to date on ${plural(r.servers, 'server')}.`)
     )
   );
 
@@ -868,7 +873,7 @@
       ok: 'Undo Oxide',
       danger: true
     });
-    if (ok) guarded(() => api.server.undoOxide(selId), (r) => `Oxide removed: ${r.restored} original file(s) restored, ${r.removed} removed.`);
+    if (ok) guarded(() => api.server.undoOxide(selId), (r) => `Oxide removed: ${plural(r.restored, 'original file')} restored, ${r.removed} removed.`);
   });
 
   for (const b of $$('[data-open]')) {
@@ -932,6 +937,11 @@
     tree.replaceChildren();
     const houses = Array.isArray(s.houses) ? s.houses : [];
     $('realm-house-count').textContent = houses.length ? houses.length + ' houses' : '';
+    if (!houses.length && data.stateError && ART) {
+      // No answer is not the same as no houses: say so, with the one place that explains why.
+      tree.appendChild(ART.errorBox({ title: 'The Chronicle did not answer', body: String(data.stateError), fix: 'Start the server, or open the Overlay screen to see why the Chronicle is down.', action: { label: 'Open Overlay', onClick: () => go('overlay') } }));
+      return;
+    }
     if (!houses.length) {
       tree.appendChild(ART ? ART.emptyState({ art: 'house', title: 'No houses yet', body: 'Houses appear here when players found them in game.', cmd: '/house found "Name" Sigil' }) : el('p', 'empty', 'No houses have been founded yet. In game: /house found "Name" Sigil'));
       return;
@@ -970,7 +980,7 @@
       try {
         renderRealm(await api.getRealm());
       } catch (e) {
-        fail(e);
+        renderRealm({ state: {}, stateError: (e && e.message) || String(e) });
       }
     }
   };
@@ -1286,7 +1296,7 @@
       };
       add('List', r.files.servers);
       add('Player config', r.files.playerConfig);
-      add('Version', `${r.seq} · ${r.servers} server(s) · key ${r.keyId}`);
+      add('Version', `${r.seq} · ${plural(r.servers, 'server')} · key ${r.keyId}`);
       add('Expires', when(r.expires));
       if (r.embedded) add('Player build', r.embedded);
       $('pl-result').hidden = false;
@@ -1508,7 +1518,7 @@
       title: st.allDone ? (extra ? `${st.instanceName} is already standing` : 'Your Realm is already standing') : extra ? `Let’s raise Server ${wiz.id.slice(1)}` : 'Let’s raise your Realm',
       lead: st.allDone
         ? 'Every step is done. You can run the setup again at any time; finished steps are skipped.'
-        : `Realm will make a private <b>${extra ? 'second copy' : 'test copy'}</b> of your dedicated server, add the Oxide mod framework and the Realm plugins. ${remaining} step(s) to go; finished steps are skipped. You will not need a command window.`,
+        : `Realm will make a private <b>${extra ? 'second copy' : 'test copy'}</b> of your dedicated server, add the Oxide mod framework and the Realm plugins. ${plural(remaining, 'step')} to go; finished steps are skipped. You will not need a command window.`,
       folder: true,
       go: st.allDone ? 'Finish' : 'Begin'
     });
@@ -1705,7 +1715,7 @@
 
   // Rail: Up and Down move between screens, Home and End jump to the ends.
   document.querySelector('.rail').addEventListener('keydown', (ev) => {
-    const btns = $('.rail .rail-btn');
+    const btns = $$('.rail .rail-btn');
     const i = btns.indexOf(document.activeElement);
     if (i < 0) return;
     const to = ev.key === 'ArrowDown' ? btns[(i + 1) % btns.length] : ev.key === 'ArrowUp' ? btns[(i - 1 + btns.length) % btns.length] : ev.key === 'Home' ? btns[0] : ev.key === 'End' ? btns[btns.length - 1] : null;
