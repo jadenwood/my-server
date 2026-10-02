@@ -68,8 +68,11 @@ New events appear as an unrolling parchment proclamation with a wax seal and emb
 ```json
 { "king": "Aldric Varrow", "house": "Varrow", "since": "2026-09-30T19:42:10Z",
   "houses": [{ "name": "Varrow", "sigil": "Iron Stag", "liege": null, "members": 9 }],
-  "online": 23, "maxPlayers": 40, "updated": "2026-10-01T21:05:00Z", "stale": false }
+  "online": 23, "maxPlayers": 40, "updated": "2026-10-01T21:05:00Z",
+  "next": { "title": "Rebellion window", "at": "2026-10-03T19:00:00Z" }, "stale": false }
 ```
+
+`next` is the soonest scheduled realm event that has not started yet, or `null`. `title` is a non-empty string of at most 80 characters and `at` is a UTC ISO 8601 time. A `next` with a longer title, a missing title or an unparseable time is served as `null`. The service does not drop past times itself; clients such as the Realm player app should ignore an `at` that has already passed.
 
 `GET /api/events` returns an array of `{id, ts, type, title, detail, actors[]}`:
 
@@ -100,6 +103,11 @@ The fonts are Cinzel, Cinzel Decorative and EB Garamond from Google Fonts. Offli
 `plugins/RealmChronicle.cs` writes both files through `Interface.Oxide.DataFileSystem`:
 
 - `oxide/data/RealmChronicle.json`
-- `oxide/data/RealmState.json`
+- `oxide/data/RealmState.json`: `{king, house, since, houses[], online, maxPlayers, updated, next}`
 
 The state is refreshed every `StateRefreshSeconds` (30 by default), and also on joins, leaves, plugin loads and throne changes. The event log is capped at `MaxEvents` (500 by default). Players can read recent entries in game with `/chronicle [n]`. Other plugins log events with `RealmChronicle.Call("Log", type, title, detail, actors)`.
+
+`next` is rebuilt on every state refresh from the schedule plugins that are loaded. It keeps the earliest event that starts in the future and no more than `NextEventHorizonDays` ahead (45 by default):
+
+- `CrownAndConsequences.Call("GetNextRebellionWindow")` gives the start of the next rebellion window, the same one `/crown` shows. Its title is "Rebellion window".
+- `RealmEvents.Call("GetNextEvent")` should return `Dictionary<string, object>` with `"title"` (string) and `"at"` (UTC `DateTime`), or `null`. **UNVERIFIED:** there is no RealmEvents plugin in this repository yet, so this is the contract it would have to implement. Until such a plugin exists, only rebellion windows appear.
