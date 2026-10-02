@@ -46,6 +46,17 @@ The data files follow this contract:
 - **`RealmState.json`** is `{king, house, since, houses:[{name, sigil, liege, members}], online, maxPlayers, updated}`.
 - **`/api/state`** returns that state plus `stale: bool`.
 
+## Easiest way: double-click
+
+1. Download this repo (green **Code** button > **Download ZIP**) and unzip it on **G:**, e.g. `G:\Realm`.
+2. Make sure Steam has **Reign Of Kings Dedicated Server** installed (Library > Tools).
+3. Double-click **`Realm.bat`** and pick:
+   - **1 Set up everything**: makes a test copy of the server, downloads and checks Oxide, installs it, adds the Realm plugins, and offers to install Node.js if it's missing.
+   - **2 Play**: starts the server, the stream overlay and the launcher. In the game, direct connect to `127.0.0.1` port `7350`.
+   - **3** updates plugins, **4** backs up the world, **5** undoes Oxide.
+
+If something fails, the window prints `PROBLEM: ...`; nothing else is changed. The manual steps below do the same thing one script at a time.
+
 ## Quick start on the owner's PC (smoke-test order)
 
 The full checklist with pass/fail tables is in **`docs/smoke-test.md`**. Do the stages in this order, and only move on when the current stage passes.
