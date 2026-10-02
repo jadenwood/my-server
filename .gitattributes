@@ -1,0 +1,4 @@
+# Windows batch files must keep CRLF line endings in every checkout and in GitHub's ZIP download:
+# cmd.exe misreads labels and blocks in LF-only files. -text stores and checks out the bytes unchanged.
+*.bat -text
+*.cmd -text

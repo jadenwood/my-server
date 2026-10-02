@@ -74,6 +74,9 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "Realm Steward",
+    "deleteAppDataOnUninstall": false,
+    "uninstallDisplayName": "${productName}",
+    "runAfterFinish": true,
     "artifactName": "Realm-Steward-Setup-${version}.${ext}"
   },
   "portable": {
