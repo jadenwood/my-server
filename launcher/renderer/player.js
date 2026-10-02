@@ -28,6 +28,18 @@
     return svg;
   }
 
+  // Event and guide icons from the art pack (assets/icons.svg, a copy of art/sprite/icons.svg).
+  const ART = window.RealmArt || null;
+  function artIcon(name, cls) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    if (cls) svg.setAttribute('class', cls);
+    svg.setAttribute('aria-hidden', 'true');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', 'assets/icons.svg#realm-icon-' + name);
+    svg.appendChild(use);
+    return svg;
+  }
+
   function toast(message, kind) {
     const t = el('div', 'toast' + (kind ? ' ' + kind : ''), message);
     $('toasts').appendChild(t);
@@ -56,23 +68,49 @@
     return Number.isFinite(t) ? new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
   }
 
-  function confirmBox({ title, text, ok = 'OK' }) {
+  // In-app dialog: Tab stays inside, Enter on OK confirms, Escape cancels, focus returns where it was.
+  function confirmBox({ title, text, ok = 'OK', kicker = null }) {
     return new Promise((resolve) => {
+      const modal = $('modal');
+      const card = modal.querySelector('.modal-card');
+      const back = document.activeElement;
+      $('modal-kicker').textContent = kicker || '';
+      $('modal-kicker').hidden = !kicker;
       $('modal-title').textContent = title;
       $('modal-text').textContent = text;
       $('modal-extra').replaceChildren();
       const okBtn = $('modal-ok');
+      const cancelBtn = $('modal-cancel');
       okBtn.textContent = ok;
-      $('modal').hidden = false;
+      modal.hidden = false;
       okBtn.focus();
-      const done = (v) => {
-        $('modal').hidden = true;
-        okBtn.onclick = null;
-        $('modal-cancel').onclick = null;
-        resolve(v);
+      const onKey = (ev) => {
+        if (ev.key === 'Escape') {
+          ev.preventDefault();
+          done(false);
+        } else if (ev.key === 'Tab') {
+          const f = Array.from(card.querySelectorAll('button:not([disabled]):not([hidden])'));
+          const i = f.indexOf(document.activeElement);
+          if (ev.shiftKey && i <= 0) {
+            ev.preventDefault();
+            f[f.length - 1].focus();
+          } else if (!ev.shiftKey && i === f.length - 1) {
+            ev.preventDefault();
+            f[0].focus();
+          }
+        }
       };
+      modal.addEventListener('keydown', onKey);
+      function done(v) {
+        modal.hidden = true;
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+        modal.removeEventListener('keydown', onKey);
+        if (back && document.contains(back) && typeof back.focus === 'function') back.focus();
+        resolve(v);
+      }
       okBtn.onclick = () => done(true);
-      $('modal-cancel').onclick = () => done(false);
+      cancelBtn.onclick = () => done(false);
     });
   }
 
@@ -85,7 +123,11 @@
     current = name;
     document.body.dataset.view = name;
     for (const v of $$('.view')) v.hidden = v.dataset.view !== name;
-    for (const b of $$('.rail-btn[data-go]')) b.classList.toggle('active', b.dataset.go === name);
+    for (const b of $('.rail-btn[data-go]')) {
+      b.classList.toggle('active', b.dataset.go === name);
+      if (b.dataset.go === name) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
+    }
     if (views[name].show) views[name].show();
   }
 
@@ -159,7 +201,16 @@
   function renderServers() {
     const box = $('server-list');
     box.replaceChildren();
-    if (!list) return;
+    box.setAttribute('aria-busy', String(!list && !listError));
+    if (!list) {
+      if (listError && ART) {
+        box.appendChild(ART.errorBox({ title: 'Could not load the server list', body: listError, fix: 'Check your internet connection, then try again. Can\'t join? explains more.', action: { label: 'Try again', onClick: () => loadAll(true) } }));
+      } else for (let i = 0; i < 2; i++) box.appendChild(el('div', 'skel skel-card'));
+      return;
+    }
+    if (!list.servers.length && ART) {
+      box.appendChild(ART.emptyState({ art: 'beacon-out', title: 'No servers in the list', body: 'The signed list has no servers in it yet. The realm owner adds them in Realm Steward.', action: { label: 'Refresh', onClick: () => loadAll(true) } }));
+    }
     const pickId = bestId();
     list.servers.forEach((s, i) => box.appendChild(serverCard(s, i, s.id === pickId && list.servers.length > 1)));
     const anyUp = list.servers.some((s) => statuses[s.id] && statuses[s.id].online !== false);
@@ -222,11 +273,15 @@
     $('game-install').hidden = !!(i && i.installed);
   }
 
+  let listError = null;
   async function loadAll(refresh) {
     try {
       list = await api.servers(refresh === true);
+      listError = null;
     } catch (e) {
-      fail(e);
+      listError = (e && e.message) || String(e);
+      if (!list) renderServers();
+      else fail(e);
     }
     renderList();
     renderServers();
@@ -401,11 +456,11 @@
   // ================================================================ GUIDE + INTRO
 
   const CARDS = [
-    { glyph: 'i-shield', title: 'Found a house', text: 'A house is your faction: a name, a sigil, a leader and up to three officers. Recruit friends and grow it.', cmd: '/house found "Ashveil" Grey Heron' },
-    { glyph: 'i-chain', title: 'Swear an oath', text: 'A house can swear fealty to a stronger liege and become its vassal. Breaking an oath marks your house as oathbreakers, for everyone to see.', cmd: '/swear <house>' },
-    { glyph: 'i-crown', title: 'Hold the crown', text: 'Whoever holds the Old Throne is king. The king issues decrees, names a council and sets the tax, within limits.', cmd: '/crown' },
-    { glyph: 'i-flame', title: 'Rebel by the rules', text: 'An occupied throne can only be taken in a scheduled rebellion window, by a house that declared its claim at least an hour before.', cmd: '/claim declare' },
-    { glyph: 'i-scroll', title: 'Ransom, not torment', text: 'Captives can be held for 10 minutes at most, for a ransom of up to 500 gold. Betrayal is the game; harassment is not.', cmd: '/ransom list' }
+    { glyph: 'house', title: 'Found a house', text: 'A house is your faction: a name, a sigil, a leader and up to three officers. Recruit friends and grow it.', cmd: '/house found "Ashveil" Grey Heron' },
+    { glyph: 'oath', title: 'Swear an oath', text: 'A house can swear fealty to a stronger liege and become its vassal. Breaking an oath marks your house as oathbreakers, for everyone to see.', cmd: '/swear <house>' },
+    { glyph: 'crown', title: 'Hold the crown', text: 'Whoever holds the Old Throne is king. The king issues decrees, names a council and sets the tax, within limits.', cmd: '/crown' },
+    { glyph: 'rebellion', title: 'Rebel by the rules', text: 'An occupied throne can only be taken in a scheduled rebellion window, by a house that declared its claim at least an hour before.', cmd: '/claim declare' },
+    { glyph: 'ransom', title: 'Ransom, not torment', text: 'Captives can be held for 10 minutes at most, for a ransom of up to 500 gold. Betrayal is the game; harassment is not.', cmd: '/ransom list' }
   ];
 
   function renderGuide() {
@@ -413,11 +468,11 @@
     grid.replaceChildren();
     for (const c of CARDS) {
       const card = el('article', 'card guide-card');
-      card.append(icon(c.glyph, 'glyph'), el('h3', null, c.title), el('p', null, c.text), el('span', 'mono', c.cmd));
+      card.append(artIcon(c.glyph, 'glyph'), el('h3', null, c.title), el('p', null, c.text), el('span', 'mono', c.cmd));
       grid.appendChild(card);
     }
     const rules = el('article', 'card guide-card');
-    rules.append(icon('i-banners', 'glyph'), el('h3', null, 'Every act is written down'), el('p', null, 'Coronations, oaths, betrayals and ransoms go into the public Chronicle with player names only, never places or inventories. Type /chronicle in game.'), el('span', 'mono', '/chronicle'));
+    rules.append(artIcon('decree', 'glyph'), el('h3', null, 'Every act is written down'), el('p', null, 'Coronations, oaths, betrayals and ransoms go into the public Chronicle with player names only, never places or inventories. Type /chronicle in game.'), el('span', 'mono', '/chronicle'));
     grid.appendChild(rules);
   }
 
@@ -426,14 +481,15 @@
   // ================================================================ FIRST RUN
   // Sigil reveal -> sworn allegiance (six great houses, docs/community/lore.md) -> 4-card crown tour.
 
-  // Colours: primary = the overlay dye for that name (chronicle/public/assets/common.js), secondary = lore.
+  // Colours from art/palette.json: field = the overlay dye for that name (chronicle/public/assets/common.js),
+  // metal = the charge. The drawn arms are in assets/ (sigils, shields, banners).
   const HOUSES = [
-    { id: 'varrow', name: 'Varrow', sigil: 'Iron Stag', emblem: 'em-stag', field: '#4a2347', metal: '#b7bcc4', words: 'We Stand Our Ground.', hook: 'Crown-holders: take the throne and keep it.' },
-    { id: 'ashgrove', name: 'Ashgrove', sigil: 'White Oak', emblem: 'em-oak', field: '#7a3a1a', metal: '#efe6d2', words: 'Deep Roots, Long Memory.', hook: 'Steady liege or loyal vassal; builders and diplomats.' },
-    { id: 'corvane', name: 'Corvane', sigil: 'Black Raven', emblem: 'em-raven', field: '#2c3b42', metal: '#d4d9de', words: 'Every Secret Has a Price.', hook: 'Intrigue: treaties, timing and the right betrayal.' },
-    { id: 'dunmere', name: 'Dunmere', sigil: 'Drowned Bell', emblem: 'em-bell', field: '#5a5a22', metal: '#c9a46a', words: 'The Tide Returns.', hook: 'Rebels: declare the claim, fight in the Lawful Hours.' },
-    { id: 'halloran', name: 'Halloran', sigil: 'Ember Hound', emblem: 'em-hound', field: '#3a2a1a', metal: '#f08a3a', words: 'Loyal Until the Last Coal.', hook: 'Hired swords and fair, fast ransoms.' },
-    { id: 'merrin', name: 'Merrin', sigil: 'Silver Eel', emblem: 'em-eel', field: '#24472d', metal: '#d4d9de', words: 'Slip the Net.', hook: 'Traders and go-betweens who stay neutral and matter.' }
+    { id: 'varrow', name: 'Varrow', sigil: 'Iron Stag', field: '#4a2347', metal: '#9aa0a8', words: 'We Stand Our Ground.', hook: 'Crown-holders: take the throne and keep it.' },
+    { id: 'ashgrove', name: 'Ashgrove', sigil: 'White Oak', field: '#7a3a1a', metal: '#e8dfc8', words: 'Deep Roots, Long Memory.', hook: 'Steady liege or loyal vassal; builders and diplomats.' },
+    { id: 'corvane', name: 'Corvane', sigil: 'Black Raven', field: '#2c3b42', metal: '#c9ced4', words: 'Every Secret Has a Price.', hook: 'Intrigue: treaties, timing and the right betrayal.' },
+    { id: 'dunmere', name: 'Dunmere', sigil: 'Drowned Bell', field: '#5a5a22', metal: '#e0b56a', words: 'The Tide Returns.', hook: 'Rebels: declare the claim, fight in the Lawful Hours.' },
+    { id: 'halloran', name: 'Halloran', sigil: 'Ember Hound', field: '#3a2a1a', metal: '#e27a2c', words: 'Loyal Until the Last Coal.', hook: 'Hired swords and fair, fast ransoms.' },
+    { id: 'merrin', name: 'Merrin', sigil: 'Silver Eel', field: '#24472d', metal: '#c9ced4', words: 'Slip the Net.', hook: 'Traders and go-betweens who stay neutral and matter.' }
   ];
   const houseById = (id) => HOUSES.find((h) => h.id === id) || null;
 
@@ -456,38 +512,22 @@
   }
   let allegiance = loadAllegiance();
 
-  function shieldSvg(h, cls) {
-    const NS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('viewBox', '0 0 120 140');
-    svg.setAttribute('aria-hidden', 'true');
-    if (cls) svg.setAttribute('class', cls);
-    const field = document.createElementNS(NS, 'path');
-    field.setAttribute('d', 'M10 8h100v52c0 38-24 62-50 74C34 122 10 98 10 60z');
-    field.setAttribute('fill', h.field);
-    field.setAttribute('stroke', h.metal);
-    field.setAttribute('stroke-width', '4');
-    const shine = document.createElementNS(NS, 'path');
-    shine.setAttribute('d', 'M10 8h100v52c0 38-24 62-50 74C34 122 10 98 10 60z');
-    shine.setAttribute('fill', 'url(#fieldShine)');
-    const em = document.createElementNS(NS, 'use');
-    em.setAttribute('href', '#' + h.emblem);
-    em.setAttribute('x', '28');
-    em.setAttribute('y', '26');
-    em.setAttribute('width', '64');
-    em.setAttribute('height', '64');
-    em.setAttribute('fill', h.metal);
-    em.setAttribute('color', h.metal);
-    svg.append(field, shine, em);
-    return svg;
+  // A great house's drawn arms (art/shields, art/banners, art/sigils copied to assets/).
+  function houseArt(h, kind, cls) {
+    const img = document.createElement('img');
+    img.src = `assets/${kind}/${h.id}.svg`;
+    img.alt = '';
+    img.draggable = false;
+    if (cls) img.className = cls;
+    return img;
   }
 
   // "How the crown works": four cards, matching the plugins (see docs/community/how-to-play.md).
   const TOUR = [
-    { glyph: 'i-shield', title: 'Houses and oaths', text: 'A house is your faction: a name, a sigil, a leader and officers. Houses swear fealty to a stronger liege. Breaking an oath brands your house an oathbreaker for all to see.', cmd: '/house found Varrow Iron Stag' },
-    { glyph: 'i-crown', title: 'The crown is the seat', text: 'Whoever sits the Old Throne is king. The crown spends authority on decrees, names a council of three and sets the tax, always within the Charter\'s limits.', cmd: '/crown' },
-    { glyph: 'i-flame', title: 'Claims and the Lawful Hours', text: 'No crown is taken by stealth. Declare your claim at least an hour before a rebellion window, then fight for the throne while the window is open. /crown shows the next one.', cmd: '/claim declare' },
-    { glyph: 'i-scroll', title: 'The Chronicle remembers', text: 'Coronations, oaths, betrayals and ransoms are written down with player names only. Captives are held 10 minutes at most. Betrayal is the game; harassment is not.', cmd: '/chronicle' }
+    { glyph: 'oath', title: 'Houses and oaths', text: 'A house is your faction: a name, a sigil, a leader and officers. Houses swear fealty to a stronger liege. Breaking an oath brands your house an oathbreaker for all to see.', cmd: '/house found Varrow Iron Stag' },
+    { glyph: 'crown', title: 'The crown is the seat', text: 'Whoever sits the Old Throne is king. The crown spends authority on decrees, names a council of three and sets the tax, always within the Charter\'s limits.', cmd: '/crown' },
+    { glyph: 'claim', title: 'Claims and the Lawful Hours', text: 'No crown is taken by stealth. Declare your claim at least an hour before a rebellion window, then fight for the throne while the window is open. /crown shows the next one.', cmd: '/claim declare' },
+    { glyph: 'decree', title: 'The Chronicle remembers', text: 'Coronations, oaths, betrayals and ransoms are written down with player names only. Captives are held 10 minutes at most. Betrayal is the game; harassment is not.', cmd: '/chronicle' }
   ];
 
   let tourStep = 0;
@@ -514,7 +554,7 @@
       input.checked = !!(pickedHouse && pickedHouse.id === h.id);
       const body = el('span', 'house-body');
       body.append(el('b', 'house-name', 'House ' + h.name), el('span', 'house-sigil', 'The ' + h.sigil), el('i', 'house-words', '"' + h.words + '"'), el('span', 'house-hook', h.hook));
-      label.append(input, shieldSvg(h, 'house-shield'), body);
+      label.append(input, houseArt(h, 'shields', 'house-shield'), body);
       grid.appendChild(label);
     }
     syncSwear();
@@ -528,7 +568,7 @@
 
   function renderTour() {
     const c = TOUR[tourStep];
-    $('onboard-glyph').firstElementChild.setAttribute('href', '#' + c.glyph);
+    $('onboard-glyph').firstElementChild.setAttribute('href', 'assets/icons.svg#realm-icon-' + c.glyph);
     $('onboard-kicker').textContent = `How the crown works · ${tourStep + 1} of ${TOUR.length}`;
     $('onboard-title').textContent = c.title;
     $('onboard-text').textContent = c.text;
@@ -632,11 +672,12 @@
   function renderBanner() {
     const h = allegiance;
     $('banner-card').classList.toggle('sworn', !!h);
-    $('banner-field').setAttribute('fill', h ? h.field : '#2a1d14');
-    $('banner-field').setAttribute('stroke', h ? h.metal : '#7a5a1e');
-    $('banner-emblem').setAttribute('href', '#' + (h ? h.emblem : 'i-banners'));
-    $('banner-emblem').setAttribute('fill', h ? h.metal : '#a3927a');
-    $('banner-emblem').setAttribute('color', h ? h.metal : '#a3927a');
+    const mark = $('banner-mark');
+    if (mark.dataset.house !== (h ? h.id : '')) {
+      mark.dataset.house = h ? h.id : '';
+      mark.replaceChildren(h ? houseArt(h, 'banners', 'banner-art') : artIcon('house', 'banner-none'));
+    }
+    $('banner-card').style.setProperty('--house-field', h ? h.field : 'transparent');
     $('banner-name').textContent = h ? 'House ' + h.name : 'Unsworn';
     $('banner-words').textContent = h ? `"${h.words}"` : 'Pick a great house to follow its story.';
     $('banner-change').lastChild.textContent = h ? 'Change' : 'Choose a house';
@@ -659,7 +700,6 @@
   // Latest public Chronicle events from every listed server, plus a countdown to the next event when
   // a server's Chronicle announces one (lib/shared/feed.js documents that optional field).
 
-  const FEED_GLYPH = { coronation: 'i-crown', abdication: 'i-crown', claim_declared: 'i-flame', rebellion_started: 'i-flame', rebellion_ended: 'i-flame', house_founded: 'i-shield', oath_sworn: 'i-chain', oath_broken: 'i-chain', treaty_signed: 'i-seal', treaty_broken: 'i-seal', decree: 'i-scroll', ransom_set: 'i-chest', ransom_paid: 'i-chest', released: 'i-chest' };
   let feed = null;
   let countTimer = null;
 
@@ -667,16 +707,20 @@
     const ol = $('feed-list');
     ol.replaceChildren();
     const items = (feed && feed.events) || [];
+    ol.setAttribute('aria-busy', String(!feedTried));
     if (!items.length) {
       const anyChronicle = list && list.servers.some((s) => s.hasChronicle);
-      ol.appendChild(el('li', 'feed-empty', anyChronicle ? 'The Chronicle is quiet. Oaths, claims and coronations appear here as they happen.' : 'No server in the list shares its Chronicle yet, so there is no news to show.'));
+      const quiet = anyChronicle ? 'Oaths, claims and coronations appear here as they happen.' : 'No server in the list shares its Chronicle yet, so there is no news to show.';
+      if (!feedTried && ART) ol.append(...ART.skeletonRows(3));
+      else if (ART) ol.appendChild(ART.emptyState({ tag: 'li', art: 'decree', title: anyChronicle ? 'The Chronicle is quiet' : 'No news yet', body: quiet }));
+      else ol.appendChild(el('li', 'feed-empty', quiet));
     }
     const many = list && list.servers.length > 1;
     for (const e of items.slice(0, 6)) {
       const li = el('li', 'feed-item t-' + e.type);
       const body = el('div');
       body.append(el('p', 'feed-title', e.title), el('p', 'feed-meta', [ago(e.ts), many ? e.serverName : null].filter(Boolean).join(' · ')));
-      li.append(icon(FEED_GLYPH[e.type] || 'i-banners', 'feed-ico'), body);
+      li.append(ART ? ART.eventMark(e, 'feed-mark') : artIcon('decree', 'feed-ico'), body);
       ol.appendChild(li);
     }
     $('feed-updated').textContent = feed && feed.at ? 'updated ' + ago(feed.at) : '';
@@ -708,13 +752,18 @@
     }
   }
 
+  let feedTried = false;
   async function loadFeed(refresh) {
-    if (!api.feed) return;
+    if (!api.feed) {
+      feedTried = true;
+      return renderFeed();
+    }
     try {
       feed = await api.feed(refresh === true);
     } catch {
       /* the Chronicle is optional */
     }
+    feedTried = true;
     renderFeed();
   }
 
@@ -793,6 +842,15 @@
     }
   });
 
+  // Rail: Up and Down move between screens.
+  document.querySelector('.rail').addEventListener('keydown', (ev) => {
+    const btns = $('.rail .rail-btn');
+    const i = btns.indexOf(document.activeElement);
+    if (i < 0 || (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp')) return;
+    ev.preventDefault();
+    btns[(i + (ev.key === 'ArrowDown' ? 1 : btns.length - 1)) % btns.length].focus();
+  });
+
   document.addEventListener('click', (ev) => {
     const linkBtn = ev.target.closest('[data-link]');
     if (linkBtn) api.openLink(linkBtn.dataset.link).catch(fail);
@@ -832,6 +890,8 @@
       prefs = null;
     }
     go('home');
+    renderServers();
+    renderFeed();
     await loadAll(false);
     try {
       install = await api.installState();

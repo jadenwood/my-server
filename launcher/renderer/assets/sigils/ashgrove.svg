@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" data-field="#7a3a1a" data-house="Ashgrove" data-metal="#e8dfc8" viewBox="0 0 256 256">
+  <title>House Ashgrove: the White Oak</title>
+  <desc>
+    A white oak, roots and branches spread, on a rust-red field. Original artwork for the Realm of Ostreval.
+  </desc>
+  <defs>
+    <radialGradient id="ashgrove-field" cx="50%" cy="40%" r="62%">
+      <stop offset="0" stop-color="#8f5a3f"/>
+      <stop offset=".62" stop-color="#7a3a1a"/>
+      <stop offset="1" stop-color="#4c2410"/>
+    </radialGradient>
+    <linearGradient id="ashgrove-gold" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#fbe3a2"/>
+      <stop offset=".35" stop-color="#f4c96d"/>
+      <stop offset=".6" stop-color="#d6a043"/>
+      <stop offset="1" stop-color="#9c6a1e"/>
+    </linearGradient>
+    <pattern id="ashgrove-diaper" width="18" height="18" patternTransform="rotate(45 128 128)" patternUnits="userSpaceOnUse">
+      <path fill="none" stroke="#8f5a3f" stroke-width=".7" d="M0 .5h18M.5 0v18"/>
+      <circle cx="9" cy="9" r="1.1" fill="#8f5a3f"/>
+    </pattern>
+  </defs>
+  <circle cx="128" cy="128" r="127" fill="#0c0d0f"/>
+  <circle cx="128" cy="128" r="123.5" fill="none" stroke="#26282d" stroke-dasharray="1.6 2.3" stroke-width="4"/>
+  <circle cx="128" cy="128" r="119" fill="url(#ashgrove-field)"/>
+  <circle cx="128" cy="128" r="104" fill="url(#ashgrove-diaper)" opacity=".32"/>
+  <circle cx="128" cy="128" r="117.5" fill="none" stroke="#0c0d0f" stroke-width="3" opacity=".55"/>
+  <circle cx="128" cy="128" r="111" fill="none" stroke="url(#ashgrove-gold)" stroke-width="4.5"/>
+  <circle cx="128" cy="128" r="105" fill="none" stroke="#d6a043" opacity=".5"/>
+  <path fill="url(#ashgrove-gold)" stroke="#0c0d0f" stroke-width=".8" d="m128 11 5 6-5 6-5-6Zm0 222 5 6-5 6-5-6ZM11 128l6-5 6 5-6 5Zm222 0 6-5 6 5-6 5Z"/>
+  <g id="charge" transform="translate(28 28)">
+    <defs>
+      <mask id="ashgrove-shade">
+        <use fill="white" stroke="white" href="#ashgrove-form"/>
+        <use fill="black" stroke="black" href="#ashgrove-form" transform="translate(-4 -5)"/>
+      </mask>
+      <mask id="ashgrove-lit">
+        <use fill="white" stroke="white" href="#ashgrove-form"/>
+        <use fill="black" stroke="black" href="#ashgrove-form" transform="translate(3 4)"/>
+      </mask>
+      <linearGradient id="ashgrove-metal" x1="20" x2="180" y1="10" y2="190" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#fbf6ea"/>
+        <stop offset=".45" stop-color="#e8dfc8"/>
+        <stop offset="1" stop-color="#a8987a"/>
+      </linearGradient>
+      <pattern id="ashgrove-hatch" width="3.4" height="3.4" patternTransform="rotate(-38)" patternUnits="userSpaceOnUse">
+        <path stroke="#a8987a" stroke-width="1.43" d="M0 0v3.4"/>
+      </pattern>
+      <filter id="ashgrove-edge" width="120%" height="120%" x="-8%" y="-8%" color-interpolation-filters="sRGB">
+        <feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="d"/>
+        <feOffset dx="2.5" dy="3.5" in="d"/>
+        <feGaussianBlur result="b" stdDeviation="2.2"/>
+        <feFlood flood-color="#0c0d0f" flood-opacity=".6"/>
+        <feComposite in2="b" operator="in" result="s"/>
+        <feFlood flood-color="#4c2410"/>
+        <feComposite in2="d" operator="in" result="e"/>
+        <feMerge>
+          <feMergeNode in="s"/>
+          <feMergeNode in="e"/>
+        </feMerge>
+      </filter>
+      <g id="ashgrove-form">
+        <path d="M113.1 21.7c1.3-.6 5-2.9 7.9-3.6s7-1.2 9.6-.4 4.8 3.2 6.1 5.1 1.4 5.3 1.7 6.4c1.5-.2 6.2-1.3 9.3-1.1s7.1.9 9 2.3 2.5 4.2 2.5 6.3-1.9 5.3-2.3 6.3c1.5.3 6.5.7 9.2 1.7 2.7 1.1 6 2.7 6.9 4.6.9 1.8-.3 4.6-1.5 6.5s-4.8 4.2-5.8 5c1.2.7 5.5 2.4 7.3 4.1s3.9 4.2 3.6 6.1-2.9 4.1-5.2 5.5c-2.2 1.4-6.9 2.6-8.3 3.1.7.9 3.7 3.7 4.3 5.7.7 2 1 4.9-.4 6.6s-5.1 2.9-8 3.6-7.8.4-9.4.5c.1 1.1 1.1 4.4.5 6.4-.6 2.1-2 4.7-4.3 5.9s-6.4 1.3-9.5 1.1c-3-.2-7.3-1.8-8.8-2.2-.6 1-1.6 4.3-3.4 6s-4.6 3.8-7.4 4.2-6.6-.7-9.3-1.7-5.7-3.7-6.8-4.5c-1.1.8-3.9 3.5-6.6 4.6s-6.5 2.2-9.3 1.8-5.7-2.4-7.5-4.1-2.9-5-3.5-6c-1.5.4-5.7 2.1-8.8 2.3s-7.3.2-9.6-.9-3.6-3.9-4.3-5.9.3-5.3.3-6.4c-1.6-.1-6.5.3-9.4-.3s-6.7-1.8-8.2-3.5c-1.4-1.7-1.1-4.5-.5-6.6s3.4-4.8 4.1-5.8c-1.4-.5-6.1-1.5-8.4-2.9S23.8 74 23.5 72s1.7-4.5 3.5-6.2 6-3.4 7.2-4.1c-1-.8-4.7-3.1-6-5s-2.5-4.6-1.6-6.5 4.2-3.6 6.8-4.7 7.5-1.4 9-1.7c-.4-1-2.4-4.2-2.4-6.3s.4-4.9 2.3-6.4c1.9-1.4 6-2.1 9-2.3s7.7.8 9.3.9c.3-1.1.3-4.5 1.5-6.4s3.3-4.4 5.9-5.2 6.7-.3 9.6.3 6.7 2.8 8 3.4c.9-.9 2.9-4 5.2-5.4s5.6-3.1 8.5-3.1 6.3 1.6 8.6 3 4.3 4.5 5.2 5.4"/>
+        <path d="M90 102c3.5-4.3 16.5-4.3 20 0s0 18.7 1 26 2.8 13.3 5 18 14.7 8.3 8 10-41.3 1.7-48 0 5.8-5.3 8-10 4-10.7 5-18-2.5-21.7 1-26"/>
+        <path d="M93.4 145.8c-2.5 1.8-9.5 8-14.9 11-5.4 3.1-11.8 4.4-17.4 7.1-5.5 2.7-11.5 6.1-15.7 9.1-4.3 3-8 7.3-9.6 8.8a.3.3 0 0 0 .4.4c1.7-1.2 6-4.8 10.4-7.2 4.5-2.3 10.4-4.9 16.3-6.9 5.8-2 12.6-2.6 18.6-4.9s14.3-7.5 17.1-9a5 5 0 0 0-5.2-8.4"/>
+        <path d="M94.3 149.4c-1.4 2.5-6.2 10-8.8 15-2.7 5-5.4 10.3-7 14.9-1.7 4.6-2.3 10.5-2.8 12.6a.3.3 0 0 0 .6.2c.9-1.9 2.9-7.3 5.2-11.4 2.4-4.1 5.7-8.7 9-13.1 3.4-4.3 9.3-10.8 11.2-13a4.5 4.5 0 0 0-7.4-5.2"/>
+        <path d="M98 152.2c.4 3 2.4 12 2.5 17.7.1 5.6-1.9 12-1.7 16.1.2 4 2.4 6.7 2.9 8.1a.3.3 0 0 0 .6-.2c-.2-1.3-1.6-3.9-1.1-7.9.5-3.9 3.5-10.1 4.3-15.9.8-5.7.4-15.3.5-18.3a4 4 0 0 0-8 .4"/>
+        <path d="M100.3 154.6c1.9 2.2 7.8 8.7 11.2 13 3.3 4.4 6.3 9.3 9 13.2 2.7 4 6 8.6 7.2 10.3a.3.3 0 0 0 .6-.2c-.8-2-2.9-7.3-4.8-11.7-2-4.4-4.3-9.9-7-14.8-2.6-5-7.4-12.5-8.8-15a4.5 4.5 0 0 0-7.4 5.2"/>
+        <path d="M103.4 154.2c2.8 1.5 11.1 6.7 17.1 9s12.8 2.9 18.6 4.9c5.9 2 11.8 4.6 16.3 6.9 4.4 2.4 8.7 6 10.4 7.2a.3.3 0 0 0 .4-.4c-1.6-1.5-5.3-5.8-9.6-8.8-4.2-3-10.2-6.4-15.7-9.1-5.6-2.7-12-4-17.4-7.1-5.4-3-12.4-9.2-14.9-11a5 5 0 0 0-5.2 8.4m-15.7-.7c-2.9.5-12.4 2.6-17.7 3s-11.6-.7-14-.8a.3.3 0 0 0 0 .6c2.3.5 8.6 2.8 14 3.2s15.2-.8 18.3-1a2.5 2.5 0 0 0-.6-5"/>
+        <path d="M111.7 158.5c3.1.2 12.9 1.4 18.3 1s11.7-2.7 14-3.2a.3.3 0 0 0 0-.6c-2.4.1-8.7 1.2-14 .8s-14.8-2.5-17.7-3a2.5 2.5 0 0 0-.6 5"/>
+      </g>
+    </defs>
+    <use fill="#4c2410" stroke="#4c2410" filter="url(#ashgrove-edge)" href="#ashgrove-form"/>
+    <use fill="url(#ashgrove-metal)" stroke="url(#ashgrove-metal)" href="#ashgrove-form"/>
+    <path fill="url(#ashgrove-hatch)" d="M0 0h200v200H0z" mask="url(#ashgrove-shade)"/>
+    <path fill="#fbf6ea" d="M0 0h200v200H0z" mask="url(#ashgrove-lit)" opacity=".55"/>
+    <path fill="#4c2410" d="M104.5 108c-.2-4.3-.6-17.7-1-26q-.6-12.45-1.2-24c-.5-7.7-1-16.7-1.3-22s-.6-8.3-.7-10a.3.3 0 0 0-.5 0c-.2 1.7-.5 4.7-.8 10s-.8 14.3-1.2 22c-.5 7.7-.9 15.7-1.3 24s-.8 21.7-1 26a4.5 4.5 0 0 0 9 0"/>
+    <path fill="#4c2410" d="M101.2 89.6c-2.3-1.9-8.6-8.1-13.7-11.6s-11.2-7.1-16.7-9.5c-5.6-2.5-12.1-4.2-16.6-5.3-4.4-1.1-8.5-1.2-10.2-1.4a.2.2 0 0 0 0 .4c1.6.4 5.6 1 9.8 2.6 4.2 1.5 10.3 3.8 15.4 6.7 5.2 2.9 10.7 6.7 15.3 10.5s10.2 10.3 12.3 12.4a3.3 3.3 0 0 0 4.4-4.8"/>
+    <path fill="#4c2410" d="M103.2 94.4c2.1-2.1 7.7-8.6 12.3-12.4s10.1-7.6 15.3-10.5c5.1-2.9 11.2-5.2 15.4-6.7 4.2-1.6 8.2-2.2 9.8-2.6a.2.2 0 0 0 0-.4c-1.7.2-5.8.3-10.2 1.4-4.5 1.1-11 2.8-16.6 5.3-5.5 2.4-11.6 6-16.7 9.5s-11.4 9.7-13.7 11.6a3.3 3.3 0 0 0 4.4 4.8m-1.4-21.8c-2-2.6-8.9-10.3-12.4-15.4-3.6-5.2-6.5-11.3-8.7-15.5s-3.8-8.2-4.5-9.8a.2.2 0 0 0-.4.2c.6 1.7 1.7 5.8 3.5 10.2 1.8 4.5 4.2 11 7.3 16.5 3.2 5.6 9.6 13.8 11.6 16.6a2.3 2.3 0 0 0 3.6-2.8"/>
+    <path fill="#4c2410" d="M101.8 75.4c2-2.8 8.4-11 11.6-16.6 3.1-5.5 5.5-12 7.3-16.5 1.8-4.4 2.9-8.5 3.5-10.2a.2.2 0 0 0-.4-.2c-.7 1.6-2.3 5.6-4.5 9.8s-5.1 10.3-8.7 15.5c-3.5 5.1-10.4 12.8-12.4 15.4a2.3 2.3 0 0 0 3.6 2.8m-25.4-4.1c-1.2 3-4.8 13.8-7.3 18.2-2.4 4.4-6 7-7.2 8.4a.2.2 0 0 0 .2.2c1.5-1.2 5.8-3.3 8.8-7.6 2.9-4.2 7.2-14.8 8.7-17.8a1.7 1.7 0 0 0-3.2-1.4m44 1.4c1.5 3 5.8 13.6 8.7 17.8 3 4.3 7.3 6.4 8.8 7.6a.2.2 0 0 0 .2-.2c-1.2-1.4-4.8-4-7.2-8.4-2.5-4.4-6.1-15.2-7.3-18.2a1.7 1.7 0 0 0-3.2 1.4m-55.2-7.2c-1.1-2.6-5-11.8-6.5-15.7-1.5-4-2.1-6.5-2.5-7.8a.2.2 0 0 0-.4 0c.3 1.4.4 4.2 1.5 8.2 1.2 4.1 4.6 13.6 5.5 16.3a1.3 1.3 0 0 0 2.4-1m72 1c.9-2.7 4.3-12.2 5.5-16.3 1.1-4 1.2-6.8 1.5-8.2a.2.2 0 0 0-.4 0c-.4 1.3-1 3.8-2.5 7.8-1.5 3.9-5.4 13.1-6.5 15.7a1.3 1.3 0 0 0 2.4 1"/>
+    <path fill="none" stroke="#a8987a" stroke-linecap="round" stroke-width="1.4" d="M41 50q3.5-5 7 0 3.5-5 7 0m2-16q3.5-5 7 0 3.5-5 7 0m6-10q3.5-5 7 0 3.5-5 7 0m18 0q3.5-5 7 0 3.5-5 7 0m6 10q3.5-5 7 0 3.5-5 7 0m2 16q3.5-5 7 0 3.5-5 7 0M33 80q3.5-5 7 0 3.5-5 7 0m106 0q3.5-5 7 0 3.5-5 7 0M49 104q3.5-5 7 0 3.5-5 7 0m74 0q3.5-5 7 0 3.5-5 7 0m-78 4q3.5-5 7 0 3.5-5 7 0m26 0q3.5-5 7 0 3.5-5 7 0M67 52q3.5-5 7 0 3.5-5 7 0m38 0q3.5-5 7 0 3.5-5 7 0M81 42q3.5-5 7 0 3.5-5 7 0m10 0q3.5-5 7 0 3.5-5 7 0"/>
+    <path fill="none" stroke="#4c2410" stroke-linecap="round" stroke-width="1.4" d="M94 112c-.2 3-.3 12.3-1 18s-2.5 13.3-3 16m16-30c.2 3 .2 12.7 1 18s3.3 11.7 4 14"/>
+  </g>
+</svg>

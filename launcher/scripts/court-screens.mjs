@@ -46,6 +46,8 @@ say('Loading level CrownLand...');
 const i = argv.indexOf('-cport');
 setTimeout(async () => {
   say('Initialize engine version: 5.x (imitation for tests)');
+  say('Server for 40 players started on port 7350.');
+  say('Game has started.');
   if (i < 0) return;
   const port = Number(argv[i + 1]);
   const game = new FakeAdminConsole({

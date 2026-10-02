@@ -110,6 +110,7 @@ setTimeout(() => {
   sockets.push(game, ping, q);
   say('Server for ' + max + ' players started on port ' + port + '.');
   say('Initialize engine version: 5.x (imitation for tests)');
+  say('Game has started.');
   setTimeout(() => say('Steam game server started. (IP: 203.0.113.50, Logged: True, Secure: True)'), 300);
   setTimeout(() => say('Authentication verified for Wren (76561190000000002).'), 600);
   setTimeout(() => say('Authentication verified for Odo the Tall (76561190000000003).'), 900);
@@ -218,7 +219,7 @@ try {
   // ---- security posture of the renderer
   const sec = await page.evaluate(() => ({ require: typeof require, process: typeof process, keys: Object.keys(window.realm || {}).sort() }));
   check('renderer has no require/process', sec.require === 'undefined' && sec.process === 'undefined');
-  check('bridge exposes only the named API', sec.keys.join(',') === 'appInfo,copyAddress,copyText,court,doctor,fleet,getConfig,getEvents,getNews,getRealm,getState,goPublic,onPush,openLink,overlay,play,publish,server,settings,setup,windowAction', sec.keys.join(','));
+  check('bridge exposes only the named API', sec.keys.join(',') === 'appInfo,copyAddress,copyText,court,discord,doctor,fleet,getConfig,getEvents,getNews,getRealm,getState,goPublic,onPush,openLink,overlay,play,publish,server,settings,setup,windowAction', sec.keys.join(','));
   const blocked = await page.evaluate(() => window.realm.openLink('file:///etc/passwd').then(() => 'opened', (e) => e.message));
   check('openLink rejects unknown ids', /not one of/.test(blocked), blocked);
   const badStep = await page.evaluate(() => window.realm.setup.run('rm -rf', 's1').then(() => 'ran', (e) => e.message));
@@ -278,7 +279,7 @@ try {
   let cfgText = fs.readFileSync(path.join(testRoot, 'Configuration', 'ServerSettings.cfg'), 'utf8');
   check('server name, 120 slots and join pacing written to ServerSettings.cfg', /serverName = 'Realm I - Ashveil'/.test(cfgText) && /maxPlayers = '120'/.test(cfgText) && /timeBetweenPlayerJoin = '3'/.test(cfgText));
   await page.click('#srv-start');
-  await consoleHas(/Initialize engine version/);
+  await consoleHas(/Game has started/);
   await sleep(1500);
   cfgText = fs.readFileSync(path.join(testRoot, 'Configuration', 'ServerSettings.cfg'), 'utf8');
   const rt = Number((/restartTime = '(\d+)'/.exec(cfgText) || [])[1]);
@@ -341,7 +342,7 @@ try {
   await page.click('#inst-save');
   await sleep(800);
   await page.click('#srv-start');
-  await consoleHas(/Initialize engine version/);
+  await consoleHas(/Game has started/);
   const s2cfg = fs.readFileSync(path.join(s2Root, 'Configuration', 'ServerSettings.cfg'), 'utf8');
   check('server 2 runs on 7360 / 27025 / RCON port 27026', /portNumber = '7360'/.test(s2cfg) && /steamAuthPort = '27025'/.test(s2cfg) && /rConPort = '27026'/.test(fs.readFileSync(path.join(s2Root, 'Configuration', 'ConsoleSettings.cfg'), 'utf8')));
   await page.click('.fleet-card[data-inst="s1"]');
