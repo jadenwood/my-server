@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Realm Chronicle</title>
+  <meta name="description" content="Who holds the crown, which houses stand, and everything the realm has witnessed.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Cinzel+Decorative:wght@700&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/theme.css">
+  <link rel="stylesheet" href="/assets/realm.css">
+</head>
+<body>
+  <header class="masthead">
+    <div class="wrap">
+      <p class="kicker">Being a true account of the realm</p>
+      <h1 class="gold-text">The Realm Chronicle</h1>
+      <p id="status" class="status" role="status">Consulting the ravens&hellip;</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="crown-card iron" aria-labelledby="crown-h">
+      <div class="crown-seal" id="crown-seal"></div>
+      <div class="crown-body">
+        <h2 id="crown-h" class="eyebrow">The Crown</h2>
+        <p id="king" class="king">&nbsp;</p>
+        <p id="reign" class="reign">&nbsp;</p>
+      </div>
+      <dl class="stats">
+        <div><dt>In the realm</dt><dd id="online">&ndash;</dd></div>
+        <div><dt>Great houses</dt><dd id="house-count">&ndash;</dd></div>
+        <div><dt>Entries</dt><dd id="entry-count">&ndash;</dd></div>
+      </dl>
+    </section>
+
+    <section aria-labelledby="houses-h">
+      <h2 id="houses-h" class="section-h"><span>The Great Houses</span></h2>
+      <div id="houses" class="houses"></div>
+    </section>
+
+    <section aria-labelledby="chron-h">
+      <h2 id="chron-h" class="section-h"><span>The Chronicle</span></h2>
+      <div id="filters" class="filters" role="toolbar" aria-label="Filter the chronicle"></div>
+      <ol id="timeline" class="timeline parchment"></ol>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    Only public deeds are written here: no places, no purses. Updated every few seconds.
+  </footer>
+  <script type="module" src="/assets/realm.js"></script>
+</body>
+</html>

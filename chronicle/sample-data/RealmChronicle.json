@@ -1,0 +1,20 @@
+[
+  { "id": 1, "ts": "2026-09-27T18:02:11Z", "type": "house_founded", "title": "House Varrow is founded", "detail": "Aldric Varrow raises the Iron Stag over the eastern ridge.", "actors": ["Aldric Varrow"] },
+  { "id": 2, "ts": "2026-09-27T18:40:55Z", "type": "house_founded", "title": "House Corvane is founded", "detail": "Ysolde Corvane raises the Black Raven above the marsh fort.", "actors": ["Ysolde Corvane"] },
+  { "id": 3, "ts": "2026-09-27T20:15:02Z", "type": "house_founded", "title": "House Ashgrove is founded", "detail": "Wren of Ashgrove raises the White Oak.", "actors": ["Wren"] },
+  { "id": 4, "ts": "2026-09-28T17:31:40Z", "type": "coronation", "title": "Ysolde Corvane takes the throne", "detail": "House Corvane now holds the crown.", "actors": ["Ysolde Corvane"] },
+  { "id": 5, "ts": "2026-09-28T18:05:12Z", "type": "oath_sworn", "title": "House Ashgrove swears fealty to House Varrow", "detail": "Wren kneels before the Iron Stag.", "actors": ["Wren", "Aldric Varrow"] },
+  { "id": 6, "ts": "2026-09-28T19:20:33Z", "type": "decree", "title": "The crown sets its tax", "detail": "The tax of the realm is now 10.", "actors": ["Ysolde Corvane"] },
+  { "id": 7, "ts": "2026-09-29T18:00:00Z", "type": "claim_declared", "title": "House Varrow claims the crown", "detail": "Aldric Varrow names Ysolde Corvane a usurper and calls the banners. The rebellion window opens at dusk.", "actors": ["Aldric Varrow", "Ysolde Corvane"] },
+  { "id": 8, "ts": "2026-09-29T20:00:00Z", "type": "rebellion_started", "title": "House Varrow rises", "detail": "The window of rebellion is open for two hours.", "actors": ["Aldric Varrow"] },
+  { "id": 9, "ts": "2026-09-29T20:47:18Z", "type": "ransom_set", "title": "Odo the Tall names a ransom for Bramwell", "detail": "Bramwell of Corvane is held in chains. The price is 40 gold.", "actors": ["Odo the Tall", "Bramwell"] },
+  { "id": 10, "ts": "2026-09-29T21:10:05Z", "type": "ransom_paid", "title": "The ransom of Bramwell is paid", "detail": "House Corvane pays 40 gold.", "actors": ["Bramwell", "Ysolde Corvane"] },
+  { "id": 11, "ts": "2026-09-29T21:10:06Z", "type": "released", "title": "Bramwell goes free", "detail": "Bramwell is released after his ransom was paid.", "actors": ["Bramwell"] },
+  { "id": 12, "ts": "2026-09-29T22:00:00Z", "type": "rebellion_ended", "title": "The rebellion of House Varrow ends", "detail": "The throne held. Corvane keeps the crown, for now.", "actors": ["Aldric Varrow"] },
+  { "id": 13, "ts": "2026-09-30T17:12:44Z", "type": "treaty_signed", "title": "House Corvane and House Halloran sign a treaty", "detail": "Seven days of peace between the Raven and the Ember Hound.", "actors": ["Ysolde Corvane", "Petra Halloran"] },
+  { "id": 14, "ts": "2026-09-30T19:02:09Z", "type": "treaty_broken", "title": "House Halloran breaks its treaty with House Corvane", "detail": "Petra Halloran is marked an oathbreaker.", "actors": ["Petra Halloran"] },
+  { "id": 15, "ts": "2026-09-30T19:40:51Z", "type": "abdication", "title": "Ysolde Corvane no longer reigns", "detail": "Ysolde Corvane fell while holding the crown.", "actors": ["Ysolde Corvane"] },
+  { "id": 16, "ts": "2026-09-30T19:42:10Z", "type": "coronation", "title": "Aldric Varrow takes the throne", "detail": "House Varrow now holds the crown.", "actors": ["Aldric Varrow", "Ysolde Corvane"] },
+  { "id": 17, "ts": "2026-10-01T18:30:00Z", "type": "oath_broken", "title": "House Dunmere renounces its oath to House Ashgrove", "detail": "Dunmere now kneels to the Raven instead.", "actors": ["Hale Dunmere"] },
+  { "id": 18, "ts": "2026-10-01T20:58:27Z", "type": "decree", "title": "The King's Peace", "detail": "No blood may be spilled within the Crown Market until dawn.", "actors": ["Aldric Varrow"] }
+]

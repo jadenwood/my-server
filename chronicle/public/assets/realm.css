@@ -1,0 +1,260 @@
+/* /realm: the public chronicle page. A fixed dark medieval look (iron backdrop, parchment record). */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { color-scheme: dark; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--parchment);
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(214, 160, 67, 0.16), transparent 55%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 6px),
+    var(--iron-950);
+}
+
+.wrap { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+:focus-visible { outline: 2px solid var(--ember-hot); outline-offset: 2px; }
+
+/* ---------- masthead ---------- */
+.masthead { padding: 48px 0 28px; text-align: center; }
+.kicker {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--iron-200);
+}
+.masthead h1 {
+  margin: 6px 0 4px;
+  font-family: var(--font-deco);
+  font-size: clamp(34px, 7vw, 64px);
+  line-height: 1.1;
+}
+.status { margin: 0; font-style: italic; color: var(--iron-200); font-size: 16px; }
+.status.warn { color: #e39a7c; }
+
+/* ---------- crown card ---------- */
+.crown-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 24px;
+  align-items: center;
+  padding: 22px 26px;
+  border-radius: 6px;
+  margin-bottom: 40px;
+}
+.crown-seal {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 50px;
+  color: var(--ember-hot);
+  background: radial-gradient(circle at 50% 35%, #3b2c14, #1a130a 70%);
+  box-shadow: inset 0 0 0 3px var(--ember-deep), inset 0 0 0 5px #120d06, inset 0 0 0 7px var(--ember), 0 0 18px var(--ember-glow);
+}
+.crown-card.vacant .crown-seal { color: var(--iron-400); box-shadow: inset 0 0 0 3px var(--iron-600), inset 0 0 0 7px var(--iron-400); }
+.eyebrow {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--iron-200);
+}
+.king {
+  margin: 2px 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(26px, 4.5vw, 40px);
+  line-height: 1.15;
+  color: var(--ember-hot);
+  overflow-wrap: anywhere;
+}
+.crown-card.vacant .king { color: var(--iron-200); }
+.reign { margin: 0; font-style: italic; color: var(--parchment-2); }
+.stats { display: flex; gap: 22px; margin: 0; }
+.stats div { text-align: center; min-width: 74px; }
+.stats dt {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--iron-200);
+}
+.stats dd {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--parchment);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- section headings ---------- */
+.section-h {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 20px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+.section-h::before,
+.section-h::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(214, 160, 67, 0.6), transparent);
+}
+
+/* ---------- houses ---------- */
+.houses {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 26px 18px;
+  margin-bottom: 44px;
+}
+.house {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.house .banner { width: 92px; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55)); }
+.house .monogram { font-size: 32px; }
+.house .sigil { font-size: 10px; }
+.house.royal .banner { filter: drop-shadow(0 0 14px rgba(244, 177, 76, 0.5)) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55)); }
+.house .crest { height: 24px; font-size: 22px; color: var(--ember-hot); }
+.house h3 {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  overflow-wrap: anywhere;
+}
+.house p { margin: 0; font-size: 15px; color: var(--parchment-2); font-style: italic; }
+.house .vassals { font-style: normal; font-size: 13px; color: var(--iron-200); }
+.empty { font-style: italic; color: var(--iron-200); text-align: center; grid-column: 1 / -1; }
+
+/* ---------- filters ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.filters button {
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 7px 14px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--parchment-2);
+  background: var(--iron-800);
+  border: 1px solid var(--iron-600);
+}
+.filters button:hover { border-color: var(--ember-deep); color: var(--parchment); }
+.filters button[aria-pressed='true'] {
+  color: #1b1206;
+  background: linear-gradient(180deg, #f7d98d, var(--ember) 50%, var(--ember-deep));
+  border-color: var(--ember-deep);
+}
+
+/* ---------- timeline ---------- */
+.timeline {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 10px 28px 18px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--parchment-edge), 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+.day {
+  margin: 18px 0 6px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border-bottom: 1px solid rgba(91, 70, 48, 0.3);
+  padding-bottom: 4px;
+}
+.entry {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px dashed rgba(91, 70, 48, 0.28);
+}
+.entry:last-child { border-bottom: 0; }
+.entry .seal {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  color: #f3d9a0;
+  background: radial-gradient(circle at 38% 32%, #c4473b, var(--blood) 55%, #4a120d);
+  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.35), 0 2px 3px rgba(60, 20, 10, 0.4);
+}
+.entry[data-tone='gold'] .seal { background: radial-gradient(circle at 38% 32%, #e2b45a, #a8731f 55%, #5a3a0c); color: #fff3d0; }
+.entry[data-tone='moss'] .seal { background: radial-gradient(circle at 38% 32%, #7d9a5c, var(--moss) 55%, #1f2d16); }
+.entry[data-tone='iron'] .seal { background: radial-gradient(circle at 38% 32%, #8a8d94, #4a4c52 55%, #1d1e21); }
+.entry .label {
+  font-family: var(--font-display);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--blood);
+}
+.entry[data-tone='gold'] .label { color: var(--ember-deep); }
+.entry[data-tone='moss'] .label { color: var(--moss); }
+.entry[data-tone='iron'] .label { color: var(--ink-soft); }
+.entry h3 {
+  margin: 1px 0 2px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.entry p { margin: 0; color: var(--ink-soft); font-style: italic; overflow-wrap: anywhere; }
+.entry .actors { font-style: normal; font-size: 14px; letter-spacing: 0.08em; margin-top: 4px; }
+.entry time { font-size: 14px; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.entry.new { animation: entry-in 1.6s ease-out; }
+@keyframes entry-in { from { background: rgba(244, 177, 76, 0.35); } }
+.timeline .empty { color: var(--ink-soft); padding: 18px 0; list-style: none; }
+
+.foot { padding: 12px 16px 40px; text-align: center; font-size: 14px; font-style: italic; color: var(--iron-400); }
+
+@media (max-width: 720px) {
+  body { font-size: 17px; }
+  .crown-card { grid-template-columns: auto 1fr; padding: 18px; gap: 16px; }
+  .crown-seal { width: 70px; height: 70px; font-size: 38px; }
+  .stats { grid-column: 1 / -1; justify-content: space-around; border-top: 1px solid rgba(214, 160, 67, 0.3); padding-top: 12px; }
+  .houses { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+  .timeline { padding: 6px 14px 12px; }
+  .entry { grid-template-columns: 36px 1fr; }
+  .entry .seal { width: 34px; height: 34px; font-size: 17px; }
+  .entry time { grid-column: 2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry.new { animation: none; }
+}

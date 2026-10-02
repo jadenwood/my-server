@@ -1,0 +1,16 @@
+{
+  "king": "Aldric Varrow",
+  "house": "Varrow",
+  "since": "2026-09-30T19:42:10Z",
+  "houses": [
+    { "name": "Varrow", "sigil": "Iron Stag", "liege": null, "members": 9 },
+    { "name": "Ashgrove", "sigil": "White Oak", "liege": "Varrow", "members": 6 },
+    { "name": "Corvane", "sigil": "Black Raven", "liege": null, "members": 7 },
+    { "name": "Dunmere", "sigil": "Drowned Bell", "liege": "Corvane", "members": 4 },
+    { "name": "Halloran", "sigil": "Ember Hound", "liege": null, "members": 5 },
+    { "name": "Merrin", "sigil": "Silver Eel", "liege": "Varrow", "members": 3 }
+  ],
+  "online": 23,
+  "maxPlayers": 40,
+  "updated": "2026-10-01T21:05:00Z"
+}

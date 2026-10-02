@@ -1,0 +1,28 @@
+{
+  "realmName": "The Realm",
+  "tagline": "Swear an oath. Claim a crown. Answer for it.",
+  "chronicleUrl": "http://127.0.0.1:8787",
+  "pollSeconds": 15,
+  "server": {
+    "name": "Realm - Local Test",
+    "address": "127.0.0.1",
+    "port": 7350
+  },
+  "steamAppId": 344760,
+  "installPaths": [
+    "G:\\SteamLibrary\\steamapps\\common\\Reign Of Kings",
+    "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Reign Of Kings"
+  ],
+  "links": [
+    {
+      "id": "discord",
+      "label": "Discord",
+      "url": "https://discord.gg/your-invite"
+    },
+    {
+      "id": "chronicle",
+      "label": "Chronicle",
+      "url": "http://127.0.0.1:8787/realm"
+    }
+  ]
+}

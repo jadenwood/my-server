@@ -1,0 +1,14 @@
+{
+  "name": "realm-chronicle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local web service for the Realm Chronicle: JSON API, OBS overlay and public chronicle page.",
+  "type": "module",
+  "main": "server.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js",
+    "sample": "node server.js --data sample-data --stale 0",
+    "test": "node --test test/*.test.js"
+  }
+}
