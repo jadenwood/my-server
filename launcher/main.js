@@ -366,14 +366,32 @@ async function portsInUse(inst) {
   return busyPorts;
 }
 
-async function startInstance(id, { reason = 'owner' } = {}) {
+// One start at a time per server. Without this, two Start clicks (or Start + Restart, or a
+// supervisor restart) both passed the slow "already running?" checks and launched ROK.exe twice;
+// the second died with "port 7350 is already being used" and the first was orphaned.
+const starting = new Map();
+function startInstance(id, opts = {}) {
+  if (starting.has(id)) {
+    mgr(id).log('sys', 'Already starting this server; ignoring the second start request.');
+    return starting.get(id);
+  }
+  const p = startInstanceNow(id, opts).finally(() => starting.delete(id));
+  starting.set(id, p);
+  return p;
+}
+
+async function startInstanceNow(id, { reason = 'owner' } = {}) {
   const inst = instOf(id);
   const root = await requireRootFor(inst);
   await assertStoppedInst(inst, root);
   const problems = FL.fleetProblems(fleet());
   if (problems.length) throw friendly('Fix the server ports first: ' + problems.join(' '));
   const inUse = await portsInUse(inst);
-  if (inUse.length) throw friendly(`Another program already uses ${inUse.join(', ')}. Stop it, or change Server ${id.slice(1)}'s ports.`);
+  if (inUse.length) {
+    const owners = await N.portOwners(inst.ports.game, 'udp');
+    const who = owners.length ? ` It is ${owners.map((o) => `${o.name}.exe (pid ${o.pid}${o.path ? ', ' + o.path : ''})`).join(', ')}.` : '';
+    throw friendly(`Another program already uses ${inUse.join(', ')}.${who} Stop it (Task Manager > Details), or change Server ${id.slice(1)}'s ports.`);
+  }
   const m = mgr(id);
   const sup = supOf(id);
   clearTimeout(sup.fallbackTimer);
@@ -484,6 +502,18 @@ function onInstanceExit(id, ex) {
     return;
   }
   if (ex.requested) return pushFleet();
+  // The game exits with code 0 when its port is taken. Restarting would only hit the same wall.
+  const recent = m.getLines(0).slice(-400).map((l) => (l && l.text) || '');
+  if (recent.some((t) => /port \d+ is already being used by another application/i.test(t))) {
+    sup.halted = 'The game port was already in use when the server started.';
+    sup.nextAt = null;
+    N.portOwners(inst.ports.game, 'udp').then((owners) => {
+      const who = owners.length ? owners.map((o) => `${o.name}.exe (pid ${o.pid}${o.path ? ', ' + o.path : ''})`).join(', ') : 'another program';
+      m.log('sys', `Not restarting: port ${inst.ports.game} is held by ${who}. If that is an older ROK.exe from this folder, end it in Task Manager > Details, then press Start once.`);
+      pushFleet();
+    });
+    return pushFleet();
+  }
   supOf(id).lastCrashAt = new Date().toISOString(); // Home dashboard: "last crash" (this session only)
   if (!inst.autoRestart) {
     m.log('sys', 'The server stopped without being asked to. Automatic restart is off for this server.');

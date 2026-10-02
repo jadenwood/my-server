@@ -87,4 +87,23 @@ function tcpConnect(host, port, timeoutMs = 2500) {
   });
 }
 
-module.exports = { STEAM_STARTED_RE, parseSteamLine, parseListeningLine, isPrivateIPv4, isCgnat, lanAddresses, probePort, tcpConnect };
+// Which program holds a local port (Windows): [{ pid, name, path }]. Read-only; port is a validated integer.
+function portOwners(port, proto, { platform = process.platform } = {}) {
+  if (platform !== 'win32' || !Number.isInteger(port) || port < 1 || port > 65535) return Promise.resolve([]);
+  const cmd = proto === 'tcp' ? `Get-NetTCPConnection -LocalPort ${port} -State Listen` : `Get-NetUDPEndpoint -LocalPort ${port}`;
+  const script = `${cmd} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { $p = Get-Process -Id $_ -ErrorAction SilentlyContinue; if ($p) { '' + $p.Id + '|' + $p.ProcessName + '|' + $p.Path } }`;
+  const { execFile } = require('child_process');
+  return new Promise((resolve) => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { windowsHide: true, timeout: 15000 }, (err, stdout) => {
+      if (err) return resolve([]);
+      const out = [];
+      for (const line of String(stdout).split(/\r?\n/)) {
+        const [pid, name, p] = line.split('|');
+        if (pid && name) out.push({ pid: Number(pid), name: name.trim(), path: (p || '').trim() });
+      }
+      resolve(out);
+    });
+  });
+}
+
+module.exports = { portOwners, STEAM_STARTED_RE, parseSteamLine, parseListeningLine, isPrivateIPv4, isCgnat, lanAddresses, probePort, tcpConnect };

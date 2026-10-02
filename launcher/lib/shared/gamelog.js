@@ -261,8 +261,8 @@ const RULES = [
     title: 'The game port is used by another program',
     re: /The port (\d+) is already being used by another application\./i,
     evidence: '[DEC] CoreServer: Network.InitializeServer returned -2',
-    cause: 'Another server (or another program) already holds that UDP port.',
-    fix: 'Stop the other server, or give this instance its own ports on the Servers screen.'
+    cause: 'Another server already holds that UDP port. Most often it is an older ROK.exe from this same folder that is still running (for example after Start was pressed twice).',
+    fix: 'Open Task Manager > Details, end every ROK.exe (and Server.exe) from your server folder, then press Start once. If it is a different program, give this instance its own ports on the Servers screen.'
   },
   {
     id: 'server-start-error',
