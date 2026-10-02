@@ -1,0 +1,518 @@
+'use strict';
+
+// Realm server operations, ported from server/*.ps1 to Node. Every function that writes to a
+// server folder goes through assertTestCopy first; the Steam copy is only ever read.
+// Nothing here touches the firewall, the router, netsh or the game client.
+
+const fs = require('fs');
+const fsp = require('fs/promises');
+const path = require('path');
+const { execFile } = require('child_process');
+const { Readable } = require('stream');
+const { pipeline } = require('stream/promises');
+const S = require('./safety');
+const F = require('./fsops');
+const Z = require('./zip');
+
+const SPACE_MARGIN = 2 * 1024 ** 3;
+
+function friendly(message, details) {
+  const e = new Error(message);
+  e.friendly = true;
+  if (details) e.details = details;
+  return e;
+}
+
+// ---------- Steam discovery ----------
+
+function runFile(file, args, execFileImpl = execFile) {
+  return new Promise((resolve) => {
+    execFileImpl(file, args, { windowsHide: true, timeout: 8000 }, (err, stdout) => resolve(err ? '' : String(stdout || '')));
+  });
+}
+
+async function hasServerExe(dir) {
+  return (await F.isFile(path.join(dir, 'Server.exe'))) || (await F.isFile(path.join(dir, 'ROK.exe')));
+}
+
+// Default G:\ location first, then HKCU\Software\Valve\Steam SteamPath and every library in
+// steamapps\libraryfolders.vdf (Find-SteamServer in Realm.ps1).
+async function findSteamServer({ platform = process.platform, execFileImpl, extra = [] } = {}) {
+  let steamPath = null;
+  let libraries = [];
+  if (platform === 'win32') {
+    steamPath = S.parseRegSteamPath(await runFile('reg', ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'], execFileImpl));
+    if (steamPath) {
+      for (const vdf of [path.join(steamPath, 'steamapps', 'libraryfolders.vdf'), path.join(steamPath, 'config', 'libraryfolders.vdf')]) {
+        try {
+          libraries = S.parseLibraryFolders(await fsp.readFile(vdf, 'utf8'));
+          if (libraries.length) break;
+        } catch {
+          /* not there */
+        }
+      }
+    }
+  }
+  const candidates = [...extra.filter(Boolean), ...S.steamServerCandidates(steamPath, libraries)];
+  let found = null;
+  for (const c of candidates) {
+    if (await hasServerExe(c)) {
+      found = c;
+      break;
+    }
+  }
+  return { found, candidates, steamPath, libraries };
+}
+
+// ---------- test copy ----------
+
+async function assertTestCopy(root, steam = {}) {
+  const check = S.checkTestRoot(root, { steamServer: steam.found, steamRoot: steam.steamPath, steamLibraries: steam.libraries });
+  if (!check.ok) throw friendly(check.reason);
+  if (!(await F.isDir(check.root))) throw friendly(`The test copy folder ${check.root} does not exist yet. Run the setup first.`);
+  if (!(await F.isFile(path.join(check.root, S.MARKER_NAME)))) {
+    throw friendly(`Refusing: ${check.root} has no ${S.MARKER_NAME} marker, so Realm did not create it. Realm only changes folders it copied itself.`);
+  }
+  return check.root;
+}
+
+async function isTestCopy(root) {
+  try {
+    return (await F.isFile(path.join(root, S.MARKER_NAME))) && (await F.isDir(root));
+  } catch {
+    return false;
+  }
+}
+
+async function measureSource(src, signal) {
+  const files = await F.listFiles(src, signal);
+  return { files, bytes: files.reduce((s, f) => s + f.size, 0) };
+}
+
+// New-TestServer.ps1: copy (never move) into a hidden staging folder beside the destination,
+// then rename it into place. A failed or cancelled copy removes the staging folder.
+async function createTestCopy(src, dest, { onProgress, signal, steam = {} } = {}) {
+  const source = path.resolve(src);
+  if (!(await F.isDir(source))) throw friendly(`The Steam server folder was not found: ${source}`);
+  if (!(await hasServerExe(source))) throw friendly(`Neither Server.exe nor ROK.exe is in ${source}. Is this the Reign Of Kings Dedicated Server folder?`);
+  const check = S.checkTestRoot(dest, { steamServer: source, steamRoot: steam.steamPath, steamLibraries: steam.libraries });
+  if (!check.ok) throw friendly(check.reason);
+  const target = check.root;
+
+  if (await F.isDir(target)) {
+    const items = await fsp.readdir(target);
+    if (items.length) {
+      if (items.includes(S.MARKER_NAME)) return { skipped: true, root: target };
+      throw friendly(`${target} already has files but no ${S.MARKER_NAME} marker. Pick an empty folder for the test copy.`);
+    }
+  } else if (await F.exists(target)) {
+    throw friendly(`${target} exists and is not a folder.`);
+  }
+
+  onProgress && onProgress({ phase: 'measure', done: 0, total: 0 });
+  const { files, bytes } = await measureSource(source, signal);
+  const free = await F.freeBytes(target);
+  if (free < bytes + SPACE_MARGIN) {
+    throw friendly(`Not enough free space: the copy needs ${S.formatBytes(bytes)} plus a ${S.formatBytes(SPACE_MARGIN)} margin, and the drive has ${S.formatBytes(free)} free.`);
+  }
+
+  const parent = path.dirname(target);
+  const createdParents = [];
+  for (let p = parent; !(await F.exists(p)); p = path.dirname(p)) {
+    createdParents.unshift(p);
+    if (path.dirname(p) === p) break;
+  }
+  await fsp.mkdir(parent, { recursive: true });
+  const staging = path.join(parent, `.realm-copy-${S.timestamp()}`);
+  try {
+    await F.copyTree(source, staging, { files, signal, onProgress: (p) => onProgress && onProgress({ phase: 'copy', ...p }) });
+    await fsp.writeFile(
+      path.join(staging, S.MARKER_NAME),
+      ['Realm test copy. Created by the Realm client; Realm only writes to folders with this file.', `source=${source}`, `copied=${new Date().toISOString()}`, ''].join('\r\n'),
+      'ascii'
+    );
+    if (await F.isDir(target)) await fsp.rmdir(target);
+    await fsp.rename(staging, target);
+  } catch (e) {
+    await F.removeTree(staging).catch(() => {});
+    for (const p of createdParents.reverse()) await fsp.rmdir(p).catch(() => {});
+    throw e;
+  }
+  return { skipped: false, root: target, files: files.length, bytes };
+}
+
+// ---------- cfg ----------
+
+function cfgPaths(root) {
+  const dir = path.join(root, 'Configuration');
+  return {
+    server: path.join(dir, 'ServerSettings.cfg'),
+    console: path.join(dir, 'ConsoleSettings.cfg'),
+    backupDir: path.join(root, '_realm-backups', 'config')
+  };
+}
+
+// Set-RealmCfgValues on disk: existing keys only, previous file copied to backupDir first.
+async function applyCfg(file, values, backupDir) {
+  const buf = await fsp.readFile(file);
+  const { text, encoding } = S.decodeText(buf);
+  const result = S.rewriteCfg(text, values);
+  if (result.changes.length) {
+    await fsp.mkdir(backupDir, { recursive: true });
+    await fsp.copyFile(file, path.join(backupDir, `${path.basename(file)}.${S.timestamp()}.bak`));
+    await F.writeFileAtomic(file, S.encodeText(result.text, encoding));
+  }
+  return { file, changes: result.changes, missing: result.missing };
+}
+
+// Start-LocalServer.ps1 defaults, applied before every start when the files exist.
+async function applyLocalOnlyConfig(root) {
+  const c = cfgPaths(root);
+  const out = [];
+  if (await F.isFile(c.server)) out.push(await applyCfg(c.server, S.LOCAL_SERVER_SETTINGS, c.backupDir));
+  else out.push({ file: c.server, missingFile: true, changes: [], missing: [] });
+  if (await F.isFile(c.console)) out.push(await applyCfg(c.console, S.LOCAL_CONSOLE_SETTINGS, c.backupDir));
+  return out;
+}
+
+async function readServerSettings(root) {
+  const c = cfgPaths(root);
+  try {
+    const { text } = S.decodeText(await fsp.readFile(c.server));
+    const get = (k) => S.getCfgValue(text, k);
+    return { exists: true, serverName: get('serverName'), maxPlayers: get('maxPlayers'), portNumber: get('portNumber'), bindIP: get('bindIP'), isPrivate: get('isPrivate') };
+  } catch {
+    return { exists: false };
+  }
+}
+
+async function writeServerSettings(root, { serverName, maxPlayers, port }) {
+  const c = cfgPaths(root);
+  if (!(await F.isFile(c.server))) throw friendly('ServerSettings.cfg does not exist yet. Start the server once (the setup does this) so the game creates it.');
+  const values = {};
+  if (serverName != null) values.serverName = String(serverName);
+  if (maxPlayers != null) values.maxPlayers = String(maxPlayers);
+  if (port != null) values.portNumber = String(port);
+  return applyCfg(c.server, values, c.backupDir);
+}
+
+// ---------- Oxide ----------
+
+async function managedDirs(root) {
+  let entries = [];
+  try {
+    entries = await fsp.readdir(root, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const e of entries) {
+    if (e.isDirectory() && /_Data$/.test(e.name) && (await F.isDir(path.join(root, e.name, 'Managed')))) out.push(e.name);
+  }
+  return out;
+}
+
+async function oxideInstalled(root) {
+  for (const d of await managedDirs(root)) {
+    if (await F.isFile(path.join(root, d, 'Managed', 'Oxide.Core.dll'))) return d;
+  }
+  return null;
+}
+
+const BACKUP_DIR_RE = /^oxide-\d{8}-\d{6}$/;
+
+async function latestOxideBackup(root) {
+  const base = path.join(root, '_realm-backups');
+  let names = [];
+  try {
+    names = (await fsp.readdir(base, { withFileTypes: true })).filter((e) => e.isDirectory() && BACKUP_DIR_RE.test(e.name)).map((e) => e.name);
+  } catch {
+    return null;
+  }
+  names.sort();
+  for (let i = names.length - 1; i >= 0; i--) {
+    const dir = path.join(base, names[i]);
+    if (await F.isFile(path.join(dir, 'install.json'))) return dir;
+  }
+  return null;
+}
+
+async function verifyOxideZip(zipPath, expected = S.OXIDE.sha256) {
+  const hash = await F.sha256File(zipPath);
+  return { ok: S.sha256Matches(hash, expected), hash };
+}
+
+// Downloads to <file>.part, checks SHA-256, then renames. A good existing file is reused.
+async function downloadOxide(file, { fetchImpl, url = S.OXIDE.url, expectedSha256 = S.OXIDE.sha256, onProgress, signal } = {}) {
+  if (await F.isFile(file)) {
+    const v = await verifyOxideZip(file, expectedSha256);
+    if (v.ok) return { skipped: true, file, hash: v.hash };
+    await fsp.rm(file, { force: true });
+  }
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  const part = file + '.part';
+  try {
+    const res = await fetchImpl(url, { signal, redirect: 'follow' });
+    if (!res.ok || !res.body) throw friendly(`The download server answered HTTP ${res.status}. Check your internet connection and try again.`);
+    const total = Number(res.headers.get('content-length')) || S.OXIDE.size;
+    let done = 0;
+    await pipeline(
+      Readable.fromWeb(res.body),
+      F.progressStream((n) => {
+        done += n;
+        onProgress && onProgress({ done, total });
+      }, signal),
+      fs.createWriteStream(part)
+    );
+    const v = await verifyOxideZip(part, expectedSha256);
+    if (!v.ok) throw friendly(`The downloaded file failed its safety check (SHA-256 mismatch). Expected ${expectedSha256}, got ${v.hash}. Nothing was installed; try again later.`);
+    await fsp.rename(part, file);
+    return { skipped: false, file, hash: v.hash };
+  } catch (e) {
+    await fsp.rm(part, { force: true }).catch(() => {});
+    throw e;
+  }
+}
+
+// Install-Oxide.ps1, step for step: hash, entry checks, backup of every overwritten file plus
+// install.json, then extract. If extraction fails, the backup is put back automatically.
+async function installOxide(root, zipPath, { onProgress, signal, expectedSha256 = S.OXIDE.sha256 } = {}) {
+  if (await oxideInstalled(root)) return { skipped: true };
+  const v = await verifyOxideZip(zipPath, expectedSha256);
+  if (!v.ok) throw friendly(`The Oxide zip failed its SHA-256 check (got ${v.hash}). Delete it and download again.`);
+  const dataFolder = S.pickDataFolder(await managedDirs(root));
+  if (!dataFolder) throw friendly(`No *_Data\\Managed folder was found in ${root}. Is this a complete copy of the dedicated server?`);
+
+  const entries = await Z.listZip(zipPath);
+  const plan = S.planOxideEntries(entries.map((e) => e.name), dataFolder);
+  for (const item of plan) {
+    item.dest = S.safeJoin(root, item.rel);
+    item.exists = await F.exists(item.dest);
+  }
+  const backupDir = path.join(root, '_realm-backups', `oxide-${S.timestamp()}`);
+  const overwritten = plan.filter((p) => p.exists).map((p) => p.rel.replace(/\//g, '\\'));
+  const created = plan.filter((p) => !p.exists).map((p) => p.rel.replace(/\//g, '\\'));
+
+  for (const item of plan.filter((p) => p.exists)) {
+    const b = S.safeJoin(path.join(backupDir, 'files'), item.rel);
+    await fsp.mkdir(path.dirname(b), { recursive: true });
+    await fsp.copyFile(item.dest, b);
+  }
+  await fsp.mkdir(backupDir, { recursive: true });
+  const manifest = { tool: 'Realm client', zip: zipPath, sha256: v.hash, dataFolder, installed: new Date().toISOString(), overwritten, created };
+  await fsp.writeFile(path.join(backupDir, 'install.json'), JSON.stringify(manifest, null, 2), 'utf8');
+
+  try {
+    await Z.extractTo(zipPath, new Map(plan.map((p) => [p.entry, p.dest])), { onProgress, signal });
+  } catch (e) {
+    await restoreFromOxideBackup(root, backupDir, manifest).catch(() => {});
+    await fsp.rename(backupDir, backupDir + '-failed').catch(() => {});
+    throw e;
+  }
+  return { skipped: false, dataFolder, backupDir, overwritten: overwritten.length, created: created.length };
+}
+
+async function restoreFromOxideBackup(root, dir, log) {
+  for (const rel of log.overwritten || []) {
+    if (!rel) continue;
+    const r = String(rel).replace(/\\/g, '/');
+    await fsp.copyFile(S.safeJoin(path.join(dir, 'files'), r), S.safeJoin(root, r));
+  }
+  for (const rel of log.created || []) {
+    if (!rel) continue;
+    await fsp.rm(S.safeJoin(root, String(rel).replace(/\\/g, '/')), { force: true });
+  }
+}
+
+async function rollbackOxide(root) {
+  const dir = await latestOxideBackup(root);
+  if (!dir) throw friendly('There is no Oxide install backup to undo.');
+  const log = JSON.parse((await fsp.readFile(path.join(dir, 'install.json'), 'utf8')).replace(/^\uFEFF/, ''));
+  await restoreFromOxideBackup(root, dir, log);
+  await fsp.rename(dir, dir + '-rolledback');
+  return { restored: (log.overwritten || []).length, removed: (log.created || []).length, backup: dir };
+}
+
+// ---------- plugins ----------
+
+async function getOxideDir(root) {
+  for (const rel of ['oxide', path.join('Saves', 'oxide')]) {
+    const p = path.join(root, rel);
+    if (await F.isDir(path.join(p, 'plugins'))) return p;
+  }
+  return null;
+}
+
+// Where the chronicle reads RealmChronicle.json / RealmState.json.
+async function chronicleDataDir(root) {
+  const options = [path.join(root, 'oxide', 'data'), path.join(root, 'Saves', 'oxide', 'data')];
+  for (const p of options) if (await F.isFile(path.join(p, 'RealmState.json'))) return p;
+  for (const p of options) if (await F.isDir(p)) return p;
+  return options[0];
+}
+
+async function planPlugins(root, srcDir) {
+  let names = [];
+  try {
+    names = (await fsp.readdir(srcDir)).filter((n) => /\.cs$/i.test(n));
+  } catch {
+    names = [];
+  }
+  if (!names.length) throw friendly(`No plugin files (*.cs) were found in ${srcDir}.`);
+  const oxideDir = await getOxideDir(root);
+  const target = path.join(oxideDir || path.join(root, 'oxide'), 'plugins');
+  const items = [];
+  for (const n of names.sort()) {
+    const src = path.join(srcDir, n);
+    const dest = path.join(target, n);
+    let state = 'new';
+    if (await F.isFile(dest)) state = (await F.sha256File(src)) === (await F.sha256File(dest)) ? 'unchanged' : 'changed';
+    items.push({ name: n, src, dest, state });
+  }
+  let others = [];
+  try {
+    others = (await fsp.readdir(target)).filter((n) => /\.cs$/i.test(n) && !names.includes(n));
+  } catch {
+    others = [];
+  }
+  return { target, items, others };
+}
+
+// Deploy-Plugins.ps1 with -CreateTarget: changed files are saved to _realm-backups\plugins-<time>.
+async function deployPlugins(root, srcDir) {
+  const plan = await planPlugins(root, srcDir);
+  const todo = plan.items.filter((i) => i.state !== 'unchanged');
+  if (!todo.length) return { ...plan, copied: 0 };
+  await fsp.mkdir(plan.target, { recursive: true });
+  const backupDir = path.join(root, '_realm-backups', `plugins-${S.timestamp()}`);
+  let backedUp = false;
+  for (const i of todo) {
+    if (i.state === 'changed') {
+      await fsp.mkdir(backupDir, { recursive: true });
+      await fsp.copyFile(i.dest, path.join(backupDir, i.name));
+      backedUp = true;
+    }
+    const tmp = i.dest + '.realm-part';
+    await fsp.copyFile(i.src, tmp);
+    await fsp.rename(tmp, i.dest);
+  }
+  return { ...plan, copied: todo.length, backupDir: backedUp ? backupDir : null };
+}
+
+// ---------- backups ----------
+
+function backupsDir(root) {
+  return path.join(S.realmHome(root), 'backups');
+}
+
+function downloadsDir(root) {
+  return path.join(S.realmHome(root), 'downloads');
+}
+
+// Backup-Saves.ps1: Saves\ and oxide\data\ into <realm home>\backups\realm-saves-<time>[-label].zip.
+async function createBackup(root, { label = '', onProgress, signal } = {}) {
+  const dir = backupsDir(root);
+  if (S.isInside(dir, root)) throw friendly('The backup folder must be outside the server folder.');
+  const sources = [];
+  for (const rel of ['Saves', 'oxide/data']) if (await F.isDir(path.join(root, ...rel.split('/')))) sources.push(rel);
+  if (!sources.length) throw friendly('Nothing to back up yet: neither Saves nor oxide\\data exists. Has the server run?');
+  const files = [];
+  for (const rel of sources) {
+    for (const f of await F.listFiles(path.join(root, ...rel.split('/')), signal)) {
+      const st = await fsp.stat(f.abs);
+      files.push({ abs: f.abs, size: f.size, mtime: st.mtime, name: `${rel}/${f.rel.split(path.sep).join('/')}` });
+    }
+  }
+  const bytes = files.reduce((s, f) => s + f.size, 0);
+  const suffix = label ? '-' + S.sanitizeLabel(label) : '';
+  const out = path.join(dir, `realm-saves-${S.timestamp()}${suffix}.zip`);
+  const manifest = { tool: 'Realm client', source: root, created: new Date().toISOString(), folders: sources, files: files.length, bytes };
+  await Z.writeZip(out, files, [{ name: 'realm-backup.json', data: Buffer.from(JSON.stringify(manifest, null, 2)) }], { onProgress, signal });
+  const size = (await fsp.stat(out)).size;
+  return { file: out, name: path.basename(out), files: files.length, bytes, size };
+}
+
+const BACKUP_NAME_RE = /^realm-saves-[A-Za-z0-9_-]+\.zip$/;
+
+async function listBackups(root) {
+  const dir = backupsDir(root);
+  let names = [];
+  try {
+    names = (await fsp.readdir(dir)).filter((n) => BACKUP_NAME_RE.test(n));
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const n of names) {
+    const st = await fsp.stat(path.join(dir, n));
+    out.push({ name: n, size: st.size, mtime: st.mtime.toISOString() });
+  }
+  return out.sort((a, b) => (a.name < b.name ? 1 : -1));
+}
+
+// Restore-Saves.ps1: validate, safety backup, move current Saves / oxide\data aside, extract.
+// If extraction fails, the partial files are removed and the moved folders put back.
+async function restoreBackup(root, name, { onProgress, signal } = {}) {
+  if (typeof name !== 'string' || !BACKUP_NAME_RE.test(name)) throw friendly('Pick a backup from the list.');
+  const zipPath = path.join(backupsDir(root), name);
+  if (!(await F.isFile(zipPath))) throw friendly(`Backup not found: ${zipPath}`);
+  const entries = await Z.listZip(zipPath);
+  const plan = S.planRestoreEntries(entries.map((e) => e.name));
+  const targets = new Map(plan.files.map((f) => [f.entry, S.safeJoin(root, f.rel)]));
+
+  const existing = [];
+  for (const top of plan.tops) if (await F.exists(path.join(root, ...top.split('/')))) existing.push(top);
+  let safety = null;
+  if (existing.length) safety = await createBackup(root, { label: 'pre-restore', signal });
+  const aside = path.join(root, '_realm-backups', `pre-restore-${S.timestamp()}`);
+  const moved = [];
+  try {
+    for (const top of existing) {
+      const from = path.join(root, ...top.split('/'));
+      const to = path.join(aside, ...top.split('/'));
+      await fsp.mkdir(path.dirname(to), { recursive: true });
+      await fsp.rename(from, to);
+      moved.push({ from, to });
+    }
+    await Z.extractTo(zipPath, targets, { onProgress, signal });
+  } catch (e) {
+    for (const top of plan.tops) {
+      const p = path.join(root, ...top.split('/'));
+      if (!moved.some((m) => m.from === p) && existing.includes(top)) continue; // never moved: untouched
+      await F.removeTree(p).catch(() => {});
+    }
+    for (const m of moved.reverse()) await fsp.rename(m.to, m.from).catch(() => {});
+    throw e;
+  }
+  return { restored: plan.files.length, aside: moved.length ? aside : null, safetyBackup: safety && safety.name };
+}
+
+module.exports = {
+  friendly,
+  findSteamServer,
+  hasServerExe,
+  assertTestCopy,
+  isTestCopy,
+  createTestCopy,
+  cfgPaths,
+  applyCfg,
+  applyLocalOnlyConfig,
+  readServerSettings,
+  writeServerSettings,
+  managedDirs,
+  oxideInstalled,
+  latestOxideBackup,
+  verifyOxideZip,
+  downloadOxide,
+  installOxide,
+  rollbackOxide,
+  getOxideDir,
+  chronicleDataDir,
+  planPlugins,
+  deployPlugins,
+  backupsDir,
+  downloadsDir,
+  createBackup,
+  listBackups,
+  restoreBackup
+};

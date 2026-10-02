@@ -3,37 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-src http://127.0.0.1:8787; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Realm Launcher</title>
+  <title>Realm</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <!-- Reusable glyphs (original artwork) -->
+<body data-view="home">
+  <!-- Glyphs: original artwork, no third-party marks. -->
   <svg class="defs" aria-hidden="true">
     <defs>
       <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#f1d58a"/>
-        <stop offset=".55" stop-color="#c9a24a"/>
-        <stop offset="1" stop-color="#7a5a1e"/>
+        <stop offset="0" stop-color="#f6e2a2"/>
+        <stop offset=".5" stop-color="#cfa64c"/>
+        <stop offset="1" stop-color="#6f501a"/>
       </linearGradient>
       <linearGradient id="field" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#6e1414"/>
-        <stop offset="1" stop-color="#2a0707"/>
+        <stop offset="0" stop-color="#7a1616"/>
+        <stop offset="1" stop-color="#260606"/>
       </linearGradient>
+      <radialGradient id="fieldShine" cx=".35" cy=".25" r=".8">
+        <stop offset="0" stop-color="#fff" stop-opacity=".18"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </radialGradient>
     </defs>
+    <!-- The Realm sigil: a crowned blade upon a blood field. -->
     <symbol id="sigil" viewBox="0 0 120 140">
       <path d="M10 8h100v52c0 38-24 62-50 74C34 122 10 98 10 60z" fill="url(#field)" stroke="url(#gold)" stroke-width="4"/>
-      <path d="M18 16h84v44c0 32-20 53-42 64C38 113 18 92 18 60z" fill="none" stroke="#c9a24a" stroke-opacity=".35" stroke-width="1.5"/>
+      <path d="M10 8h100v52c0 38-24 62-50 74C34 122 10 98 10 60z" fill="url(#fieldShine)"/>
+      <path d="M18 16h84v44c0 32-20 53-42 64C38 113 18 92 18 60z" fill="none" stroke="#cfa64c" stroke-opacity=".35" stroke-width="1.5"/>
       <path d="M34 54l8-18 9 12 9-18 9 18 9-12 8 18v8H34z" fill="url(#gold)"/>
       <rect x="34" y="64" width="52" height="5" rx="1" fill="url(#gold)"/>
-      <path d="M57 24h6v76l-3 12-3-12z" fill="#e8dcc0"/>
+      <path d="M57 24h6v76l-3 12-3-12z" fill="#efe3c6"/>
       <rect x="46" y="74" width="28" height="5" rx="2" fill="url(#gold)"/>
       <circle cx="60" cy="20" r="5" fill="url(#gold)"/>
-      <circle cx="42" cy="36" r="2.4" fill="#e8dcc0"/>
-      <circle cx="60" cy="30" r="2.4" fill="#e8dcc0"/>
-      <circle cx="78" cy="36" r="2.4" fill="#e8dcc0"/>
+      <circle cx="42" cy="36" r="2.4" fill="#efe3c6"/>
+      <circle cx="60" cy="30" r="2.4" fill="#efe3c6"/>
+      <circle cx="78" cy="36" r="2.4" fill="#efe3c6"/>
+    </symbol>
+    <symbol id="shield-blank" viewBox="0 0 120 140">
+      <path d="M10 8h100v52c0 38-24 62-50 74C34 122 10 98 10 60z"/>
     </symbol>
     <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 18l1.5-10 5 4.5L12 5l2.5 7.5 5-4.5L21 18z" fill="currentColor"/><rect x="3" y="19" width="18" height="2" fill="currentColor"/></symbol>
     <symbol id="i-sword" viewBox="0 0 24 24"><path d="M19 3h2v2L10 16l-2-2zM5 15l4 4-1.5 1.5-1.5-1.5-2 2-1-1 2-2-1.5-1.5z" fill="currentColor"/></symbol>
@@ -41,156 +50,525 @@
     <symbol id="i-scroll" viewBox="0 0 24 24"><path d="M6 3h11a3 3 0 010 6h-1v10a2 2 0 01-2 2H5a3 3 0 010-6h1zm2 2v10h6V5zm9 0v2a1 1 0 000-2z" fill="currentColor"/></symbol>
     <symbol id="i-chain" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="8" width="11" height="8" rx="4"/><rect x="11" y="8" width="11" height="8" rx="4"/></g></symbol>
     <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 2c1 4 6 6 6 12a6 6 0 01-12 0c0-3 2-5 3-6 0 2 1 3 2 3-1-3 0-6 1-9z" fill="currentColor"/></symbol>
+    <symbol id="i-keep" viewBox="0 0 24 24"><path d="M3 21V9h2V6h2v3h2V6h2v3h2V6h2v3h2V6h2v3h2v12h-7v-5a2 2 0 00-4 0v5z" fill="currentColor"/></symbol>
+    <symbol id="i-forge" viewBox="0 0 24 24"><path d="M4 7h12c2.5 0 4 1.5 4 3h-5c-1 0-1.5.6-1.5 1.5S14 13 15 13h1v2l-2 1v3h3v2H7v-2h3v-3l-2-1v-3H6C4.5 12 3 10.5 3 9z" fill="currentColor"/><path d="M8 2c.5 1.5 2 2 2 3.5S9 7 9 7H7s-1-.5-1-2 2-2 2-3z" fill="currentColor" opacity=".7"/></symbol>
+    <symbol id="i-banners" viewBox="0 0 24 24"><path d="M4 2h2v20H4zM7 3h6v10l-3-2-3 2zM15 3h2v19h-2zM18 4h4v8l-2-1.5L18 12z" fill="currentColor"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M12 5C6 5 2 12 2 12s4 7 10 7 10-7 10-7-4-7-10-7zm0 11a4 4 0 110-8 4 4 0 010 8zm0-2a2 2 0 100-4 2 2 0 000 4z" fill="currentColor"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M10.3 2h3.4l.5 2.6c.7.3 1.3.6 1.9 1.1l2.5-.9 1.7 2.9-2 1.8c.1.7.1 1.4 0 2.1l2 1.8-1.7 2.9-2.5-.9c-.6.5-1.2.8-1.9 1.1l-.5 2.6h-3.4l-.5-2.6c-.7-.3-1.3-.6-1.9-1.1l-2.5.9-1.7-2.9 2-1.8a6 6 0 010-2.1l-2-1.8 1.7-2.9 2.5.9c.6-.5 1.2-.8 1.9-1.1zM12 9a3 3 0 100 6 3 3 0 000-6z" fill="currentColor"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20 10 10 0 010-20zm0 2a8 8 0 100 16 8 8 0 000-16zm4 4l-2.5 5.5L8 16l2.5-5.5z" fill="currentColor"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1.5" fill="currentColor"/></symbol>
+    <symbol id="i-restart" viewBox="0 0 24 24"><path d="M12 4a8 8 0 017.7 6h-2.1A6 6 0 106 13H4a8 8 0 018-9zm8 1v6h-6z" fill="currentColor"/><path d="M4 13a8 8 0 0014.6 4.5l-1.7-1A6 6 0 016 13z" fill="currentColor"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="currentColor"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><path d="M8 3h11v13h-2V5H8zM5 7h10v14H5zm2 2v10h6V9z" fill="currentColor"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M2 5h8l2 2h10v13H2zm2 4v9h16V9z" fill="currentColor"/></symbol>
+    <symbol id="i-chest" viewBox="0 0 24 24"><path d="M3 10a5 5 0 015-5h8a5 5 0 015 5v1H3zm0 3h18v7H3zm8-1h2v4h-2z" fill="currentColor"/></symbol>
+    <symbol id="i-restore" viewBox="0 0 24 24"><path d="M13 3a9 9 0 11-8.5 12h2.2A7 7 0 1013 5a7 7 0 00-5.6 2.8L10 10H3V3l2.9 2.9A9 9 0 0113 3zm-1 4h2v5l4 2-1 1.7-5-2.7z" fill="currentColor"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 5v4c6 0 11 2 12 10-2.5-4-6-5-12-5v4L2 11z" fill="currentColor"/></symbol>
+    <symbol id="i-plugin" viewBox="0 0 24 24"><path d="M9 2h2v4h2V2h2v4h2v5a5 5 0 01-4 4.9V22h-2v-6.1A5 5 0 017 11V6h2z" fill="currentColor"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M11 3h2v9l3-3 1.4 1.4L12 15.8l-5.4-5.4L8 9l3 3zM4 18h16v3H4z" fill="currentColor"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M9 16.2l-4.2-4.2-1.4 1.4L9 19 21 7l-1.4-1.4z" fill="currentColor"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 2l10 18H2zm-1 6v6h2V8zm0 8v2h2v-2z" fill="currentColor"/></symbol>
+    <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7zm10 0h3v14h-3z" fill="currentColor"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-8.3 8.3-1.4-1.4L17.6 5H14zM5 5h6v2H7v10h10v-4h2v6H5z" fill="currentColor"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z" fill="currentColor"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.4 5L12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4L12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z" fill="currentColor"/></symbol>
   </svg>
+
+  <!-- Painted backdrop: dusk sky, moon, ridgelines, a hill keep, drifting fog and embers. -->
+  <div class="backdrop" aria-hidden="true">
+    <svg class="scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#06060b"/>
+          <stop offset=".45" stop-color="#170e17"/>
+          <stop offset=".75" stop-color="#3b1a12"/>
+          <stop offset="1" stop-color="#5a2410"/>
+        </linearGradient>
+        <radialGradient id="moonGlow" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#f6dfa8" stop-opacity=".5"/>
+          <stop offset=".4" stop-color="#f0b56a" stop-opacity=".12"/>
+          <stop offset="1" stop-color="#f0b56a" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="horizonGlow" cx=".55" cy="1" r=".7">
+          <stop offset="0" stop-color="#e0662a" stop-opacity=".35"/>
+          <stop offset="1" stop-color="#e0662a" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#0b0907" stop-opacity="0"/>
+          <stop offset="1" stop-color="#0b0907" stop-opacity="1"/>
+        </linearGradient>
+        <filter id="brush" x="-5%" y="-5%" width="110%" height="110%">
+          <feTurbulence type="fractalNoise" baseFrequency=".012 .035" numOctaves="3" seed="7" result="n"/>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="18" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+        <filter id="canvas" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3" result="g"/>
+          <feColorMatrix in="g" type="matrix" values="0 0 0 0 .5  0 0 0 0 .42  0 0 0 0 .3  0 0 0 .07 0"/>
+          <feBlend in="SourceGraphic" mode="multiply"/>
+        </filter>
+        <filter id="soft"><feGaussianBlur stdDeviation="6"/></filter>
+      </defs>
+      <rect width="1600" height="900" fill="url(#sky)"/>
+      <rect width="1600" height="900" fill="url(#horizonGlow)"/>
+      <g fill="#efe3c6" class="stars">
+        <circle cx="120" cy="80" r="1.2"/><circle cx="260" cy="150" r="1"/><circle cx="410" cy="60" r="1.4"/>
+        <circle cx="560" cy="120" r="1"/><circle cx="700" cy="40" r="1.2"/><circle cx="880" cy="95" r="1"/>
+        <circle cx="1010" cy="30" r="1.3"/><circle cx="1500" cy="70" r="1.1"/><circle cx="1420" cy="170" r="1"/>
+        <circle cx="330" cy="240" r=".9"/><circle cx="640" cy="210" r=".9"/><circle cx="1560" cy="230" r="1"/>
+        <circle cx="1210" cy="120" r="1.1"/><circle cx="1320" cy="40" r=".9"/><circle cx="60" cy="210" r=".8"/>
+      </g>
+      <circle cx="1130" cy="190" r="260" fill="url(#moonGlow)"/>
+      <circle cx="1130" cy="190" r="58" fill="#f1e1b6"/>
+      <circle cx="1112" cy="176" r="12" fill="#e3cf9c" opacity=".55"/>
+      <circle cx="1146" cy="206" r="8" fill="#e3cf9c" opacity=".45"/>
+      <g filter="url(#brush)">
+        <path d="M-20 600L120 500 240 560 400 430 540 540 690 450 850 570 990 480 1150 580 1310 460 1450 540 1620 470V900H-20z" fill="#2a1916"/>
+        <path d="M-20 680L170 590 320 640 510 560 680 640 870 580 1050 660 1240 590 1420 650 1620 600V900H-20z" fill="#1b110f"/>
+      </g>
+      <!-- the keep on its hill -->
+      <g transform="translate(130 -10)">
+        <g fill="#0d0908" filter="url(#brush)">
+          <path d="M980 700V430h22v-22h14v22h14v-22h14v22h22v-22h14v22h22v270z"/>
+          <path d="M1040 440V300h-12l38-70 38 70h-12v140z"/>
+          <path d="M900 700V520h16v-16h12v16h12v-16h12v16h16v196z"/>
+          <path d="M1130 700V500h16v-16h12v16h12v-16h12v16h16v216z"/>
+          <path d="M940 700V600h260v100z"/>
+          <path d="M840 730c80-40 380-40 460 0v40H840z"/>
+        </g>
+        <g fill="#f08a3a" class="windows">
+          <rect x="1060" y="350" width="8" height="14" rx="4"/>
+          <rect x="1006" y="480" width="6" height="12" rx="3"/>
+          <rect x="1150" y="540" width="6" height="12" rx="3"/>
+          <rect x="922" y="560" width="6" height="12" rx="3"/>
+          <rect x="1090" y="620" width="7" height="12" rx="3"/>
+        </g>
+        <path d="M1066 230v-50" stroke="#0d0908" stroke-width="3"/>
+        <path class="banner" d="M1068 182h46l-10 10 10 10h-46z" fill="#8e1b1b"/>
+        <path d="M1006 408v-40" stroke="#0d0908" stroke-width="3"/>
+        <path class="banner b2" d="M1008 370h30l-7 8 7 8h-30z" fill="#8e1b1b"/>
+      </g>
+      <g filter="url(#brush)">
+        <path d="M-20 760L220 700 420 740 640 690 820 750 1040 700 1260 760 1460 710 1620 740V900H-20z" fill="#0e0a09"/>
+      </g>
+      <g fill="#0a0706" class="pines">
+        <path d="M60 780l14-60 14 60zM90 790l18-80 18 80zM130 785l12-50 12 50zM1450 790l16-70 16 70zM1490 795l20-90 20 90zM1530 790l13-55 13 55z"/>
+      </g>
+      <rect y="540" width="1600" height="360" fill="url(#mist)"/>
+      <rect width="1600" height="900" fill="transparent" filter="url(#canvas)"/>
+    </svg>
+    <div class="fog f1"></div>
+    <div class="fog f2"></div>
+    <div class="fog f3"></div>
+    <div class="embers"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="grain"></div>
+    <div class="vignette"></div>
+  </div>
 
   <header class="titlebar">
     <div class="brand">
       <svg class="brand-sigil"><use href="#sigil"/></svg>
       <span class="brand-name">REALM</span>
     </div>
+    <div class="title-status" id="title-status"><span class="dot"></span><span id="title-status-text">Server stopped</span></div>
     <div class="win-controls">
-      <button class="win-btn" data-win="minimize" aria-label="Minimize">&#8211;</button>
-      <button class="win-btn close" data-win="close" aria-label="Close">&#215;</button>
+      <button class="win-btn" data-win="minimize" aria-label="Minimize"><svg viewBox="0 0 12 12"><rect x="1" y="5.5" width="10" height="1" fill="currentColor"/></svg></button>
+      <button class="win-btn" data-win="maximize" aria-label="Maximize"><svg viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor"/></svg></button>
+      <button class="win-btn close" data-win="close" aria-label="Close"><svg viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="currentColor" stroke-width="1.1"/></svg></button>
     </div>
   </header>
 
-  <!-- Hero backdrop: night sky, moon, mountains, a keep with banners, mist. -->
-  <div class="backdrop" aria-hidden="true">
-    <svg class="scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
-      <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#07070c"/>
-          <stop offset=".55" stop-color="#1a1018"/>
-          <stop offset="1" stop-color="#3a1a10"/>
-        </linearGradient>
-        <radialGradient id="moonGlow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stop-color="#f3e3b5" stop-opacity=".55"/>
-          <stop offset="1" stop-color="#f3e3b5" stop-opacity="0"/>
-        </radialGradient>
-        <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#0b0907" stop-opacity="0"/>
-          <stop offset="1" stop-color="#0b0907" stop-opacity="1"/>
-        </linearGradient>
-      </defs>
-      <rect width="1600" height="900" fill="url(#sky)"/>
-      <g fill="#e8dcc0" opacity=".55">
-        <circle cx="120" cy="80" r="1.2"/><circle cx="260" cy="150" r="1"/><circle cx="410" cy="60" r="1.4"/>
-        <circle cx="560" cy="120" r="1"/><circle cx="700" cy="40" r="1.2"/><circle cx="880" cy="95" r="1"/>
-        <circle cx="1010" cy="30" r="1.3"/><circle cx="1500" cy="70" r="1.1"/><circle cx="1420" cy="170" r="1"/>
-        <circle cx="330" cy="240" r=".9"/><circle cx="640" cy="210" r=".9"/><circle cx="1560" cy="230" r="1"/>
-      </g>
-      <circle cx="930" cy="170" r="220" fill="url(#moonGlow)"/>
-      <circle cx="930" cy="170" r="64" fill="#efe0b4"/>
-      <path d="M0 640L140 520 260 590 420 450 560 560 700 470 860 590 1000 500 1160 600 1320 480 1460 560 1600 500V900H0z" fill="#1d1312"/>
-      <path d="M0 700L180 610 330 660 520 580 690 660 880 600 1060 680 1250 610 1430 670 1600 620V900H0z" fill="#140d0c"/>
-      <!-- the keep -->
-      <g transform="translate(-170 0)">
-      <g fill="#0b0807">
-        <path d="M980 700V430h22v-22h14v22h14v-22h14v22h22v-22h14v22h22v270z"/>
-        <path d="M1040 440V300h-12l38-70 38 70h-12v140z"/>
-        <path d="M900 700V520h16v-16h12v16h12v-16h12v16h16v196z"/>
-        <path d="M1130 700V500h16v-16h12v16h12v-16h12v16h16v216z"/>
-        <path d="M940 700V600h260v100z"/>
-        <path d="M860 720h420v-30H860z"/>
-      </g>
-      <g fill="#e0662a" opacity=".85">
-        <rect x="1060" y="350" width="8" height="14" rx="4"/>
-        <rect x="1006" y="480" width="6" height="12" rx="3"/>
-        <rect x="1150" y="540" width="6" height="12" rx="3"/>
-        <rect x="922" y="560" width="6" height="12" rx="3"/>
-      </g>
-      <path d="M1066 230v-50" stroke="#0b0807" stroke-width="3"/>
-      <path class="banner" d="M1068 182h46l-10 10 10 10h-46z" fill="#8e1b1b"/>
-      <path d="M1006 408v-40" stroke="#0b0807" stroke-width="3"/>
-      <path class="banner b2" d="M1008 370h30l-7 8 7 8h-30z" fill="#8e1b1b"/>
-      </g>
-      <path d="M0 760L220 700 420 740 640 690 820 750 1040 700 1260 760 1460 710 1600 740V900H0z" fill="#0d0908"/>
-      <rect y="560" width="1600" height="340" fill="url(#mist)"/>
-    </svg>
-    <div class="embers"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="vignette"></div>
-  </div>
+  <nav class="rail" aria-label="Screens">
+    <button class="rail-btn" data-go="home"><svg><use href="#i-keep"/></svg><span>Home</span></button>
+    <button class="rail-btn" data-go="server"><svg><use href="#i-forge"/></svg><span>Server</span></button>
+    <button class="rail-btn" data-go="realm"><svg><use href="#i-banners"/></svg><span>Realm</span></button>
+    <button class="rail-btn" data-go="overlay"><svg><use href="#i-eye"/></svg><span>Overlay</span></button>
+    <button class="rail-btn" data-go="settings"><svg><use href="#i-gear"/></svg><span>Settings</span></button>
+    <div class="rail-spacer"></div>
+    <button class="rail-btn small" id="open-setup"><svg><use href="#i-compass"/></svg><span>Setup</span></button>
+    <p class="rail-version" id="app-version"></p>
+  </nav>
 
-  <main class="layout">
-    <section class="hero">
-      <div class="crest">
-        <svg class="crest-sigil" role="img" aria-label="Realm sigil"><use href="#sigil"/></svg>
-        <div>
-          <p class="eyebrow">A community realm</p>
-          <h1 id="realm-name">The Realm</h1>
-          <p class="tagline" id="tagline"></p>
+  <main class="views">
+    <!-- ================= HOME ================= -->
+    <section class="view view-home" data-view="home">
+      <div class="home-hero">
+        <div class="crest">
+          <svg class="crest-sigil" role="img" aria-label="Realm sigil"><use href="#sigil"/></svg>
+          <div>
+            <p class="eyebrow">A community realm</p>
+            <h1 id="realm-name">The Realm</h1>
+            <p class="tagline" id="tagline"></p>
+          </div>
         </div>
-      </div>
 
-      <div class="actions">
-        <button class="play" id="play">
-          <span class="play-label">Play</span>
-          <span class="play-sub">Launch through Steam</span>
-        </button>
-        <div class="action-row">
-          <button class="ghost" id="copy-address">
-            <svg class="ico"><use href="#i-scroll"/></svg>
-            <span>Copy server address</span>
+        <div class="play-block">
+          <button class="play" id="play">
+            <span class="play-shine"></span>
+            <span class="play-label">Play</span>
+            <span class="play-sub">Opens your own copy through Steam</span>
           </button>
-          <button class="ghost" id="verify">
-            <svg class="ico"><use href="#i-shield"/></svg>
-            <span>Verify install</span>
-          </button>
+          <div class="join-strip">
+            <div class="join-addr">
+              <span class="eyebrow">Direct connect</span>
+              <span class="mono addr" id="server-address">127.0.0.1:7350</span>
+            </div>
+            <button class="btn ghost" id="copy-address"><svg class="ico"><use href="#i-copy"/></svg><span>Copy</span></button>
+          </div>
+          <p class="fine join-hint">Realm never changes game files. It only asks Steam to start your own copy.</p>
         </div>
-        <p class="toast" id="toast" role="status" aria-live="polite"></p>
-      </div>
 
-      <div class="howto">
-        <h2>How to join</h2>
-        <ol>
-          <li>Press <b>Play</b>. Steam starts your own copy of Reign of Kings.</li>
-          <li>In the game's server menu, use direct connect (the <b>Local Host</b> field).</li>
-          <li>Enter <b class="mono" id="howto-ip">127.0.0.1</b> and port <b class="mono" id="howto-port">7350</b>.</li>
+        <ol class="oath-steps" aria-label="How to join">
+          <li>Press <b>Play</b>. Steam opens Reign of Kings.</li>
+          <li>Open the server menu and choose <b>direct connect</b>.</li>
+          <li>Enter the address in <b>Local Host</b> and join.</li>
         </ol>
-        <p class="fine">The launcher never changes game files. It only opens Steam and shows you where to connect.</p>
+
+        <section class="news" aria-labelledby="news-h">
+          <h2 class="section-h" id="news-h"><span>Heralds' News</span></h2>
+          <div class="news-list" id="news"></div>
+        </section>
       </div>
 
-      <section class="news" aria-labelledby="news-h">
-        <h2 id="news-h">Heralds' News</h2>
-        <div class="news-list" id="news"></div>
-      </section>
+      <aside class="home-side">
+        <article class="card status-card">
+          <header class="card-head">
+            <h2>Realm status</h2>
+            <span class="pill" id="status-pill">Checking</span>
+          </header>
+          <p class="server-name" id="server-name"></p>
+          <dl class="stats">
+            <div><dt>Server</dt><dd id="stat-server">-</dd></div>
+            <div><dt>Players</dt><dd id="players">-</dd></div>
+            <div><dt>Houses</dt><dd id="house-count">-</dd></div>
+          </dl>
+          <p class="fine" id="status-detail"></p>
+        </article>
+
+        <article class="card crown-card">
+          <div class="crown-medal"><svg><use href="#i-crown"/></svg></div>
+          <div>
+            <p class="eyebrow">Upon the throne</p>
+            <p class="king" id="king">The throne is empty</p>
+            <p class="fine" id="king-detail"></p>
+          </div>
+        </article>
+
+        <article class="card chronicle-card">
+          <header class="card-head">
+            <h2>The Chronicle</h2>
+            <button class="link-btn" data-link="chronicle">Read all</button>
+          </header>
+          <ol class="events" id="events"></ol>
+        </article>
+
+        <nav class="links" id="links" aria-label="Community links"></nav>
+      </aside>
     </section>
 
-    <aside class="side">
-      <article class="card server">
-        <header class="card-head">
-          <h2>The Realm Server</h2>
-          <span class="pill" id="status-pill">Checking</span>
-        </header>
-        <p class="server-name" id="server-name"></p>
-        <dl class="stats">
-          <div><dt>Address</dt><dd class="mono" id="server-address">-</dd></div>
-          <div><dt>Players</dt><dd id="players">-</dd></div>
-          <div><dt>Houses</dt><dd id="house-count">-</dd></div>
-        </dl>
-        <p class="fine" id="status-detail"></p>
-      </article>
-
-      <article class="card crown">
-        <svg class="crown-ico"><use href="#i-crown"/></svg>
+    <!-- ================= SERVER ================= -->
+    <section class="view view-server" data-view="server" hidden>
+      <header class="view-head">
         <div>
-          <p class="eyebrow">Upon the throne</p>
-          <p class="king" id="king">The throne is empty</p>
-          <p class="fine" id="king-detail"></p>
+          <p class="eyebrow">The test server</p>
+          <h1 class="view-title">The Keep</h1>
         </div>
-      </article>
+        <div class="srv-state">
+          <span class="pill big" id="srv-pill">Stopped</span>
+          <div class="srv-meta">
+            <span id="srv-meta-1">-</span>
+            <span class="fine" id="srv-meta-2"></span>
+          </div>
+        </div>
+      </header>
 
-      <article class="card chronicle">
-        <header class="card-head">
-          <h2>The Chronicle</h2>
-          <button class="link-btn" data-link="chronicle" id="chronicle-link" hidden>Read all</button>
-        </header>
-        <ol class="events" id="events"></ol>
-      </article>
+      <div class="server-grid">
+        <section class="card console-card">
+          <div class="console-toolbar">
+            <button class="btn primary" id="srv-start"><svg class="ico"><use href="#i-play"/></svg><span>Start</span></button>
+            <button class="btn" id="srv-stop"><svg class="ico"><use href="#i-stop"/></svg><span>Stop</span></button>
+            <button class="btn" id="srv-restart"><svg class="ico"><use href="#i-restart"/></svg><span>Restart</span></button>
+            <button class="btn danger" id="srv-force" hidden><svg class="ico"><use href="#i-bolt"/></svg><span>Force stop</span></button>
+            <span class="toolbar-spacer"></span>
+            <label class="check"><input type="checkbox" id="console-follow" checked><span>Follow</span></label>
+            <button class="btn ghost small" id="console-copy"><svg class="ico"><use href="#i-copy"/></svg><span>Copy log</span></button>
+          </div>
+          <div class="console" id="console" role="log" aria-live="off"></div>
+          <form class="console-input" id="console-form" autocomplete="off">
+            <span class="prompt">&rsaquo;</span>
+            <input id="console-cmd" maxlength="200" placeholder="Type a server command, e.g. oxide.version" spellcheck="false">
+            <button class="btn small" type="submit">Send</button>
+          </form>
+        </section>
 
-      <nav class="links" id="links" aria-label="Community links"></nav>
-    </aside>
+        <aside class="server-side">
+          <article class="card">
+            <h2 class="card-title">Upkeep</h2>
+            <div class="tool-list">
+              <button class="tool" id="act-plugins"><svg><use href="#i-plugin"/></svg><span><b>Update plugins</b><small>Copy changed Realm plugins into the server. Oxide reloads them live.</small></span></button>
+              <button class="tool" id="act-backup"><svg><use href="#i-chest"/></svg><span><b>Back up world</b><small>Zip Saves and oxide\data into the backups folder.</small></span></button>
+              <button class="tool" id="act-restore"><svg><use href="#i-restore"/></svg><span><b>Restore backup</b><small>Put an older world back. The current one is moved aside first.</small></span></button>
+              <button class="tool warn" id="act-undo-oxide"><svg><use href="#i-undo"/></svg><span><b>Undo Oxide</b><small>Restore the vanilla game files of the test copy from the install backup.</small></span></button>
+            </div>
+            <div class="op-progress" id="op-progress" hidden>
+              <p class="fine" id="op-progress-text"></p>
+              <div class="bar"><i id="op-progress-bar"></i></div>
+            </div>
+          </article>
+          <article class="card facts">
+            <h2 class="card-title">Test copy</h2>
+            <dl class="facts-list">
+              <div><dt>Folder</dt><dd class="mono" id="fact-root">-</dd></div>
+              <div><dt>Oxide</dt><dd id="fact-oxide">-</dd></div>
+              <div><dt>Settings file</dt><dd id="fact-cfg">-</dd></div>
+              <div><dt>Network</dt><dd>Local only (127.0.0.1, RCON off)</dd></div>
+            </dl>
+            <div class="row gap">
+              <button class="btn ghost small" data-open="server"><svg class="ico"><use href="#i-folder"/></svg><span>Server folder</span></button>
+              <button class="btn ghost small" data-open="backups"><svg class="ico"><use href="#i-folder"/></svg><span>Backups</span></button>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ================= REALM ================= -->
+    <section class="view view-realm" data-view="realm" hidden>
+      <header class="view-head">
+        <div>
+          <p class="eyebrow">Houses, oaths and the crown</p>
+          <h1 class="view-title">The Realm</h1>
+        </div>
+        <p class="fine" id="realm-updated"></p>
+      </header>
+      <div class="realm-grid">
+        <div class="realm-left">
+          <article class="card throne">
+            <div class="throne-crown"><svg><use href="#i-crown"/></svg></div>
+            <p class="eyebrow">Sovereign of the Realm</p>
+            <p class="throne-king" id="realm-king">The throne is empty</p>
+            <p class="throne-house" id="realm-king-house"></p>
+          </article>
+          <article class="card">
+            <h2 class="card-title">The King's Council</h2>
+            <ul class="council" id="realm-council"></ul>
+          </article>
+          <article class="card">
+            <h2 class="card-title">Claims &amp; decrees</h2>
+            <ul class="claims" id="realm-claims"></ul>
+          </article>
+        </div>
+        <div class="realm-right">
+          <article class="card houses-card">
+            <header class="card-head">
+              <h2 class="card-title">Great houses &amp; their oaths</h2>
+              <span class="fine" id="realm-house-count"></span>
+            </header>
+            <div class="liege-tree" id="realm-tree"></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= OVERLAY ================= -->
+    <section class="view view-overlay" data-view="overlay" hidden>
+      <header class="view-head">
+        <div>
+          <p class="eyebrow">For your livestream</p>
+          <h1 class="view-title">Stream Overlay</h1>
+        </div>
+        <span class="pill big" id="ov-pill">Checking</span>
+      </header>
+      <div class="overlay-grid">
+        <section class="card preview-card">
+          <div class="preview-frame">
+            <iframe id="ov-frame" title="Overlay preview" sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"></iframe>
+            <div class="preview-empty" id="ov-empty" hidden>The Chronicle is not running, so there is nothing to preview.</div>
+          </div>
+          <div class="row gap preview-tools">
+            <label class="check"><input type="checkbox" id="ov-bg" checked><span>Show a backdrop behind the overlay (preview only)</span></label>
+            <span class="toolbar-spacer"></span>
+            <button class="btn ghost small" id="ov-reload"><svg class="ico"><use href="#i-restart"/></svg><span>Reload</span></button>
+          </div>
+        </section>
+        <aside class="overlay-side">
+          <article class="card">
+            <h2 class="card-title">OBS browser source</h2>
+            <div class="url-box">
+              <span class="mono" id="ov-url">http://127.0.0.1:8787/overlay</span>
+              <button class="btn small primary" id="ov-copy"><svg class="ico"><use href="#i-copy"/></svg><span>Copy</span></button>
+            </div>
+            <ol class="steps-list">
+              <li>In OBS, add a <b>Browser</b> source.</li>
+              <li>Paste the address above as its URL.</li>
+              <li>Set width <b>1920</b> and height <b>1080</b>.</li>
+              <li>Keep Realm open while you stream; it serves the overlay.</li>
+            </ol>
+            <div class="row gap">
+              <button class="btn ghost small" data-link="overlay"><svg class="ico"><use href="#i-link"/></svg><span>Open in browser</span></button>
+              <button class="btn ghost small" data-link="chronicle"><svg class="ico"><use href="#i-link"/></svg><span>Public page</span></button>
+            </div>
+          </article>
+          <article class="card">
+            <h2 class="card-title">Chronicle service</h2>
+            <dl class="facts-list">
+              <div><dt>Address</dt><dd><span class="mono">127.0.0.1:8787</span> (this PC only)</dd></div>
+              <div><dt>Reads</dt><dd class="mono" id="ov-data">-</dd></div>
+            </dl>
+            <p class="fine" id="ov-note"></p>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ================= SETTINGS ================= -->
+    <section class="view view-settings" data-view="settings" hidden>
+      <header class="view-head">
+        <div>
+          <p class="eyebrow">Make it yours</p>
+          <h1 class="view-title">Settings</h1>
+        </div>
+        <button class="btn primary" id="set-save"><svg class="ico"><use href="#i-check"/></svg><span>Save settings</span></button>
+      </header>
+      <div class="settings-grid">
+        <article class="card">
+          <h2 class="card-title">Test server</h2>
+          <label class="field">
+            <span>Test copy folder</span>
+            <div class="row">
+              <input id="set-root" maxlength="240" spellcheck="false">
+              <button class="btn ghost small" id="set-root-browse"><svg class="ico"><use href="#i-folder"/></svg><span>Browse</span></button>
+            </div>
+            <small id="set-root-msg">Realm only ever changes this copy. It must not be on C: or inside a Steam folder.</small>
+          </label>
+          <label class="field">
+            <span>Server program</span>
+            <select id="set-exe">
+              <option value="Server">Server.exe (console wrapper, default)</option>
+              <option value="ROK">ROK.exe -batchmode -nographics</option>
+            </select>
+          </label>
+          <div class="field">
+            <span>Steam dedicated server</span>
+            <div class="row">
+              <span class="mono path-chip" id="set-steam">Detecting...</span>
+              <button class="btn ghost small" id="set-steam-browse"><svg class="ico"><use href="#i-folder"/></svg><span>Choose</span></button>
+            </div>
+            <small>Only read, once, to make the test copy.</small>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2 class="card-title">Server settings <span class="fine">ServerSettings.cfg</span></h2>
+          <p class="fine" id="set-cfg-note"></p>
+          <label class="field"><span>Server name</span><input id="set-name" maxlength="64"></label>
+          <div class="row gap">
+            <label class="field grow"><span>Max players</span><input id="set-max" type="number" min="1" max="200"></label>
+            <label class="field grow"><span>Game port</span><input id="set-port" type="number" min="1024" max="65535"></label>
+          </div>
+          <small class="fine">Only keys already in the file are changed, and the previous file is copied to _realm-backups\config first. Stop the server before saving.</small>
+        </article>
+
+        <article class="card">
+          <h2 class="card-title">Community</h2>
+          <label class="field"><span>Discord invite link</span><input id="set-discord" maxlength="300" placeholder="https://discord.gg/..." spellcheck="false"></label>
+          <small class="fine">Shown as a button on Home. Only https:// links are accepted.</small>
+        </article>
+
+        <article class="card news-editor">
+          <header class="card-head">
+            <h2 class="card-title">Heralds' News</h2>
+            <div class="row gap">
+              <button class="btn ghost small" id="news-add"><svg class="ico"><use href="#i-plus"/></svg><span>Add</span></button>
+              <button class="btn ghost small" id="news-reset">Reset</button>
+              <button class="btn small" id="news-save">Save news</button>
+            </div>
+          </header>
+          <div class="news-rows" id="news-rows"></div>
+        </article>
+      </div>
+    </section>
   </main>
+
+  <!-- ================= SETUP WIZARD ================= -->
+  <div class="wizard" id="wizard" hidden>
+    <div class="wizard-panel">
+      <aside class="wizard-steps">
+        <div class="wizard-brand">
+          <svg class="wizard-sigil"><use href="#sigil"/></svg>
+          <div>
+            <p class="eyebrow">First muster</p>
+            <h2>Raise your Realm</h2>
+          </div>
+        </div>
+        <ol class="step-list" id="step-list"></ol>
+        <div class="wizard-overall">
+          <div class="bar thin"><i id="wiz-overall"></i></div>
+          <p class="fine" id="wiz-overall-text"></p>
+        </div>
+      </aside>
+      <section class="wizard-main">
+        <button class="wizard-close" id="wiz-close" aria-label="Close setup"><svg><use href="#i-x"/></svg></button>
+        <div class="wiz-body" id="wiz-body">
+          <p class="eyebrow" id="wiz-kicker">Setup</p>
+          <h1 class="wiz-title" id="wiz-title">Let's set up your server</h1>
+          <p class="wiz-lead" id="wiz-lead"></p>
+
+          <div class="wiz-folder" id="wiz-folder">
+            <label class="field">
+              <span>Test copy folder</span>
+              <div class="row">
+                <input id="wiz-root" maxlength="240" spellcheck="false">
+                <button class="btn ghost small" id="wiz-root-browse"><svg class="ico"><use href="#i-folder"/></svg><span>Browse</span></button>
+              </div>
+              <small id="wiz-root-msg"></small>
+            </label>
+          </div>
+
+          <div class="wiz-progress" id="wiz-progress" hidden>
+            <div class="bar big"><i id="wiz-bar"></i></div>
+            <p class="wiz-status" id="wiz-status"></p>
+          </div>
+
+          <div class="error-panel" id="wiz-error" hidden>
+            <svg class="error-ico"><use href="#i-alert"/></svg>
+            <div>
+              <h3>That step did not finish</h3>
+              <p id="wiz-error-msg"></p>
+              <p class="fine">Nothing half-written was left behind where it could be avoided. You can retry, or copy the details if you need help.</p>
+              <div class="row gap">
+                <button class="btn small" id="wiz-copy-details"><svg class="ico"><use href="#i-copy"/></svg><span>Copy details</span></button>
+                <button class="btn ghost small" id="wiz-choose-steam" hidden><svg class="ico"><use href="#i-folder"/></svg><span>Choose folder</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="wizard-foot">
+          <p class="fine wiz-safe">Your Steam copy is only read. The firewall and router are never touched. If Windows asks to allow the server through the firewall, choose Cancel.</p>
+          <div class="row gap">
+            <button class="btn ghost" id="wiz-skip" hidden><svg class="ico"><use href="#i-skip"/></svg><span>Skip step</span></button>
+            <button class="btn ghost" id="wiz-cancel" hidden>Cancel</button>
+            <button class="btn primary big" id="wiz-go"><span id="wiz-go-label">Begin</span></button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  </div>
+
+  <!-- In-app confirm dialog -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h2 id="modal-title"></h2>
+      <p id="modal-text"></p>
+      <div class="modal-extra" id="modal-extra"></div>
+      <div class="row gap end">
+        <button class="btn ghost" id="modal-cancel">Cancel</button>
+        <button class="btn primary" id="modal-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
 
   <script src="mock-preload.js"></script>
   <script src="app.js"></script>

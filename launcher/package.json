@@ -1,8 +1,8 @@
 {
   "name": "realm-launcher",
   "productName": "Realm",
-  "version": "0.1.0",
-  "description": "Launcher for the Realm community server. Does not modify game files.",
+  "version": "0.2.0",
+  "description": "Realm desktop client: plays through Steam and runs the owner's local test server. Does not modify game client files.",
   "main": "main.js",
   "private": true,
   "license": "UNLICENSED",
@@ -11,8 +11,14 @@
     "start": "electron .",
     "preview": "node scripts/preview-server.mjs",
     "screenshot": "node scripts/screenshot.mjs",
-    "check": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check renderer/mock-preload.js",
-    "dist:win": "electron-builder --win portable --x64"
+    "screens": "node scripts/electron-screens.mjs",
+    "check": "node scripts/check.mjs",
+    "test": "node --test test/*.test.js",
+    "dist:win": "electron-builder --win nsis portable --x64"
+  },
+  "dependencies": {
+    "yauzl": "^3.4.0",
+    "yazl": "^3.3.1"
   },
   "devDependencies": {
     "electron": "^33.2.0",
@@ -21,23 +27,53 @@
   "build": {
     "appId": "community.realm.launcher",
     "productName": "Realm",
+    "publish": null,
+    "directories": {
+      "output": "dist"
+    },
     "files": [
       "main.js",
       "preload.js",
       "config.json",
       "news.json",
+      "lib/**/*",
       "renderer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../chronicle",
+        "to": "chronicle",
+        "filter": ["server.js", "package.json", "public/**/*"]
+      },
+      {
+        "from": "../plugins",
+        "to": "plugins",
+        "filter": ["*.cs"]
+      }
     ],
     "extraFiles": [
       { "from": "config.json", "to": "config.json" },
       { "from": "news.json", "to": "news.json" }
     ],
     "win": {
-      "target": [{ "target": "portable", "arch": ["x64"] }],
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
       "icon": "build/icon.png"
     },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Realm",
+      "artifactName": "Realm-Setup-${version}.${ext}"
+    },
     "portable": {
-      "artifactName": "RealmLauncher-${version}-portable.exe"
+      "artifactName": "Realm-${version}-portable.${ext}"
     }
   }
 }
