@@ -224,20 +224,20 @@ static class T
         Ok(slayer.All().Contains("You have not earned the title Oathbreaker"), "cannot wear an unearned title", slayer.All());
         Now = Now.AddSeconds(5);
         Cmd("titles", slayer, "set kingslayer");
-        Ok(slayer.ChatFormat == "[C8A050]Kingslayer[-] " + DEFAULT_FMT, "chosen title prefixes the global chat format", slayer.ChatFormat);
+        Ok(slayer.ChatFormat == "[D6A043]Kingslayer[-] " + DEFAULT_FMT, "chosen title prefixes the global chat format", slayer.ChatFormat);
         Ok((string)Inv(P, "GetChosenTitle", SLAYER) == "Kingslayer", "API GetChosenTitle");
         Now = Now.AddSeconds(5);
         Clear();
         Cmd("titles", slayer, "clear");
-        Ok(slayer.All().Contains("change your title again") && slayer.ChatFormat.StartsWith("[C8A050]Kingslayer"), "title change cooldown", slayer.All());
+        Ok(slayer.All().Contains("change your title again") && slayer.ChatFormat.StartsWith("[D6A043]Kingslayer"), "title change cooldown", slayer.All());
         slayer.ChatFormat = DEFAULT_FMT;                      // the game resets it (CoreServer.UpdatePlayerData)
         Tick(30);
-        Ok(slayer.ChatFormat == "[C8A050]Kingslayer[-] " + DEFAULT_FMT, "a format reset by the game is prefixed again on the next tick", slayer.ChatFormat);
+        Ok(slayer.ChatFormat == "[D6A043]Kingslayer[-] " + DEFAULT_FMT, "a format reset by the game is prefixed again on the next tick", slayer.ChatFormat);
         Tick(30);
-        Ok(slayer.ChatFormat == "[C8A050]Kingslayer[-] " + DEFAULT_FMT, "the prefix is never stacked", slayer.ChatFormat);
+        Ok(slayer.ChatFormat == "[D6A043]Kingslayer[-] " + DEFAULT_FMT, "the prefix is never stacked", slayer.ChatFormat);
         slayer.ChatFormat = "[FF0000]%name%[-]: %message%";  // admin gives a custom format
         Tick(30);
-        Ok(slayer.ChatFormat == "[C8A050]Kingslayer[-] [FF0000]%name%[-]: %message%", "custom formats are kept under the prefix", slayer.ChatFormat);
+        Ok(slayer.ChatFormat == "[D6A043]Kingslayer[-] [FF0000]%name%[-]: %message%", "custom formats are kept under the prefix", slayer.ChatFormat);
         Now = Now.AddSeconds(61);
         Cmd("titles", slayer, "clear");
         Ok(slayer.ChatFormat == "[FF0000]%name%[-]: %message%", "clearing restores the format", slayer.ChatFormat);
@@ -329,7 +329,7 @@ static class T
         Clear();
         Now = Now.AddSeconds(5);
         Cmd("titles", guard, "set Oathbreaker");
-        Ok(guard.ChatFormat == "[B04040]Oathbreaker[-] " + DEFAULT_FMT, "an infamous title uses the infamy colour", guard.ChatFormat);
+        Ok(guard.ChatFormat == "[E86A5C]Oathbreaker[-] " + DEFAULT_FMT, "an infamous title uses the infamy colour", guard.ChatFormat);
 
         // ---------- chronicle feed (tournament, hunt, truce) ----------
         var twin1 = Mk(TWIN1, "Hale", null);

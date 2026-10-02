@@ -21,7 +21,7 @@ Folder: `presets/grim-but-readable/`
 | File | What it is |
 |---|---|
 | `grim-but-readable.cfg` | The override lines. Every key is proven from the DLL. |
-| `Apply-Preset.ps1` | Installs and reverts the preset on the **test copy** (`G:\RealmTest\server`). |
+| `Apply-Preset.ps1` | Installs and reverts the preset on the **test copy** (`G:\RealmTest\server`). With `-Mood <id>` it installs any other mood the same way (see "Other moods" below). |
 
 What it changes:
 
@@ -31,7 +31,7 @@ What it changes:
 | `Atmosphere.FogColor` | `rgba(0.9,0.93,0.98,1)` | Multiplies each biome's fog colour: cool grey-blue, about 5% darker. |
 | `Atmosphere.MoonColor` | `rgba(0.84,0.91,1,1)` | Cooler moonlight, about 10% dimmer than white. It is kept bright enough to play at night. |
 | `Atmosphere.SunColor` | `rgba(0.95,0.94,0.91,1)` | Slightly greyed sunlight, about 6% dimmer. |
-| `Weather.ClearWeight` … `PrecipitateHeavyWeight` | `4 / 5 / 4 / 3 / 2` | Odds at each weather change are about: clear 23%, cloudy 43%, light rain 23%, medium rain 8%, heavy rain 1.4%. |
+| `Weather.ClearWeight` … `PrecipitateHeavyWeight` | `4 / 5 / 4 / 3 / 2` | Odds at each weather change are about: clear 23%, cloudy 43%, light rain 23%, medium rain 8%, heavy rain 1.3% (exact odds in [moods.md](moods.md#how-weather-weights-become-odds)). |
 
 Not changed on purpose:
 
@@ -65,6 +65,19 @@ The colour and fog values assume the scene defaults are white and `1`, which are
 3. If the keys are spread over more than one file, put each line in its own file.
 
 Do not copy `grim-but-readable.cfg` into `Mods\` as a file of its own. A `grim-but-readable.cfg` handler does not exist, so the game ignores the file.
+
+### Other moods with Apply-Preset.ps1
+
+Ten more moods sit next to Grim in `presets/`: four season moods, three season looks and four overlays, among them **Crown Night** and **Truce** (described, with their exact weather odds, in [moods.md](moods.md)). `server\Set-Mood.ps1` is the full tool for them: it swaps whole moods, follows the season rotation and remembers overlays. `Apply-Preset.ps1` can install any of them too, the same careful way it installs Grim:
+
+```powershell
+cd <repo>\mods\presets\grim-but-readable
+.\Apply-Preset.ps1 -List                       # every mood folder and its one-line identity
+.\Apply-Preset.ps1 -Mood crown-night -WhatIf   # dry run
+.\Apply-Preset.ps1 -Mood crown-night
+```
+
+It refuses any key that is not one of the twelve proven mood keys, adds or replaces only that mood's lines (lines an earlier mood set and this one does not stay, so run `-Revert` first for a clean swap), and skips Golden Summer's relative `#@scale` day speed, which only Set-Mood.ps1 can work out. How any mood looks in game is UNVERIFIED.
 
 ### Revert
 

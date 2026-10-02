@@ -136,8 +136,8 @@ namespace Oxide.Plugins
             public int RebellionResolveGraceMinutes = 30;
             public bool CountHistoryOnFirstRun = false;
             public bool ChatPrefixEnabled = true;
-            public string ChatPrefixFormat = "[C8A050]{title}[-] ";
-            public string InfamousPrefixFormat = "[B04040]{title}[-] ";
+            public string ChatPrefixFormat = "[D6A043]{title}[-] ";
+            public string InfamousPrefixFormat = "[E86A5C]{title}[-] ";
             public int TitleChangeCooldownSeconds = 60;
             public int CommandCooldownSeconds = 2;
             public int TopCount = 10;
@@ -276,8 +276,8 @@ namespace Oxide.Plugins
             c.MaxContractDeedsPerDay = Clamp(c.MaxContractDeedsPerDay, 0, 1000);
             c.RebellionMinClaimants = Clamp(c.RebellionMinClaimants, 0, 100);
             c.AdminMaxAdjust = Clamp(c.AdminMaxAdjust, 1, 100000);
-            if (!ValidPrefixFormat(c.ChatPrefixFormat)) c.ChatPrefixFormat = "[C8A050]{title}[-] ";
-            if (!ValidPrefixFormat(c.InfamousPrefixFormat)) c.InfamousPrefixFormat = "[B04040]{title}[-] ";
+            if (!ValidPrefixFormat(c.ChatPrefixFormat)) c.ChatPrefixFormat = "[D6A043]{title}[-] ";
+            if (!ValidPrefixFormat(c.InfamousPrefixFormat)) c.InfamousPrefixFormat = "[E86A5C]{title}[-] ";
 
             // Deeds: built-in kinds always exist; values are clamped; unknown kinds are kept (usable through AddDeed).
             Dictionary<string, DeedDef> defaults = DefaultDeeds();
@@ -529,47 +529,50 @@ namespace Oxide.Plugins
         protected override void LoadDefaultMessages()
         {
             var m = new Dictionary<string, string>();
-            m.Add("Prefix", "[C8A050]Renown[FFFFFF]: ");
-            m.Add("Help1", "/renown - your renown, infamy, rank and recent deeds | /renown <player> - another's | /renown top [infamy] - the roll of honour");
-            m.Add("Help2", "/titles - your titles | /titles all - every title and how it is earned | /titles set <title> - wear it in chat | /titles clear");
-            m.Add("Help3", "Renown comes from deeds: reigning, winning or holding the crown in the Lawful Hours, contracts, the tournament and the hunt. Infamy comes from broken oaths and treaties, outlawry and broken truces, and fades by {0} a day.");
-            m.Add("HelpAdmin", "Admin: /renown admin grant <player> renown|infamy <+/-n> [reason] | title give|take <player> <title> | reset <player> [confirm] | status | save");
+            m.Add("Speaker", "Renown");
+            m.Add("Herald", "[D6A043]Herald[FFFFFF]: ");
+            m.Add("HelpHeader", "Deeds win renown; broken faith earns infamy. Both are remembered.");
+            m.Add("Help1", "  [F4C96D]/renown[FFFFFF] - your renown, infamy, rank and recent deeds | [F4C96D]/renown[FFFFFF] <player> - another's | [F4C96D]/renown top[FFFFFF] [infamy] - the roll of honour");
+            m.Add("Help2", "  [F4C96D]/titles[FFFFFF] - your titles | [F4C96D]/titles all[FFFFFF] - every title and how it is earned | [F4C96D]/titles set[FFFFFF] <title> - wear it in chat | [F4C96D]/titles clear[FFFFFF]");
+            m.Add("HelpRenown", "  Renown comes from reigning, winning or holding the crown in the Lawful Hours, contracts, the tournament and the hunt.");
+            m.Add("HelpInfamy", "  Infamy comes from broken oaths and treaties, outlawry and broken truces, and fades by {0} a day.");
+            m.Add("HelpAdmin", "  Admin: [F4C96D]/renown admin grant[FFFFFF] <player> renown|infamy <+/-n> [reason] | title give|take <player> <title> | reset <player> [confirm] | status | save");
             m.Add("Paused", "The roll of honour is damaged and paused. Tell an admin (see the server log).");
             m.Add("Cooldown", "Wait a moment before asking again.");
             m.Add("NoPermission", "You may not do that.");
             m.Add("NotFound", "No one known to the realm matches '{0}'.");
             m.Add("Ambiguous", "More than one player matches '{0}'; use the full name.");
             m.Add("Summary", "{0}: {1} renown, {2} infamy (standing {3}), rank #{4} of {5}.");
-            m.Add("SummaryTitles", "Titles ({0}): {1}");
-            m.Add("SummaryWorn", "Wears the title: {0}");
-            m.Add("SummaryDeeds", "Recent deeds: {0}");
+            m.Add("SummaryTitles", "  Titles ({0}): {1}");
+            m.Add("SummaryWorn", "  Wears the title: {0}");
+            m.Add("SummaryDeeds", "  Recent deeds: {0}");
             m.Add("None", "none");
             m.Add("TopHeader", "The roll of {0} (top {1}):");
-            m.Add("TopLine", "#{0} {1} - {2}{3}");
+            m.Add("TopLine", "  #{0} {1} - {2}{3}");
             m.Add("TopEmpty", "No deeds have been recorded yet.");
-            m.Add("TitlesHeader", "Your titles ({0} of {1}). Wear one with /titles set <title>:");
-            m.Add("TitlesNone", "You hold no titles yet. See /titles all for how they are earned.");
-            m.Add("TitleLine", "{0}{1} - {2}");
+            m.Add("TitlesHeader", "Your titles ({0} of {1}). Wear one with [F4C96D]/titles set[FFFFFF] <title>:");
+            m.Add("TitlesNone", "You hold no titles yet. See [F4C96D]/titles all[FFFFFF] for how they are earned.");
+            m.Add("TitleLine", "  {0}{1} - {2}");
             m.Add("TitlesAllHeader", "The titles of Ostreval (* = yours):");
-            m.Add("TitleUnknown", "There is no title called '{0}'. See /titles all.");
+            m.Add("TitleUnknown", "There is no title called '{0}'. See [F4C96D]/titles all[FFFFFF].");
             m.Add("TitleNotEarned", "You have not earned the title {0}.");
             m.Add("TitleSet", "You now bear the title {0} in chat.");
             m.Add("TitleCleared", "You no longer wear a title in chat.");
             m.Add("TitleCooldown", "You may change your title again in {0} s.");
-            m.Add("TitleEarned", "You have earned the title {0}! Wear it with /titles set {0}");
+            m.Add("TitleEarned", "You have earned the title {0}! Wear it with [F4C96D]/titles set[FFFFFF] {0}");
             m.Add("TitleAnnounce", "{0} has earned the title {1}.");
             m.Add("DeedNotice", "{0} ({1})");
             m.Add("DeedCapped", " - today's cap reached, no points");
-            m.Add("AdminUsage", "Usage: /renown admin grant <player> renown|infamy <+/-n> [reason] | title give|take <player> <title> | reset <player> [confirm] | status | save");
+            m.Add("AdminUsage", "Usage: [F4C96D]/renown admin grant[FFFFFF] <player> renown|infamy <+/-n> [reason] | title give|take <player> <title> | reset <player> [confirm] | status | save");
             m.Add("AdminTooMuch", "At most {0} per adjustment.");
             m.Add("AdminGranted", "{0} now has {1} renown and {2} infamy.");
             m.Add("AdminTitleGiven", "{0} now holds the title {1}.");
             m.Add("AdminTitleTaken", "{0} no longer holds the title {1}.");
             m.Add("AdminTitleNone", "{0} does not hold the title {1}.");
-            m.Add("AdminResetWarn", "This erases all renown, infamy and titles of {0}. Type /renown admin reset {0} confirm within 60 s.");
+            m.Add("AdminResetWarn", "This erases all renown, infamy and titles of {0}. Type [F4C96D]/renown admin reset[FFFFFF] {0} confirm within 60 s.");
             m.Add("AdminResetDone", "The record of {0} is erased.");
             m.Add("AdminSaved", "Renown saved.");
-            m.Add("Usage", "Usage: /renown [player|top [infamy]|help]  /titles [all|set <title>|clear]");
+            m.Add("Usage", "Usage: [F4C96D]/renown[FFFFFF] [player|top [infamy]|help]  [F4C96D]/titles[FFFFFF] [all|set <title>|clear]");
             lang.RegisterMessages(m, this);
         }
 
@@ -1212,11 +1215,11 @@ namespace Oxide.Plugins
             dirty = true;
             Puts(p.Name + " (" + playerId + ") earns the title " + t.Name);
             Player online = OnlinePlayer(playerId);
-            if (online != null) Tell(online, Msg("TitleEarned", online, t.Name));
+            if (online != null) Tell(online, Msg("TitleEarned", online, t.Name), ChatOk);
             if (!announce) return;
             DateTime now = Now();
             if (config.AnnounceTitles && UnderHourlyCap(announceTimes, config.MaxAnnouncementsPerHour, now))
-                Server.BroadcastMessage(Msg("Prefix", null) + Msg("TitleAnnounce", null, p.Name, t.Name));
+                Server.BroadcastMessage(Msg("Herald", null) + Msg("TitleAnnounce", null, p.Name, t.Name));
             if (config.ChronicleTitles && RealmChronicle != null && !chronicleTypeRejected
                 && UnderHourlyCap(chronicleTimes, config.MaxChronicleTitlesPerHour, now))
             {
@@ -1379,7 +1382,7 @@ namespace Oxide.Plugins
                 p.ChosenAt = now;
                 dirty = true;
                 ApplyPrefix(player);
-                Tell(player, clear ? Msg("TitleCleared", player) : Msg("TitleSet", player, t.Name));
+                Tell(player, clear ? Msg("TitleCleared", player) : Msg("TitleSet", player, t.Name), ChatOk);
                 return;
             }
             // "/titles Kingslayer" = info on one title.
@@ -1390,9 +1393,11 @@ namespace Oxide.Plugins
 
         private void ShowHelp(Player player)
         {
+            Tell(player, Msg("HelpHeader", player));
             Tell(player, Msg("Help1", player));
             Tell(player, Msg("Help2", player));
-            Tell(player, Msg("Help3", player, config.InfamyDecayPerDay));
+            Tell(player, Msg("HelpRenown", player));
+            Tell(player, Msg("HelpInfamy", player, config.InfamyDecayPerDay));
             if (IsAdmin(player)) Tell(player, Msg("HelpAdmin", player));
         }
 
@@ -1481,7 +1486,7 @@ namespace Oxide.Plugins
         {
             if (!IsAdmin(player)) { TellError(player, Msg("NoPermission", player)); return; }
             string what = args.Length > 1 ? args[1].ToLowerInvariant() : "";
-            if (what == "save") { dirty = true; SaveData(); Tell(player, Msg("AdminSaved", player)); return; }
+            if (what == "save") { dirty = true; SaveData(); Tell(player, Msg("AdminSaved", player), ChatOk); return; }
             if (what == "status") { AdminStatus(player); return; }
             if (what == "grant" && args.Length >= 5)
             {
@@ -1505,7 +1510,7 @@ namespace Oxide.Plugins
                 dirty = true;
                 Puts("Admin " + player.Name + " adjusted " + which + " of " + p.Name + " by " + amount + (reason.Length > 0 ? " (" + reason + ")" : ""));
                 CheckTitles(id, p);
-                Tell(player, Msg("AdminGranted", player, p.Name, p.Renown, p.Infamy));
+                Tell(player, Msg("AdminGranted", player, p.Name, p.Renown, p.Infamy), ChatOk);
                 return;
             }
             if (what == "title" && args.Length >= 5)
@@ -1520,7 +1525,7 @@ namespace Oxide.Plugins
                 {
                     if (!p.Titles.ContainsKey(t.Id)) GrantTitle(id, p, t, false);
                     Puts("Admin " + player.Name + " gave the title " + t.Name + " to " + p.Name);
-                    Tell(player, Msg("AdminTitleGiven", player, p.Name, t.Name));
+                    Tell(player, Msg("AdminTitleGiven", player, p.Name, t.Name), ChatOk);
                 }
                 else if (op == "take")
                 {
@@ -1530,7 +1535,7 @@ namespace Oxide.Plugins
                     Player online = OnlinePlayer(id);
                     if (online != null) ApplyPrefix(online);
                     Puts("Admin " + player.Name + " took the title " + t.Name + " from " + p.Name);
-                    Tell(player, Msg("AdminTitleTaken", player, p.Name, t.Name));
+                    Tell(player, Msg("AdminTitleTaken", player, p.Name, t.Name), ChatOk);
                 }
                 else TellError(player, Msg("AdminUsage", player));
                 return;
@@ -1548,7 +1553,7 @@ namespace Oxide.Plugins
                 if (!confirmed)
                 {
                     resetConfirm[key] = Now().AddSeconds(60);
-                    Tell(player, Msg("AdminResetWarn", player, name));
+                    Tell(player, Msg("AdminResetWarn", player, name), ChatWarn);
                     return;
                 }
                 resetConfirm.Remove(key);
@@ -1561,7 +1566,7 @@ namespace Oxide.Plugins
                 Player online = OnlinePlayer(id);
                 if (online != null) ApplyPrefix(online);
                 Puts("Admin " + player.Name + " reset the renown record of " + name);
-                Tell(player, Msg("AdminResetDone", player, name));
+                Tell(player, Msg("AdminResetDone", player, name), ChatOk);
                 return;
             }
             TellError(player, Msg("AdminUsage", player));
@@ -1646,6 +1651,34 @@ namespace Oxide.Plugins
         {
             if (data == null) return false;
             return Award(playerId, playerName, NormalizeId(kind), note, string.IsNullOrEmpty(dedupeKey) ? null : CleanText(dedupeKey, 80));
+        }
+
+        #endregion
+
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
         }
 
         #endregion
@@ -1898,12 +1931,18 @@ namespace Oxide.Plugins
         // Single-string overloads only (brace safety, doc section 4.2).
         private void Tell(Player player, string text)
         {
-            if (player != null) player.SendMessage(Msg("Prefix", player) + text);
+            Tell(player, text, ChatGold);
+        }
+
+        // tone: ChatGold for news, ChatOk for done, ChatWarn for take care (chat style).
+        private void Tell(Player player, string text, string tone)
+        {
+            if (player != null) player.SendMessage(Styled(Msg("Speaker", player), tone, text));
         }
 
         private void TellError(Player player, string text)
         {
-            if (player != null) player.SendError(text);
+            if (player != null) player.SendError(Styled(Msg("Speaker", player), ChatError, text));
         }
 
         #endregion

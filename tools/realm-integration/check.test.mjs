@@ -110,3 +110,157 @@ test('parsing helpers keep strings and nesting intact', () => {
   const { args } = splitArgs('"Log", f(a, b), new[] { "x", "y" }, "a,b")', 0);
   assert.deepEqual(args, ['"Log"', 'f(a, b)', 'new[] { "x", "y" }', '"a,b"']);
 });
+
+const STYLE = `
+    #region Chat style
+    private const string ChatGold = "D6A043";
+    private const string ChatOk = "8FC97A";
+    private const string ChatWarn = "E8913A";
+    private const string ChatError = "E86A5C";
+    #endregion`;
+
+test('chat style: a plugin in the house style passes', () => {
+  const dir = fakeRepo({
+    RealmA: plugin('RealmA', `${STYLE}
+    protected override void LoadDefaultMessages() {
+      lang.RegisterMessages(new Dictionary<string, string> {
+        { "Speaker", "Alpha" },
+        { "Herald", "[D6A043]Herald[FFFFFF]: " },
+        { "Help", "  [F4C96D]/alpha list[FFFFFF] | see oxide/data/RealmA.json, 3/4 done, +/-n" }
+      }, this);
+    }
+    [ChatCommand("alpha")] private void CmdA(Player p, string c, string[] a) { }`),
+  });
+  try {
+    assert.deepEqual(analyse(dir).problems, []);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('chat style: every kind of drift is reported', () => {
+  const dir = fakeRepo({
+    RealmA: plugin('RealmA', `
+    private const string ChatGold = "C8A050";
+    protected override void LoadDefaultMessages() {
+      var m = new Dictionary<string, string>();
+      m["Herald"] = "[C8A050]Herald[FFFFFF]: ";
+      m["Plain"] = "Type /alpha to start.";
+      m["Ghost"] = "Try [F4C96D]/ghost[FFFFFF].";
+      m["Wall"] = "${'x'.repeat(201)}";
+      m["Pink"] = "[FF00FF]pink[FFFFFF]";
+      lang.RegisterMessages(m, this);
+    }
+    [ChatCommand("alpha")] private void CmdA(Player p, string c, string[] a) { }`),
+  });
+  try {
+    const text = analyse(dir).problems.join('\n');
+    assert.match(text, /no "Chat style" block/);
+    assert.match(text, /ChatGold is C8A050, the chat palette says D6A043/);
+    assert.match(text, /ChatOk is missing/);
+    assert.match(text, /no "Speaker" key/);
+    assert.match(text, /"Herald" must be/);
+    assert.match(text, /"Plain" mentions \/alpha without the command colour/);
+    assert.match(text, /"Ghost" mentions \/ghost, which no plugin registers/);
+    assert.match(text, /"Wall" is 201 characters/);
+    assert.match(text, /colour \[FF00FF\] is not in the chat palette/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the /realm catalogue must list every command once, under its owner', () => {
+  const dir = fakeRepo({
+    RealmA: plugin('RealmA', `
+    [ChatCommand("alpha")] private void CmdA(Player p, string c, string[] a) { }
+    [ChatCommand("beta")] private void CmdB(Player p, string c, string[] a) { }`),
+    RealmHerald: plugin('RealmHerald', `${STYLE}
+    private static readonly string[] Subjects = { "one" };
+    private static readonly Entry[] Catalogue = {
+      new Entry("alpha", "one", "RealmB"),
+      new Entry("realm", "two", "RealmHerald"),
+      new Entry("realm", "one", "RealmHerald"),
+      new Entry("gamma", "one", "RealmA")
+    };
+    protected override void LoadDefaultMessages() {
+      lang.RegisterMessages(new Dictionary<string, string> { { "Speaker", "Realm" }, { "Cmd.alpha", "a" }, { "Cmd.realm", "r" } }, this);
+    }
+    [ChatCommand("realm")] private void CmdR(Player p, string c, string[] a) { }`),
+  });
+  try {
+    const r = analyse(dir);
+    const text = r.problems.join('\n');
+    assert.match(text, /says \/alpha belongs to RealmB; RealmA registers it/);
+    assert.match(text, /lists \/realm twice/);
+    assert.match(text, /\/realm under unknown subject "two"/);
+    assert.match(text, /lists \/gamma, which no plugin registers/);
+    assert.match(text, /"Cmd\.gamma" \(its one-line description\) is missing/);
+    assert.match(text, /"Subject\.one" is missing/);
+    assert.match(text, /\/beta \(RealmA\) is missing from the \/realm catalogue/);
+    assert.equal(r.chat.catalogue, 4);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the real plugins keep the chat style and a complete /realm catalogue', () => {
+  const r = analyse();
+  assert.ok(r.chat.langStrings > 900);
+  assert.equal(r.chat.catalogue, Object.keys(r.commands).length - 2);   // all but RealmCourt's two console commands
+});
+
+const POPUPS_OK = `
+    private class PluginConfig { public bool UsePopups = true; }
+    private bool popupsClosed;
+    private void Unload() {
+      popupsClosed = true;
+    }
+    #region Popups
+    private bool PopupsFor(Player p) { return true; }
+    private bool Ask(Player p) {
+      try { p.ShowConfirmPopup("t", "m", "Yes", "No", Answered(), false, true); return true; }
+      catch (Exception ex) { return false; }
+    }
+    private bool Info(Player p) {
+      try { p.ShowPopup("t", "m", "Ok", null, false, true); return true; }
+      catch (Exception ex) { return false; }
+    }
+    #endregion`;
+
+test('popups: a plugin with gated, guarded windows passes', () => {
+  const dir = fakeRepo({ RealmA: plugin('RealmA', POPUPS_OK) });
+  try {
+    const r = analyse(dir);
+    assert.deepEqual(r.problems, []);
+    assert.deepEqual(r.chat.popupPlugins, ['RealmA']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('popups: every kind of drift is reported', () => {
+  const dir = fakeRepo({
+    RealmA: plugin('RealmA', `
+    private void Unload() { }
+    private void Go(Player p) {
+      p.ShowPopup("t", "m");
+    }
+    #region Popups
+    private void Ask(Player p) {
+      p.ShowConfirmPopup("t", "m", "Yes", "No", Answered(), false, false);
+    }
+    private void Name(Player p) {
+      try { p.ShowInputPopup("t", "m", "", "Ok", "Cancel", Answered(), false); } catch (Exception ex) { }
+    }
+    #endregion`),
+  });
+  try {
+    const text = analyse(dir).problems.join('\n');
+    assert.match(text, /ShowPopup outside the "Popups" region/);
+    assert.match(text, /ShowPopup needs all 6 arguments/);
+    assert.match(text, /ShowConfirmPopup: broadcast must be true/);
+    assert.match(text, /ShowConfirmPopup is not inside try/);
+    assert.match(text, /ShowInputPopup needs all 8 arguments/);
+    assert.match(text, /no UsePopups switch/);
+    assert.match(text, /without a PopupsFor\(player\) gate/);
+    assert.match(text, /Unload does not set popupsClosed = true/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the real plugins open popups only through their guarded helpers', () => {
+  const r = analyse();
+  assert.ok(r.chat.popupPlugins.includes('RealmHerald'));
+  assert.ok(r.chat.popupPlugins.includes('RealmHouses'));
+});
