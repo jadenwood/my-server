@@ -1601,6 +1601,16 @@ namespace Oxide.Plugins
             return data != null && IsCrownSworn(house);
         }
 
+        // Start (UTC DateTime, boxed) of the next rebellion window that has not started yet, or null when none is
+        // configured. Same computation as "/crown". Used by RealmChronicle for RealmState.next.
+        private object GetNextRebellionWindow()
+        {
+            if (config == null || config.RebellionWindows == null) return null;
+            DateTime s, e;
+            if (!NextWindow(DateTime.UtcNow, out s, out e)) return null;
+            return DateTime.SpecifyKind(s, DateTimeKind.Utc);
+        }
+
         private string GetKingName()
         {
             return data != null ? data.KingName : null;

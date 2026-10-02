@@ -12,5 +12,6 @@
   ],
   "online": 23,
   "maxPlayers": 40,
-  "updated": "2026-10-01T21:05:00Z"
+  "updated": "2026-10-01T21:05:00Z",
+  "next": { "title": "Rebellion window", "at": "2026-10-03T19:00:00Z" }
 }

@@ -2,7 +2,14 @@
 //
 // Writes two data files that the chronicle web service (chronicle/server.js) reads:
 //   oxide/data/RealmChronicle.json  JSON array of events {id, ts, type, title, detail, actors[]}
-//   oxide/data/RealmState.json      {king, house, since, houses[], online, maxPlayers, updated}
+//   oxide/data/RealmState.json      {king, house, since, houses[], online, maxPlayers, updated, next}
+//
+// `next` is {title, at} (at = UTC ISO 8601, "yyyy-MM-ddTHH:mm:ssZ") for the soonest scheduled realm event that has
+// not started and is at most NextEventHorizonDays ahead, or null when there is none. Candidates, polled on every
+// state refresh through non-public plugin.Call hooks:
+//   CrownAndConsequences.Call("GetNextRebellionWindow") -> boxed UTC DateTime or null   (title "Rebellion window")
+//   RealmEvents.Call("GetNextEvent") -> Dictionary<string, object> { "title": string, "at": DateTime (UTC) } or null
+// UNVERIFIED: no RealmEvents plugin exists in this repository yet; the second line is the contract it must implement.
 //
 // Other plugins log events with RealmChronicle.Call("Log", type, title, detail, actors).
 // Only public names go into the chronicle: never positions, inventories or Steam ids.
@@ -36,6 +43,7 @@ namespace Oxide.Plugins
         private const int DetailMax = 400;
         private const int ActorMax = 48;
         private const int ActorsMax = 8;
+        private const int NextTitleMax = 80;
 
         private static readonly string[] KnownTypes =
         {
@@ -59,6 +67,7 @@ namespace Oxide.Plugins
         // Both references are optional; null means "not loaded".
         [PluginReference] private Plugin RealmHouses;
         [PluginReference] private Plugin CrownAndConsequences;
+        [PluginReference] private Plugin RealmEvents;
 
         private PluginConfig config;
         private List<ChronicleEvent> events;
@@ -80,6 +89,8 @@ namespace Oxide.Plugins
             public bool EchoToConsole = true;
             // Drop an event identical (type, title, detail) to one logged within this many seconds (anti-spam).
             public int DuplicateWindowSeconds = 300;
+            // RealmState.next only lists events starting within this many days (the player app ignores later ones).
+            public int NextEventHorizonDays = 45;
         }
 
         private class ChronicleEvent
@@ -109,6 +120,13 @@ namespace Oxide.Plugins
             public int online;
             public int maxPlayers;
             public string updated;
+            public NextEvent next;
+        }
+
+        private class NextEvent
+        {
+            public string title;
+            public string at;
         }
 
         #endregion
@@ -138,6 +156,7 @@ namespace Oxide.Plugins
 
             if (config.ChatMaxCount < 1) config.ChatMaxCount = 1;
             if (config.ChatDefaultCount < 1) config.ChatDefaultCount = 1;
+            if (config.NextEventHorizonDays < 1) config.NextEventHorizonDays = 1;
 
             try
             {
@@ -365,7 +384,43 @@ namespace Oxide.Plugins
 
             state.online = online;
             state.maxPlayers = Server.PlayerLimit;
+            state.next = FindNextEvent();
             WriteState();
+        }
+
+        // Soonest upcoming scheduled event from the loaded schedule plugins (see header); null when none qualifies.
+        private NextEvent FindNextEvent()
+        {
+            DateTime now = DateTime.UtcNow;
+            DateTime horizon = now.AddDays(config.NextEventHorizonDays);
+            string bestTitle = null;
+            DateTime bestAt = DateTime.MaxValue;
+
+            if (CrownAndConsequences != null)
+            {
+                object at = CrownAndConsequences.Call("GetNextRebellionWindow");
+                if (at is DateTime) ConsiderNext("Rebellion window", (DateTime)at, now, horizon, ref bestTitle, ref bestAt);
+            }
+
+            if (RealmEvents != null)
+            {
+                var ev = RealmEvents.Call("GetNextEvent") as Dictionary<string, object>;
+                object at = Get(ev, "at");
+                if (at is DateTime) ConsiderNext(Get(ev, "title") as string, (DateTime)at, now, horizon, ref bestTitle, ref bestAt);
+            }
+
+            if (bestTitle == null) return null;
+            return new NextEvent { title = bestTitle, at = bestAt.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'") };
+        }
+
+        private static void ConsiderNext(string title, DateTime at, DateTime now, DateTime horizon, ref string bestTitle, ref DateTime bestAt)
+        {
+            title = NullIfEmpty(Clean(title, NextTitleMax));
+            if (title == null) return;
+            if (at.Kind == DateTimeKind.Local) at = at.ToUniversalTime();   // Unspecified is taken as UTC (contract)
+            if (at <= now || at > horizon || at >= bestAt) return;
+            bestTitle = title;
+            bestAt = at;
         }
 
         private void RefreshCrown()
