@@ -304,30 +304,60 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+        #endregion
+
         #region Lang
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Prefix", "[C8A050]Realm Events[FFFFFF]: " },
-                { "Herald", "[C8A050]Herald[FFFFFF]: " },
-                { "Help", "/events | /event collect | /tourney join|leave|standings | /hunt [name <player>] | /truce. Admin: /event start <crown_night|tournament|kings_hunt|truce> [minutes] | stop <kind> | cancel <kind>" },
+                { "Speaker", "Events" },
+                { "Herald", "[D6A043]Herald[FFFFFF]: " },
+                { "Help", "  [F4C96D]/events[FFFFFF] | [F4C96D]/event collect[FFFFFF] | [F4C96D]/tourney join|leave|standings[FFFFFF] | [F4C96D]/hunt[FFFFFF] [name <player>] | [F4C96D]/truce[FFFFFF]" },
+                { "HelpAdmin", "  Admin: [F4C96D]/event start[FFFFFF] <crown_night|tournament|kings_hunt|truce> [minutes] | stop <kind> | cancel <kind>" },
+                { "EventsHeader", "The realm's calendar (times in UTC):" },
                 { "Name.crown_night", "Crown Night" },
                 { "Name.tournament", "the Royal Tournament" },
                 { "Name.kings_hunt", "the King's Hunt" },
                 { "Name.truce", "the Truce of the Realm" },
                 { "Countdown.crown_night", "Crown Night falls in {0} min. The throne is fought for tonight: houses with a declared claim may take it. {1}" },
-                { "Countdown.tournament", "The Royal Tournament begins in {0} min. Enter with /tourney join; every kill of another entrant scores." },
+                { "Countdown.tournament", "The Royal Tournament begins in {0} min. Enter with [F4C96D]/tourney join[FFFFFF]; every kill of another entrant scores." },
                 { "Countdown.kings_hunt", "The King's Hunt begins in {0} min. The monarch will name the quarry; hunters, ready your blades." },
                 { "Countdown.truce", "The Truce of the Realm begins in {0} min. For {1} min no blood may be shed between players." },
                 { "Begin.crown_night", "Crown Night has fallen! It lasts until {0} UTC. {1}" },
-                { "Begin.tournament", "The Royal Tournament has begun! It ends {0} UTC. Enter with /tourney join." },
+                { "Begin.tournament", "The Royal Tournament has begun! It ends {0} UTC. Enter with [F4C96D]/tourney join[FFFFFF]." },
                 { "Begin.kings_hunt", "The King's Hunt has begun! It ends {0} UTC. {1}" },
                 { "Begin.truce", "The Truce of the Realm is proclaimed until {0} UTC. {1}" },
                 { "ClaimsTonight", "Claims tonight: {0}." },
-                { "NoClaimsTonight", "No claim stands for tonight yet: a house leader may still /claim declare." },
-                { "HuntNameNow", "Monarch, name your quarry with /hunt name <player> within {0} min." },
+                { "NoClaimsTonight", "No claim stands for tonight yet: a house leader may still [F4C96D]/claim declare[FFFFFF]." },
+                { "HuntNameNow", "Monarch, name your quarry with [F4C96D]/hunt name[FFFFFF] <player> within {0} min." },
                 { "HuntNoMonarch", "There is no monarch to call the hunt; it is called off." },
                 { "HuntCalledOff", "No quarry was named; the King's Hunt is called off." },
                 { "TruceEnforcedLine", "Blows between players will not land." },
@@ -347,10 +377,10 @@ namespace Oxide.Plugins
                 { "NoSurvivors", "Every quarry was taken." },
                 { "TruceKept", "The truce was kept." },
                 { "TruceBroken", "Truce breakers: {0}." },
-                { "EventsActive", "Now: {0} until {1} UTC ({2} min left)." },
-                { "EventsNext", "Next: {0} at {1} UTC (in {2})." },
-                { "EventsNone", "No realm events are scheduled." },
-                { "EventsHistory", "Last: {0}" },
+                { "EventsActive", "  Now: {0} until {1} UTC ({2} min left)." },
+                { "EventsNext", "  Next: {0} at {1} UTC (in {2})." },
+                { "EventsNone", "  No realm events are scheduled." },
+                { "EventsHistory", "  Last: {0}" },
                 { "NoPermission", "You may not do that." },
                 { "UnknownKind", "Unknown event. Use crown_night, tournament, kings_hunt or truce." },
                 { "KindDisabled", "{0} is disabled in the config." },
@@ -397,8 +427,9 @@ namespace Oxide.Plugins
                 { "TruceBlocked", "The Truce of the Realm holds: your blow does not land." },
                 { "TruceBreachBroadcast", "{0} has broken the Truce of the Realm!" },
                 { "PrizeGiven", "You receive {0} {1} ({2})." },
-                { "PrizeOwed", "Your packs are full. {0} {1} wait for you: /event collect" },
-                { "NothingOwed", "Nothing is owed to you." }
+                { "PrizeOwed", "Your packs are full. {0} {1} wait for you: [F4C96D]/event collect[FFFFFF]" },
+                { "NothingOwed", "Nothing is owed to you." },
+                { "Paused", "Realm events are paused: oxide/data/RealmEvents.json could not be read." }
             }, this);
         }
 
@@ -415,7 +446,7 @@ namespace Oxide.Plugins
 
         private void Reply(Player player, string key, params object[] args)
         {
-            player.SendMessage(Msg("Prefix", player) + Fmt(key, player, args));      // single-string overload: brace safe
+            player.SendMessage(Styled(Msg("Speaker", player), ToneOf(key), Fmt(key, player, args)));   // single-string overload: brace safe
         }
 
         private void ReplyRaw(Player player, string key, params object[] args)
@@ -425,7 +456,16 @@ namespace Oxide.Plugins
 
         private void ReplyError(Player player, string key, params object[] args)
         {
-            player.SendError(Fmt(key, player, args));
+            player.SendError(Styled(Msg("Speaker", player), ChatError, Fmt(key, player, args)));
+        }
+
+        // Tone of a reply (chat style): done, or take care; everything else is news.
+        private static readonly HashSet<string> OkKeys = new HashSet<string> { "Joined", "Started", "PrizeGiven" };
+        private static readonly HashSet<string> WarnKeys = new HashSet<string> { "Left" };
+
+        private static string ToneOf(string key)
+        {
+            return OkKeys.Contains(key) ? ChatOk : WarnKeys.Contains(key) ? ChatWarn : ChatGold;
         }
 
         private void Herald(string text)
@@ -1089,8 +1129,9 @@ namespace Oxide.Plugins
         private void CmdEvents(Player player, string command, string[] args)
         {
             if (player == null) return;
-            if (loadFailed) { player.SendError("Realm events are paused: oxide/data/RealmEvents.json could not be read."); return; }
+            if (loadFailed) { ReplyError(player, "Paused"); return; }
             DateTime now = Now();
+            Reply(player, "EventsHeader");
             foreach (ActiveEvent a in data.Active)
                 Reply(player, "EventsActive", KindTitle(a.Kind), a.End.ToString("HH:mm"), Math.Max(0, (int)Math.Ceiling((a.End - now).TotalMinutes)));
             var upcoming = new List<KeyValuePair<DateTime, string>>();
@@ -1106,6 +1147,7 @@ namespace Oxide.Plugins
                 Reply(player, "EventsNext", KindTitle(u.Value), u.Key.ToString("ddd HH:mm"), Until(u.Key - now));
             if (data.History.Count > 0) Reply(player, "EventsHistory", data.History[data.History.Count - 1]);
             Reply(player, "Help");
+            if (IsAdmin(player)) Reply(player, "HelpAdmin");
         }
 
         [ChatCommand("event")]

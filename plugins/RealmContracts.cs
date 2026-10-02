@@ -209,25 +209,58 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+        #endregion
+
         #region Lang
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Prefix", "[A08850]Contracts[FFFFFF]: " },
-                { "Help1", "/contract list [bounty|delivery|merc] | /contract info <id> | /contract collect" },
-                { "Help2", "/contract post bounty <player> <amount> \"<item>\" [hours]" },
-                { "Help3", "/contract post delivery <qty> \"<item wanted>\" <amount> \"<reward item>\" [hours]" },
-                { "Help4", "/contract post merc <amount> \"<item>\" (house leader, during a pending or open rebellion)" },
-                { "Help5", "/contract accept <id> | deliver <id> | confirm <id> | cancel <id> | enemies | items <search>" },
-                { "Help6", "Monarch: /contract outlaw <player> | /contract pardon <player>. Admin: /contract admin cancel|pay|refund <id>" },
+                { "Speaker", "Contracts" },
+                { "HelpHeader", "Bounties, deliveries and swords for hire, paid by the realm's board." },
+                { "Help1", "  [F4C96D]/contract list[FFFFFF] [bounty|delivery|merc] | [F4C96D]/contract info[FFFFFF] <id> | [F4C96D]/contract collect[FFFFFF]" },
+                { "Help2", "  [F4C96D]/contract post bounty[FFFFFF] <player> <amount> \"<item>\" [hours]" },
+                { "Help3", "  [F4C96D]/contract post delivery[FFFFFF] <qty> \"<item wanted>\" <amount> \"<reward item>\" [hours]" },
+                { "Help4", "  [F4C96D]/contract post merc[FFFFFF] <amount> \"<item>\" (house leader, during a pending or open rebellion)" },
+                { "Help5", "  [F4C96D]/contract accept[FFFFFF] <id> | deliver <id> | confirm <id> | cancel <id> | enemies | items <search>" },
+                { "Help6", "  Monarch: [F4C96D]/contract outlaw[FFFFFF] <player> | [F4C96D]/contract pardon[FFFFFF] <player>. Admin: [F4C96D]/contract admin cancel|pay|refund[FFFFFF] <id>" },
+                { "InfoPosted", "  Posted by {0}{1}{2}{3}" },
+                { "InfoEscrow", " (reward held in escrow)" },
+                { "InfoHonour", " (honour)" },
+                { "InfoTakenBy", "; taken by {0}" },
                 { "Mode", "Escrow: {0}." },
                 { "NoPermission", "You may not do that." },
                 { "NotFound", "There is no open contract #{0}." },
                 { "PlayerNotFound", "No such person is online." },
                 { "BadNumber", "'{0}' is not a whole number from {1} to {2}." },
-                { "UnknownItem", "No item is named '{0}'. Try /contract items <search>." },
+                { "UnknownItem", "No item is named '{0}'. Try [F4C96D]/contract items[FFFFFF] <search>." },
                 { "ItemNotAllowed", "'{0}' may not be used in contracts on this server." },
                 { "ItemsFound", "Items matching '{0}': {1}" },
                 { "ItemsNone", "No item matches '{0}'." },
@@ -237,7 +270,7 @@ namespace Oxide.Plugins
                 { "NotEnoughItems", "You need {0} {1} in your inventory (you have {2})." },
                 { "EscrowFailed", "The realm could not take the items. Nothing was posted." },
                 { "Posted", "Contract #{0} posted." },
-                { "NotEnemy", "{0} is not a public enemy of the crown. See /contract enemies." },
+                { "NotEnemy", "{0} is not a public enemy of the crown. See [F4C96D]/contract enemies[FFFFFF]." },
                 { "NoSelf", "You cannot do that to yourself." },
                 { "TargetCooldown", "A bounty was just collected on {0}. Wait {1} min." },
                 { "TargetFull", "{0} already carries {1} bounties." },
@@ -252,7 +285,7 @@ namespace Oxide.Plugins
                 { "AlreadyOutlaw", "{0} is already an outlaw ({1} min left)." },
                 { "OutlawCooldown", "The crown may proclaim another outlaw in {0} min." },
                 { "OutlawRepeat", "{0} was an outlaw too recently. The crown may name them again in {1} min." },
-                { "ListMore", "  ... and {0} more. Filter with /contract list bounty|delivery|merc." },
+                { "ListMore", "  ... and {0} more. Filter with [F4C96D]/contract list bounty|delivery|merc[FFFFFF]." },
                 { "NeedHouse", "You must belong to a house." },
                 { "NotLeader", "Only the head of your house may hire swords." },
                 { "NoRebellion", "Your house has no part in a pending or open rebellion." },
@@ -264,14 +297,14 @@ namespace Oxide.Plugins
                 { "AlreadyTaken", "That contract is already taken." },
                 { "Accepted", "You are hired by House {0} until {1} UTC. Kills of the other side in the window count." },
                 { "Delivered", "Delivered. Your reward is {0} {1}." },
-                { "DeliveredHonour", "Marked as delivered. The poster must confirm with /contract confirm {0}." },
+                { "DeliveredHonour", "Marked as delivered. The poster must confirm with [F4C96D]/contract confirm[FFFFFF] {0}." },
                 { "NotPoster", "Only the poster may do that." },
                 { "CannotCancel", "That contract can no longer be cancelled." },
                 { "Cancelled", "Contract #{0} cancelled." },
                 { "NothingToConfirm", "There is nothing to confirm on that contract." },
                 { "Confirmed", "Contract #{0} confirmed." },
                 { "Paid", "You receive {0} {1} (contract #{2})." },
-                { "StillOwed", "Your packs are full. {0} {1} wait for you: /contract collect" },
+                { "StillOwed", "Your packs are full. {0} {1} wait for you: [F4C96D]/contract collect[FFFFFF]" },
                 { "NothingOwed", "Nothing is owed to you." },
                 { "Line", "  #{0} {1}: {2} - reward {3} {4}, {5}" },
                 { "ListNone", "No open contracts." },
@@ -287,13 +320,25 @@ namespace Oxide.Plugins
         private void Reply(Player player, string key, params object[] args)
         {
             string text = args.Length > 0 ? string.Format(Msg(key, player), args) : Msg(key, player);
-            player.SendMessage(Msg("Prefix", player) + text);                // single-string overload: brace safe
+            player.SendMessage(Styled(Msg("Speaker", player), ToneOf(key), text));   // single-string overload: brace safe
         }
 
         private void ReplyError(Player player, string key, params object[] args)
         {
             string text = args.Length > 0 ? string.Format(Msg(key, player), args) : Msg(key, player);
-            player.SendError(text);
+            player.SendError(Styled(Msg("Speaker", player), ChatError, text));
+        }
+
+        // Tone of a reply (chat style): done, or take care; everything else is news.
+        private static readonly HashSet<string> OkKeys = new HashSet<string>
+        {
+            "Posted", "Accepted", "Delivered", "DeliveredHonour", "Cancelled", "Confirmed", "Paid", "Outlawed", "Pardoned", "AdminDone"
+        };
+        private static readonly HashSet<string> WarnKeys = new HashSet<string> { "MercDismissed" };
+
+        private static string ToneOf(string key)
+        {
+            return OkKeys.Contains(key) ? ChatOk : WarnKeys.Contains(key) ? ChatWarn : ChatGold;
         }
 
         #endregion
@@ -388,6 +433,7 @@ namespace Oxide.Plugins
                 case "pardon": CmdOutlaw(player, args, false); return;
                 case "admin": CmdAdmin(player, args); return;
             }
+            Reply(player, "HelpHeader");
             for (int i = 1; i <= 6; i++) player.SendMessage(Msg("Help" + i, player));
             Reply(player, "Mode", config.ItemEscrow ? "items held by the realm" : "honour (no items are moved)");
         }
@@ -412,8 +458,8 @@ namespace Oxide.Plugins
             Contract c = args.Length > 1 ? FindContract(args[1]) : null;
             if (c == null) { ReplyError(player, "NotFound", args.Length > 1 ? args[1] : "?"); return; }
             Reply(player, "Line", c.Id, c.Type, Describe(c), c.RewardAmount, c.RewardItem, StatusText(c));
-            player.SendMessage("  Posted by " + c.PosterName + (c.Escrowed ? " (reward held in escrow)" : " (honour)")
-                + (c.FulfillerName != null ? "; taken by " + c.FulfillerName : "") + (c.Outcome != null ? ". " + c.Outcome : ""));
+            player.SendMessage(string.Format(Msg("InfoPosted", player), c.PosterName, Msg(c.Escrowed ? "InfoEscrow" : "InfoHonour", player),
+                c.FulfillerName != null ? string.Format(Msg("InfoTakenBy", player), c.FulfillerName) : "", c.Outcome != null ? ". " + c.Outcome : ""));
         }
 
         private void CmdPost(Player player, string[] args)
@@ -1125,6 +1171,16 @@ namespace Oxide.Plugins
         #endregion
 
         #region API (plugin.Call)
+
+        // True if the player has posted, taken or fulfilled a contract the board still remembers (open or settled).
+        // Used by RealmHerald's first-steps path. Non-public on purpose (see header).
+        private bool HasContractHistory(string playerId)
+        {
+            if (data == null || string.IsNullOrEmpty(playerId)) return false;
+            foreach (Contract c in data.Contracts)
+                if (c != null && (c.PosterId == playerId || c.FulfillerId == playerId)) return true;
+            return false;
+        }
 
         // Number of open bounties on a player (0 if none). Non-public on purpose (see header).
         private int GetBountyCount(string playerId)

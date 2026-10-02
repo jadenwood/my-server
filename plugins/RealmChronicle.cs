@@ -214,9 +214,11 @@ namespace Oxide.Plugins
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Header", "[C8A050]The Realm Chronicle[FFFFFF] (latest {0}):" },
-                { "Empty", "[C8A050]The Realm Chronicle[FFFFFF]: nothing has been written yet." },
-                { "Usage", "Usage: /chronicle [count]" }
+                { "Speaker", "Chronicle" },
+                { "Header", "The latest {0} entries of the Realm Chronicle:" },
+                { "Line", "  [A3A6AD]{0}[FFFFFF] {1}" },
+                { "Empty", "Nothing has been written in the Realm Chronicle yet." },
+                { "Usage", "Usage: [F4C96D]/chronicle[FFFFFF] [count]" }
             }, this);
         }
 
@@ -520,6 +522,34 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+        #endregion
+
         #region Commands
 
         [ChatCommand("chronicle")]
@@ -531,7 +561,7 @@ namespace Oxide.Plugins
                 int parsed;
                 if (!int.TryParse(args[0], out parsed) || parsed < 1)
                 {
-                    player.SendMessage(Msg("Usage", player));
+                    player.SendError(Styled(Msg("Speaker", player), ChatError, Msg("Usage", player)));
                     return;
                 }
                 count = Math.Min(parsed, config.ChatMaxCount);
@@ -539,18 +569,18 @@ namespace Oxide.Plugins
 
             if (events.Count == 0)
             {
-                player.SendMessage(Msg("Empty", player));
+                player.SendMessage(Styled(Msg("Speaker", player), ChatGold, Msg("Empty", player)));
                 return;
             }
 
             count = Math.Min(count, events.Count);
-            player.SendMessage(string.Format(Msg("Header", player), count));
+            player.SendMessage(Styled(Msg("Speaker", player), ChatGold, string.Format(Msg("Header", player), count)));
             // Event text is player-influenced, so it goes through the single-string overload (doc 4.2).
             for (int i = events.Count - count; i < events.Count; i++)
             {
                 ChronicleEvent e = events[i];
                 string when = e.ts != null && e.ts.Length >= 16 ? e.ts.Substring(5, 11).Replace('T', ' ') : "";
-                player.SendMessage("[A08C64]" + when + "[FFFFFF] " + e.title);
+                player.SendMessage(string.Format(Msg("Line", player), when, e.title));
             }
         }
 
