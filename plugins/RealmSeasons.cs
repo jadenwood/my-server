@@ -37,12 +37,22 @@
 //                                             (RealmContracts.FulfilledTitle)
 //                         If one of those texts changes, the matching standing silently stops counting; the
 //                         behaviour tests (plugins/docs/RealmEvents/logic-tests) check the texts are still in those plugins.
-//   RealmHouses           HasTreaty(a, b) -> bool (a treaty no longer present that was never broken counts as kept),
-//                         GetHouseSummaries(), GetMemberNames(house) (to map a contract fulfiller's name to a house),
-//                         GetHouse(playerId).
+//   RealmHouses           HasTreaty(a, b) -> bool (a treaty no longer present that was never broken has run its
+//                         term), GetHouseSummaries(), GetMemberNames(house) (to map a contract fulfiller's name to a
+//                         house, and to count members), GetHouse(playerId), GetHouseFounded(house) (lineage: a house
+//                         refounded under a fallen house's name gets a new date).
+// Against farming:
+//   treaties kept   a treaty counts as kept only if it stood TreatyKeptMinDays, both houses had TreatyKeptMinMembers
+//                   members when it was signed and when it ended, neither house fell (disbanded, or refounded under
+//                   the same name) while it stood, and that pair has not already been credited
+//                   TreatyKeptPerPairPerSeason times this season. So one-day treaties between one-man alt houses,
+//                   and sign/lapse/sign again, earn nothing.
+//   contracts       one fulfilled contract per fulfiller and counterpart (target, poster or paying house) per
+//                   ContractPairCooldownHours, and at most MaxContractsPerHousePerDay per house per UTC day.
+//   lineage         standings are kept per house lineage: when a house name is refounded (GetHouseFounded changes),
+//                   the fallen house's standing is set aside as "<name> (fallen <date>)" and the new house starts at 0.
 // Hooks: OnThroneReleased(AncientThroneReleaseEvent) [OPJ L633] only records HOW a reign ended (evt.IsDeath);
 // the reign itself is tracked by polling, so a missed hook only loses the wording.
-// UNVERIFIED (in-game): a treaty dissolved by a house disbanding also counts as "kept" (RealmHouses has no event for it).
 //
 // Language level: C# 3 syntax only, .NET 3.5 API surface. Cross-plugin API methods MUST stay non-public: Oxide.CSharp
 // (CSharpPlugin.cs @49500b8, ctor) registers only NonPublic|Instance methods as callable hooks.
@@ -120,6 +130,11 @@ namespace Oxide.Plugins
             public int HallPageSize = 6;
             public int MaxHallEntries = 1000;
             public int MaxEventAwardPerCall = 100;     // cap on a single AwardHouse call from another plugin
+            public int TreatyKeptMinDays = 3;          // a treaty must stand this long to count as kept
+            public int TreatyKeptMinMembers = 2;       // both houses, when signed and when it ends (0 = off)
+            public int TreatyKeptPerPairPerSeason = 1; // credits per pair of houses per season (0 = no limit)
+            public int ContractPairCooldownHours = 24; // one fulfilled contract per fulfiller and counterpart (0 = off)
+            public int MaxContractsPerHousePerDay = 5; // fulfilled contracts counted per house per UTC day (0 = no limit)
             public ScoreWeights Weights = new ScoreWeights();
         }
 
@@ -142,6 +157,11 @@ namespace Oxide.Plugins
             if (config.HallPageSize < 1) config.HallPageSize = 1;
             if (config.MaxHallEntries < 10) config.MaxHallEntries = 10;
             if (config.MaxEventAwardPerCall < 1) config.MaxEventAwardPerCall = 1;
+            if (config.TreatyKeptMinDays < 0) config.TreatyKeptMinDays = 0;
+            if (config.TreatyKeptMinMembers < 0) config.TreatyKeptMinMembers = 0;
+            if (config.TreatyKeptPerPairPerSeason < 0) config.TreatyKeptPerPairPerSeason = 0;
+            if (config.ContractPairCooldownHours < 0) config.ContractPairCooldownHours = 0;
+            if (config.MaxContractsPerHousePerDay < 0) config.MaxContractsPerHousePerDay = 0;
         }
 
         #endregion
@@ -159,6 +179,7 @@ namespace Oxide.Plugins
             public int OathsBroken;
             public int ContractsFulfilled;
             public int EventPoints;
+            public string Founded;                     // RealmHouses.GetHouseFounded of the house that earned this
             public List<string> Honours = new List<string>();   // e.g. "Royal Tournament champion: Aldric"
         }
 
@@ -167,6 +188,10 @@ namespace Oxide.Plugins
             public string A;
             public string B;
             public DateTime Signed;
+            public string FoundedA;                    // lineage when signed (null = RealmHouses could not say)
+            public string FoundedB;
+            public int MembersA = -1;                  // members when signed (-1 = unknown)
+            public int MembersB = -1;
         }
 
         private class SeasonData
@@ -180,6 +205,9 @@ namespace Oxide.Plugins
             public DateTime LastCrownTick;
             public Dictionary<string, HouseStanding> Houses = new Dictionary<string, HouseStanding>();
             public List<TrackedTreaty> Treaties = new List<TrackedTreaty>();
+            public Dictionary<string, int> TreatyPairsKept = new Dictionary<string, int>();      // "a|b" -> credits this season
+            public Dictionary<string, DateTime> ContractPairs = new Dictionary<string, DateTime>(); // "fulfiller|counterpart" -> last counted
+            public Dictionary<string, int> ContractDays = new Dictionary<string, int>();         // "house|yyyy-MM-dd" -> counted
         }
 
         private class Reign
@@ -348,6 +376,10 @@ namespace Oxide.Plugins
             if (season == null) season = new SeasonData();
             if (season.Houses == null) season.Houses = new Dictionary<string, HouseStanding>();
             if (season.Treaties == null) season.Treaties = new List<TrackedTreaty>();
+            season.Treaties.RemoveAll(delegate(TrackedTreaty t) { return t == null || t.A == null || t.B == null; });
+            if (season.TreatyPairsKept == null) season.TreatyPairsKept = new Dictionary<string, int>();
+            if (season.ContractPairs == null) season.ContractPairs = new Dictionary<string, DateTime>();
+            if (season.ContractDays == null) season.ContractDays = new Dictionary<string, int>();
             foreach (HouseStanding h in season.Houses.Values) if (h != null && h.Honours == null) h.Honours = new List<string>();
             if (season.Number > legends.LastSeasonNumber) legends.LastSeasonNumber = season.Number;
         }
@@ -584,14 +616,16 @@ namespace Oxide.Plugins
                 if (e.id > max) max = e.id;
                 if (e.ts != null && string.CompareOrdinal(e.ts, startIso) < 0) continue;   // before the season
                 if (e.type == "contract_fulfilled" && names == null) names = MemberHouseMap();
-                ParseChronicleEvent(e.type, e.title ?? "", e.detail ?? "", names);
+                ParseChronicleEvent(e.type, e.title ?? "", e.detail ?? "", names, ParseIso(e.ts));
             }
             season.ChronicleCursor = Math.Max(max, last);
         }
 
-        // Pure text rules, kept in one place so the coupling to other plugins' wording is visible.
-        private void ParseChronicleEvent(string type, string title, string detail, Dictionary<string, string> memberHouse)
+        // Pure text rules, kept in one place so the coupling to other plugins' wording is visible. at = when the line
+        // was written (its ts), or now if that cannot be read.
+        private void ParseChronicleEvent(string type, string title, string detail, Dictionary<string, string> memberHouse, DateTime? at)
         {
+            DateTime when = at.HasValue ? at.Value : Now();
             string a, b;
             switch (type)
             {
@@ -607,7 +641,12 @@ namespace Oxide.Plugins
                     if (TwoHouses(title, "House ", " and House ", " sign a treaty", out a, out b))
                     {
                         RemoveTracked(a, b);
-                        season.Treaties.Add(new TrackedTreaty { A = a, B = b, Signed = Now() });
+                        season.Treaties.Add(new TrackedTreaty
+                        {
+                            A = a, B = b, Signed = when,
+                            FoundedA = HouseFounded(a), FoundedB = HouseFounded(b),
+                            MembersA = MemberCount(a), MembersB = MemberCount(b)
+                        });
                     }
                     break;
                 case "treaty_broken":
@@ -621,12 +660,39 @@ namespace Oxide.Plugins
                     if (Between(title, "House ", " renounces its oath", out a)) Standing(a).OathsBroken++;
                     break;
                 case "contract_fulfilled":
-                    string who = PrefixBefore(title, new[] { " collects the price on ", " fills an order for ", " is paid by House " });
+                    string counterpart;
+                    string who = PrefixBefore(title, new[] { " collects the price on ", " fills an order for ", " is paid by House " }, out counterpart);
                     string house;
-                    if (who != null && memberHouse != null && memberHouse.TryGetValue(who.ToLowerInvariant(), out house))
+                    if (who != null && memberHouse != null && memberHouse.TryGetValue(who.ToLowerInvariant(), out house)
+                        && ContractCounts(who, counterpart, house, when))
                         Standing(house).ContractsFulfilled++;
                     break;
             }
+        }
+
+        // The pair and per-house day limits for fulfilled contracts; records the contract when it counts.
+        private bool ContractCounts(string who, string counterpart, string house, DateTime when)
+        {
+            string pair = who.ToLowerInvariant() + "|" + (counterpart ?? "").ToLowerInvariant();
+            DateTime last;
+            if (config.ContractPairCooldownHours > 0 && season.ContractPairs.TryGetValue(pair, out last)
+                && (when - last).TotalHours < config.ContractPairCooldownHours) return false;
+            string day = (CleanName(house) ?? "?").ToLowerInvariant() + "|" + when.ToString("yyyy-MM-dd");
+            int n;
+            season.ContractDays.TryGetValue(day, out n);
+            if (config.MaxContractsPerHousePerDay > 0 && n >= config.MaxContractsPerHousePerDay) return false;
+            season.ContractPairs[pair] = when;
+            season.ContractDays[day] = n + 1;
+            // Forget pairs past their cooldown and days before yesterday, so the season file stays small.
+            var oldPairs = new List<string>();
+            foreach (KeyValuePair<string, DateTime> kv in season.ContractPairs)
+                if ((when - kv.Value).TotalHours >= Math.Max(1, config.ContractPairCooldownHours)) oldPairs.Add(kv.Key);
+            foreach (string k in oldPairs) season.ContractPairs.Remove(k);
+            string keep1 = "|" + when.ToString("yyyy-MM-dd"), keep2 = "|" + when.AddDays(-1).ToString("yyyy-MM-dd");
+            var oldDays = new List<string>();
+            foreach (string k in season.ContractDays.Keys) if (!k.EndsWith(keep1, StringComparison.Ordinal) && !k.EndsWith(keep2, StringComparison.Ordinal)) oldDays.Add(k);
+            foreach (string k in oldDays) season.ContractDays.Remove(k);
+            return true;
         }
 
         private void CheckTreatiesKept()
@@ -636,11 +702,68 @@ namespace Oxide.Plugins
             {
                 object r = RealmHouses.Call("HasTreaty", t.A, t.B);
                 if (!(r is bool) || (bool)r) continue;
-                // Gone, and no treaty_broken was seen for it: it ran its term.
+                // Gone, and no treaty_broken was seen for it: it ran its term, or a house fell.
+                season.Treaties.Remove(t);
+                string why = TreatyNotKept(t);
+                if (why != null)
+                {
+                    Puts("Treaty of House " + t.A + " and House " + t.B + " ended; not counted as kept: " + why + ".");
+                    continue;
+                }
+                string pair = PairKey(t.A, t.B);
+                int credited;
+                season.TreatyPairsKept.TryGetValue(pair, out credited);
+                season.TreatyPairsKept[pair] = credited + 1;
                 Standing(t.A).TreatiesKept++;
                 Standing(t.B).TreatiesKept++;
-                season.Treaties.Remove(t);
             }
+        }
+
+        // Why an ended treaty does not count as kept, or null when it does.
+        private string TreatyNotKept(TrackedTreaty t)
+        {
+            if ((Now() - t.Signed).TotalDays < config.TreatyKeptMinDays) return "it stood less than " + config.TreatyKeptMinDays + " days";
+            if (HouseFell(t.A, t.FoundedA) || HouseFell(t.B, t.FoundedB)) return "a house fell while it stood";
+            int min = config.TreatyKeptMinMembers;
+            if (min > 0)
+            {
+                if (t.MembersA >= 0 && t.MembersA < min || t.MembersB >= 0 && t.MembersB < min) return "a house had fewer than " + min + " members when it was signed";
+                if (MemberCount(t.A) < min || MemberCount(t.B) < min) return "a house has fewer than " + min + " members";
+            }
+            int credited;
+            if (config.TreatyKeptPerPairPerSeason > 0 && season.TreatyPairsKept.TryGetValue(PairKey(t.A, t.B), out credited)
+                && credited >= config.TreatyKeptPerPairPerSeason) return "this pair was already credited this season";
+            return null;
+        }
+
+        // True when the house is gone, or now bears another founding date than it did then.
+        private bool HouseFell(string house, string foundedThen)
+        {
+            if (RealmHouses.Call("GetMemberNames", house) == null) return true;
+            if (foundedThen == null) return false;
+            string now = HouseFounded(house);
+            return now != null && now != foundedThen;
+        }
+
+        // Member count from RealmHouses, -1 if unknown (plugin missing), 0 if the house is gone.
+        private int MemberCount(string house)
+        {
+            if (RealmHouses == null) return -1;
+            var names = RealmHouses.Call("GetMemberNames", house) as List<string>;
+            return names != null ? names.Count : 0;
+        }
+
+        private string HouseFounded(string house)
+        {
+            if (RealmHouses == null || string.IsNullOrEmpty(house)) return null;
+            string f = RealmHouses.Call("GetHouseFounded", house) as string;
+            return string.IsNullOrEmpty(f) ? null : f;
+        }
+
+        private static string PairKey(string a, string b)
+        {
+            string ka = (a ?? "").Trim().ToLowerInvariant(), kb = (b ?? "").Trim().ToLowerInvariant();
+            return string.CompareOrdinal(ka, kb) <= 0 ? ka + "|" + kb : kb + "|" + ka;
         }
 
         private void RemoveTracked(string a, string b)
@@ -781,11 +904,47 @@ namespace Oxide.Plugins
         private HouseStanding Standing(string house)
         {
             house = CleanName(house) ?? "?";
+            string founded = HouseFounded(house);
             foreach (KeyValuePair<string, HouseStanding> kv in season.Houses)
-                if (SameName(kv.Key, house)) return kv.Value;
-            var h = new HouseStanding { House = house };
+            {
+                if (!SameName(kv.Key, house)) continue;
+                HouseStanding found = kv.Value;
+                if (founded == null || found.Founded == founded) return found;
+                if (found.Founded == null) { found.Founded = founded; return found; }
+                SetAside(kv.Key);                              // a new house under a fallen house's name
+                break;
+            }
+            var h = new HouseStanding { House = house, Founded = founded };
             season.Houses[house] = h;
             return h;
+        }
+
+        // Every standing whose house name now belongs to a newer house is set aside (see Standing).
+        private void ReconcileLineage()
+        {
+            if (RealmHouses == null) return;
+            foreach (string key in new List<string>(season.Houses.Keys))
+            {
+                HouseStanding h = season.Houses[key];
+                if (h == null || h.Founded == null) continue;
+                string now = HouseFounded(h.House);
+                if (now != null && now != h.Founded) SetAside(key);
+            }
+        }
+
+        private void SetAside(string key)
+        {
+            HouseStanding h = season.Houses[key];
+            season.Houses.Remove(key);
+            string suffix = " (fallen " + Now().ToString("yyyy-MM-dd") + ")";
+            string baseName = h.House ?? key;
+            if (baseName.Length + suffix.Length > NameMax) baseName = baseName.Substring(0, Math.Max(1, NameMax - suffix.Length)).TrimEnd();
+            string name = baseName + suffix;
+            for (int i = 2; season.Houses.ContainsKey(name); i++) name = baseName + " (fallen " + i + ")";
+            h.House = name;
+            h.Founded = null;                                  // history now; never matched to a living house again
+            season.Houses[name] = h;
+            Puts("House " + baseName + " was founded again; the fallen house's standing is kept as '" + name + "'.");
         }
 
         private int Score(HouseStanding h)
@@ -804,6 +963,7 @@ namespace Oxide.Plugins
 
         private List<StandingLine> Ranked()
         {
+            ReconcileLineage();
             var list = new List<StandingLine>();
             foreach (HouseStanding h in season.Houses.Values)
                 if (h != null) list.Add(new StandingLine { House = h.House, Score = Score(h), CrownDays = Math.Round(h.CrownSeconds / 86400.0, 2) });
@@ -1038,7 +1198,8 @@ namespace Oxide.Plugins
             if (RealmChronicle == null) return;
             object r = RealmChronicle.Call("Log", type, title, detail, actors ?? new string[0]);
             // An older RealmChronicle without the season types rejects them (returns 0); fall back to a decree line.
-            // A rejection of a type that was accepted before is the chronicle's duplicate filter: leave it dropped.
+            // -1 is a duplicate or a line folded by the flood budget: never retried. An older chronicle returned 0 for a
+            // duplicate, so a 0 for a type that was accepted before is left dropped too.
             if (r is int && (int)r > 0) chronicleTypeAccepted[type] = true;
             else if (r is int && (int)r == 0 && type != "decree" && !chronicleTypeAccepted.ContainsKey(type))
                 RealmChronicle.Call("Log", "decree", title, detail, actors ?? new string[0]);
@@ -1092,15 +1253,28 @@ namespace Oxide.Plugins
             return a != null && b != null;
         }
 
-        private static string PrefixBefore(string s, string[] markers)
+        // "Bryn collects the price on Dain" -> "Bryn", rest = "Dain".
+        private static string PrefixBefore(string s, string[] markers, out string rest)
         {
+            rest = null;
             if (string.IsNullOrEmpty(s)) return null;
             foreach (string m in markers)
             {
                 int i = s.IndexOf(m, StringComparison.Ordinal);
-                if (i > 0) return CleanName(s.Substring(0, i));
+                if (i <= 0) continue;
+                rest = CleanName(s.Substring(i + m.Length));
+                return CleanName(s.Substring(0, i));
             }
             return null;
+        }
+
+        private static DateTime? ParseIso(string s)
+        {
+            DateTime t;
+            if (string.IsNullOrEmpty(s) || !DateTime.TryParseExact(s, "yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out t)) return null;
+            return t;
         }
 
         private static string CleanName(string s)

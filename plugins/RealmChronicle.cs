@@ -9,10 +9,25 @@
 // state refresh through non-public plugin.Call hooks:
 //   CrownAndConsequences.Call("GetNextRebellionWindow") -> boxed UTC DateTime or null   (title "Rebellion window")
 //   RealmEvents.Call("GetNextEvent") -> Dictionary<string, object> { "title": string, "at": DateTime (UTC) } or null
-// UNVERIFIED: no RealmEvents plugin exists in this repository yet; the second line is the contract it must implement.
+// RealmEvents implements the second (plugins/RealmEvents.cs GetNextEvent); neither has been seen on a live server.
 //
 // Other plugins log events with RealmChronicle.Call("Log", type, title, detail, actors).
 // Only public names go into the chronicle: never positions, inventories or Steam ids.
+//
+// Flood budget (config "FloodBudget"). Every line reaches the overlay, the portal and the Discord herald, and the file
+// keeps only the last MaxEvents lines, so a burst from any plugin or player-triggered path could push the realm's
+// history out in hours. Each type may write PerTypePerWindow lines (PerType overrides it per type) and all foldable
+// types together GlobalPerWindow lines per WindowMinutes (sliding window). A line over budget is FOLDED: counted, and
+// later written as one summary line of the same type ("12 more contract posted entries") with no actors. A summary is
+// written at most once per type per window, once the burst has been quiet for SummaryQuietSeconds (or a window after
+// it began, or on unload). Never folded: coronation, abdication, claim_declared, rebellion_started and
+// rebellion_ended (built in), plus NeverFold (by default the types other plugins count from this file, and the
+// scheduled events, which their own plugins bound). Log returns -1 for a folded line and for a recent duplicate, and
+// 0 only for a line it will never take (unknown type, empty title). Callers that fall back to "decree" on 0, or stop
+// logging a type after a 0, therefore do not write a line twice or give up on a type because of a burst.
+//
+// A RealmChronicle.json that exists but cannot be read (a power cut can leave it empty or "null") is never overwritten:
+// new lines are kept in memory until the owner fixes the file or moves it away.
 //
 // Language level: C# 3 syntax only (no expression-bodied members, index initializers, $"", ?. or nameof),
 // against the .NET 3.5 API surface, so the file builds with any Oxide compiler generation.
@@ -73,8 +88,18 @@ namespace Oxide.Plugins
         private List<ChronicleEvent> events;
         private RealmStateData state;
         private int nextId = 1;
+        private bool eventsLoadFailed;                 // RealmChronicle.json could not be read: never overwrite it
         private Timer refreshTimer;
         private bool refreshQueued;
+
+        // Flood budget state, in memory only. Pending folds are written as summaries on unload.
+        private readonly Dictionary<string, Queue<DateTime>> typeTimes = new Dictionary<string, Queue<DateTime>>();
+        private readonly Queue<DateTime> globalTimes = new Queue<DateTime>();
+        private readonly Dictionary<string, FoldedBurst> folded = new Dictionary<string, FoldedBurst>();
+        private readonly Dictionary<string, DateTime> lastSummary = new Dictionary<string, DateTime>();
+
+        // Clock indirection so the behaviour tests can move time; always DateTime.UtcNow on a server.
+        private Func<DateTime> clock = DefaultClock;
 
         #region Data shapes (field names are the JSON contract, hence lower case)
 
@@ -91,6 +116,53 @@ namespace Oxide.Plugins
             public int DuplicateWindowSeconds = 300;
             // RealmState.next only lists events starting within this many days (the player app ignores later ones).
             public int NextEventHorizonDays = 45;
+            // Per-type and global rate budget; lines over it are folded into one summary line (see header).
+            public FloodBudgetSettings FloodBudget = new FloodBudgetSettings();
+        }
+
+        // The lists start null and are filled in Init, so a config file's own lists replace the defaults instead of
+        // being merged into them.
+        private class FloodBudgetSettings
+        {
+            public bool Enabled = true;
+            public int WindowMinutes = 60;
+            public int GlobalPerWindow = 30;           // all foldable types together
+            public int PerTypePerWindow = 8;           // any one type, unless PerType says otherwise
+            public Dictionary<string, int> PerType;    // type -> lines per window (0 = every line goes into the summary)
+            public List<string> NeverFold;             // in addition to the built-in crown and rebellion types
+            public int SummaryQuietSeconds = 120;
+        }
+
+        // Crown changes and rebellion milestones: never folded, whatever the config says.
+        private static readonly string[] AlwaysWritten = { "coronation", "abdication", "claim_declared", "rebellion_started", "rebellion_ended" };
+
+        private static Dictionary<string, int> DefaultPerType()
+        {
+            var d = new Dictionary<string, int>();
+            d["decree"] = 12;
+            d["contract_fulfilled"] = 12;
+            d["rumour"] = 4;
+            d["title_earned"] = 6;
+            return d;
+        }
+
+        // Types other plugins count from RealmChronicle.json (RealmSeasons: treaties and oaths; RealmRenown: event
+        // deeds), succession, and the scheduled events, which RealmSeasons and RealmEvents already bound.
+        private static List<string> DefaultNeverFold()
+        {
+            return new List<string>
+            {
+                "treaty_signed", "treaty_broken", "oath_broken", "succession", "blood_claim",
+                "season_started", "season_ended", "event_started", "event_ended", "tournament_champion", "hunt_kill", "truce_broken"
+            };
+        }
+
+        private class FoldedBurst
+        {
+            public int Count;
+            public DateTime First;
+            public DateTime Last;
+            public string LastTitle;
         }
 
         private class ChronicleEvent
@@ -157,16 +229,23 @@ namespace Oxide.Plugins
             if (config.ChatMaxCount < 1) config.ChatMaxCount = 1;
             if (config.ChatDefaultCount < 1) config.ChatDefaultCount = 1;
             if (config.NextEventHorizonDays < 1) config.NextEventHorizonDays = 1;
+            ClampFloodBudget();
+            Config.WriteObject(config, true);             // writes newly added keys and clamped values
 
+            // A damaged file (a power cut can leave it empty or "null") must not be overwritten: that would wipe the
+            // realm's history. The plugin keeps logging in memory and writes nothing until the file is fixed or moved
+            // away; once it is gone, the next save writes the new lines (see SaveEvents).
+            bool existed = Interface.Oxide.DataFileSystem.ExistsDatafile(EventsFile);
             try
             {
                 events = Interface.Oxide.DataFileSystem.ReadObject<List<ChronicleEvent>>(EventsFile);
+                if (events == null && existed) throw new Exception("the file is empty or null");
             }
             catch (Exception ex)
             {
-                // A damaged file must not stop the plugin; ids continue from 1 and the old file is overwritten
-                // on the next event, so back it up by hand if the history matters.
-                PrintError("Could not read oxide/data/" + EventsFile + ".json (" + ex.Message + "); starting a new chronicle.");
+                eventsLoadFailed = true;
+                PrintError("Could not read oxide/data/" + EventsFile + ".json (" + ex.Message + "). It will NOT be overwritten: "
+                    + "fix it, or move it away to start a new chronicle, then reload. New lines are kept in memory until then.");
                 events = null;
             }
             if (events == null) events = new List<ChronicleEvent>();
@@ -192,7 +271,7 @@ namespace Oxide.Plugins
         {
             // Re-sent on hot reload (doc section 7), so keep this idempotent.
             if (refreshTimer != null && !refreshTimer.Destroyed) refreshTimer.Destroy();
-            refreshTimer = timer.Every(config.StateRefreshSeconds, RefreshState);
+            refreshTimer = timer.Every(config.StateRefreshSeconds, RefreshAndFlush);
             RefreshState();
         }
 
@@ -203,15 +282,42 @@ namespace Oxide.Plugins
 
         private void Unload()
         {
+            if (events != null) FlushSummaries(Now(), true);
             SaveEvents();
             if (state != null) WriteState();
+        }
+
+        private void ClampFloodBudget()
+        {
+            if (config.FloodBudget == null) config.FloodBudget = new FloodBudgetSettings();
+            FloodBudgetSettings fb = config.FloodBudget;
+            if (fb.WindowMinutes < 1) fb.WindowMinutes = 1;
+            if (fb.WindowMinutes > 1440) fb.WindowMinutes = 1440;
+            if (fb.GlobalPerWindow < 0) fb.GlobalPerWindow = 0;
+            if (fb.PerTypePerWindow < 0) fb.PerTypePerWindow = 0;
+            if (fb.SummaryQuietSeconds < 0) fb.SummaryQuietSeconds = 0;
+            if (fb.PerType == null) fb.PerType = DefaultPerType();
+            if (fb.NeverFold == null) fb.NeverFold = DefaultNeverFold();
+            var perType = new Dictionary<string, int>();
+            foreach (KeyValuePair<string, int> kv in fb.PerType)
+                if (!string.IsNullOrEmpty(kv.Key)) perType[kv.Key.Trim().ToLowerInvariant()] = Math.Max(0, kv.Value);
+            fb.PerType = perType;
+            var never = new List<string>();
+            foreach (string t in fb.NeverFold)
+            {
+                string k = (t ?? "").Trim().ToLowerInvariant();
+                if (k.Length > 0 && !never.Contains(k)) never.Add(k);
+            }
+            fb.NeverFold = never;
         }
 
         #endregion
 
         #region Public API (plugin.Call)
 
-        // Contract: RealmChronicle.Call("Log", type, title, detail, actors). Returns the new event id, or 0 if rejected.
+        // Contract: RealmChronicle.Call("Log", type, title, detail, actors). Returns the new event id; 0 if rejected (unknown
+        // type or empty title: the caller may fall back to another type); -1 if taken but not written as its own line (a
+        // recent duplicate, or folded by the flood budget into a later summary line: the caller must not retry).
         // Private on purpose: only non-public methods are reachable through plugin.Call (see header).
         private int Log(string type, string title, string detail, string[] actors)
         {
@@ -229,8 +335,23 @@ namespace Oxide.Plugins
                 return 0;
             }
             string cleanDetail = Clean(detail, DetailMax);
-            if (IsRecentDuplicate(type, title, cleanDetail)) return 0;
+            if (IsRecentDuplicate(type, title, cleanDetail)) return -1;
 
+            DateTime now = Now();
+            FlushSummaries(now, false);
+            if (OverBudget(type, now))
+            {
+                Fold(type, title, now);
+                return -1;
+            }
+
+            ChronicleEvent ev = Append(type, title, cleanDetail, CleanActors(actors));
+            if (type == "coronation" || type == "abdication") QueueRefresh();
+            return ev.id;
+        }
+
+        private ChronicleEvent Append(string type, string title, string cleanDetail, string[] cleanActors)
+        {
             var ev = new ChronicleEvent
             {
                 id = nextId++,
@@ -238,7 +359,7 @@ namespace Oxide.Plugins
                 type = type,
                 title = title,
                 detail = cleanDetail,
-                actors = CleanActors(actors)
+                actors = cleanActors
             };
 
             events.Add(ev);
@@ -246,8 +367,7 @@ namespace Oxide.Plugins
             SaveEvents();
 
             if (config.EchoToConsole) Puts("#" + ev.id + " [" + ev.type + "] " + ev.title);
-            if (type == "coronation" || type == "abdication") QueueRefresh();
-            return ev.id;
+            return ev;
         }
 
         // Optional fast path used by CrownAndConsequences after coronation/abdication.
@@ -262,6 +382,81 @@ namespace Oxide.Plugins
         private int GetLastEventId()
         {
             return nextId - 1;
+        }
+
+        #endregion
+
+        #region Flood budget
+
+        private bool NeverFolded(string type)
+        {
+            return Array.IndexOf(AlwaysWritten, type) >= 0 || config.FloodBudget.NeverFold.Contains(type);
+        }
+
+        private int TypeBudget(string type)
+        {
+            int n;
+            return config.FloodBudget.PerType.TryGetValue(type, out n) ? n : config.FloodBudget.PerTypePerWindow;
+        }
+
+        // True when this line must be folded; otherwise it is counted against its type's budget and the global one.
+        private bool OverBudget(string type, DateTime now)
+        {
+            FloodBudgetSettings fb = config.FloodBudget;
+            if (!fb.Enabled || NeverFolded(type)) return false;
+            DateTime cutoff = now.AddMinutes(-fb.WindowMinutes);
+            Queue<DateTime> q;
+            if (!typeTimes.TryGetValue(type, out q)) { q = new Queue<DateTime>(); typeTimes[type] = q; }
+            Prune(q, cutoff);
+            Prune(globalTimes, cutoff);
+            if (q.Count >= TypeBudget(type) || globalTimes.Count >= fb.GlobalPerWindow) return true;
+            q.Enqueue(now);
+            globalTimes.Enqueue(now);
+            return false;
+        }
+
+        private static void Prune(Queue<DateTime> q, DateTime cutoff)
+        {
+            while (q.Count > 0 && q.Peek() <= cutoff) q.Dequeue();
+        }
+
+        private void Fold(string type, string title, DateTime now)
+        {
+            FoldedBurst f;
+            if (!folded.TryGetValue(type, out f))
+            {
+                f = new FoldedBurst { First = now };
+                folded[type] = f;
+                Puts("Flood budget: folding '" + type + "' lines into one summary (" + TypeBudget(type) + " of this type and "
+                    + config.FloodBudget.GlobalPerWindow + " in all per " + config.FloodBudget.WindowMinutes + " min).");
+            }
+            f.Count++;
+            f.Last = now;
+            f.LastTitle = title;
+        }
+
+        // Writes one summary line per folded type once its burst is quiet (or a window old), at most once per type per
+        // window. force (unload) writes every pending summary now.
+        private void FlushSummaries(DateTime now, bool force)
+        {
+            if (folded.Count == 0) return;
+            FloodBudgetSettings fb = config.FloodBudget;
+            TimeSpan window = TimeSpan.FromMinutes(fb.WindowMinutes);
+            foreach (string type in new List<string>(folded.Keys))
+            {
+                FoldedBurst f = folded[type];
+                DateTime last;
+                bool spaced = !lastSummary.TryGetValue(type, out last) || now - last >= window;
+                bool settled = (now - f.Last).TotalSeconds >= fb.SummaryQuietSeconds || now - f.First >= window;
+                if (!force && !(spaced && settled)) continue;
+                folded.Remove(type);
+                lastSummary[type] = now;
+                string label = type.Replace('_', ' ');
+                Append(type, Clean(f.Count + " more " + label + " entries", TitleMax),
+                    Clean("Folded to keep the chronicle readable: " + f.Count + " " + label + " entries between "
+                        + f.First.ToString("HH:mm") + " and " + f.Last.ToString("HH:mm") + " UTC. The latest: " + f.LastTitle, DetailMax),
+                    new string[0]);
+            }
         }
 
         #endregion
@@ -371,6 +566,12 @@ namespace Oxide.Plugins
             timer.Once(2f, () => { refreshQueued = false; RefreshState(); });
         }
 
+        private void RefreshAndFlush()
+        {
+            FlushSummaries(Now(), false);
+            RefreshState();
+        }
+
         private void RefreshState()
         {
             RefreshCrown();
@@ -391,7 +592,7 @@ namespace Oxide.Plugins
         // Soonest upcoming scheduled event from the loaded schedule plugins (see header); null when none qualifies.
         private NextEvent FindNextEvent()
         {
-            DateTime now = DateTime.UtcNow;
+            DateTime now = Now();
             DateTime horizon = now.AddDays(config.NextEventHorizonDays);
             string bestTitle = null;
             DateTime bestAt = DateTime.MaxValue;
@@ -505,6 +706,12 @@ namespace Oxide.Plugins
         private void SaveEvents()
         {
             if (events == null) return;
+            if (eventsLoadFailed)
+            {
+                if (Interface.Oxide.DataFileSystem.ExistsDatafile(EventsFile)) return;   // still the damaged file
+                eventsLoadFailed = false;                                                 // moved away: start afresh
+                PrintWarning("oxide/data/" + EventsFile + ".json was moved away; a new chronicle is written from now on.");
+            }
             Interface.Oxide.DataFileSystem.WriteObject(EventsFile, events);
         }
 
@@ -519,10 +726,20 @@ namespace Oxide.Plugins
             return lang.GetMessage(key, this, player.Id.ToString());
         }
 
-        // Explicit pattern so the output does not depend on the server's culture settings.
-        private static string IsoNow()
+        private static DateTime DefaultClock()
         {
-            return DateTime.UtcNow.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'");
+            return DateTime.UtcNow;
+        }
+
+        private DateTime Now()
+        {
+            return clock();
+        }
+
+        // Explicit pattern so the output does not depend on the server's culture settings.
+        private string IsoNow()
+        {
+            return Now().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'");
         }
 
         private static bool IsNullEvent(ChronicleEvent ev)
@@ -536,7 +753,7 @@ namespace Oxide.Plugins
             if (config.DuplicateWindowSeconds <= 0) return false;
             // Crown changes and rebellion milestones are gated by the game and must never be dropped.
             if (type == "coronation" || type == "abdication" || type == "rebellion_started" || type == "rebellion_ended") return false;
-            DateTime cutoff = DateTime.UtcNow.AddSeconds(-config.DuplicateWindowSeconds);
+            DateTime cutoff = Now().AddSeconds(-config.DuplicateWindowSeconds);
             string cutoffIso = cutoff.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'");
             for (int i = events.Count - 1; i >= 0; i--)
             {

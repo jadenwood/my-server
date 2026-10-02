@@ -4,45 +4,147 @@
     A hound wreathed in embers, on a dark umber field. Original artwork for the Realm of Ostreval.
   </desc>
   <defs>
-    <radialGradient id="halloran-field" cx="50%" cy="42%" r="62%">
+    <radialGradient id="halloran-field" cx="50%" cy="40%" r="62%">
       <stop offset="0" stop-color="#5a4c3f"/>
-      <stop offset=".6" stop-color="#3a2a1a"/>
+      <stop offset=".62" stop-color="#3a2a1a"/>
       <stop offset="1" stop-color="#241a10"/>
     </radialGradient>
+    <linearGradient id="halloran-gold" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#fbe3a2"/>
+      <stop offset=".35" stop-color="#f4c96d"/>
+      <stop offset=".6" stop-color="#d6a043"/>
+      <stop offset="1" stop-color="#9c6a1e"/>
+    </linearGradient>
+    <pattern id="halloran-diaper" width="18" height="18" patternTransform="rotate(45 128 128)" patternUnits="userSpaceOnUse">
+      <path fill="none" stroke="#5a4c3f" stroke-width=".7" d="M0 .5h18M.5 0v18"/>
+      <circle cx="9" cy="9" r="1.1" fill="#5a4c3f"/>
+    </pattern>
   </defs>
-  <circle cx="128" cy="128" r="126" fill="#131417"/>
-  <circle cx="128" cy="128" r="118" fill="url(#halloran-field)"/>
-  <circle cx="128" cy="128" r="110" fill="none" stroke="#d6a043" stroke-width="3"/>
+  <circle cx="128" cy="128" r="127" fill="#0c0d0f"/>
+  <circle cx="128" cy="128" r="123.5" fill="none" stroke="#26282d" stroke-dasharray="1.6 2.3" stroke-width="4"/>
+  <circle cx="128" cy="128" r="119" fill="url(#halloran-field)"/>
+  <circle cx="128" cy="128" r="104" fill="url(#halloran-diaper)" opacity=".32"/>
+  <circle cx="128" cy="128" r="117.5" fill="none" stroke="#0c0d0f" stroke-width="3" opacity=".55"/>
+  <circle cx="128" cy="128" r="111" fill="none" stroke="url(#halloran-gold)" stroke-width="4.5"/>
+  <circle cx="128" cy="128" r="105" fill="none" stroke="#d6a043" opacity=".5"/>
+  <path fill="url(#halloran-gold)" stroke="#0c0d0f" stroke-width=".8" d="m128 11 5 6-5 6-5-6Zm0 222 5 6-5 6-5-6ZM11 128l6-5 6 5-6 5Zm222 0 6-5 6 5-6 5Z"/>
   <g id="charge" transform="translate(28 28)">
     <defs>
-      <path id="halloran-flame" d="M0-16C8-7 10 3 4 9c0-5-3-8-5-9Q.5 6-4 9c-6-5-3-15 4-25"/>
+      <mask id="halloran-shade">
+        <use fill="white" stroke="white" href="#halloran-form"/>
+        <use fill="black" stroke="black" href="#halloran-form" transform="translate(-4 -5)"/>
+      </mask>
+      <mask id="halloran-lit">
+        <use fill="white" stroke="white" href="#halloran-form"/>
+        <use fill="black" stroke="black" href="#halloran-form" transform="translate(3 4)"/>
+      </mask>
+      <g id="halloran-back">
+        <path d="M82 105.6c-1 3.4-3.4 14.4-5.8 20.5s-5.9 12.4-8.5 16c-2.7 3.6-6.1 4.8-7.3 5.7a2.7 2.7 0 0 0 3.2 4.4c1.5-1.1 5.4-2.6 8.7-6.3 3.4-3.7 7.9-10.1 11.5-16s8.5-16.2 10.2-19.5a6.5 6.5 0 0 0-12-4.8m42.7 3.7c2.3 3.6 8.5 15.9 13.7 21.4 5.3 5.6 13.1 9.4 17.9 12.1 4.8 2.6 8.9 3.2 10.7 3.8a2.8 2.8 0 0 0 2-5.2c-1.5-.7-5.4-1.5-9.3-4.2s-10.7-6.2-14.1-11.9c-3.4-5.8-5.3-18.8-6.3-22.6a8 8 0 0 0-14.6 6.6"/>
+      </g>
+      <g id="halloran-form">
+        <path d="M29 89c1.2-1.2 3.8-5 7-7s8.3-3.2 12-5 6.7-4.8 10-6 6.7-1.8 10-1 6 3.3 10 6 8.7 7.7 14 10 12 3.5 18 4 12.7-1 18-1 10.2-.3 14 1 7.7 4 9 7 .8 8.3-1 11-6 4.7-10 5-9.3-2.5-14-3-9.3-1-14 0-9.3 4.2-14 6-9.7 4.7-14 5-9-.5-12-3-4-8.3-6-12-3-7.8-6-10-8-2.5-12-3-8.8.7-12 0-5.8-3.3-7-4"/>
+        <path d="M148.8 99c2.1-1.5 8.6-5.7 12.7-9 4-3.3 8.4-7.6 11.5-10.9s6.1-7.3 7.3-8.8a.4.4 0 0 0-.6-.6c-1.4 1.2-5.2 4.5-8.7 7.2s-8.2 6.4-12.5 9.1-11.1 5.8-13.3 7a3.5 3.5 0 0 0 3.6 6m-74.4 6.1c-2 2.9-7.7 12.5-11.8 17.5-4 5.1-8.8 10-12.4 12.7-3.6 2.8-7.7 3.3-9.3 4a2.9 2.9 0 0 0 2.2 5.4c1.8-.7 6.3-1.5 10.7-4 4.4-2.6 10.2-7.1 15.6-11.3 5.3-4.3 13.5-12.1 16.2-14.5a7.5 7.5 0 0 0-11.2-9.8"/>
+        <path d="M130.2 104.9c2.6 3.2 10 14.4 15.8 18.8 5.7 4.4 13.6 6.1 18.8 7.6 5.3 1.5 10.6 1.4 12.7 1.7a3 3 0 0 0 1-6c-1.9-.3-7.2-.5-11.3-2.3s-10.3-3.5-13.2-8.4c-2.9-5-3.5-17.7-4.2-21.2a11 11 0 0 0-19.6 9.8M66 74c.7-2.3 5.7-3 8-2s5.3 4.7 6 8-.7 9.3-2 12-4.7 5-6 4-1-6.3-2-10-4.7-9.7-4-12"/>
+      </g>
+      <linearGradient id="halloran-metal" x1="20" x2="180" y1="10" y2="190" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#f4a547"/>
+        <stop offset=".45" stop-color="#e27a2c"/>
+        <stop offset="1" stop-color="#b8561b"/>
+      </linearGradient>
+      <pattern id="halloran-hatch" width="3.4" height="3.4" patternTransform="rotate(-38)" patternUnits="userSpaceOnUse">
+        <path stroke="#b8561b" stroke-width="1.43" d="M0 0v3.4"/>
+      </pattern>
+      <filter id="halloran-edge" width="120%" height="120%" x="-8%" y="-8%" color-interpolation-filters="sRGB">
+        <feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="d"/>
+        <feOffset dx="2.5" dy="3.5" in="d"/>
+        <feGaussianBlur result="b" stdDeviation="2.2"/>
+        <feFlood flood-color="#0c0d0f" flood-opacity=".6"/>
+        <feComposite in2="b" operator="in" result="s"/>
+        <feFlood flood-color="#241a10"/>
+        <feComposite in2="d" operator="in" result="e"/>
+        <feMerge>
+          <feMergeNode in="s"/>
+          <feMergeNode in="e"/>
+        </feMerge>
+      </filter>
     </defs>
-<!--wreath of embers-->
-    <g fill="#f4a547">
-      <use href="#halloran-flame" transform="translate(100 19)"/>
-      <use href="#halloran-flame" transform="translate(65 28)"/>
-      <use href="#halloran-flame" transform="translate(135 28)"/>
-      <use href="#halloran-flame" transform="translate(39 53)"/>
-      <use href="#halloran-flame" transform="translate(161 53)"/>
-      <use href="#halloran-flame" transform="translate(26 88)"/>
-      <use href="#halloran-flame" transform="translate(174 88)"/>
-      <use href="#halloran-flame" transform="translate(28 124)"/>
-      <use href="#halloran-flame" transform="translate(172 124)"/>
-      <use href="#halloran-flame" transform="translate(45 154)"/>
-      <use href="#halloran-flame" transform="translate(155 154)"/>
-      <use href="#halloran-flame" transform="translate(72 174)"/>
-      <use href="#halloran-flame" transform="translate(128 174)"/>
-      <use href="#halloran-flame" transform="translate(100 181)"/>
+    <defs>
+      <path id="halloran-tonguea" d="M-4.6 0c-.1-1.2-1.2-4.8-.8-7S-3-11.2-2-13s1.3-2.7 2.4-5 3.7-7.5 4.4-9c.2 1.7 1 7 1 10s-1 5.2-1.2 8 0 7.5 0 9C3.8.4 1.5 2.6 0 2.6S-3.8.4-4.6 0"/>
+      <path id="halloran-tongueb" d="M-4.6 0c-.1-1.2-1.2-4.8-.8-7S-2-11.2-2-13s-3.1-2.7-3.6-5 .7-7.5.8-9c.8 1.7 3 7 4.6 10s4 5.2 4.8 8 0 7.5 0 9C3.8.4 1.5 2.6 0 2.6S-3.8.4-4.6 0"/>
+      <linearGradient id="halloran-flame" x1="0" x2="0" y1="1" y2="0">
+        <stop offset="0" stop-color="#b8561b"/>
+        <stop offset=".45" stop-color="#e27a2c"/>
+        <stop offset="1" stop-color="#f4c96d"/>
+      </linearGradient>
+    </defs>
+    <g fill="#241a10" filter="url(#halloran-edge)">
+      <use href="#halloran-tongueb" transform="rotate(-57.4 123.904 42.315)scale(.8)"/>
+      <use href="#halloran-tonguea" transform="rotate(-49.2 122.313 30.9)scale(1.046)"/>
+      <use href="#halloran-tongueb" transform="rotate(-41 121.546 12.063)scale(.816)"/>
+      <use href="#halloran-tonguea" transform="rotate(-32.8 123.097 -19.336)scale(1.014)"/>
+      <use href="#halloran-tongueb" transform="rotate(-24.6 129.74 -75.008)scale(.861)"/>
+      <use href="#halloran-tonguea" transform="rotate(-16.4 149.904 -189.845)scale(.959)"/>
+      <use href="#halloran-tongueb" transform="rotate(-8.2 225.842 -539.098)scale(.922)"/>
+      <use href="#halloran-tonguea" transform="translate(100 24)scale(.896)"/>
+      <use href="#halloran-tongueb" transform="rotate(8.2 -125.842 855.973)scale(.985)"/>
+      <use href="#halloran-tonguea" transform="rotate(16.4 -49.904 504.107)scale(.839)"/>
+      <use href="#halloran-tongueb" transform="rotate(24.6 -29.74 383.634)scale(1.031)"/>
+      <use href="#halloran-tonguea" transform="rotate(32.8 -23.097 320.435)scale(.806)"/>
+      <use href="#halloran-tongueb" transform="rotate(41 -21.546 279.525)scale(1.05)"/>
+      <use href="#halloran-tonguea" transform="rotate(49.2 -22.313 249.32)scale(.803)"/>
+      <use href="#halloran-tongueb" transform="rotate(57.4 -23.904 224.968)scale(1.036)"/>
+    </g>
+    <g fill="url(#halloran-flame)">
+      <use href="#halloran-tongueb" transform="rotate(-57.4 123.904 42.315)scale(.8)"/>
+      <use href="#halloran-tonguea" transform="rotate(-49.2 122.313 30.9)scale(1.046)"/>
+      <use href="#halloran-tongueb" transform="rotate(-41 121.546 12.063)scale(.816)"/>
+      <use href="#halloran-tonguea" transform="rotate(-32.8 123.097 -19.336)scale(1.014)"/>
+      <use href="#halloran-tongueb" transform="rotate(-24.6 129.74 -75.008)scale(.861)"/>
+      <use href="#halloran-tonguea" transform="rotate(-16.4 149.904 -189.845)scale(.959)"/>
+      <use href="#halloran-tongueb" transform="rotate(-8.2 225.842 -539.098)scale(.922)"/>
+      <use href="#halloran-tonguea" transform="translate(100 24)scale(.896)"/>
+      <use href="#halloran-tongueb" transform="rotate(8.2 -125.842 855.973)scale(.985)"/>
+      <use href="#halloran-tonguea" transform="rotate(16.4 -49.904 504.107)scale(.839)"/>
+      <use href="#halloran-tongueb" transform="rotate(24.6 -29.74 383.634)scale(1.031)"/>
+      <use href="#halloran-tonguea" transform="rotate(32.8 -23.097 320.435)scale(.806)"/>
+      <use href="#halloran-tongueb" transform="rotate(41 -21.546 279.525)scale(1.05)"/>
+      <use href="#halloran-tonguea" transform="rotate(49.2 -22.313 249.32)scale(.803)"/>
+      <use href="#halloran-tongueb" transform="rotate(57.4 -23.904 224.968)scale(1.036)"/>
+    </g>
+    <g fill="#fbe3a2" opacity=".8">
+      <use href="#halloran-tongueb" transform="rotate(-57.4 123.173 42.715)scale(.4)"/>
+      <use href="#halloran-tonguea" transform="rotate(-49.2 121.171 31.423)scale(.523)"/>
+      <use href="#halloran-tongueb" transform="rotate(-41 120.454 12.47)scale(.408)"/>
+      <use href="#halloran-tonguea" transform="rotate(-32.8 121.374 -18.829)scale(.507)"/>
+      <use href="#halloran-tongueb" transform="rotate(-24.6 127.765 -74.577)scale(.4305)"/>
+      <use href="#halloran-tonguea" transform="rotate(-16.4 146.576 -189.365)scale(.4795)"/>
+      <use href="#halloran-tongueb" transform="rotate(-8.2 219.41 -538.637)scale(.461)"/>
+      <use href="#halloran-tonguea" transform="translate(100 23.104)scale(.448)"/>
+      <use href="#halloran-tongueb" transform="rotate(8.2 -118.971 856.466)scale(.4925)"/>
+      <use href="#halloran-tonguea" transform="rotate(16.4 -46.993 504.527)scale(.4195)"/>
+      <use href="#halloran-tongueb" transform="rotate(24.6 -27.375 384.149)scale(.5155)"/>
+      <use href="#halloran-tonguea" transform="rotate(32.8 -21.728 320.838)scale(.403)"/>
+      <use href="#halloran-tongueb" transform="rotate(41 -20.141 280.05)scale(.525)"/>
+      <use href="#halloran-tonguea" transform="rotate(49.2 -21.436 249.72)scale(.4015)"/>
+      <use href="#halloran-tongueb" transform="rotate(57.4 -22.958 225.486)scale(.518)"/>
     </g>
     <g fill="#f4c96d">
-      <circle cx="80" cy="30" r="2.5"/>
-      <circle cx="122" cy="34" r="2"/>
-      <circle cx="44" cy="66" r="2"/>
-      <circle cx="160" cy="66" r="2.5"/>
+      <path d="m60 37.4 1.6 2.6-1.6 2.6-1.6-2.6Zm80-2 1.9 2.6-1.9 2.6-1.9-2.6Zm-106 28 2.2 2.6-2.2 2.6-2.2-2.6Zm134-2 1.6 2.6-1.6 2.6-1.6-2.6Zm-68-52 1.9 2.6-1.9 2.6-1.9-2.6Zm-20 10 2.2 2.6-2.2 2.6-2.2-2.6Zm42 0 1.6 2.6-1.6 2.6-1.6-2.6Zm-96 82 1.9 2.6-1.9 2.6-1.9-2.6Zm150 2 2.2 2.6-2.2 2.6-2.2-2.6Zm-130 44 1.6 2.6-1.6 2.6-1.6-2.6Zm108 2 1.9 2.6-1.9 2.6-1.9-2.6Z"/>
     </g>
-<!--the hound, running-->
-    <path fill="#e27a2c" d="m20 80 18-10 12-8h8l8 6 18 8c18 4 36 4 52 0l16 6c14-8 24-20 34-28-6 16-16 30-26 38l14 24 14 6v8l-20-2-18-22-4 4 6 20 10 8-8 6-16-16-2-16c-12-8-24-8-36-2-6 4-12 4-18 2l-20 12-22 2-2-6 22-4 14-10H58l-22 4-2-6 22-6 10-2c-6-6-12-8-18-8l-8-2H22Z"/>
-    <path fill="#b8561b" d="M54 64q12 3 12 18-9-3-12-18"/>
-    <circle cx="44" cy="72" r="2.2" fill="#3a2a1a"/>
+    <use fill="#241a10" stroke="#241a10" filter="url(#halloran-edge)" href="#halloran-back"/>
+    <use fill="#b8561b" stroke="#b8561b" href="#halloran-back"/>
+    <use fill="url(#halloran-hatch)" stroke="url(#halloran-hatch)" href="#halloran-back" opacity=".55"/>
+    <use fill="#241a10" stroke="#241a10" filter="url(#halloran-edge)" href="#halloran-form"/>
+    <use fill="url(#halloran-metal)" stroke="url(#halloran-metal)" href="#halloran-form"/>
+    <path fill="url(#halloran-hatch)" d="M0 0h200v200H0z" mask="url(#halloran-shade)"/>
+    <path fill="#f4a547" d="M0 0h200v200H0z" mask="url(#halloran-lit)" opacity=".55"/>
+    <g fill="none" stroke="#241a10" stroke-linecap="round" stroke-width="1.5">
+      <path stroke-width="1.2" d="M96 96c1 1.7 5.3 7 6 10s-1.7 6.7-2 8m6-20c1 1.7 5.2 7.3 6 10s-.8 5-1 6"/>
+      <path d="M30 90c2-.2 8.7-1.2 12-1s6.7 1.7 8 2m82 5c1.3 1.7 6.3 7 8 10s1.7 6.7 2 8"/>
+    </g>
+    <path fill="#f4c96d" stroke="#241a10" stroke-width="1.6" d="M76 76c6 4 9 10 10 18l-5 2c-1-8-4-13-9-16Z"/>
+    <circle cx="83" cy="98" r="3.4" fill="none" stroke="#f4c96d" stroke-width="2"/>
+    <circle cx="52" cy="80" r="2.4" fill="#241a10"/>
+    <circle cx="31" cy="87" r="1.6" fill="#241a10"/>
   </g>
 </svg>

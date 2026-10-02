@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Sheaf (the tithe gathered)</title>
+  <g>
+    <path d="M12 15V8"/>
+    <g fill="currentColor" stroke="none">
+      <ellipse cx="11" cy="7.4" rx=".85" ry="1.6" transform="rotate(-28 11 7.4)"/>
+      <ellipse cx="13" cy="7.4" rx=".85" ry="1.6" transform="rotate(28 13 7.4)"/>
+      <ellipse cx="12" cy="4.6" rx=".9" ry="1.8"/>
+    </g>
+  </g>
+  <g transform="rotate(-38 12 15)">
+    <path d="M12 15V8"/>
+    <g fill="currentColor" stroke="none">
+      <ellipse cx="11" cy="7.4" rx=".85" ry="1.6" transform="rotate(-28 11 7.4)"/>
+      <ellipse cx="13" cy="7.4" rx=".85" ry="1.6" transform="rotate(28 13 7.4)"/>
+      <ellipse cx="12" cy="4.6" rx=".9" ry="1.8"/>
+    </g>
+  </g>
+  <g transform="rotate(38 12 15)">
+    <path d="M12 15V8"/>
+    <g fill="currentColor" stroke="none">
+      <ellipse cx="11" cy="7.4" rx=".85" ry="1.6" transform="rotate(-28 11 7.4)"/>
+      <ellipse cx="13" cy="7.4" rx=".85" ry="1.6" transform="rotate(28 13 7.4)"/>
+      <ellipse cx="12" cy="4.6" rx=".9" ry="1.8"/>
+    </g>
+  </g>
+  <path d="M12 15v6m0-3.5L9 21m3-3.5 3 3.5m-5.5-5.5h5"/>
+</svg>

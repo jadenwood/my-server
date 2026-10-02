@@ -31,7 +31,10 @@ const N = require('./lib/netcheck');
 const M = require('./lib/shared/manifest');
 const ST = require('./lib/shared/steam');
 const A2S = require('./lib/shared/a2s');
-const { ServerManager, findServerProcesses } = require('./lib/server-process');
+const { ServerManager, findServerProcesses, listGameProcesses } = require('./lib/server-process');
+const PS = require('./lib/prestart');
+const W = require('./lib/worlds');
+const AC = require('./lib/admin-console');
 const { ChronicleHost } = require('./lib/chronicle-host');
 const { Settings } = require('./lib/settings');
 
@@ -240,7 +243,7 @@ async function externalProcesses(id, root, fresh = false) {
   const c = extCache.get(id);
   if (!fresh && c && c.root === root && Date.now() - c.at < 10000) return c.list;
   const m = managers.get(id);
-  const ownPid = m && m.child ? m.child.pid : -1;
+  const ownPid = m && m.isRunning() ? m.status().pid : -1;
   const list = (await findServerProcesses(root)).filter((p) => p.pid !== ownPid);
   extCache.set(id, { at: Date.now(), root, list });
   return list;
@@ -358,12 +361,98 @@ async function writeInstanceCfg(inst, root, restartTime) {
   return out;
 }
 
-async function portsInUse(inst) {
-  const busyPorts = [];
-  for (const sock of FL.socketsOf(inst)) {
-    if ((await N.probePort(sock.port, sock.proto)) === 'in-use') busyPorts.push(`${sock.proto.toUpperCase()} ${sock.port} (${sock.what})`);
+// ---------- pre-start checks and world continuity (lib/prestart.js, lib/worlds.js, docs/worlds.md) ----------
+
+function worldsMemory() {
+  const w = settings.get('worlds');
+  return w && typeof w === 'object' && !Array.isArray(w) ? w : {};
+}
+
+// The slot that last reached "Game has started." for this server, in this folder.
+function rememberedWorld(id, root) {
+  const r = worldsMemory()[id];
+  if (!r || !Number.isInteger(r.slot) || r.slot < 0 || typeof r.root !== 'string') return null;
+  return r.root.toLowerCase() === String(root).toLowerCase() ? r.slot : null;
+}
+
+async function rememberWorld(id, root, slot) {
+  if (!Number.isInteger(slot) || slot < 0) return;
+  const cur = worldsMemory();
+  if (cur[id] && cur[id].slot === slot && cur[id].root === root) return;
+  await settings.update({ worlds: { ...cur, [id]: { slot, root, at: new Date().toISOString() } } });
+}
+
+function surveyInstance(inst, root) {
+  const m = mgr(inst.id);
+  return PS.survey(
+    { root, sockets: FL.socketsOf(inst), plannedCport: AC.cportForId(inst.id), ownPids: m.isRunning() ? [m.status().pid] : [] },
+    { listProcesses: () => listGameProcesses(), heldSlots: (r) => W.heldSlots(r) }
+  );
+}
+
+async function worldPlan(inst, root) {
+  const worlds = await W.readWorlds(root);
+  return { worlds, plan: W.planWorld(worlds, rememberedWorld(inst.id, root)) };
+}
+
+// Start options from the pre-start dialog: { worldSlot: n } or { newWorld: true }.
+function worldChoice(opts) {
+  if (opts == null) return null;
+  if (typeof opts !== 'object' || Array.isArray(opts)) throw new TypeError('start options must be an object');
+  if (opts.newWorld === true) return { newWorld: true };
+  if (opts.worldSlot !== undefined) {
+    if (!Number.isInteger(opts.worldSlot) || opts.worldSlot < 0 || opts.worldSlot > W.MAX_SLOT) throw new TypeError('worldSlot must be a whole number from 0 to 9999');
+    return { slot: opts.worldSlot };
   }
-  return busyPorts;
+  return null;
+}
+
+// Makes the next start load the right world, or refuses (lib/worlds.js planWorld).
+async function prepareWorld(inst, root, choice) {
+  const m = mgr(inst.id);
+  const n = inst.id.slice(1);
+  const { worlds, plan } = await worldPlan(inst, root);
+  if (!worlds.cfgExists) return;
+  let target;
+  if (choice && choice.newWorld) {
+    target = -1;
+    m.log('sys', 'Starting a NEW world, as chosen. The other worlds stay in ' + worlds.saveLocation + ' untouched.');
+  } else if (choice && Number.isInteger(choice.slot)) {
+    const s = worlds.slots.find((x) => x.slot === choice.slot);
+    if (!s) throw friendly(`World ${choice.slot} is not in ${worlds.saveLocation} any more.`);
+    if (s.locked) throw friendly(`Server ${n} was not started. World ${choice.slot} is open in another running server.`);
+    target = choice.slot;
+    m.log('sys', `World ${target} chosen.`);
+  } else if (plan.action === 'blocked' || plan.action === 'choose') {
+    throw friendly(`Server ${n} was not started. ${plan.message}`);
+  } else if (plan.action === 'pin') {
+    target = plan.slot;
+    m.log('sys', `World continuity: ${plan.message}`);
+  } else {
+    if (plan.action === 'load') m.log('sys', `World continuity: ${plan.message}`);
+    return;
+  }
+  const r = await W.setWorldSlot(root, target, R.applyCfg);
+  for (const c of r.changes) m.log('sys', `ServerSettings.cfg: worldSlot '${c.from}' -> '${c.to}' (previous file backed up).`);
+  if (r.missing.length) m.log('sys', 'ServerSettings.cfg has no worldSlot line, so the game chooses the world itself.');
+}
+
+// "Game has started.": the game has just written the slot it runs into worldSlot. Remember it, unless
+// this run fell onto a new world because the real one was in use.
+async function onInstanceReady(id) {
+  const m = mgr(id);
+  const root = m.root;
+  if (!root) return;
+  if (m.worldInUse != null) {
+    m.log('sys', `This run is NOT on world ${m.worldInUse}: the game made a new world because world ${m.worldInUse} was open in another server. Steward keeps world ${m.worldInUse} as this server's world. Stop this server, close the other one, and start again.`);
+    return;
+  }
+  const slot = (await W.runningSlot(root)) ?? m.world;
+  if (slot == null) return;
+  const before = rememberedWorld(id, root);
+  await rememberWorld(id, root, slot);
+  if (before == null) m.log('sys', `World ${slot} is this server's world. Steward starts it every time from now on.`);
+  else if (before !== slot) m.log('sys', `This server now runs world ${slot} (before: world ${before}). Steward starts world ${slot} from now on.`);
 }
 
 // One start at a time per server. Without this, two Start clicks (or Start + Restart, or a
@@ -380,19 +469,22 @@ function startInstance(id, opts = {}) {
   return p;
 }
 
-async function startInstanceNow(id, { reason = 'owner' } = {}) {
+async function startInstanceNow(id, { reason = 'owner', world = null } = {}) {
   const inst = instOf(id);
   const root = await requireRootFor(inst);
-  await assertStoppedInst(inst, root);
+  if (mgr(id).isRunning()) throw friendly(`Server ${id.slice(1)} is running. Stop it first on the Servers screen.`);
   const problems = FL.fleetProblems(fleet());
   if (problems.length) throw friendly('Fix the server ports first: ' + problems.join(' '));
-  const inUse = await portsInUse(inst);
-  if (inUse.length) {
-    const owners = await N.portOwners(inst.ports.game, 'udp');
-    const who = owners.length ? ` It is ${N.describeOwners(owners, root)}.` : '';
-    throw friendly(`Another program already uses ${inUse.join(', ')}.${who} Stop it (Task Manager > Details), or change Server ${id.slice(1)}'s ports.`);
+  // Never start into a port clash or next to another server from this folder: say what it is and
+  // offer "Stop it cleanly" / "Adopt it" (lib/prestart.js).
+  const pre = await surveyInstance(inst, root);
+  if (!pre.clear) {
+    const offer = pre.actions.adopt.ok || pre.actions.stop.ok ? 'Choose "Stop it cleanly" or "Adopt it".' : pre.actions.stop.why;
+    throw friendly(`Server ${id.slice(1)} was not started. ${pre.message} ${offer}`);
   }
   const m = mgr(id);
+  // Always the same world, never a new one by accident (lib/worlds.js).
+  await prepareWorld(inst, root, world);
   const sup = supOf(id);
   clearTimeout(sup.fallbackTimer);
   sup.plannedAt = null;
@@ -511,6 +603,13 @@ function onInstanceExit(id, ex) {
       m.log('sys', `Not restarting: port ${inst.ports.game} is held by ${N.describeOwners(owners, inst.root)}. Then press Start once.`);
       pushFleet();
     });
+    return pushFleet();
+  }
+  // The game opened a new world because the real one was in use: restarting would only repeat that.
+  if (m.worldInUse != null) {
+    sup.halted = `World ${m.worldInUse} was open in another server, so the game made a new world. Close the other server, then press Start.`;
+    sup.nextAt = null;
+    m.log('sys', `Not restarting: ${sup.halted}`);
     return pushFleet();
   }
   supOf(id).lastCrashAt = new Date().toISOString(); // Home dashboard: "last crash" (this session only)
@@ -1187,6 +1286,7 @@ function registerIpc() {
       testRoot: root || inst.root,
       copied,
       external: copied ? await externalProcesses(inst.id, root) : [],
+      rememberedWorld: root ? rememberedWorld(inst.id, root) : null,
       oxide: copied ? await R.oxideInstalled(root) : null,
       oxideBackup: copied ? !!(await R.latestOxideBackup(root)) : false,
       cfgExists: copied ? await F.isFile(R.cfgPaths(root).server) : false,
@@ -1198,10 +1298,59 @@ function registerIpc() {
   });
 
   handle('server:log', (id, since) => mgr(idArg(id).id).getLines(Number.isInteger(since) && since >= 0 ? since : 0).slice(-1500));
-  handle('server:start', async (id) => {
+  handle('server:start', async (id, opts) => {
     if (busy) throw friendly(`Please wait: "${busy.label}" is still running.`);
-    return startInstance(idArg(id).id, { reason: 'owner' });
+    return startInstance(idArg(id).id, { reason: 'owner', world: worldChoice(opts) });
   });
+  // What a Start would run into, without starting: other programs on the ports, and the world.
+  handle('server:prestart', async (id) => {
+    const inst = idArg(id);
+    const root = await requireRootFor(inst);
+    if (mgr(inst.id).isRunning()) return { running: true };
+    const problems = FL.fleetProblems(fleet());
+    if (problems.length) throw friendly('Fix the server ports first: ' + problems.join(' '));
+    const survey = await surveyInstance(inst, root);
+    const { worlds, plan } = await worldPlan(inst, root);
+    return { running: false, survey, world: plan, saveLocation: worlds.saveLocation };
+  });
+  // "Stop it cleanly": /shutdown over the other server's admin console. Never kills a process.
+  handle('server:stopHolder', (id) =>
+    exclusive('Stop the other server', async () => {
+      const inst = idArg(id);
+      const root = await requireRootFor(inst);
+      const m = mgr(inst.id);
+      if (m.isRunning()) throw friendly(`Server ${inst.id.slice(1)} is running under Steward. Use Stop.`);
+      const pre = await surveyInstance(inst, root);
+      if (pre.clear) return { stopped: true, relaunched: false, message: 'Nothing else is running any more.' };
+      if (!pre.actions.stop.ok) throw friendly(pre.actions.stop.why);
+      m.log('sys', `Stop it cleanly: ${pre.message}`);
+      const r = await PS.stopCleanly({ port: pre.actions.stop.port, gamePort: inst.ports.game, gameProto: 'udp' }, { log: (t) => m.log('sys', t) });
+      m.log('sys', r.message);
+      pushFleet();
+      return r;
+    })
+  );
+  // "Adopt it": attach to a server from this folder that Steward did not start.
+  handle('server:adopt', (id) =>
+    exclusive('Adopt the server', async () => {
+      const inst = idArg(id);
+      const root = await requireRootFor(inst);
+      const m = mgr(inst.id);
+      if (m.isRunning()) throw friendly(`Server ${inst.id.slice(1)} is already running under Steward.`);
+      const pre = await surveyInstance(inst, root);
+      if (!pre.actions.adopt.ok) throw friendly(pre.actions.adopt.why || 'There is no server from this folder to adopt.');
+      cancelSupervision(inst.id);
+      const sup = supOf(inst.id);
+      sup.halted = null;
+      sup.crashes = [];
+      sup.streak = 0;
+      m.adopt(root, { pid: pre.actions.adopt.pid, exe: 'ROK' });
+      court.attachConsole(inst.id, pre.actions.adopt.port);
+      if (inst.id === 's1') startChronicle().catch(() => {});
+      pushFleet();
+      return m.status();
+    })
+  );
   handle('server:stop', (id) => {
     const inst = idArg(id);
     cancelSupervision(inst.id);
@@ -1655,6 +1804,7 @@ function wireServerEvents(id, m) {
     pushFleet();
   });
   m.on('exit', (ex) => onInstanceExit(id, ex));
+  m.on('ready', () => onInstanceReady(id).catch((e) => m.log('sys', `Could not record the world: ${e.message}`)));
   // Remember the fallback so the next start (and Settings) uses ROK.exe directly.
   m.on('exe-fallback', (exe) => {
     settings.update({ serverExe: exe }).catch(() => {});

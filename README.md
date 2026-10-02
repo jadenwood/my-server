@@ -1,5 +1,7 @@
 # Realm
 
+**New here? Read [`START-HERE.md`](START-HERE.md).** It takes the owner from a fresh clone to a public server and a friend joining in about 10 minutes: double-click `Build-Realm.bat`, install Realm Steward, let the setup wizard run, Go Public, publish the server list and send `Realm-Setup` to your friends. When something goes wrong: [`docs/troubleshooting.md`](docs/troubleshooting.md).
+
 Realm is a community revival of **Reign of Kings** (Code Hatch, 2015; Steam app 344760, dedicated server app 381690). It is built server-first and has its own original lore. Players form **houses** and swear allegiance to one another. One **crown** is contested. The king has a limited set of decrees and a council. **Rebellions** have to be declared in advance and are fought in scheduled windows. **Ransom** has an upper limit. A public **Realm Chronicle** records what happens and feeds livestream overlays. Two Realm desktop apps come from one codebase. **Realm Steward** lets the owner run up to four servers. **Realm**, the player app, sends players to their own Steam copy of the game.
 
 Everything here runs on the server side or next to it. The game client is never modified.
@@ -10,7 +12,7 @@ Everything here runs on the server side or next to it. The game client is never 
 - Gameplay changes come only from **server-side** mechanisms:
   - Oxide 2.0.3867 plugins. Oxide is MIT licensed, from `github.com/OxideMod/Oxide.ReignOfKings`, and you download it yourself.
   - The game's built-in `Mods\*.cfg` override system.
-- Oxide replaces `Assembly-CSharp.dll` **in the server's test copy only** (`server/Install-Oxide.ps1`). Clients are never touched. This respects the EULA and Easy Anti-Cheat.
+- Oxide replaces `Assembly-CSharp.dll` **in the server's test copy only** (`server/Install-Oxide.ps1`). Clients are never touched. This is meant to respect the EULA and Easy Anti-Cheat; the EULA text itself has not been read yet, so see [`docs/legal/eula-compliance-checklist.md`](docs/legal/eula-compliance-checklist.md) for what is still open.
 - The lore is original. Do not use Westeros or other franchise names in houses, sigils, decrees or news.
 
 ## What Realm does now
@@ -37,7 +39,7 @@ Everything here runs on the server side or next to it. The game client is never 
 4. To see the server's own errors, pick **Server game log** in the Doctor's log view, or start the server with the live console on (the default with `ROK.exe`) and watch the Servers console.
 5. **Copy report** gives a text you can share: public IPs, Steam IDs, the Steam auth ticket, passwords and your Windows user name are removed.
 
-The Windows notice "eac_usermode blocked from loading into LSA" is harmless and unrelated.
+The Windows notice "eac_usermode blocked from loading into LSA" is harmless and unrelated. Every problem seen so far, with its fix, is in [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 ## Repository layout
 
@@ -73,19 +75,20 @@ The data files follow this contract:
 - **`RealmState.json`** is `{king, house, since, houses:[{name, sigil, liege, members}], online, maxPlayers, updated}`.
 - **`/api/state`** returns that state plus `stale: bool`.
 
-## Easiest way: run Realm-Steward-Setup.exe
+## Easiest way: Build-Realm.bat, then Realm-Steward-Setup
 
 1. Make sure Steam has **Reign Of Kings Dedicated Server** installed (Library > Tools).
-2. Download **`Realm-Steward-Setup.exe`** and run it. It is built from `launcher/` with `npm run dist:win` or `npm run dist:steward`, and the file is named `Realm-Steward-Setup-<version>.exe`. It installs for your Windows user only and adds a desktop and Start-menu shortcut.
-3. Open **Realm Steward**. On first run its setup wizard does the rest, with a progress bar for each step:
+2. Double-click **`Build-Realm.bat`** in this folder. It needs Node.js 22 and Git for Windows, never administrator rights. It checks both, runs `npm ci`, the launcher checks and tests, then writes `release\1.0.0\Realm-Steward-Setup-1.0.0.exe` (the owner app), `Realm-Setup-1.0.0.exe` (the player app) and `SHA256SUMS.txt`. If a step fails it prints `PROBLEM:` and `FIX:` and waits. (`cd launcher && npm run release` does the same build without the checks; `npm run dist:steward` and `npm run dist:player` still build into `launcher\dist\`, with portable versions.)
+3. Run `Realm-Steward-Setup-1.0.0.exe`. It installs for your Windows user only, adds a desktop and Start-menu shortcut, and installs over an older Realm Steward. Uninstalling keeps your settings (`%APPDATA%\Realm`) and your worlds.
+4. Open **Realm Steward**. On first run its setup wizard does the rest, with a progress bar for each step:
    finds the Steam server, copies it to the test folder (default `G:\RealmTest\server`), starts it once so the game writes its settings, downloads Oxide 2.0.3867 and checks its SHA-256, installs it with a backup of every replaced file, and deploys the Realm plugins. Finished steps are skipped; a failed step shows a plain-English message with **Copy details**.
-4. In Realm Steward:
+5. In Realm Steward:
    - **Servers** starts and stops each server copy, shows its console and its settings (name, up to 120 players, ports, crash and daily restarts). **Add server** sets up a second, third or fourth copy.
    - **Play** opens your own copy through Steam (direct connect to `127.0.0.1` port `7350`).
    - **Overlay** gives the OBS address.
    - **Public** and **Publish** take a server online and produce the signed list for the player app; see [`docs/going-public.md`](docs/going-public.md).
 
-You never need a command window. The router and the Steam copy are never changed, and the firewall changes only when you press **Add firewall rules** on the Public screen and accept the Windows prompt. Node.js is not needed: the Chronicle overlay runs inside the app.
+Once the installer is built you never need a command window. The router and the Steam copy are never changed, and the firewall changes only when you press **Add firewall rules** on the Public screen and accept the Windows prompt. Node.js is not needed: the Chronicle overlay runs inside the app.
 
 **Fallback:** `Realm.bat` still works. Download this repo (green **Code** button > **Download ZIP**), unzip it on **G:**, double-click `Realm.bat` and pick **1 Set up everything**, then **2 Play** (**3** updates plugins, **4** backs up the world, **5** undoes Oxide). If something fails, the window prints `PROBLEM: ...`; nothing else is changed. The manual steps below do the same thing one script at a time.
 
@@ -150,7 +153,7 @@ npm run sample
 | Config keys in `ServerSettings.cfg` and `ConsoleSettings.cfg` used by the scripts | **Verified (primary)** from a maintained hosting template. The scripts only edit keys that already exist and never add new ones. |
 | Ports (7350 game, 27015 Steam auth) and the direct-connect method | Ports are verified (primary). The connect UI wording is **secondary**. |
 | Chronicle service | **Tested here**: `npm test` (8/8 pass), every endpoint checked with curl, and the pages rendered in Chromium. |
-| Realm Steward and Realm (`launcher/`) | **Tested here** on Linux only. <br>• Unit tests cover the path, cfg, zip, vdf and hash rules, Ed25519 list signing and verification, A2S, deep links, the `steam://` allow-list, ports, restart logic and firewall command construction. <br>• Automated walks through both apps ran under Electron, the steward against an imitation server that answers A2S and the player against a signed list and imitation servers (see `launcher/README.md`). <br>• A test proves the player app carries no server-control code. <br>Both Windows installers were **built** here but **never run on Windows**. **Unverified:** real `Server.exe` piped I/O, the registry lookup, the process check, the firewall scripts and their UAC prompt, DPAPI key storage, the `realm://` registration, and two or more real servers on one PC. |
+| Realm Steward and Realm (`launcher/`) | **Tested here** on Linux only. <br>• Unit tests cover the path, cfg, zip, vdf and hash rules, Ed25519 list signing and verification, A2S, deep links, the `steam://` allow-list, ports, restart logic and firewall command construction. <br>• Automated walks through both apps ran under Electron, the steward against an imitation server that answers A2S and the player against a signed list and imitation servers (see `launcher/README.md`). <br>• A test proves the player app carries no server-control code. <br>An earlier Steward build **ran on the owner's Windows 11 PC on 2026-10-02**: setup, start, and the owner joining their own server with all 14 plugins loaded ([`docs/HANDOFF.md`](docs/HANDOFF.md)). The 1.0.0 installers were built here and installed and uninstalled under wine (per-user folder, shortcuts, uninstall entry, settings kept); **`Build-Realm.bat` and the 1.0.0 installers have not run on Windows yet**. **Unverified:** real `Server.exe` piped I/O, the registry lookup, the process check, the firewall scripts and their UAC prompt, DPAPI key storage, the `realm://` registration, and two or more real servers on one PC. |
 | Plugins (`plugins/*.cs`) | **Compile-checked, never run in game.** All plugins compile with 0 errors at C# 3 against the shipped Oxide 2.0.3867 and patched game DLLs (`tools/plugin-compile-check/check.sh`). Behaviour on a live server is untested; spots that rely on unverified behaviour are marked `// UNVERIFIED:`. |
 | Connection Doctor (`launcher/lib/doctor.js`, `lib/shared/gamelog.js`) | **Tested here** (unit tests, and an Electron walk-through against an imitation `ROK.exe` and game install). Every classifier string is copied from the decompiled game DLL. **Unverified on Windows:** the PowerShell socket and firewall listings, the Steam `ActiveProcess` registry read, that the client writes `Logs\Log[...].txt` in the install folder, and the location of `output_log.txt` for Unity 5.1. |
 | Live admin console and Court (`lib/admin-console.js`, `lib/court-host.js`, `RealmCourt.cs`) | **Wire protocol proven from the decompiled DLL and tested here** byte for byte against an independent fake. **Never run against the real `ROK.exe`.** Unverified: that the dedicated server enables the console ("Admin console enabled." in its log), that Steward connects within the game's 10 s window, the exact wording of kick/ban replies, and `RealmCourt.cs` in game. If the console is never reached and the server exits early, Steward turns `-cport` off for that server automatically. **Behaviour change:** with the console on, closing Steward makes its servers save and stop. |
@@ -158,7 +161,7 @@ npm run sample
 | Realm Portal (`portal/`) | **Tested here**: `npm test` (28 tests, including hostile-text escaping and no Steam IDs on any page) and screenshots. Hosting is left to the owner. |
 | Discord herald (`launcher/lib/discord.js`) | **Tested here with a stubbed network** (URL validation, token redaction, rate limits, retries, 404 shut-off). **No post to a real webhook has been made.** DPAPI encryption on Windows is untested. |
 | Player onboarding, Realm feed, Steward dashboard | **Tested here** in Electron walk-throughs with mock data. The feed's next-event countdown needs a plugin to publish the next event; no plugin does yet, so only the latest events show. The "Game starting / Joining" steps are timed guidance, not read from the game. |
-| PowerShell scripts | **Never run or parsed**, because there is no PowerShell here. Always use `-WhatIf` first. |
+| PowerShell scripts | **Parse-checked in CI** (PowerShell 7, plus the Windows PowerShell 5.1 syntax rules for `ops/`); never run on Windows. Always use `-WhatIf` first. |
 | Mods atmosphere preset | **Key names read from the server DLL** (`docs/mods-keys-from-dll.md`). Which Mods file holds them, and whether a headless server applies fog, is untested; `Apply-Preset.ps1` checks against the server's own `*.defaults.cfg`. |
 | Which exe to run (`Server.exe` or `ROK.exe`), the `ROK_Data`/`Server_Data` folder, the Oxide data path (`oxide\` or `Saves\oxide\`), `Assembly-CSharp_Original.dll`, and whether `bindIP=127.0.0.1` still lets clients authenticate | **Unverified.** The smoke test resolves each of these. |
 | Client auto-connect | The game's own quick join (`-ip <host> -port <n>` → `Game.Join`) is **proven in the DLL code** ([`docs/join-and-scale.md`](docs/join-and-scale.md) §1). The player app uses it through `steam://run/344760//-ip … -port …/`, always with a paste-the-address fallback card. **Unverified:** that the EAC launcher forwards the arguments. `steam://connect` does not work (the game ignores `+connect`). |

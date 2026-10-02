@@ -63,6 +63,10 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "Realm",
+    "deleteAppDataOnUninstall": false,
+    "uninstallDisplayName": "${productName}",
+    "runAfterFinish": true,
+    "include": "build/player-uninstall.nsh",
     "artifactName": "Realm-Setup-${version}.${ext}"
   },
   "portable": {
