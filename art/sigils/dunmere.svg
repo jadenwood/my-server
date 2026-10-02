@@ -4,34 +4,103 @@
     A bronze bell sunk beneath three wavy lines, on an olive field. Original artwork for the Realm of Ostreval.
   </desc>
   <defs>
-    <radialGradient id="dunmere-field" cx="50%" cy="42%" r="62%">
+    <radialGradient id="dunmere-field" cx="50%" cy="40%" r="62%">
       <stop offset="0" stop-color="#747445"/>
-      <stop offset=".6" stop-color="#5a5a22"/>
+      <stop offset=".62" stop-color="#5a5a22"/>
       <stop offset="1" stop-color="#383815"/>
     </radialGradient>
+    <linearGradient id="dunmere-gold" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#fbe3a2"/>
+      <stop offset=".35" stop-color="#f4c96d"/>
+      <stop offset=".6" stop-color="#d6a043"/>
+      <stop offset="1" stop-color="#9c6a1e"/>
+    </linearGradient>
+    <pattern id="dunmere-diaper" width="18" height="18" patternTransform="rotate(45 128 128)" patternUnits="userSpaceOnUse">
+      <path fill="none" stroke="#747445" stroke-width=".7" d="M0 .5h18M.5 0v18"/>
+      <circle cx="9" cy="9" r="1.1" fill="#747445"/>
+    </pattern>
   </defs>
-  <circle cx="128" cy="128" r="126" fill="#131417"/>
-  <circle cx="128" cy="128" r="118" fill="url(#dunmere-field)"/>
-  <circle cx="128" cy="128" r="110" fill="none" stroke="#d6a043" stroke-width="3"/>
+  <circle cx="128" cy="128" r="127" fill="#0c0d0f"/>
+  <circle cx="128" cy="128" r="123.5" fill="none" stroke="#26282d" stroke-dasharray="1.6 2.3" stroke-width="4"/>
+  <circle cx="128" cy="128" r="119" fill="url(#dunmere-field)"/>
+  <circle cx="128" cy="128" r="104" fill="url(#dunmere-diaper)" opacity=".32"/>
+  <circle cx="128" cy="128" r="117.5" fill="none" stroke="#0c0d0f" stroke-width="3" opacity=".55"/>
+  <circle cx="128" cy="128" r="111" fill="none" stroke="url(#dunmere-gold)" stroke-width="4.5"/>
+  <circle cx="128" cy="128" r="105" fill="none" stroke="#d6a043" opacity=".5"/>
+  <path fill="url(#dunmere-gold)" stroke="#0c0d0f" stroke-width=".8" d="m128 11 5 6-5 6-5-6Zm0 222 5 6-5 6-5-6ZM11 128l6-5 6 5-6 5Zm222 0 6-5 6 5-6 5Z"/>
   <g id="charge" transform="translate(28 28)">
     <defs>
-      <linearGradient id="dunmere-bronze" x1="0" x2="1">
-        <stop offset="0" stop-color="#6e4c22"/>
+      <mask id="dunmere-shade">
+        <use fill="white" stroke="white" href="#dunmere-form"/>
+        <use fill="black" stroke="black" href="#dunmere-form" transform="translate(-4 -5)"/>
+      </mask>
+      <mask id="dunmere-lit">
+        <use fill="white" stroke="white" href="#dunmere-form"/>
+        <use fill="black" stroke="black" href="#dunmere-form" transform="translate(3 4)"/>
+      </mask>
+      <linearGradient id="dunmere-metal" x1="20" x2="180" y1="10" y2="190" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#e2c38a"/>
         <stop offset=".45" stop-color="#e0b56a"/>
         <stop offset="1" stop-color="#6e4c22"/>
       </linearGradient>
+      <pattern id="dunmere-hatch" width="3.4" height="3.4" patternTransform="rotate(-38)" patternUnits="userSpaceOnUse">
+        <path stroke="#6e4c22" stroke-width="1.43" d="M0 0v3.4"/>
+      </pattern>
+      <filter id="dunmere-edge" width="120%" height="120%" x="-8%" y="-8%" color-interpolation-filters="sRGB">
+        <feMorphology in="SourceAlpha" operator="dilate" radius="2.4" result="d"/>
+        <feOffset dx="2.5" dy="3.5" in="d"/>
+        <feGaussianBlur result="b" stdDeviation="2.2"/>
+        <feFlood flood-color="#0c0d0f" flood-opacity=".6"/>
+        <feComposite in2="b" operator="in" result="s"/>
+        <feFlood flood-color="#383815"/>
+        <feComposite in2="d" operator="in" result="e"/>
+        <feMerge>
+          <feMergeNode in="s"/>
+          <feMergeNode in="e"/>
+        </feMerge>
+      </filter>
+      <g id="dunmere-form">
+        <path d="M151 178c-.8 1-.5 4.7-5 6s-14.3 1.5-22 2-16 1-24 1-16.3-.5-24-1-17.5-.7-22-2-4.2-5-5-6c1.2-1 4.2-3.7 7-6s7.3-4.7 10-8 4.5-7.5 6-12 2.2-10 3-15 .8-10.8 2-15 2.8-7.4 5-10 5-4.3 8-5.5 6.7-1.5 10-1.5 7 .3 10 1.5 5.8 2.9 8 5.5 3.8 5.8 5 10 1.2 10 2 15 1.5 10.5 3 15 3.3 8.7 6 12 7.2 5.7 10 8 5.8 5 7 6"/>
+        <circle cx="100" cy="97" r="6.5" fill="none" stroke-width="5"/>
+        <path d="M93 104h14v4H93Z"/>
+      </g>
     </defs>
-<!--three waves-->
-    <g fill="none" stroke="#c9d1b0" stroke-linecap="round" stroke-width="7">
-      <path d="M30 34q18-15 36 0c18 15 24 10 36 0s24-10 36 0 24 10 32 2"/>
-      <path d="M30 56q18-15 36 0c18 15 24 10 36 0s24-10 36 0 24 10 32 2"/>
-      <path d="M30 78q18-15 36 0c18 15 24 10 36 0s24-10 36 0 24 10 32 2"/>
+    <defs>
+      <linearGradient id="dunmere-foam" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#c9d1b0"/>
+        <stop offset="1" stop-color="#747445"/>
+      </linearGradient>
+    </defs>
+    <g fill="#383815" filter="url(#dunmere-edge)">
+      <path d="M34 34c1.2.4 4.8 2.2 7.3 2.4s5 0 7.4-1c2.5-1 4.9-3.4 7.3-5s4.8-4 7.3-4.9 5-1.1 7.4-.5c2.5.6 4.9 2.7 7.3 4s4.8 3.4 7.3 4 5 .6 7.4-.1c2.5-.8 4.9-3 7.3-4.4s4.8-3.6 7.3-4.3 5-.6 7.4.2c2.5.8 4.9 3.1 7.3 4.6s4.9 3.8 7.3 4.6c2.5.9 5 1 7.4.5s4.9-2.5 7.3-3.7 4.9-3.1 7.3-3.6c2.5-.4 5-.3 7.4.9s6.1 5.3 7.3 6.3c-1.2-.4-4.9-2.2-7.3-2.4s-4.9 0-7.4 1c-2.4 1-4.9 3.4-7.3 5-2.4 1.7-4.9 4-7.3 4.9s-4.9 1.1-7.4.5c-2.4-.6-4.9-2.7-7.3-4s-4.8-3.4-7.3-4c-2.4-.6-4.9-.6-7.4.1-2.5.8-4.9 2.9-7.3 4.4s-4.8 3.6-7.3 4.3c-2.4.7-4.9.6-7.4-.2S80.4 40.5 78 39s-4.8-3.7-7.3-4.6c-2.4-.9-4.9-1-7.4-.5s-4.9 2.5-7.3 3.7-4.8 3.2-7.3 3.6c-2.4.5-4.9.3-7.4-.9S35.2 35 34 34m-4 22c1.3.4 5.2 2.4 7.8 2.6q3.9.3 7.8-1.5c2.6-1.2 5.1-4 7.7-5.7s5.2-3.8 7.8-4.4 5.2 0 7.8 1 5.2 3.5 7.8 4.8 5.1 2.9 7.7 2.9c2.6.1 5.2-1.3 7.8-2.6s5.2-4.1 7.8-5.3c2.6-1.3 5.2-2.4 7.8-2.2s5.2 1.9 7.8 3.4 5.1 4.2 7.7 5.4 5.2 2 7.8 1.7 5.2-2.2 7.8-3.5 5.2-3.7 7.8-4.3c2.6-.7 5.1-.6 7.7.4s5.2 3.5 7.8 5.5 6.5 5.3 7.8 6.3c-1.3-.4-5.2-1.4-7.8-2.4s-5.2-3.2-7.8-3.6-5.1 0-7.7 1.1-5.2 3.8-7.8 5.4-5.2 3.9-7.8 4.5-5.2 0-7.8-1-5.1-3.6-7.7-4.9-5.2-3-7.8-3.1-5.2 1-7.8 2.3c-2.6 1.2-5.2 4-7.8 5.2-2.6 1.3-5.2 2.5-7.8 2.3s-5.1-1.9-7.7-3.4-5.2-4.3-7.8-5.5c-2.6-1.3-5.2-2.2-7.8-2s-5.2 2.1-7.8 3.3c-2.6 1.3-5.1 3.6-7.7 4.2s-5.2.6-7.8-.5-6.5-5.3-7.8-6.4m0 22c1.3.4 5.2 2.4 7.8 2.6q3.9.3 7.8-1.5c2.6-1.2 5.1-4 7.7-5.7s5.2-3.8 7.8-4.4 5.2 0 7.8 1 5.2 3.5 7.8 4.8 5.1 2.9 7.7 2.9c2.6.1 5.2-1.3 7.8-2.6s5.2-4.1 7.8-5.3c2.6-1.3 5.2-2.4 7.8-2.2s5.2 1.9 7.8 3.4 5.1 4.2 7.7 5.4 5.2 2 7.8 1.7 5.2-2.2 7.8-3.5 5.2-3.7 7.8-4.3 5.1-.6 7.7.4 5.2 3.5 7.8 5.5 6.5 5.3 7.8 6.3c-1.3-.4-5.2-1.4-7.8-2.4s-5.2-3.2-7.8-3.6-5.1 0-7.7 1.1-5.2 3.7-7.8 5.4-5.2 3.9-7.8 4.5-5.2 0-7.8-1-5.1-3.6-7.7-4.9-5.2-3-7.8-3.1-5.2 1-7.8 2.3c-2.6 1.2-5.2 4-7.8 5.2-2.6 1.3-5.2 2.5-7.8 2.3s-5.1-1.9-7.7-3.4-5.2-4.2-7.8-5.5c-2.6-1.2-5.2-2.2-7.8-2s-5.2 2.1-7.8 3.3c-2.6 1.3-5.1 3.6-7.7 4.2s-5.2.7-7.8-.5c-2.6-1.1-6.5-5.3-7.8-6.4"/>
     </g>
-<!--the bell, sunk below-->
-    <path fill="url(#dunmere-bronze)" stroke="#383815" stroke-linejoin="round" stroke-width="3" d="M100 96c14 0 24 8 26 24 2 20 6 36 20 48l4 8H50l4-8c14-12 18-28 20-48 2-16 12-24 26-24Z"/>
-    <path fill="none" stroke="#383815" stroke-width="3" d="M58 166h84"/>
-    <rect width="12" height="10" x="94" y="88" fill="url(#dunmere-bronze)" stroke="#383815" stroke-width="2" rx="3"/>
-    <circle cx="100" cy="184" r="8" fill="#e0b56a" stroke="#383815" stroke-width="2"/>
-    <path fill="none" stroke="#e2c38a" stroke-linecap="round" stroke-width="2.5" d="M88 108c-4 12-4 32-10 48" opacity=".7"/>
+    <g fill="url(#dunmere-foam)">
+      <path d="M34 34c1.2.4 4.8 2.2 7.3 2.4s5 0 7.4-1c2.5-1 4.9-3.4 7.3-5s4.8-4 7.3-4.9 5-1.1 7.4-.5c2.5.6 4.9 2.7 7.3 4s4.8 3.4 7.3 4 5 .6 7.4-.1c2.5-.8 4.9-3 7.3-4.4s4.8-3.6 7.3-4.3 5-.6 7.4.2c2.5.8 4.9 3.1 7.3 4.6s4.9 3.8 7.3 4.6c2.5.9 5 1 7.4.5s4.9-2.5 7.3-3.7 4.9-3.1 7.3-3.6c2.5-.4 5-.3 7.4.9s6.1 5.3 7.3 6.3c-1.2-.4-4.9-2.2-7.3-2.4s-4.9 0-7.4 1c-2.4 1-4.9 3.4-7.3 5-2.4 1.7-4.9 4-7.3 4.9s-4.9 1.1-7.4.5c-2.4-.6-4.9-2.7-7.3-4s-4.8-3.4-7.3-4c-2.4-.6-4.9-.6-7.4.1-2.5.8-4.9 2.9-7.3 4.4s-4.8 3.6-7.3 4.3c-2.4.7-4.9.6-7.4-.2S80.4 40.5 78 39s-4.8-3.7-7.3-4.6c-2.4-.9-4.9-1-7.4-.5s-4.9 2.5-7.3 3.7-4.8 3.2-7.3 3.6c-2.4.5-4.9.3-7.4-.9S35.2 35 34 34m-4 22c1.3.4 5.2 2.4 7.8 2.6q3.9.3 7.8-1.5c2.6-1.2 5.1-4 7.7-5.7s5.2-3.8 7.8-4.4 5.2 0 7.8 1 5.2 3.5 7.8 4.8 5.1 2.9 7.7 2.9c2.6.1 5.2-1.3 7.8-2.6s5.2-4.1 7.8-5.3c2.6-1.3 5.2-2.4 7.8-2.2s5.2 1.9 7.8 3.4 5.1 4.2 7.7 5.4 5.2 2 7.8 1.7 5.2-2.2 7.8-3.5 5.2-3.7 7.8-4.3c2.6-.7 5.1-.6 7.7.4s5.2 3.5 7.8 5.5 6.5 5.3 7.8 6.3c-1.3-.4-5.2-1.4-7.8-2.4s-5.2-3.2-7.8-3.6-5.1 0-7.7 1.1-5.2 3.8-7.8 5.4-5.2 3.9-7.8 4.5-5.2 0-7.8-1-5.1-3.6-7.7-4.9-5.2-3-7.8-3.1-5.2 1-7.8 2.3c-2.6 1.2-5.2 4-7.8 5.2-2.6 1.3-5.2 2.5-7.8 2.3s-5.1-1.9-7.7-3.4-5.2-4.3-7.8-5.5c-2.6-1.3-5.2-2.2-7.8-2s-5.2 2.1-7.8 3.3c-2.6 1.3-5.1 3.6-7.7 4.2s-5.2.6-7.8-.5-6.5-5.3-7.8-6.4m0 22c1.3.4 5.2 2.4 7.8 2.6q3.9.3 7.8-1.5c2.6-1.2 5.1-4 7.7-5.7s5.2-3.8 7.8-4.4 5.2 0 7.8 1 5.2 3.5 7.8 4.8 5.1 2.9 7.7 2.9c2.6.1 5.2-1.3 7.8-2.6s5.2-4.1 7.8-5.3c2.6-1.3 5.2-2.4 7.8-2.2s5.2 1.9 7.8 3.4 5.1 4.2 7.7 5.4 5.2 2 7.8 1.7 5.2-2.2 7.8-3.5 5.2-3.7 7.8-4.3 5.1-.6 7.7.4 5.2 3.5 7.8 5.5 6.5 5.3 7.8 6.3c-1.3-.4-5.2-1.4-7.8-2.4s-5.2-3.2-7.8-3.6-5.1 0-7.7 1.1-5.2 3.7-7.8 5.4-5.2 3.9-7.8 4.5-5.2 0-7.8-1-5.1-3.6-7.7-4.9-5.2-3-7.8-3.1-5.2 1-7.8 2.3c-2.6 1.2-5.2 4-7.8 5.2-2.6 1.3-5.2 2.5-7.8 2.3s-5.1-1.9-7.7-3.4-5.2-4.2-7.8-5.5c-2.6-1.2-5.2-2.2-7.8-2s-5.2 2.1-7.8 3.3c-2.6 1.3-5.1 3.6-7.7 4.2s-5.2.7-7.8-.5c-2.6-1.1-6.5-5.3-7.8-6.4"/>
+    </g>
+    <path fill="none" stroke="#383815" stroke-linecap="round" stroke-width="1.3" d="M48 36q11 4 22 0M48 58q11 4 22 0M48 80q11 4 22 0" opacity=".55"/>
+    <g fill="none" stroke="#c9d1b0" stroke-width="1.6" opacity=".85">
+      <circle cx="86" cy="94" r="3.2"/>
+      <circle cx="117" cy="90" r="2.4"/>
+      <circle cx="110" cy="99" r="1.6"/>
+      <circle cx="80" cy="102" r="1.6"/>
+    </g>
+    <use fill="#383815" stroke="#383815" filter="url(#dunmere-edge)" href="#dunmere-form"/>
+    <use fill="url(#dunmere-metal)" stroke="url(#dunmere-metal)" href="#dunmere-form"/>
+    <path fill="url(#dunmere-hatch)" d="M0 0h200v200H0z" mask="url(#dunmere-shade)"/>
+    <path fill="#e2c38a" d="M0 0h200v200H0z" mask="url(#dunmere-lit)" opacity=".55"/>
+    <g fill="none" stroke="#6e4c22" stroke-linecap="round">
+      <path stroke-width="1.6" d="M79 119q21 5 42 0m-43 6q22 5 44 0m-60 42q38 8 76 0m-81 6q43 8 86 0"/>
+      <path stroke-width="1.2" d="M74 154q26 5 52 0"/>
+      <path stroke-width="1.5" d="M88 140q6-6 12 0t12 0m-24 6q6-6 12 0t12 0"/>
+    </g>
+    <g fill="#6e4c22">
+      <circle cx="84" cy="123.6" r="1.3"/>
+      <circle cx="92" cy="124.5" r="1.3"/>
+      <circle cx="100" cy="124.8" r="1.3"/>
+      <circle cx="108" cy="124.5" r="1.3"/>
+      <circle cx="116" cy="123.6" r="1.3"/>
+    </g>
+    <path fill="#383815" d="M58 184h84c-6 5-18 7-42 7s-36-2-42-7" opacity=".6"/>
+    <circle cx="100" cy="189" r="6.5" fill="url(#dunmere-metal)" stroke="#383815" stroke-width="2.2"/>
   </g>
 </svg>

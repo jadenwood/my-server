@@ -12,12 +12,16 @@
 //   game log:  "<Product> is now in dedicated mode."                 DedicatedServerBypass.Awake
 //              "Admin console enabled."                              SocketAdminConsole.OnEnable (+500 ms)
 //              ServerSettings.cfg load/create                        DedicatedServerBypass.Start
+//              world slot chosen and locked, "Save slot located at:"  DedicatedServerBypass.StartServer, Game.New/Load
 //              ... world load (--sim-load-ms) ...
 //              Users/Permissions/... created, "User ... loaded."     CoreServer.Start
 //              first run: error rule, two info lines, exit          CoreServer.Start
 //              "Steam game server started. (IP: ...)"                SteamServer (a loader; order UNVERIFIED)
 //              "Server for N players started on port P."             CoreServer.Start
+//              worldSlot written back, "Game has started."           DedicatedServerBypass.OnGameStart, Game.OnLoadingComplete
 //              "Type /shutdown to shut down the server."             SocketAdminConsole.OnGameStart
+// The two ready lines, "Server for N players started on port P." then "Game has started.", were seen
+// in this order on the owner's real server (2026-10-02).
 
 const fs = require('fs');
 const path = require('path');
@@ -33,6 +37,7 @@ const { GameLogger, UnityLog } = require('./logs');
 const { ConsoleServer } = require('./console-server');
 const { A2SServer, APP_ID } = require('./a2s');
 const { ChronicleWriter, GREAT_HOUSES, demoStory } = require('./chronicle');
+const { SlotManager, slotName } = require('./slots');
 
 const PRODUCT_NAME = 'Reign Of Kings'; // GameInfo.ProductName is scene data: UNVERIFIED
 const F = {
@@ -45,6 +50,11 @@ const F = {
   console: 'CodeHatch.Engine.Core.Console.AddMessageFinal()',
   save: 'CodeHatch.Engine.Core.Gaming.Game.Save()',
   settings: 'CodeHatch.Engine.Networking.ServerSettingsFile.Load()',
+  startServer: 'DedicatedServerBypass.StartServer()',
+  gameNew: 'CodeHatch.Engine.Core.Gaming.Game.New()',
+  gameLoad: 'CodeHatch.Engine.Core.Gaming.Game.Load()',
+  gameEnd: 'CodeHatch.Engine.Core.Gaming.Game.End()',
+  loaded: 'CodeHatch.Engine.Core.Gaming.Game.OnLoadingComplete()',
   ping: 'CodeHatch.Engine.Networking.PingGraphManager.OnGameStart()'
 };
 
@@ -173,6 +183,8 @@ class RokSim extends EventEmitter {
       queued: this.queue.map((p) => p.name),
       consoleClients: this.console ? this.console.clients.size : 0,
       saves: this.saves,
+      worldSlot: this.worldSlot == null ? null : this.worldSlot,
+      worldIsNew: !!this.worldIsNew,
       gameLog: this.logger ? this.logger.file : null,
       unityLog: this.unityLogPath
     };
@@ -265,8 +277,56 @@ class RokSim extends EventEmitter {
     this.settingsFile = r.file;
     this.firstRun = r.firstCreate;
     this.emit('settings', { ...this.settings }, this.firstRun);
+    if (!this.startServer()) return;
     this.state = 'loading';
     this.later(this.sim.loadMs, () => this.coreServerStart());
+  }
+
+  // DedicatedServerBypass.StartServer [DEC]: pick the world slot before the world loads. Returns false
+  // when the game ends here (a slot that cannot be loaded).
+  startServer() {
+    const loc = this.settings.saveLocation || 'Saves/';
+    this.slots = new SlotManager(path.resolve(this.cwd, loc));
+    let slot = this.settings.worldSlot;
+    if (slot >= 0 && this.slots.isLocked(slot)) {
+      // Console.AddWarning (logged as Info, like AddError) and LogWarning: both reach the log.
+      const text = `Could not load world ${slot}. Loading new world instead.`;
+      this.logger.info(text, [], [F.console]);
+      this.logger.warn(text, [], [F.startServer]);
+      this.settingsFile.setValue('worldSlot', '-1');
+      slot = -1;
+    }
+    const isNew = slot < 0 || !this.slots.exists(slot);
+    if (isNew && slot < 0) slot = this.slots.nextAvailable();
+    // Game.New / Game.Load are called with allowSaving: true, so the slot is always locked.
+    this.slots.lock(slot);
+    this.worldSlot = slot;
+    this.worldIsNew = isNew;
+    this.emit('world', { slot, isNew });
+    // Path.Combine(saveLocation, "Slot<N>") on Windows.
+    const shown = /[\\/]$/.test(loc) ? loc + slotName(slot) : `${loc}\\${slotName(slot)}`;
+    this.logger.info(`Save slot located at: ${shown}`, [], [isNew ? F.gameNew : F.gameLoad]);
+    const dir = this.slots.slotPath(slot);
+    const info = path.join(dir, 'rok-sim-slotinfo.json');
+    if (isNew) {
+      // GameSlotInfo.Save: the real file format is not emulated; this marker stands in for it.
+      if (!fs.existsSync(info)) fs.writeFileSync(info, JSON.stringify({ note: 'rok-sim marker, not a game save', slot, createdAt: this.now().toISOString() }) + '\n');
+    } else if (!fs.readdirSync(dir).some((n) => n !== 'Session.lock')) {
+      // GameSlotInfo.Load found nothing: Game.End("Could not load game slot {0}.", slot + 1).
+      this.settingsFile.save();
+      this.endGame(`Could not load game slot ${slot + 1}.`);
+      return false;
+    }
+    this.settingsFile.save();
+    return true;
+  }
+
+  // Game.End(reason): logs the reason as an error and "Ending game...". Before the world has loaded
+  // DedicatedServerBypass.OnGameEnd then calls Program.Exit.
+  endGame(reason) {
+    if (reason) this.logger.error(reason, [], [F.gameEnd]);
+    this.logger.info('Ending game...', [], [F.gameEnd]);
+    this.programExit(0, { restartAfterShutdown: true });
   }
 
   async coreServerStart() {
@@ -294,9 +354,8 @@ class RokSim extends EventEmitter {
       this.sockets.game = await bindUdp(this.settings.portNumber, bind);
     } catch (e) {
       const reason = e.code === 'EADDRINUSE' ? `The port ${this.settings.portNumber} is already being used by another application.` : `Could not start the server because an error occured. (${e.code || e.message})`;
-      // Game.End(reason): UNVERIFIED how it is logged; the doctor matches the reason text.
-      this.logger.error(reason, [], [F.core]);
-      this.programExit(0, { restartAfterShutdown: true });
+      // Game.End(reason) [DEC]. The new slot folder chosen above stays behind (--sim-failed-slot).
+      this.endGame(reason);
       return;
     }
     this.sockets.game.on('message', () => {}); // uLink traffic is not emulated
@@ -366,11 +425,14 @@ class RokSim extends EventEmitter {
     }
     // GameStartEvent: the console line, the world slot written back to ServerSettings.cfg.
     if (this.console) this.console.defer(() => this.logger.info('Type /shutdown to shut down the server.', [], ['CodeHatch.Engine.Administration.SocketAdminConsole.Update()']));
-    let slot = this.settings.worldSlot;
-    if (slot < 0) slot = 0;
-    this.worldSlot = slot;
-    this.settingsFile.setValue('worldSlot', String(slot));
-    this.settingsFile.save(); // DedicatedServerBypass.StartServer and OnGameStart both save
+    // DedicatedServerBypass.OnGameStart: worldSlot = the slot actually running, saved at once.
+    this.settingsFile.setValue('worldSlot', String(this.worldSlot));
+    this.settingsFile.save();
+    // Game.OnLoadingComplete: Save(), then "Game has started." The start-up save is written without
+    // its log line or save count, so /realm.save's 10-second rule is not affected.
+    this.writeWorldMarker();
+    this.hasLoaded = true;
+    this.logger.info('Game has started.', [], [F.loaded]);
     this.whitelist = readWhitelistEnabled(path.join(this.cwd, 'Configuration'));
 
     this.queueTimer = this.every(250, () => this.joinQueued());
@@ -713,12 +775,28 @@ class RokSim extends EventEmitter {
     this.logger.info('Saving game...', [], [F.save]);
     this.saves++;
     this.lastSaveAt = Date.now();
-    if (this.settings && this.settings.allowSaving) {
-      const dir = path.resolve(this.cwd, this.settings.saveLocation || 'Saves/');
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, `rok-sim-slot-${this.worldSlot}.json`), JSON.stringify({ note: 'rok-sim marker, not a game save', slot: this.worldSlot, saves: this.saves, savedAt: this.now().toISOString(), players: this.players.map((p) => p.name) }, null, 2));
-    }
+    this.writeWorldMarker();
     this.emit('saved', this.saves);
+  }
+
+  // <saveLocation>/Slot<N>/rok-sim-world.json: a marker, NOT a game save (the format is not emulated).
+  writeWorldMarker() {
+    if (!this.settings || !this.settings.allowSaving || !this.slots || this.worldSlot == null) return;
+    const dir = this.slots.slotPath(this.worldSlot);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'rok-sim-world.json'), JSON.stringify({ note: 'rok-sim marker, not a game save', slot: this.worldSlot, saves: this.saves, savedAt: this.now().toISOString(), players: this.players.map((p) => p.name) }, null, 2));
+  }
+
+  // Game.OnDestroy -> UnlockCurrentSlot. A new slot whose world never loaded is deleted by the game's
+  // unloader (GameSlotInfo.Delete) only if unloading finishes before the process quits; the owner's
+  // server kept several such folders, so the default is to keep it (--sim-failed-slot delete).
+  releaseSlot() {
+    if (!this.slots) return;
+    const slot = this.slots.current;
+    this.slots.unlock();
+    if (this.sim.failedSlot === 'delete' && !this.hasLoaded && this.worldIsNew && slot >= 0) {
+      fs.rmSync(this.slots.slotPath(slot), { recursive: true, force: true });
+    }
   }
 
   // Server.Shutdown -> DisconnectAllPlayers, Game.Save, then the program exits (GameEnd -> Program.Exit).
@@ -745,6 +823,7 @@ class RokSim extends EventEmitter {
     if (this.state !== 'stopping') this.state = 'stopping';
     if (this.console) await this.console.programExit(restartAfterShutdown);
     await this.closeSockets();
+    this.releaseSlot();
     if (this.chronicle) this.chronicle.flush();
     this.later(this.sim.exitDelayMs, () => this.exit(code));
   }
@@ -760,6 +839,7 @@ class RokSim extends EventEmitter {
       await this.console.close();
     }
     await this.closeSockets();
+    if (this.slots) this.slots.release(); // the lock file stays, its handle is gone
     this.exit(code);
   }
 
@@ -789,6 +869,7 @@ class RokSim extends EventEmitter {
     this.timers.clear();
     if (this.console) this.console.close();
     if (this.a2s) this.a2s.close();
+    if (this.slots && this.slots.token) this.slots.release();
     this.state = 'exited';
     this.exitCode = code;
     this.emit('exit', code);

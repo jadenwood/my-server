@@ -618,7 +618,54 @@
     }
   }
 
-  $('srv-start').addEventListener('click', () => guarded(() => api.server.start(selId), 'Server starting. Watch the console for "Initialize engine version".'));
+  // Pre-start dialog (minimal; lib/prestart.js and lib/worlds.js do the work). Before Start, ask the
+  // app what the start would run into: another program on the ports, or a world choice.
+  async function startWithChecks(id, opts) {
+    let pre = null;
+    try {
+      pre = await api.server.prestart(id);
+    } catch (e) {
+      return fail(e);
+    }
+    const s = pre && pre.survey;
+    if (s && !s.clear) {
+      const options = [];
+      if (s.actions.adopt.ok) options.push({ value: 'adopt', label: 'Adopt it: Steward attaches to the running server' });
+      if (s.actions.stop.ok) options.push({ value: 'stop', label: 'Stop it cleanly: /shutdown, the world is saved' });
+      if (!options.length) {
+        await confirmBox({ title: 'Something is already running', text: `${s.message} ${s.actions.stop.why}`, ok: 'OK' });
+        return refreshServer();
+      }
+      const choice = await confirmBox({ title: 'This server is already running', text: `${s.message} ${s.actions.adopt.ok ? s.actions.adopt.why : s.actions.stop.why}`, ok: 'Continue', options });
+      if (choice === 'adopt') return guarded(() => api.server.adopt(id), 'Adopted: Steward now shows and controls this server.');
+      if (choice === 'stop') {
+        toast('Asking the other server to save and shut down...');
+        const r = await guarded(() => api.server.stopHolder(id));
+        if (r) toast(r.message, r.stopped && !r.relaunched ? 'ok' : 'bad');
+      }
+      return null;
+    }
+    const w = pre && pre.world;
+    if (!opts && w && (w.action === 'choose' || w.action === 'blocked')) {
+      if (w.action === 'blocked') {
+        await confirmBox({ title: 'The world is in use', text: w.message, ok: 'OK' });
+        return refreshServer();
+      }
+      const worlds = w.choices.slice().sort((a, b) => (b.slot === w.suggest) - (a.slot === w.suggest));
+      const options = worlds.map((c) => ({ value: 'slot:' + c.slot, label: `World ${c.slot}${c.remembered ? ' (last run under Realm)' : ''}${c.newestMs ? ', saved ' + ago(new Date(c.newestMs).toISOString()) : ''}` }));
+      options.push({ value: 'new', label: 'A NEW world (the others stay on disk)' });
+      const choice = await confirmBox({ title: 'Which world?', text: w.message, ok: 'Start', options });
+      if (!choice) return null;
+      if (choice === 'new') {
+        const sure = await confirmBox({ title: 'Start a new world?', text: `The game makes a fresh world. The saved worlds stay in ${pre.saveLocation || 'Saves/'} and can be chosen again later.`, ok: 'Start a new world', danger: true });
+        return sure ? startWithChecks(id, { newWorld: true }) : null;
+      }
+      return startWithChecks(id, { worldSlot: Number(choice.slice(5)) });
+    }
+    return guarded(() => api.server.start(id, opts || null), 'Server starting. It is ready at "Game has started."');
+  }
+
+  $('srv-start').addEventListener('click', () => startWithChecks(selId));
   $('srv-stop').addEventListener('click', () => guarded(() => api.server.stop(selId), 'Sent "quit". The server saves and closes.'));
   $('srv-restart').addEventListener('click', async () => {
     toast('Restarting: sending "quit" first...');

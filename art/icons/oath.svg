@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
   <title>Oath (bending the knee)</title>
-  <path d="M10.5 3h3M12 3v5M7 8h10M7 8v1.5M17 8v1.5M12 8v11m-8 2h16M8 19.5 9 21m7-1.5L15 21"/>
+  <path d="M10.5 3.5h3m-1.5 0V7M7 8h10M7 8v1.5M17 8v1.5M10.5 8v9.5l1.5 3 1.5-3V8M12 10v6.5"/>
 </svg>

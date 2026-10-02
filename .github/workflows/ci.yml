@@ -1,11 +1,14 @@
-# Realm CI: tests and checks only. No builds for release, no publishing, no deployment, no secrets.
-# Every job runs with a read-only token and touches nothing outside the runner. Actions are pinned to full commit
-# SHAs (a moved tag cannot change what runs here), and checkout does not leave the token in .git/config.
+# Realm CI: every test suite and check in the repository. No publishing, no deployment, no secrets.
+# The Windows job runs Build-Realm.bat to prove the owner's one-click build works; the installers it makes are
+# checked and then discarded with the runner (nothing is uploaded). Every job runs with a read-only token and
+# touches nothing outside the runner. Actions are pinned to full commit SHAs (a moved tag cannot change what runs
+# here), and checkout does not leave the token in .git/config.
 name: CI
 
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -73,9 +76,114 @@ jobs:
       - name: Compile plugins/*.cs (0 errors required)
         run: bash tools/plugin-compile-check/check.sh
       - name: Cross-plugin wiring, Chronicle types and chat commands (static)
-        run: node tools/realm-integration/check.mjs && node --test tools/realm-integration/check.test.mjs
+        run: node tools/realm-integration/check.mjs --commands && node --test tools/realm-integration/check.test.mjs
       - name: Cross-plugin behaviour test (RealmLaws + RealmContracts, mocks)
         run: bash tools/realm-integration/cross-tests/run.sh
+      # The suites below compile the plugin sources unchanged against mocks, on the .NET runtime that check.sh
+      # cached above. They prove the plugins' own rules, not the game's behaviour.
+      - name: Plugin logic tests (Dynasties, Seasons and Events, Laws, Ravens, Renown, Treasury, Warden)
+        run: |
+          for t in plugins/docs/*/logic-tests/run.sh; do
+            echo "::group::$t"
+            bash "$t"
+            echo "::endgroup::"
+          done
+      - name: RealmStats plugin tests
+        run: bash analytics/plugin-tests/run.sh
+      - name: Exploit-review regression suites
+        run: bash tools/exploit-review/run.sh
+
+  portal:
+    name: Portal tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      # The portal generator has no dependencies.
+      - name: npm test
+        working-directory: portal
+        run: npm test
+
+  art:
+    name: Art and brand checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      # The check and the tests use only Node built-ins; PNG export (playwright) is skipped.
+      - name: SVGs, palette, contrast, overlay dyes, brand.md and trademark guard
+        run: node art/tools/build.mjs check --skip-png
+      - name: Art tools tests
+        run: node --test art/tools/test/*.test.mjs
+
+  docs-tools:
+    name: Saga, legal and staff tool tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Saga checker (every command the run-sheets use exists)
+        run: node --test docs/saga/tools/check-saga.test.mjs
+      - name: Legal and staff tools
+        run: node --test docs/legal/tools/*.test.mjs docs/community/ops/tools/*.test.mjs
+
+  installers:
+    name: Windows installers (Build-Realm.bat; nothing is uploaded)
+    # Windows runner minutes cost more: run on pull requests, manual runs and pushes to the default branch.
+    if: github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: launcher/package-lock.json
+      # electron-builder's own downloads: Electron for Windows, NSIS and the rcedit tools.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('launcher/package-lock.json') }}
+      - name: Build-Realm.bat (Node and git checks, npm ci, check, tests, both installers)
+        shell: cmd
+        run: call Build-Realm.bat /nopause
+      - name: The release folder holds exactly the two installers and matching checksums
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = (Get-Content launcher/package.json -Raw | ConvertFrom-Json).version
+          $dir = Join-Path 'release' $v
+          $want = @("Realm-Setup-$v.exe", "Realm-Steward-Setup-$v.exe", 'SHA256SUMS.txt')
+          $have = @(Get-ChildItem $dir -File | ForEach-Object Name | Sort-Object)
+          if (Compare-Object $want $have) { throw "release/$v holds: $($have -join ', ')" }
+          $lines = @(Get-Content (Join-Path $dir 'SHA256SUMS.txt'))
+          if ($lines.Count -ne 2) { throw "SHA256SUMS.txt has $($lines.Count) lines" }
+          foreach ($line in $lines) {
+            $hash, $name = $line -split '  ', 2
+            $actual = (Get-FileHash (Join-Path $dir $name) -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $hash) { throw "$name does not match SHA256SUMS.txt" }
+            Write-Output "$name  $hash  OK"
+          }
 
   powershell:
     name: PowerShell parse check

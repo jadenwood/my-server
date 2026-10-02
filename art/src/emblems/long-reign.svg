@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>The Long Reign: the crown under seven stars</title>
+  <path d="M4.5 20h15m-14 0L5 12l3.5 3L12 9.5l3.5 5.5 3.5-3-.5 8"/>
+  <g fill="currentColor" stroke="none">
+    <circle cx="3.28" cy="8.89" r=".95"/>
+    <circle cx="5.07" cy="5.58" r=".95"/>
+    <circle cx="8.17" cy="3.31" r=".95"/>
+    <circle cx="12" cy="2.5" r=".95"/>
+    <circle cx="15.83" cy="3.31" r=".95"/>
+    <circle cx="18.93" cy="5.58" r=".95"/>
+    <circle cx="20.72" cy="8.89" r=".95"/>
+  </g>
+</svg>

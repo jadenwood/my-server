@@ -1,7 +1,7 @@
 {
   "name": "realm-launcher",
   "productName": "Realm Steward",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Realm desktop apps from one codebase: Realm Steward (owner: runs up to 4 local test servers) and Realm (player: joins through the player's own Steam copy). Neither modifies game client files.",
   "main": "main.js",
   "private": true,
@@ -16,10 +16,11 @@
     "screens:player": "node scripts/player-screens.mjs",
     "screens:doctor": "node scripts/doctor-screens.mjs",
     "check": "node scripts/check.mjs",
-    "test": "node --test test/*.test.js",
+    "test": "node --test test/*.test.js scripts/*.test.mjs",
     "dist:steward": "electron-builder --config build/steward.json --win nsis portable --x64",
     "dist:player": "electron-builder --config build/player.json --win nsis portable --x64",
-    "dist:win": "npm run dist:steward"
+    "dist:win": "npm run dist:steward",
+    "release": "node scripts/build-release.mjs"
   },
   "dependencies": {
     "yauzl": "^3.4.0",
