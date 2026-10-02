@@ -8,6 +8,11 @@ import { commandDefinitions, validateDefinitions } from '../src/commands.js';
 import { createStateStore } from '../src/state-store.js';
 import { NOW, fakeChronicle, fakeDiscordModule, fakeInteraction, quietLogger, testConfig, tmpDir } from './helpers.js';
 
+async function waitFor(cond, timeoutMs = 2000) {
+  const end = Date.now() + timeoutMs;
+  while (!cond() && Date.now() < end) await new Promise((r) => setTimeout(r, 5));
+}
+
 test('command definitions pass Discord limits, with and without house roles', () => {
   for (const swearEnabled of [true, false]) {
     const defs = commandDefinitions({ swearEnabled });
@@ -31,7 +36,9 @@ test('wiring: Guilds intent only, no mentions, login with the token, ready regis
   await bot.start();
   assert.equal(client.loggedInWith, cfg.token);
   client.emit('clientReady', client);
-  await new Promise((r) => setTimeout(r, 20));
+  // The ready handler registers commands and starts the board asynchronously; wait for its log line
+  // instead of a fixed sleep, which raced on slow CI runners.
+  await waitFor(() => logger.lines.some((l) => /status message: channel/.test(l)));
   assert.equal(client.registered.length, 1);
   assert.equal(client.registered[0].guildId, cfg.guildId);
   assert.equal(client.registered[0].defs[0].name, 'realm');
@@ -40,7 +47,7 @@ test('wiring: Guilds intent only, no mentions, login with the token, ready regis
 
   const i = fakeInteraction('houses');
   client.emit('interactionCreate', i);
-  await new Promise((r) => setTimeout(r, 20));
+  await waitFor(() => i.replies.length > 0);
   assert.equal(i.replies.length, 1);
   await bot.stop();
   assert.equal(client.destroyed, true);
