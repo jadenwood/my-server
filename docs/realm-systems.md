@@ -2,7 +2,7 @@
 
 One page for every part of Realm: what it does, where it lives, how it connects to the rest, and how far it has been proven. Read this before changing anything that crosses a folder boundary.
 
-**The short version of the status.** Every piece has automated tests or checks that pass here, on Linux. **Nothing has run against a real Reign of Kings server or client yet.** The plugins compile against the real Oxide 2.0.3867 and game DLL metadata and are tested against mocks; the Windows apps and PowerShell scripts were built or parse-checked but not run on Windows. The step-by-step proof on real hardware is [`smoke-test.md`](smoke-test.md) plus the smoke steps in each plugin guide. Anything marked UNVERIFIED below has not been seen working.
+**The short version of the status (2026-10-03).** Every piece has automated tests or checks that pass here, on Linux. On the owner's real Windows 11 server (2026-10-02) the 14 plugins of that day compiled and loaded under Oxide, Season 1 started by itself, and the owner joined and reached character creation ([`HANDOFF.md`](HANDOFF.md)). **No plugin feature has been seen working in game yet**, and no chat reply has been checked. The plugins compile against the real Oxide 2.0.3867 and game DLL metadata and are tested against mocks; the Windows apps and PowerShell scripts were built or parse-checked, and only an earlier Steward build has run on Windows. The ordered proof on real hardware is the play-test checklist in [`ROADMAP.md`](ROADMAP.md) section 5, which gathers [`smoke-test.md`](smoke-test.md) and every guide's smoke steps. Anything marked UNVERIFIED below has not been seen working.
 
 Status words used here:
 
@@ -12,6 +12,7 @@ Status words used here:
 | **Mock-tested** | Behaviour tests run the real source against stand-ins for the game and Oxide. They prove the plugin's own logic, not the game's behaviour. |
 | **Tested here** | Automated tests pass in this Linux environment (Node or .NET). |
 | **UNVERIFIED** | Not seen working on the real thing. |
+| **On a branch** | Finished and committed on the named team branch, not yet merged into `claude/great-maxwell-wrksvt` (2026-10-03). Drop the note when it is merged. |
 
 ## 1. The big picture
 
@@ -35,30 +36,37 @@ Status words used here:
  Realm (player app, launcher/) ── signed servers.json ── live status, Join through Steam
 ```
 
+**What reaches players inside the game** comes only through what the game already carries from a server: chat, notices and popups (every plugin, with RealmHerald's hub), building blocks and their colours (RealmSculptor's monuments), painted signs (RealmPainter's art and live boards) and the built-in `Mods\*.cfg` moods. The game cannot load new models, textures or UI from a server ([`in-game-art.md`](in-game-art.md)).
+
 The **closed list of Chronicle event types** is the main contract between the parts. It lives in three files that a test keeps in step: `plugins/RealmChronicle.cs` (`KnownTypes`), `chronicle/server.js` (`EVENT_TYPES`) and `chronicle/public/assets/common.js` (`TYPE_META`). There are 42 types. A new type needs all three; `tools/realm-integration/check.mjs` fails if they differ, if a plugin logs a literal type that is not registered, or if a `plugins/docs/*/EVENTS.json` request is still waiting. The portal (`portal/lib/model.mjs`), the Discord herald (`launcher/lib/discord.js`), the bot (reads `common.js` as text) and the art event map (`art/icons/event-map.json`) carry the same labels.
 
 ## 2. Server plugins (`plugins/`)
 
-All are Oxide C# plugins, C# 3 syntax, deployed together by Realm Steward or `server/Deploy-Plugins.ps1`. All are **compile-checked**. None has run in game. Player commands: [`realm-commands.md`](realm-commands.md).
+All are Oxide C# plugins, C# 3 syntax, deployed together by Realm Steward or `server/Deploy-Plugins.ps1`. All are **compile-checked**. The 14 plugins present on 2026-10-02 loaded on the owner's server; no plugin feature has been seen working in game. Player commands: [`realm-commands.md`](realm-commands.md). The in-game test for every UNVERIFIED item is in [`ROADMAP.md`](ROADMAP.md) section 5 (PT rows).
 
 | Plugin | What it does | Writes | Proof so far |
 |---|---|---|---|
-| `RealmHouses.cs` | Houses, ranks, oaths of fealty, treaties, oathbreaker and treaty-breaker marks. The base API every other plugin reads. | `RealmHouses.json` | Compile-checked. |
-| `CrownAndConsequences.cs` | Tracks the monarch on the Old Throne; decrees, council, claims and scheduled rebellion windows, tax cap, bounded ransom. | `CrownAndConsequences.json` | Compile-checked. |
-| `RealmChronicle.cs` | The event log (`Log`) and the realm snapshot. Rejects unknown types. | `RealmChronicle.json`, `RealmState.json` | Compile-checked; its type list is tested against the Chronicle service. |
-| `RealmContracts.cs` | Bounties on public enemies, deliveries, mercenary work, with real item escrow. Now also takes court outlawry from RealmLaws. | `RealmContracts.json` | Compile-checked; the court hand-off is mock-tested (`tools/realm-integration/cross-tests`). Item escrow in game is UNVERIFIED. |
-| `RealmSeasons.cs` | Numbered seasons, house standings, the Hall of Kings that survives wipes. | `RealmSeasons.json`, `RealmLegends.json` | Compile-checked. Guide: [`plugins/docs/RealmSeasons.md`](../plugins/docs/RealmSeasons.md). |
-| `RealmEvents.cs` | Crown Night, Royal Tournament, King's Hunt, Truce of the Realm, with heralds and item prizes. | `RealmEvents.json` | Compile-checked, mock-tested (89 checks). Truce damage blocking is UNVERIFIED. |
-| `RealmLaws.cs` | Laws and zones, a public crime ledger, accusations, jury trials, trial by combat, fines, outlawry, exile, pardons. | `RealmLaws.json` | Compile-checked, mock-tested (90). Blocking acts in game is UNVERIFIED. |
-| `RealmDynasties.cs` | Bloodlines, heirs, succession, prestige, blood claims after a monarch falls, titles bestowed by the crown. | `RealmDynasties.json` | Compile-checked, mock-tested (92). Pressing a claim calls CrownAndConsequences' `/claim` command method (UNVERIFIED in game). |
-| `RealmRenown.cs` | Renown and infamy from deeds, earned titles worn in chat. | `RealmRenown.json` | Compile-checked, mock-tested (108). The chat prefix is UNVERIFIED. |
-| `RealmTreasury.cs` | Marks (a ledger currency), purses, a market with escrow, house vaults, the crown's treasury, mint and tithe. | `RealmTreasury.json`, ledger logs | Compile-checked, mock-tested (118). Game-tax observation is UNVERIFIED. |
-| `RealmRavens.cs` | Letters between players and houses, interception by spies, moderated anonymous rumours. | `RealmRavens.json` | Compile-checked, mock-tested (95). |
-| `RealmWarden.cs` | New-player protection, raid hours, combat-log flags, reports, mutes, name rules; evidence for admins. | `RealmWarden.json`, logs | Compile-checked, mock-tested (140). Raid-hour blocking is proven only for block health. |
+| `RealmHouses.cs` | Houses, ranks, oaths of fealty, treaties, oathbreaker and treaty-breaker marks. The base API every other plugin reads. | `RealmHouses.json` | Compile-checked, mock-tested (57), exploit suite (crown-houses 16). Loaded on the real server. |
+| `CrownAndConsequences.cs` | Tracks the monarch on the Old Throne; decrees, council, claims and scheduled rebellion windows, tax cap, bounded ransom. | `CrownAndConsequences.json` | Compile-checked. Loaded on the real server. Throne capture, the throne gate, Royal Stores and ransom release are UNVERIFIED (PT1.8, PT1.9, PT3.6, PT3.7). |
+| `RealmChronicle.cs` | The event log (`Log`) and the realm snapshot. Rejects unknown types; per-source flood budget. | `RealmChronicle.json`, `RealmState.json` | Compile-checked; type list tested against the Chronicle service; exploit suite (chronicle 27). Loaded on the real server. |
+| `RealmContracts.cs` | Bounties on public enemies, deliveries, mercenary work, with real item escrow. Takes court outlawry from RealmLaws. | `RealmContracts.json` | Compile-checked; the court hand-off is mock-tested (`tools/realm-integration/cross-tests`, 25); exploit suite (laws-contracts 24). Item escrow in game is UNVERIFIED (PT1.6). |
+| `RealmSeasons.cs` | Numbered seasons, house standings, the Hall of Kings that survives wipes. | `RealmSeasons.json`, `RealmLegends.json` | Compile-checked; exploit suite (seasons 14). Season 1 auto-started on the real server. Guide: [`plugins/docs/RealmSeasons.md`](../plugins/docs/RealmSeasons.md). |
+| `RealmEvents.cs` | Crown Night, Royal Tournament, King's Hunt, Truce of the Realm, with heralds and item prizes. | `RealmEvents.json` | Compile-checked, mock-tested (89), exploit suite (events 26). Truce damage blocking is UNVERIFIED (PT3.11). `team/ironbreaker` adds a 15-line prize hook for RealmLegendary. |
+| `RealmLaws.cs` | Laws and zones, a public crime ledger, accusations, jury trials, trial by combat, fines, outlawry, exile, pardons. | `RealmLaws.json` | Compile-checked, mock-tested (90). Blocking acts in game is UNVERIFIED (PT3.10). |
+| `RealmDynasties.cs` | Bloodlines, heirs, succession, prestige, blood claims after a monarch falls, titles bestowed by the crown. | `RealmDynasties.json` | Compile-checked, mock-tested (92), exploit suite (dynasties 3). Pressing a claim calls CrownAndConsequences' `/claim` command method (UNVERIFIED in game, PT3.18). |
+| `RealmRenown.cs` | Renown and infamy from deeds, earned titles worn in chat. | `RealmRenown.json` | Compile-checked, mock-tested (108), exploit suite (renown 11). The chat prefix is UNVERIFIED (PT3.17). |
+| `RealmTreasury.cs` | Marks (a ledger currency), purses, a market with escrow, house vaults, the crown's treasury, mint and tithe. | `RealmTreasury.json`, ledger logs | Compile-checked, mock-tested (118), exploit suite (treasury 26). Game-tax observation is UNVERIFIED (PT3.9). |
+| `RealmRavens.cs` | Letters between players and houses, interception by spies, moderated anonymous rumours. | `RealmRavens.json` | Compile-checked, mock-tested (95), exploit suite (ravens 6). |
+| `RealmWarden.cs` | New-player protection, raid hours, combat-log flags, reports, mutes, name rules; evidence for admins. | `RealmWarden.json`, logs | Compile-checked, mock-tested (140), exploit suite (warden 4). Raid-hour blocking is proven only for block health (PT3.5). |
 | `RealmStats.cs` | Pseudonymous daily player statistics with opt-out. | `RealmStats/` day files | Compile-checked, mock-tested (89). |
-| `RealmCourt.cs` | Puts `/realm.save` and `/realm.players` into the game's own command table for Realm Steward's console. | nothing | Compile-checked. UNVERIFIED at run time. |
+| `RealmCourt.cs` | Puts `/realm.save` and `/realm.players` into the game's own command table for Realm Steward's console. | nothing | Compile-checked. UNVERIFIED at run time (PT0.8). |
+| `RealmHerald.cs` | Welcome, first steps, the `/realm` hub (every player command by subject), tips, message of the day, popups; the one chat style every plugin follows. | `RealmHerald.json` | Compile-checked, mock-tested (102). Popups from a dedicated server and chat colours are UNVERIFIED (PT1.1 to PT1.4). Guide: [`plugins/docs/RealmHerald.md`](../plugins/docs/RealmHerald.md). |
+| `RealmSculptor.cs` | Staff-only `/sculpt`: places, paints, protects, repairs and removes Realm's monuments built from the game's own blocks and colours (11 sculptures in `art/sculptures/`). | `RealmSculptor.json`, reads `RealmSculptor/*.json` | **On a branch** (`team/sculptor`, 716fba0). Compile-checked, mock-tested (159, including the real DLL's metadata for every reflected member). Whether server-placed blocks and colours show for clients is UNVERIFIED (PT2.10 to PT2.15). |
+| `RealmPainter.cs` | Staff-only `/paint`: writes Realm's art into painted signs and keeps live boards (Chronicle, wanted, standings, proclamation, event, Ironbreaker, notice). | `RealmPainter.json`, reads `RealmPainterArt.json` | **On a branch** (`team/sign-painter`, ff5dc1e). Compile-checked, mock-tested (122, plus 4 PNG decode checks). Whether a server-set picture reaches clients is UNVERIFIED (PT2.2 to PT2.9, PT3.2). |
+| `RealmLegendary.cs` | The Ironbreaker: exactly one legendary blade, won at the Royal Tournament, taken by the bearer's slayer; staff `/ironbreaker`. | `RealmLegendary.json` | **On a branch** (`team/ironbreaker`, 93b8cfd). Compile-checked, mock-tested (142), exploit suite (legendary 48). Item identity and damage scaling in game are UNVERIFIED (PT2.16, PT3.12, PT4.3). |
+| `RealmSentinel.cs` | Server-side cheat watch: movement, combat, items, floods and staff-name impersonation scored with evidence; alert, freeze, kick, ban on confirm; staff `/sentinel`. Never touches the game's own anti-cheat. Ships in watch mode. | `RealmSentinel.json`, `RealmSentinelFeed.json`, logs | **On a branch** (`team/anti-cheat`, 8ac7c18). Compile-checked, mock-tested (173), exploit runner (24). Every limit is UNVERIFIED until tuned in game (PT1.16, PT3.13 to PT3.15, PT7.10). |
 
-Guides for the newer plugins are in [`plugins/docs/`](../plugins/docs/); the original four are described in [`community/how-to-play.md`](community/how-to-play.md) and [`oxide-rok-api.md`](oxide-rok-api.md).
+Guides for the newer plugins are in [`plugins/docs/`](../plugins/docs/) (the four on branches bring their own guides); the original four are described in [`community/how-to-play.md`](community/how-to-play.md) and [`oxide-rok-api.md`](oxide-rok-api.md). Staff-only commands (`/sculpt`, `/paint`, `/ironbreaker`, `/sentinel`) are listed in `STAFF_COMMANDS` in `tools/realm-integration/check.mjs` and stay out of the `/realm` hub.
 
 ## 3. How the plugins call each other
 
@@ -67,24 +75,44 @@ Oxide only lets one plugin call **non-public instance methods** of another, by n
 | Caller | Calls into | Methods |
 |---|---|---|
 | CrownAndConsequences | RealmChronicle | `Log`, `SetCrown` |
-| CrownAndConsequences | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetLiege` |
-| RealmChronicle | CrownAndConsequences | `GetKingHouse`, `GetKingName`, `GetKingSince` |
+| CrownAndConsequences | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetLiege`, `GetMembers` |
+| RealmChronicle | CrownAndConsequences | `GetKingHouse`, `GetKingName`, `GetKingSince`, `GetNextRebellionWindow` |
+| RealmChronicle | RealmEvents | `GetNextEvent` |
 | RealmChronicle | RealmHouses | `GetHouseSummaries` |
 | RealmContracts | CrownAndConsequences | `GetOpenClaims`, `IsSwornToCrown` |
 | RealmContracts | RealmChronicle | `Log` |
-| RealmContracts | RealmHouses | `GetHouse`, `GetHouseLeader` |
+| RealmContracts | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetLiege`, `HasTreaty` |
 | RealmDynasties | CrownAndConsequences | `CmdClaim` (a chat-command method, not a documented API), `GetKingHouse`, `GetOpenClaims` |
 | RealmDynasties | RealmChronicle | `Log` |
-| RealmDynasties | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetLiege`, `GetReputation`, `GetVassals` |
+| RealmDynasties | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetLiege`, `GetMembers`, `GetReputation`, `GetVassals` |
 | RealmEvents | CrownAndConsequences | `GetKingHouse`, `GetKingName`, `GetOpenClaims`, `GetUtcOffsetHours`, `IsRebellionActive` |
 | RealmEvents | RealmChronicle | `Log` |
-| RealmEvents | RealmHouses | `GetHouse` |
+| RealmEvents | RealmHouses | `GetHouse`, `GetHouseSummaries`, `GetLiege`, `GetMembers`, `GetVassals`, `HasTreaty` |
+| RealmEvents | RealmLegendary | `AwardEventPrize` (on a branch: `team/ironbreaker`) |
 | RealmEvents | RealmSeasons | `AwardHouse` |
+| RealmEvents | RealmWarden | `IsNewPlayerProtected` |
+| RealmHerald | CrownAndConsequences | `GetKingHouse`, `GetKingName` |
+| RealmHerald | RealmContracts | `HasContractHistory` |
+| RealmHerald | RealmHouses | `GetHouse` |
+| RealmHerald | RealmSeasons | `GetSeasonName` |
 | RealmHouses | RealmChronicle | `Log` |
+| RealmHouses | RealmHerald | `PopupsWanted` |
 | RealmLaws | CrownAndConsequences | `GetCouncilSeat`, `GetKingHouse`, `IsRebellionActive` |
 | RealmLaws | RealmChronicle | `Log` |
-| RealmLaws | RealmContracts | `ProclaimOutlaw`, `PardonOutlaw` |
-| RealmLaws | RealmHouses | `GetHouse`, `GetHouseLeader` |
+| RealmLaws | RealmContracts | `PardonOutlaw`, `ProclaimOutlaw` |
+| RealmLaws | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetLiege`, `GetMembers`, `HasTreaty` |
+| RealmLegendary | RealmChronicle | `Log` (on a branch: `team/ironbreaker`) |
+| RealmLegendary | RealmHerald | `PopupsWanted` (on a branch: `team/ironbreaker`) |
+| RealmLegendary | RealmHouses | `GetHouse`, `GetLiege`, `HasTreaty` (on a branch: `team/ironbreaker`) |
+| RealmLegendary | RealmRenown | `AddDeed` (on a branch: `team/ironbreaker`) |
+| RealmPainter | CrownAndConsequences | `GetKingHouse`, `GetKingName`, `GetKingSince`, `GetUtcOffsetHours` (on a branch: `team/sign-painter`) |
+| RealmPainter | RealmChronicle | `GetLastEventId` (on a branch: `team/sign-painter`) |
+| RealmPainter | RealmContracts | `GetBountyCount` (on a branch: `team/sign-painter`) |
+| RealmPainter | RealmEvents | `GetActiveEvents`, `GetNextEvent` (on a branch: `team/sign-painter`) |
+| RealmPainter | RealmHouses | `GetHouse` (on a branch: `team/sign-painter`) |
+| RealmPainter | RealmLaws | `GetCourtOutlaws` (on a branch: `team/sign-painter`) |
+| RealmPainter | RealmLegendary | `GetBearerName` (on a branch: `team/sign-painter`) |
+| RealmPainter | RealmSeasons | `GetSeasonName`, `GetSeasonNumber`, `GetSeasonStandings` (on a branch: `team/sign-painter`) |
 | RealmRavens | RealmChronicle | `Log` |
 | RealmRavens | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetHouseSummaries`, `GetLiege`, `GetMembers`, `GetVassals`, `HasTreaty` |
 | RealmRenown | CrownAndConsequences | `GetKingHouse`, `GetOpenClaims` |
@@ -94,12 +122,15 @@ Oxide only lets one plugin call **non-public instance methods** of another, by n
 | RealmRenown | RealmLaws | `GetCourtOutlaws` |
 | RealmSeasons | CrownAndConsequences | `GetKingHouse`, `GetKingName`, `GetOpenClaims` |
 | RealmSeasons | RealmChronicle | `GetLastEventId`, `Log` |
-| RealmSeasons | RealmHouses | `GetHouse`, `GetHouseSummaries`, `GetMemberNames`, `HasTreaty` |
+| RealmSeasons | RealmHouses | `GetHouse`, `GetHouseFounded`, `GetHouseSummaries`, `GetMemberNames`, `HasTreaty` |
+| RealmSentinel | RealmWarden | `RaiseWardenAlert` (on a branch: `team/anti-cheat`) |
 | RealmStats | RealmHouses | `GetHouse` |
 | RealmTreasury | CrownAndConsequences | `GetCouncilSeat`, `IsSwornToCrown` |
 | RealmTreasury | RealmChronicle | `Log` |
-| RealmTreasury | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetMembers` |
+| RealmTreasury | RealmHouses | `GetHouse`, `GetHouseFounded`, `GetHouseLeader`, `GetMembers` |
 | RealmWarden | CrownAndConsequences | `IsRebellionActive` |
+
+RealmSculptor makes no cross-plugin calls. With the four branches merged there are 19 plugins and 137 call sites; on `claude/great-maxwell-wrksvt` today, 15 plugins and 113.
 
 **Court outlawry reaches the bounty board.** RealmLaws offered court outlaws to RealmContracts, but RealmContracts had no method to receive them, so the calls did nothing. RealmContracts now has two non-public methods:
 
@@ -110,46 +141,58 @@ Oxide only lets one plugin call **non-public instance methods** of another, by n
 
 **Plugins that read other plugins' data files.** RealmRenown reads `RealmContracts.json`, `RealmHouses.json` and `RealmChronicle.json` for deeds. RealmSeasons reads `RealmChronicle.json` for new entries after the last event id it has seen (`GetLastEventId`). A field rename in those files makes the reader see nothing (it does not misaward); RealmRenown reports it in `/renown admin status`.
 
-**Load order.** Oxide does not define the order between plugins' hooks. Damage, capture and placement blocks in RealmLaws, RealmEvents (truce) and RealmWarden can therefore meet CrownAndConsequences' capture handling in either order (see each guide). RealmLaws ships its capture block switched off for this reason.
+**Load order.** Oxide does not define the order between plugins' hooks. Damage, capture and placement blocks in RealmLaws, RealmEvents (truce) and RealmWarden can therefore meet CrownAndConsequences' capture handling in either order (see each guide). RealmLaws ships its capture block switched off for this reason. RealmLegendary scales `Damage.Amount` in the same damage hooks: a blow another plugin zeroed stays zero either way, but which plugin sees a blow first is not defined. RealmSculptor's protection and RealmWarden's raid hours both act on `OnCubeTakeDamage`; either one blocking is enough.
 
 ## 4. Services and apps next to the server
 
 | System | Where | What it does | Connects to | Proof so far |
 |---|---|---|---|---|
-| Chronicle service | `chronicle/` | Read-only HTTP service on `127.0.0.1:8787`: `/api/state`, `/api/events`, the OBS `/overlay` and the public `/realm` page. | Reads `RealmChronicle.json` and `RealmState.json`. Feeds streamkit, the bot and the launcher. | Tested here (8 tests, including the three-way type sync). |
-| Realm Steward and Realm | `launcher/` | Two Electron apps from one codebase. Steward: setup wizard, up to four servers, live admin console, Court, Connection Doctor, backups, restarts, Go Public, signed server list, Discord herald. Realm: the player app with the signed list, status and Join through Steam. | Starts `ROK.exe`, holds its admin console, runs the Chronicle in-process, deploys `plugins/`. | Tested here (152 unit tests, Electron walk-throughs on Linux). Never run on Windows. |
-| Portal | `portal/` | Static website generator: home, Chronicle, houses, Hall of Kings, how to play, rules, lore, feed, `status.json`. | Reads `oxide/data` (Chronicle, State, Houses, Crown, Seasons, Legends, Events). | Tested here (28 tests). Hosting is the owner's choice. |
-| Discord bot | `bot/` | `/realm` slash commands, a live status message, optional house roles. | Chronicle API, `RealmHouses.json`, `RealmEvents.json` (data and config), labels from `common.js`. | Tested here with fakes (84 tests). No real Discord call made (UNVERIFIED). |
-| Stream scenes | `streamkit/` | Five OBS browser scenes: War Board, Throne Room, Breaking News, Countdown, Starting Soon. | Relays the Chronicle API; schedule from `schedule.json`. | Tested here (27 tests, Chromium screenshots). UNVERIFIED in OBS itself. |
-| Analytics | `analytics/` | Builds one offline HTML dashboard from RealmStats day files. | Reads `oxide/data/RealmStats`. | Tested here (13 tests, plus 89 plugin checks). |
+| Chronicle service | `chronicle/` | Read-only HTTP service on `127.0.0.1:8787`: `/api/state`, `/api/events`, the OBS `/overlay` and the public `/realm` page. | Reads `RealmChronicle.json` and `RealmState.json`. Feeds streamkit, the bot and the launcher. | Tested here (11 tests, including the three-way type sync; 15 with `team/web-and-broadcast`, which adds the art pack, local fonts and the coronation and rebellion moments). UNVERIFIED in OBS (PT6.1). |
+| Realm Steward and Realm | `launcher/` | Two Electron apps from one codebase. Steward: setup wizard, up to four servers, live admin console, Court, Connection Doctor, backups, restarts, Go Public, signed server list, Discord herald. Realm: the player app with the signed list, status and Join through Steam; on `team/player-launcher` it becomes one screen with Play or Install, signed news (`lib/news.js`) and signed updates (`lib/updater.js`). | Starts `ROK.exe`, holds its admin console, runs the Chronicle in-process, deploys `plugins/` (not yet the sculptures or sign art: ROADMAP STW-1). | Tested here (`npm run check` and 209 unit tests; 240 with `team/player-launcher`; Electron walk-throughs on Linux). An earlier Steward build ran on the owner's PC; 1.0.0 and the player app are UNVERIFIED on Windows (PT0, PT5). |
+| Portal | `portal/` | Static website generator: home, Chronicle, houses, Hall of Kings, how to play, rules, lore, feed, `status.json`. | Reads `oxide/data` (Chronicle, State, Houses, Crown, Seasons, Legends, Events). | Tested here (28 tests; 35 with `team/web-and-broadcast`, which adds the art pack, link previews and phone layouts). Hosting is the owner's choice (ROADMAP WEB-2). |
+| Discord bot | `bot/` | `/realm` slash commands, a live status message, optional house roles. | Chronicle API, `RealmHouses.json`, `RealmEvents.json` (data and config), labels from `common.js`. | Tested here with fakes (85 tests; 87 plus 3 skipped with `team/web-and-broadcast`, which adds art thumbnails and needs Attach Files). No real Discord call made (UNVERIFIED, PT6.3). |
+| Stream scenes | `streamkit/` | Five OBS browser scenes: War Board, Throne Room, Breaking News, Countdown, Starting Soon. | Relays the Chronicle API; schedule from `schedule.json`. | Tested here (27 tests, Chromium screenshots; 30 with `team/web-and-broadcast`). UNVERIFIED in OBS itself (PT6.2). |
+| Analytics | `analytics/` | Builds one offline HTML dashboard from RealmStats day files. | Reads `oxide/data/RealmStats`. | Tested here (14 tests, plus 89 plugin checks). |
 | Ops | `ops/` | Hosting guide, SteamCMD install and update, offsite backups, restore drills, uptime monitor, disaster recovery. | Calls `server/New-TestServer.ps1` and `server/Install-Oxide.ps1`; posts to a Discord webhook. | Behaviour-tested under PowerShell 7 on Linux by its team; parse-checked for 5.1. Never run on Windows. |
 | Server scripts | `server/` | PowerShell 5.1 scripts for the test copy: copy, start, Oxide install and rollback, deploy plugins, backups, mod keys, `Set-Mood.ps1`. | Used by `Realm.bat`, ops and the smoke test. | Parse-checked in CI. Never run on Windows. |
 | Atmosphere moods | `mods/` | Mood presets (Long Winter, Blood Moon, Golden Summer, Storm Season, Ashfall, Grim but Readable) through the game's own `Mods\*.cfg` override system, and a rotation plan. | `server/Set-Mood.ps1`. | Colour maths from decompiled formulas only. Nothing seen in game (UNVERIFIED). |
-| ROK simulator | `tools/rok-sim/` | A fake dedicated server for Linux and CI: admin console, A2S, logs, configs, Chronicle data. | Launcher tests and CI. | Tested here (52 tests). Not compared with a real `ROK.exe`. |
+| ROK simulator | `tools/rok-sim/` | A fake dedicated server for Linux and CI: admin console, A2S, logs, configs, Chronicle data. | Launcher tests and CI. | Tested here (62 tests). Not compared with a real `ROK.exe`. |
 | Plugin compile check | `tools/plugin-compile-check/` | Compiles every plugin at C# 3 against the real 2.0.3867 metadata. | CI `plugins` job. | 0 errors. |
-| Integration check | `tools/realm-integration/` | Static check of cross-plugin calls, Chronicle types and chat-command names (`check.mjs`), and the RealmLaws/RealmContracts behaviour test (`cross-tests/`). | CI `plugins` job. | Tested here. |
-| CI | `.github/workflows/ci.yml` | Chronicle, launcher, plugin compile and integration checks, PowerShell parse, simulator. | GitHub Actions, read-only token. | Steps run by hand here; the workflow itself has not run on GitHub. The bot, portal, analytics, streamkit, art, saga and legal suites are not in CI yet. |
+| Integration check | `tools/realm-integration/` | Static check of cross-plugin calls, Chronicle types, chat-command names, the chat style, the `/realm` catalogue and popups (`check.mjs`), and the RealmLaws/RealmContracts behaviour test (`cross-tests/`). | CI `plugins` job. | Tested here (15 plugins, 113 calls, 36 commands, 42 Chronicle types: OK; 11 tests; cross-tests 25). |
+| Exploit review | `tools/exploit-review/` | Regression suites for every exploit found and fixed: treasury, laws-contracts, renown, crown-houses, dynasties, warden, ravens, events, seasons, chronicle (`legendary` on `team/ironbreaker`; `sentinel` has its own runner on `team/anti-cheat`). | CI `plugins` job. | Tested here (all suites pass). |
+| Sculptor and painter tools | `art/tools/sculptor/`, `art/tools/painter/` | Build, preview and check the sculptures; render the paintings, glyph atlases and the `RealmPainterArt.json` bundle. | Feed RealmSculptor and RealmPainter. | **On branches** (`team/sculptor`: 16 tests; `team/sign-painter`: 12 tests). Not in CI yet (ROADMAP QA-1). |
+| CI | `.github/workflows/ci.yml` | Chronicle; launcher check and tests; plugins (compile check, integration check, cross-tests, every plugin logic suite, RealmStats tests, exploit review); portal; art check and tests; saga, legal and staff tools; Windows installers through `Build-Realm.bat`; PowerShell parse; simulator; bot; streamkit and analytics; ops and Set-Mood under PowerShell 7. | GitHub Actions, read-only token. | Runs on pushes to GitHub (a failing run was fixed in 142dc82). Not yet in CI: the sculptor and painter tool tests and checks, the `sentinel` exploit suite (ROADMAP QA-1, SEN-1). |
 
 ## 5. Content, brand and policy
 
 | System | Where | What it is | Proof so far |
 |---|---|---|---|
 | Lore and community docs | `docs/community/` | The realm of Ostreval, its six great houses (Varrow, Ashgrove, Corvane, Dunmere, Halloran, Merrin), rules, how to play, streamer kit, launch plan. | Written; `how-to-play.md` is being updated by another team. |
-| Art and brand | `art/`, `docs/brand.md` | Sigils, banners, shields, logos, event icons, Discord and social art, palette, and a build that checks colours against the overlay's house dyes. | `art/tools` tests (12) and `build.mjs check --skip-png` pass. Every Chronicle type has an icon mapping. |
-| Saga (season 1 run-sheets) | `docs/saga/` | "The Hollow Crown": four acts of run-sheets, proclamations, locations, legends, an eight-week calendar, and a checker that every command they use exists. | Checker: 0 errors, 14 tests. Run-time behaviour UNVERIFIED. |
-| Legal and staff | `docs/legal/`, `docs/community/ops/` | EULA checklist, rights-holder letter, privacy notice template, data deletion, monetisation guardrails, staff roles, moderation handbook, appeals, incident response, and tools to find a player's data and check permissions. | Tools tested (12). The EULA text itself has not been read; every clause row is open. Not legal advice. |
+| Sculptures and sign art | `art/sculptures/`, `art/paintings/` | **On branches.** 11 block sculptures (Herald's Pillar, the Ironbreaker, the Old Throne, six house monuments, the Tournament Arch, a shape test) with previews; 25 sign paintings and the live-board fonts and sprites. | Checked by their tools' tests; nothing seen in game (PT2). |
+| Art and brand | `art/`, `docs/brand.md` | Sigils, banners, shields, logos, event icons, Discord and social art, palette, and a build that checks colours against the overlay's house dyes. | `art/tools` tests (24) and `build.mjs check --skip-png` (118 SVGs) pass. Every Chronicle type has an icon mapping. With `team/web-and-broadcast` the portal, overlay, scenes and bot use the pack (copies kept in step by `portal/scripts/sync-art.mjs --check`). How the PNGs look on Discord is UNVERIFIED (PT6.5). |
+| Saga (season 1 run-sheets) | `docs/saga/` | "The Hollow Crown": four acts of run-sheets, proclamations, locations, legends, an eight-week calendar, and a checker that every command they use exists. | Checker: 0 errors, 14 tests. Run-time behaviour UNVERIFIED; Acts I and II are rehearsed in the closed beta (ROADMAP EVT-3). |
+| Legal and staff | `docs/legal/`, `docs/community/ops/` | EULA checklist, rights-holder letter, privacy notice template, data deletion, monetisation guardrails, staff roles, moderation handbook, appeals, incident response, and tools to find a player's data and check permissions. | Tools tested (12). The EULA text itself has not been read; every clause row is open, and reading it blocks 1.0 (ROADMAP COM-6). Not legal advice. |
+| Roadmap | [`ROADMAP.md`](ROADMAP.md) | The production plan to 1.0 and Seasons 2 to 4: the quality bar, milestones and exit criteria, the backlog by area, the ordered play-test checklist for every UNVERIFIED item, risks and volunteer roles. | Updated at every milestone gate. |
 
 ## 6. Open integration items
 
-These cross team boundaries and are not done:
+These cross team boundaries and are not done. Each has an ID in [`ROADMAP.md`](ROADMAP.md) section 3.
 
-- `launcher/lib/moderation.js` lists admin commands per plugin but not RealmLaws' `/court admin` and `/law zone` commands (launcher team).
-- Steward's "ready" flag fires on Unity's engine banner; the simulator team suggests also treating "Server for N players started on port P." as ready (launcher team).
-- `README.md` says the setup "respects the EULA"; the legal team asks that it link [`legal/eula-compliance-checklist.md`](legal/eula-compliance-checklist.md) until the EULA has been read (README owner).
-- RealmDynasties presses blood claims by calling CrownAndConsequences' `/claim` command method. A small non-public claim API in CrownAndConsequences would be cleaner.
-- RealmRenown reads other plugins' data files; a non-public `AddDeed` call from those plugins would remove the coupling.
-- The bot, portal, analytics, streamkit, art, saga and legal test suites could be added to CI.
-- Everything in `smoke-test.md` and the per-plugin smoke steps still has to be done on a real Windows server.
+- **Merging this wave** (M0): the four plugin branches, `team/player-launcher` and `team/web-and-broadcast`, with the merge notes in [`HANDOFF.md`](HANDOFF.md#in-flight): one `STAFF_COMMANDS` list, `PENDING_PLUGINS` emptied, one RealmHerald test exemption (SRV-1, SRV-2).
+- Steward's deploy and `server/Deploy-Plugins.ps1` copy only `.cs` files; RealmSculptor needs `art/sculptures/*.json` in `oxide/data/RealmSculptor/` and RealmPainter needs `art/paintings/RealmPainterArt.json` in `oxide/data/` (STW-1).
+- `launcher/lib/moderation.js` lists admin commands per plugin but not RealmLaws' `/court admin` and `/law zone`, nor `/paint`, `/sculpt`, `/ironbreaker` and `/sentinel` (STW-2). Steward does not show RealmSentinel's feed yet (SEN-5).
+- Plugins that pay items do not yet tell RealmSentinel (`SentinelItemSource`), and plugins that move players do not call `SentinelGrace` (SRV-3).
+- RealmContracts, RealmLaws and RealmLegendary do not yet call `RealmPainter.RefreshBoards`; boards catch up within their refresh time (SRV-4).
+- RealmRenown has no `ironbreaker` deed, so RealmLegendary's `AddDeed` call adds nothing (SRV-5).
+- The Ironbreaker logs claims as `title_earned` and losses as `event_ended`; dedicated `blade_claimed` / `blade_lost` types are planned for Season 2 (SRV-6).
+- RealmDynasties presses blood claims by calling CrownAndConsequences' `/claim` command method. A small non-public claim API in CrownAndConsequences would be cleaner (SRV-7).
+- RealmRenown reads other plugins' data files; a non-public `AddDeed` call from those plugins would remove the coupling (SRV-8).
+- RealmWarden cuts external alert kinds at 24 characters, so `impersonation_near` shows truncated (SRV-10).
+- `launcher/renderer/heraldry.js` keeps its own copy of the event, title and house tables that `chronicle/public/assets/realm-art.js` also holds (PLA-5).
+- Steward has no forms yet to publish the signed `news.json` and `update.json` the new player app reads (STW-4).
+- The sculptor and painter tool tests and checks, and the `sentinel` exploit suite, are not in CI (QA-1, SEN-1).
+- `docs/in-game-art.md` ends with a pointer to a standalone game in a modern engine. Realm has no such track; that paragraph should go (its owner).
+- Everything in the play-test checklist (`ROADMAP.md` section 5) still has to be done on the real Windows server.
 
 ## 7. How to re-check everything
 
@@ -159,9 +202,20 @@ node tools/realm-integration/check.mjs --commands         # wiring, Chronicle ty
 node --test tools/realm-integration/check.test.mjs
 bash tools/realm-integration/cross-tests/run.sh           # RealmLaws + RealmContracts, mocks
 for t in plugins/docs/*/logic-tests/run.sh analytics/plugin-tests/run.sh; do bash "$t"; done
+bash tools/exploit-review/run.sh                           # exploit regression suites
+node art/tools/build.mjs check --skip-png                  # art pack: palette, contrast, trademark guard
 (cd chronicle && npm test); (cd portal && npm test); (cd bot && npm test); (cd streamkit && npm test)
 (cd analytics && npm test); (cd tools/rok-sim && npm test); (cd launcher && npm test); (cd art/tools && npm test)
 node --test docs/saga/tools/check-saga.test.mjs docs/legal/tools/*.test.mjs docs/community/ops/tools/*.test.mjs
+```
+
+Once the branches are merged, also:
+
+```
+node --test art/tools/sculptor/test/*.test.mjs && node art/tools/sculptor/cli.mjs check
+node --test art/tools/painter/test/*.test.mjs && node art/tools/painter/paint.mjs check
+bash tools/exploit-review/sentinel/run.sh
+node portal/scripts/sync-art.mjs --check
 ```
 
 `ops/tests/Run-OpsTests.ps1` and `mods/presets/tests/Test-SetMood.ps1` need PowerShell 7 (`pwsh`).

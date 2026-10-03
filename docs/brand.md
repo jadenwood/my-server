@@ -1,6 +1,6 @@
 # Realm brand guide
 
-This page sets out how the Realm looks: colours, type, the logo, the six house sigils, the event icons, and the Discord and social images. The art itself is in [`art/`](../art/). Open [`art/index.html`](../art/index.html) in a browser to see every piece with its PNG exports.
+This page sets out how the Realm looks: colours, type, the logo, the six house sigils, the event icons, the key art, the season and title badges, the textures, and the Discord and social images. The art itself is in [`art/`](../art/). Open [`art/index.html`](../art/index.html) in a browser to see every piece with its PNG exports.
 
 All art in this pack is original and was drawn for the Realm of Ostreval. <!-- trademark-guard-ok -->It uses no artwork, logos, fonts or trademarks from Reign of Kings, Game of Thrones or any other franchise.<!-- /trademark-guard-ok --> Keep it that way: see [Originality](#originality).
 
@@ -60,16 +60,32 @@ Each great house has a **field** colour and a **metal** colour.
 - The **metal** is the colour of the charge (the beast or object on the field). It matches the house description in [`community/lore.md`](community/lore.md).
 - The **Discord role** colour is a lighter version of the house hue. It is readable at 4.5:1 or better on Discord's dark theme (`#313338`). On the light theme (`#ffffff`) these colours are only about 2.1 to 2.6:1. That is a Discord limit, so do not try to fix it by darkening the colours.
 
-| House | Sigil | Field (overlay dye) | Light / dark shade | Metal | Discord role |
-|---|---|---|---|---|---|
-| Varrow | Iron Stag | `#4a2347` plum | `#674664` / `#2e162c` | `#9aa0a8` iron grey | `#c58fc0` |
-| Ashgrove | White Oak | `#7a3a1a` rust red | `#8f5a3f` / `#4c2410` | `#e8dfc8` bone white | `#e08a5c` |
-| Corvane | Black Raven | `#2c3b42` slate | `#4e5a60` / `#1b2529` | `#c9ced4` silver | `#8fb0bf` |
-| Dunmere | Drowned Bell | `#5a5a22` olive | `#747445` / `#383815` | `#e0b56a` tarnished bronze | `#b8b85a` |
-| Halloran | Ember Hound | `#3a2a1a` dark umber | `#5a4c3f` / `#241a10` | `#e27a2c` ember orange | `#ec8a3c` |
-| Merrin | Silver Eel | `#24472d` deep green | `#47644f` / `#162c1c` | `#c9ced4` silver | `#6fbf85` |
+| House | Sigil | Field (overlay dye) | Light / dark shade | Metal | Metal light / shadow | Discord role |
+|---|---|---|---|---|---|---|
+| Varrow | Iron Stag | `#4a2347` plum | `#674664` / `#2e162c` | `#9aa0a8` iron grey | `#d4d8dd` / `#5c626b` | `#c58fc0` |
+| Ashgrove | White Oak | `#7a3a1a` rust red | `#8f5a3f` / `#4c2410` | `#e8dfc8` bone white | `#fbf6ea` / `#a8987a` | `#e08a5c` |
+| Corvane | Black Raven | `#2c3b42` slate | `#4e5a60` / `#1b2529` | `#c9ced4` silver | `#eef1f4` / `#7d858e` | `#8fb0bf` |
+| Dunmere | Drowned Bell | `#5a5a22` olive | `#747445` / `#383815` | `#e0b56a` tarnished bronze | `#e2c38a` / `#6e4c22` | `#b8b85a` |
+| Halloran | Ember Hound | `#3a2a1a` dark umber | `#5a4c3f` / `#241a10` | `#e27a2c` ember orange | `#f4a547` / `#b8561b` | `#ec8a3c` |
+| Merrin | Silver Eel | `#24472d` deep green | `#47644f` / `#162c1c` | `#c9ced4` silver | `#eef1f4` / `#7d858e` | `#6fbf85` |
 
-The light and dark shades are the overlay's `--dye-light` and `--dye-dark` values. Sigils, banners and shields use them for the field gradient. A few charges also use detail colours. These are listed under `extra` in `palette.json`: Dunmere's bronze shadow `#6e4c22`, highlight `#e2c38a` and sea-foam waves `#c9d1b0`; Halloran's ember shadow `#b8561b` and flame `#f4a547`; and Merrin's net `#9fb3a4`.
+The light and dark shades are the overlay's `--dye-light` and `--dye-dark` values. Sigils, banners and shields use them for the field gradient, and the dark shade outlines each charge. The metal light and shadow tones give the charge its engraved sheen and hatching (see [House sigils](#house-sigils-banners-and-shields)). Two charges use one more detail colour, listed under `extra` in `palette.json`: Dunmere's sea-foam waves `#c9d1b0` and Merrin's net `#9fb3a4`. Corvane's raven is iron black (`#1b1c20` to `#0c0d0f`) outlined in its silver metal.
+
+### Scene colours (key art only)
+
+The key art needs a night sky and distant hills that the brand palette does not have. These five colours are for `art/keyart/` and the Discord art built from it. Don't use them for UI, text or heraldry.
+
+| Name | Hex | Use |
+|---|---|---|
+| Night | `#0e1119` | The sky at the top of the frame |
+| Dusk | `#1f2433` | Upper sky, cloud streaks, middle hills |
+| Far ridge | `#363a4a` | The farthest mountains and towers in haze |
+| Haze | `#6b5a52` | Warm haze just above the horizon |
+| Afterglow | `#a8642c` | The last light at the horizon, the Hearth's outer glow |
+
+### Badge enamels
+
+Season badges use one enamel per season, cycling every four: Season I blood `#8b2b22`, Season II verdigris `#245a52`, Season III lapis `#2c4a7a`, Season IV iron `#26282d`. Verdigris and lapis are badge-only colours. The build checks that the gold numeral reads on each enamel at 3:1 or better.
 
 ---
 
@@ -169,6 +185,17 @@ The charges follow [`community/lore.md`](community/lore.md):
 
 The sigil files are hand-drawn. The banners and shields are built from the sigil's `<g id="charge">` by `art/tools/build.mjs`, so if a charge changes, edit only the sigil.
 
+**The engraved style.** Every charge is drawn the same way, so the six read as one set:
+
+- **Form.** The charge's silhouette is one group (`<house>-form`; far-side limbs and wings go in `<house>-back`, drawn darker behind it). It is painted with a diagonal gradient from the metal light tone through the metal to the metal shadow.
+- **Edge.** A filter (`<house>-edge`) grows the silhouette by 2.4 units into a dark outline in the field's dark shade and casts a soft shadow down and to the right. Corvane's sable raven takes a silver edge instead, so it reads on slate.
+- **Shading.** The lower-right rim of the form is hatched with fine diagonal lines in the metal shadow (a mask of the form minus a copy shifted up and left). The upper-left rim is lit in the metal light tone.
+- **Linework.** Details (fur, feather shafts, bands on the bell, leaf clusters) are 1.2 to 1.6 units wide on the 200-unit charge grid, in the field's dark shade or the metal shadow.
+- **Frame.** Each roundel has a milled iron rim, the field gradient with a faint lozenge diaper, a gold ring with four studs, and a fine inner hairline. Ids in a sigil are prefixed with the house key.
+- **Small sizes.** Check every charge at 32px (`art/png/sigils/<house>-128.png` scaled down, or the gallery). The silhouette alone must say what it is.
+
+`art/tools/pen.mjs` has the helpers the shapes were drawn with: `brush()` for tapered strokes (antlers, roots, limbs, an eel's body), `blob()` for smooth outlines and `line()` for detail lines. The sigil SVG is still the source: paste path data into it.
+
 **Player-founded houses.** These six sigils belong to whichever group holds that house name (see the claim sign-up in `community/lore.md`). Don't hand them to other houses. A new house can use the banner and shield shapes with its own overlay dye and its own charge. Add it to `palette.json`, draw `art/sigils/<name>.svg` with a `<g id="charge">` on a 200 × 200 grid, and run the build.
 
 ---
@@ -177,23 +204,20 @@ The sigil files are hand-drawn. The banners and shields are built from the sigil
 
 Icons for Chronicle events live in `art/icons/` (one SVG each) and `art/sprite/icons.svg` (all of them as `<symbol>`s).
 
-| Icon | Events |
-|---|---|
-| `crown` | coronation, heir named, succession |
-| `abdication` | abdication |
-| `claim` | claim declared, accusation, blood claim |
-| `rebellion` | rebellion started and ended, trial by combat, the king's hunt |
-| `house` | house founded, dynasty founded, blood restored |
-| `oath` / `oath-broken` | oath sworn / oath broken |
-| `treaty` | treaty signed and broken, truce broken, verdict |
-| `contract` | contract posted and ended |
-| `coins` | ransom paid, contract paid, treasury and trade events |
-| `ransom` | ransom set (the ransom-glass), season started |
-| `released` | captive released, pardon |
-| `decree` | decree, laws, realm events, rumours |
-| `trophy` | season ended, tournament champion, titles |
+Every Chronicle event type has its own icon, so a feed can tell any two events apart at a glance. The build fails if two types share an icon, or if `event-map.json` names a type the Chronicle does not have.
 
-The full mapping for every current event type is in `art/icons/event-map.json`. It is advice for anyone building UI and adds no event types. The overlay keeps its own inline icon set.
+| Group | Event type: icon |
+|---|---|
+| Crown | `coronation`: crown · `abdication`: abdication · `decree`: decree (herald's trumpet) · `succession`: succession · `heir_named`: heir · `blood_claim`: blood-claim · `blood_restored`: sprout · `dynasty_founded`: lineage |
+| War | `claim_declared`: claim · `rebellion_started`: rebellion · `rebellion_ended`: sheathed · `trial_by_combat`: helm · `hunt_kill`: hunt · `truce_broken`: dagger |
+| Houses | `house_founded`: house · `oath_sworn`: oath · `oath_broken`: oath-broken · `treaty_signed`: treaty · `treaty_broken`: treaty-broken |
+| Ransom and contracts | `ransom_set`: ransom (the ransom-glass) · `ransom_paid`: coins · `released`: released · `contract_posted`: contract · `contract_fulfilled`: contract-paid · `contract_ended`: contract-lapsed |
+| Seasons and events | `season_started`: dawn · `season_ended`: laurel · `event_started`: beacon · `event_ended`: beacon-out · `tournament_champion`: trophy |
+| Law | `law_proclaimed`: law · `law_repealed`: law-repealed · `accusation`: accuse · `verdict`: scales · `pardon`: pardon |
+| Titles | `title_bestowed`: collar (chain of office) · `title_earned`: medal |
+| Treasury and ravens | `treasury_mint`: mint · `treasury_grant`: grant · `tithe_levied`: tithe (a sheaf) · `great_trade`: purse · `rumour`: whisper |
+
+The mapping is in `art/icons/event-map.json`. It is advice for anyone building UI and adds no event types. The overlay keeps its own inline icon set (`chronicle/public/assets/common.js`); it can adopt these icons, but that is the Chronicle team's call.
 
 Rules for drawing a new icon:
 
@@ -201,13 +225,46 @@ Rules for drawing a new icon:
 - **1.75 stroke**, round caps, round joins, `fill="none"`. Fill only small solid details.
 - **`currentColor` only**, so an icon takes the colour of the text around it (ember on dark, ink on light, or the event's tone).
 - Draw at 24px. Use it at 16, 24, 32 or 48px. Check it at 24px on both iron and parchment (`art/png/icons/contact-sheet.png`).
-- Add a `<title>`, an entry in `event-map.json`, and run the build.
+- Fill only small solid details (dots, leaves, kernels). Keep each file under 1.5 KB.
+- Add a `<title>`, an entry in `event-map.json`, and run the build. A new Chronicle type needs a new icon, not a shared one.
 
 ```html
 <svg class="icon" aria-hidden="true"><use href="art/sprite/icons.svg#realm-icon-crown"/></svg>
 ```
 
 ---
+
+## Key art
+
+`art/keyart/` holds one illustration of the realm: the Old Throne of black stone on its hill at dusk, the crown resting in its arch and lit from behind, the road switching back up to it, the Hearth burning in its ring of stones below, and the banners of the six great houses along the road. Towers stand on the far ridges and ravens wheel over the throne.
+
+| File | Size | For |
+|---|---|---|
+| `old-throne-1920.svg` | 1920 × 1080 | Launcher splash and background, portal hero, stream "starting soon" |
+| `old-throne-1920-title.svg` | 1920 × 1080 | The same with the horizontal logo on a dark scrim at the top |
+| `old-throne-1200.svg` | 1200 × 630 | Link previews (Open Graph), Discord embeds |
+| `old-throne-1200-title.svg` | 1200 × 630 | The same with the logo |
+
+Use the PNGs in `art/png/keyart/`. Keep text and buttons off the throne and the Hearth; the sky above the hills is the clear area for a heading. Don't recolour the scene or crop the throne out. The scenery is generated from a fixed seed by `art/tools/sets.mjs`, so a rebuild draws the same picture.
+
+## Badges
+
+**Season badges** (`art/badges/seasons/season-1.svg` to `season-4.svg`): a gold sunburst medal with a beaded ring, the crown, a laurel and the season's numeral on its enamel (see [Badge enamels](#badge-enamels)). Use them on the portal's season pages, the Hall of Kings and stream overlays. Seasons after IV reuse the enamels in order.
+
+**Renown title badges** (`art/badges/titles/<title>.svg`): one heater shield for each default title in `plugins/RealmRenown.cs`. Honourable titles are gold on iron with a gold rim; infamous titles (Oathbreaker, The Faithless, Trucebreaker, The Hunted, Black Name) are bone on blood in blackened iron, so the two kinds never look alike. The list and each badge's emblem are in `art/src/titles.json`; a test checks it against the plugin. New emblems are drawn on the icon grid in `art/src/emblems/`, and event icons are reused where one fits.
+
+Both sets are 256px, with PNGs at 256 and 64 in `art/png/badges/`. UNVERIFIED: no app shows them yet; the portal, launcher and bot teams decide where they appear.
+
+## Textures
+
+`art/textures/parchment.svg` and `art/textures/iron.svg` are 512px tiles that repeat seamlessly. They are drawn with SVG noise filters, so each file is about 2 KB, and every colour in them is from the palette.
+
+```css
+.panel-parchment { background: #ecdfbf url(art/textures/parchment.svg); }
+.panel-iron      { background: #131417 url(art/textures/iron.svg); }
+```
+
+Keep body text on them at the contrast pairs above; the textures change the background by only a few percent. PNG tiles are in `art/png/textures/` for places that cannot show SVG.
 
 ## Discord
 
@@ -216,8 +273,8 @@ Upload the **PNGs** from `art/png/discord/`, not the SVGs.
 | Asset | File | Size | Notes |
 |---|---|---|---|
 | Server icon | `server-icon.png` | 512 × 512 | Shown as a circle. The emblem is round, so nothing is cut off. |
-| Server banner | `server-banner.png` | 960 × 540 | Shown small above the channel list. The lockup is large for that reason. |
-| Invite splash | `invite-splash.png` | 1920 × 1080 | Background of invite pages. Keep the important art in the centre. |
+| Server banner | `server-banner.png` | 960 × 540 | Shown small above the channel list. The key art, darkened, under a large lockup and the six sigils. |
+| Invite splash | `invite-splash.png` | 1920 × 1080 | Background of invite pages: the key art with the logo. The throne and logo sit in the centre, clear of the darkened edges. |
 | Emoji | `art/png/sigils/<house>-128.png` | 128 × 128 | One per house, e.g. `:varrow:` |
 | Role colours | see [House colours](#house-colours) | n/a | Use the *Discord role* column, not the field dye. |
 

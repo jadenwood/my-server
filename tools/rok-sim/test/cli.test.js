@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, execFileSync, spawnSync } = require('child_process');
 const H = require('./helpers');
+const { lockHeld } = require('../lib/slots');
 
 const BIN = path.join(__dirname, '..', 'bin', 'rok-sim.js');
 
@@ -59,7 +60,11 @@ test('running process: query and console subcommands, the game ignores stdin, SI
     p.child.kill('SIGTERM');
     const r = await p.done;
     assert.equal(r.code, 143);
-    assert.ok(!fs.existsSync(path.join(dir, 'Saves')), 'a killed server does not save');
+    assert.doesNotMatch(H.readGameLog(dir), /Saving game\.\.\./, 'a killed server does not save');
+    // Like a killed ROK.exe: Session.lock stays in the slot folder, but nothing holds it any more.
+    const lock = path.join(dir, 'Saves', 'Slot0', 'Session.lock');
+    assert.ok(fs.existsSync(lock));
+    assert.equal(lockHeld(lock), false);
     holder.close();
   } finally {
     if (p.child.exitCode == null) p.child.kill('SIGKILL');

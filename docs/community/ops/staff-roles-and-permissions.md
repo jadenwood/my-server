@@ -29,6 +29,8 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmwarden.admin` | `RealmWarden.cs` | `/warden alerts`, `ack`, `player`, `evidence`, `protect`, `mute`, `unmute`, `clear`, `raid` | With `General.AdminsExempt: true` (the default): **skips raid hours**, chat limits and the name filter | Yes | Yes | Yes | No |
 | `realmravens.admin` | `RealmRavens.cs` | `/raven admin queue`, `approve`, `reject`, `reports`, `resolve`, `audit`, `letter`, `mute`, `unmute`, `purge`, `save`. **`letter` shows a private letter's real sender and text**; every read is audited | Skips the spymaster change cooldown | Yes | Yes | Yes (privacy rule in section 4) | No |
 | `realmstats.admin` | `RealmStats.cs` | `/stats status`, `/stats save` | None | Yes | Yes | No | No |
+| `realmherald.admin` | `RealmHerald.cs` | `/realm admin motd add\|clear\|list`, `tip`, `reset <player>`, `status` | None (changes the welcome text and restarts a player's first steps) | Yes | Yes | No | No |
+| `realmpainter.admin` | `RealmPainter.cs` | `/paint <artwork>` (binds the sign you look at and paints it), `list`, `info`, `signs`, `redraw`, `unbind`, `clear`, `forget`, `face`, `fit`, `notice`, `status`, `reload` | None (changes what signs show; touches no house, crown, law or item) | Yes | Yes | No | Yes |
 | `realmevents.admin` | `RealmEvents.cs` | `/event start`, `stop`, `cancel`; may name King's Hunt quarry | Can name quarry and end events with prizes | Yes | Yes | No | Yes |
 | `realmseasons.admin` | `RealmSeasons.cs` | `/season start`, `/season end`, `/season status` | Ends a season and its standings | Yes | On call | No | No |
 | `realmhouses.admin` | `RealmHouses.cs` | `/house disband`, `pardon`, `unlink`, `sync` | Can dissolve rival houses and clear marks | Yes | Yes | No | No |
@@ -38,6 +40,9 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmdynasties.admin` | `RealmDynasties.cs` | `/dynasty admin pass`, `dissolve`, `title`, `prestige`, `check`, `save` | Skips disown and abdicate cooldowns | Yes | On call | No | No |
 | `realmrenown.admin` | `RealmRenown.cs` | `/renown admin grant`, `title give\|take`, `reset`, `status`, `save` | Skips the command cooldown; can grant points and titles | Yes | On call | No | No |
 | `realmtreasury.admin` | `RealmTreasury.cs` | `/treasury audit`, `freeze`, `unfreeze`, `cancel` (any order), `escheat` | Skips trade rate cooldowns; can cancel any market order | Yes | On call | No | No |
+| `realmsentinel.admin` | `RealmSentinel.cs` | `/sentinel status`, `report`, `clear`, `reload`, `freeze`, `unfreeze`, `ban <player> confirm`, `peaks`: suspicion scores, cheat evidence and responses. Holders also count as staff for the name-impersonation check | With `General.AdminsExempt: true` (the default): **skips every cheat check** | Yes | Yes | No | No |
+| `realmlegendary.admin` | `RealmLegendary.cs` | `/ironbreaker status`, `grant <player> [force]`, `revoke`, `reset confirm`, `items [word]`: who bears the Ironbreaker, and its audit | **Can put the legendary blade in anyone's hands**, including their own | Yes | Yes | No | No |
+| `realmsculptor.admin` | `RealmSculptor.cs` | `/sculpt list`, `preview`, `place`, `undo`, `remove`, `placed`, `status`, `protect`, `repair`, `materials`, `reload`: place, protect and take down the realm's block monuments | `place ... force` replaces players' blocks (put back on undo); a protected monument can block a road or a door | Yes | Yes | No | No |
 
 Things that are **not** Oxide permissions but are staff powers all the same:
 
@@ -61,16 +66,22 @@ oxide.group add realm_host "Event host" 1
 oxide.grant group realm_admin realmwarden.admin
 oxide.grant group realm_admin realmravens.admin
 oxide.grant group realm_admin realmstats.admin
+oxide.grant group realm_admin realmherald.admin
+oxide.grant group realm_admin realmpainter.admin
 oxide.grant group realm_admin realmevents.admin
 oxide.grant group realm_admin realmhouses.admin
 oxide.grant group realm_admin crownandconsequences.admin
 oxide.grant group realm_admin realmcontracts.admin
 oxide.grant group realm_admin realmlaws.admin
+oxide.grant group realm_admin realmsentinel.admin
+oxide.grant group realm_admin realmlegendary.admin
+oxide.grant group realm_admin realmsculptor.admin
 
 oxide.grant group realm_mod realmwarden.admin
 oxide.grant group realm_mod realmravens.admin
 
 oxide.grant group realm_host realmevents.admin
+oxide.grant group realm_host realmpainter.admin
 
 oxide.usergroup add <SteamID64> realm_mod
 oxide.usergroup remove <SteamID64> realm_mod

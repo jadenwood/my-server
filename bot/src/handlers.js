@@ -1,6 +1,7 @@
 // Routes /realm interactions (and house-name autocomplete) to the views. Works on the duck-typed
 // interaction API of discord.js v14, so tests drive it with plain objects.
 
+import { createArt, decorate } from './art.js';
 import { ChronicleUnavailable } from './chronicle-client.js';
 import { CHRONICLE_MAX } from './commands.js';
 import { SwearRefused } from './swear.js';
@@ -22,7 +23,10 @@ const DISCORD_ERRORS = {
   10011: 'That role was just deleted. Try again.',
 };
 
-export function createHandlers({ cfg, chronicle, realmData, swearService, logger = console, now = Date.now }) {
+export function createHandlers({ cfg, chronicle, realmData, swearService, logger = console, now = Date.now, art = createArt(cfg.art || { enabled: false }) }) {
+  // The ruling house's sigil when it is a great house, else the crown.
+  const crownArt = (state) => (state && state.house && art.house(state.house)) || art.eventIcon('coronation');
+
   async function safeRealmEvents() {
     try {
       return await realmData.realmEvents();
@@ -35,18 +39,20 @@ export function createHandlers({ cfg, chronicle, realmData, swearService, logger
   const routes = {
     async status() {
       const [state, events, realmEvents] = await Promise.all([chronicle.state(), chronicle.events(10), safeRealmEvents()]);
-      return { embeds: [statusEmbed({ cfg, state, events, realmEvents, now: now() })] };
+      return { embeds: [statusEmbed({ cfg, state, events, realmEvents, now: now() })], thumb: crownArt(state) };
     },
     async king() {
       const [state, events] = await Promise.all([chronicle.state(), chronicle.events(200)]);
-      return { embeds: [kingEmbed({ cfg, state, events, now: now() })] };
+      return { embeds: [kingEmbed({ cfg, state, events, now: now() })], thumb: crownArt(state) };
     },
     async houses() {
-      return { embeds: [housesEmbed({ cfg, state: await chronicle.state() })] };
+      const state = await chronicle.state();
+      return { embeds: [housesEmbed({ cfg, state })], thumb: crownArt(state) };
     },
     async chronicle(i) {
       const count = Math.min(CHRONICLE_MAX, Math.max(1, i.options.getInteger('count') ?? 5));
-      return { embeds: [chronicleEmbed({ cfg, events: await chronicle.events(count), count })] };
+      const events = await chronicle.events(count);
+      return { embeds: [chronicleEmbed({ cfg, events, count })], thumb: art.event(events[events.length - 1]) };
     },
     async events() {
       const realmEvents = (await safeRealmEvents()) || { active: [], upcoming: [], known: false, error: 'unreadable' };
@@ -56,10 +62,10 @@ export function createHandlers({ cfg, chronicle, realmData, swearService, logger
       } catch (e) {
         if (!(e instanceof ChronicleUnavailable)) throw e;
       }
-      return { embeds: [eventsEmbed({ cfg, realmEvents, events })] };
+      return { embeds: [eventsEmbed({ cfg, realmEvents, events })], thumb: art.icon(realmEvents.active.length ? 'beacon' : 'beacon-out') };
     },
     async join() {
-      return joinReply(cfg);
+      return { ...joinReply(cfg), thumb: art.emblem() };
     },
     async whois(i) {
       const input = i.options.getString('house', true);
@@ -81,7 +87,7 @@ export function createHandlers({ cfg, chronicle, realmData, swearService, logger
         chronicle.events(300),
       ]);
       const detail = houses.find((h) => sameHouse(h.name, house.name)) || null;
-      return { embeds: [whoisEmbed({ cfg, state, detail, treaties, events, house, now: now() })] };
+      return { embeds: [whoisEmbed({ cfg, state, detail, treaties, events, house, now: now() })], thumb: art.house(house.name) || art.eventIcon('house_founded') };
     },
     async swear(i) {
       const input = i.options.getString('house', true);
@@ -97,6 +103,7 @@ export function createHandlers({ cfg, chronicle, realmData, swearService, logger
           description: `${text}\n\nThis role is self-declared on Discord. It is not linked to your game account and does not change anything in game. To join the house in game, ask its leader for \`/house invite\`.`,
           color: dyeFor(r.house.name),
         })],
+        thumb: art.house(r.house.name) || art.eventIcon('oath_sworn'),
       };
     },
     async forswear(i) {
@@ -107,9 +114,13 @@ export function createHandlers({ cfg, chronicle, realmData, swearService, logger
           description: r.removed.length ? `Removed: ${r.removed.map((x) => `**${esc(x, 100)}**`).join(', ')}.` : 'You carry no "Sworn to ..." role.',
           color: COLORS.iron,
         })],
+        thumb: r.removed.length ? art.eventIcon('oath_broken') : null,
       };
     },
   };
+
+  // Every reply carries the realm emblem as its author icon and its own thumbnail (see art.js).
+  const dress = ({ thumb = null, ...payload }) => decorate(payload, { emblem: art.emblem(), thumb, authorName: cfg.realmName });
 
   async function onCommand(interaction) {
     const sub = interaction.options.getSubcommand(false);
@@ -126,7 +137,7 @@ export function createHandlers({ cfg, chronicle, realmData, swearService, logger
       payload = errorPayload(e, sub);
     }
     // Ephemeral-ness is fixed by deferReply; editReply ignores flags.
-    const { flags, ...rest } = payload;
+    const { flags, ...rest } = dress(payload);
     return interaction.editReply({ ...rest, allowedMentions: NO_MENTIONS });
   }
 
@@ -176,5 +187,5 @@ export function createHandlers({ cfg, chronicle, realmData, swearService, logger
     }
   }
 
-  return { handle, routes };
+  return { handle, routes, dress };
 }

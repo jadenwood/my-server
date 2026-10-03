@@ -2,7 +2,7 @@
 // or a custom moment (at= / in=). Claims come from the chronicle; the weekly schedule comes from
 // /schedule.json or URL params and falls back to the plugin defaults.
 
-import { setupScene, startFeed, loadSchedule, el, clear, put, icon, houseLabel, dyeFor, healthChip } from './kit.js';
+import { setupScene, startFeed, loadSchedule, el, clear, put, icon, artIcon, houseLabel, dyeFor, healthChip } from './kit.js';
 import {
   buildWarBoard, chooseCountdown, normalizeSchedule, parseWindowsParam, parseEventsParam, parseDurationParam,
   splitDuration, formatUtc,
@@ -96,7 +96,7 @@ function tick() {
     document.getElementById('cd-title').textContent = target.title;
     document.getElementById('cd-sub').textContent = target.sub || '';
     const foot = clear(document.getElementById('cd-foot'));
-    put(foot, icon(target.live ? 'swords' : target.kind === 'event' || target.kind === 'event-live' ? 'horn' : 'flag'),
+    put(foot, artIcon(target.live ? 'rebellion' : target.kind === 'event' || target.kind === 'event-live' ? 'beacon' : 'claim'),
       target.live ? `Until ${formatUtc(target.at)}` : formatUtc(target.at),
       target.house ? el('span', { class: 'house' }, el('i', { class: 'dot' }), houseLabel(target.house)) : null);
     live.textContent = `${target.title} ${formatUtc(target.at)}`;

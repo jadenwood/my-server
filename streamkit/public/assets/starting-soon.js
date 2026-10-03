@@ -1,7 +1,7 @@
 // Starting Soon: a full-screen holding scene. Title, an optional countdown (in= / at=), the reigning
 // crown, the house banners, the next Lawful Hours and a rotating "lately in the realm" line.
 
-import { setupScene, startFeed, loadSchedule, el, clear, put, icon, banner, houseLabel, healthChip } from './kit.js';
+import { setupScene, startFeed, loadSchedule, el, clear, put, artIcon, eventIcon, banner, houseLabel, healthChip } from './kit.js';
 import {
   buildWarBoard, chooseCountdown, normalizeSchedule, parseWindowsParam, parseDurationParam, splitDuration,
   formatUtc, eventMentions, houseIn,
@@ -32,16 +32,16 @@ const timer = el('div', { class: 'ss-timer', role: 'timer', hidden: target == nu
 const crown = el('div', { class: 'ss-crown' });
 const banners = el('div', { class: 'ss-banners' });
 const lately = el('div', { class: 'ss-lately iron' },
-  el('div', { class: 'plaque' }, icon('scroll'), 'Lately in the realm'),
+  el('div', { class: 'plaque' }, artIcon('decree'), 'Lately in the realm'),
   el('div', { class: 'line', 'aria-live': 'polite' }));
 const nextWar = el('div', { class: 'ss-next' });
 
-root.append(embers,
+root.append(el('div', { class: 'ss-keyart', 'aria-hidden': 'true' }), embers,
   el('div', { class: 'ss-fog', 'aria-hidden': 'true' }),
   el('header', { class: 'ss-head' },
     el('div', { class: 'eyebrow' }, 'The Realm of Ostreval'),
     el('h1', { class: 'gold-text' }, title),
-    el('div', { class: 'ss-rule', 'aria-hidden': 'true' }, el('span'), icon('crown'), el('span')),
+    el('div', { class: 'ss-rule', 'aria-hidden': 'true' }, el('span'), artIcon('crown'), el('span')),
     el('div', { class: 'ss-sub' }, sub),
     timer),
   crown, banners, nextWar, lately);
@@ -82,7 +82,7 @@ function render() {
     const label = war.kind === 'claim' ? `House ${war.house} rises ${formatUtc(war.at)}`
       : war.live ? `${war.title} until ${formatUtc(war.at)}`
         : `Next Lawful Hours: ${formatUtc(war.at)}`;
-    put(nextWar, icon(war.live || war.kind === 'claim' ? 'swords' : 'flag'), label);
+    put(nextWar, artIcon(war.live || war.kind === 'claim' ? 'rebellion' : 'claim'), label);
     nextWar.className = `ss-next${war.live || war.kind === 'claim' ? ' hot' : ''}`;
   }
 
@@ -95,7 +95,7 @@ function showLine() {
   const box = lately.querySelector('.line');
   if (!lines.length) { box.textContent = 'The Chronicle is quiet.'; return; }
   const e = lines[lineIdx % lines.length];
-  const node = el('span', { class: 'entry' }, el('b', {}, e.title), e.detail ? ` — ${e.detail}` : '');
+  const node = el('span', { class: 'entry', 'data-type': e.type }, eventIcon(e.type), el('b', {}, e.title), e.detail ? ` — ${e.detail}` : '');
   clear(box).appendChild(node);
 }
 

@@ -52,6 +52,11 @@
     return Math.round(h / 24) + ' days ago';
   }
 
+  // "1 server", "2 servers".
+  function plural(n, word) {
+    return `${n} ${word}${n === 1 ? '' : 's'}`;
+  }
+
   function bytes(n) {
     if (n >= 1024 ** 3) return (n / 1024 ** 3).toFixed(1) + ' GB';
     if (n >= 1024 ** 2) return (n / 1024 ** 2).toFixed(1) + ' MB';
@@ -64,36 +69,117 @@
     return new Date(t).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
   }
 
-  // In-app confirm dialog. Resolves true/false, or the value of a <select> when options are given.
-  function confirmBox({ title, text, ok = 'OK', danger = false, options = null }) {
+  // In-app dialog. Resolves true/false, or the chosen value when options are given.
+  //   kicker   small line above the title           tone     'warn' | 'bad' | null (accent of the card)
+  //   facts    [{ k, v }] shown as a fact list       fix      one clear "what to do" line
+  //   options  [{ value, label, detail, disabled, why, badge, okLabel }] shown as choice tiles; the
+  //            first enabled one is selected. okLabel renames the OK button while that tile is chosen.
+  // Keyboard: Tab stays inside the dialog, arrows move between choices, Enter confirms, Escape cancels.
+  function confirmBox({ title, text, ok = 'OK', danger = false, options = null, kicker = null, facts = null, fix = null, tone = null, cancel = 'Cancel' }) {
     return new Promise((resolve) => {
+      const modal = $('modal');
+      const card = modal.querySelector('.modal-card');
+      const back = document.activeElement;
+      card.className = 'modal-card' + (tone ? ' tone-' + tone : '') + (options ? ' has-choices' : '');
+      $('modal-kicker').textContent = kicker || '';
+      $('modal-kicker').hidden = !kicker;
       $('modal-title').textContent = title;
-      $('modal-text').textContent = text;
+      $('modal-text').textContent = text || '';
+      $('modal-text').hidden = !text;
       const extra = $('modal-extra');
       extra.replaceChildren();
-      let select = null;
-      if (options) {
-        select = el('select');
-        for (const o of options) {
-          const opt = el('option', null, o.label);
-          opt.value = o.value;
-          select.appendChild(opt);
+      if (facts && facts.length) {
+        const dl = el('dl', 'facts-list modal-facts');
+        for (const f of facts) {
+          const d = el('div');
+          d.append(el('dt', null, f.k), el('dd', f.mono ? 'mono' : '', f.v));
+          dl.appendChild(d);
         }
-        extra.appendChild(select);
+        extra.appendChild(dl);
+      }
+      if (fix) {
+        const p = el('div', 'modal-fix');
+        p.append(icon('i-compass', 'ico'), el('p', null, fix));
+        extra.appendChild(p);
       }
       const okBtn = $('modal-ok');
-      okBtn.textContent = ok;
-      okBtn.className = 'btn ' + (danger ? 'danger' : 'primary');
-      $('modal').hidden = false;
-      okBtn.focus();
-      const done = (v) => {
-        $('modal').hidden = true;
-        okBtn.onclick = null;
-        $('modal-cancel').onclick = null;
-        resolve(v);
+      const cancelBtn = $('modal-cancel');
+      let group = null;
+      const name = 'modal-choice-' + Date.now();
+      if (options) {
+        group = el('div', 'choice-list');
+        group.setAttribute('role', 'radiogroup');
+        group.setAttribute('aria-labelledby', 'modal-title');
+        let first = true;
+        for (const o of options) {
+          const lab = el('label', 'choice' + (o.disabled ? ' disabled' : ''));
+          const input = el('input');
+          input.type = 'radio';
+          input.name = name;
+          input.value = o.value;
+          input.disabled = !!o.disabled;
+          if (!o.disabled && first) {
+            input.checked = true;
+            first = false;
+          }
+          const body = el('span', 'choice-body');
+          const head = el('span', 'choice-label', o.label);
+          if (o.badge) head.appendChild(el('span', 'choice-badge', o.badge));
+          body.appendChild(head);
+          if (o.detail) body.appendChild(el('span', 'choice-detail', o.detail));
+          if (o.disabled && o.why) body.appendChild(el('span', 'choice-why', o.why));
+          lab.append(input, el('span', 'choice-dot'), body);
+          group.appendChild(lab);
+        }
+        extra.appendChild(group);
+      }
+      const chosen = () => (group ? (group.querySelector('input:checked') || {}).value || null : true);
+      const syncOk = () => {
+        const v = chosen();
+        const o = options && options.find((x) => x.value === v);
+        okBtn.textContent = (o && o.okLabel) || ok;
+        okBtn.disabled = !!group && !v;
       };
-      okBtn.onclick = () => done(select ? select.value : true);
-      $('modal-cancel').onclick = () => done(false);
+      if (group) group.addEventListener('change', syncOk);
+      okBtn.className = 'btn ' + (danger ? 'danger' : 'primary');
+      cancelBtn.textContent = cancel;
+      cancelBtn.hidden = cancel === null;
+      syncOk();
+      modal.hidden = false;
+      const focusables = () => Array.from(card.querySelectorAll('button:not([disabled]):not([hidden]), input:not([disabled]):checked, input:not([disabled]):not([type="radio"])'));
+      (group ? group.querySelector('input:checked') || okBtn : okBtn).focus();
+      const onKey = (ev) => {
+        if (ev.key === 'Escape') {
+          ev.preventDefault();
+          done(false);
+        } else if (ev.key === 'Enter' && ev.target.type === 'radio') {
+          ev.preventDefault();
+          okBtn.click();
+        } else if (ev.key === 'Tab') {
+          const f = focusables();
+          if (!f.length) return;
+          const i = f.indexOf(document.activeElement);
+          if (ev.shiftKey && i <= 0) {
+            ev.preventDefault();
+            f[f.length - 1].focus();
+          } else if (!ev.shiftKey && i === f.length - 1) {
+            ev.preventDefault();
+            f[0].focus();
+          }
+        }
+      };
+      modal.addEventListener('keydown', onKey);
+      function done(v) {
+        modal.hidden = true;
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+        okBtn.disabled = false;
+        modal.removeEventListener('keydown', onKey);
+        if (back && document.contains(back) && typeof back.focus === 'function') back.focus();
+        resolve(v);
+      }
+      okBtn.onclick = () => done(group ? chosen() : true);
+      cancelBtn.onclick = () => done(false);
     });
   }
 
@@ -107,7 +193,11 @@
     current = name;
     document.body.dataset.view = name;
     for (const v of $$('.view')) v.hidden = v.dataset.view !== name;
-    for (const b of $$('.rail-btn[data-go]')) b.classList.toggle('active', b.dataset.go === name);
+    for (const b of $$('.rail-btn[data-go]')) {
+      b.classList.toggle('active', b.dataset.go === name);
+      if (b.dataset.go === name) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
+    }
     if (views[name].show) views[name].show();
   }
 
@@ -150,25 +240,8 @@
 
   // ================================================================ HOME
 
-  const EVENT_STYLE = {
-    coronation: ['k-crown', 'i-crown'],
-    abdication: ['k-crown', 'i-crown'],
-    claim_declared: ['k-crown', 'i-scroll'],
-    decree: ['k-crown', 'i-scroll'],
-    rebellion_started: ['k-war', 'i-flame'],
-    rebellion_ended: ['k-war', 'i-sword'],
-    oath_broken: ['k-war', 'i-sword'],
-    treaty_broken: ['k-war', 'i-sword'],
-    house_founded: ['k-house', 'i-shield'],
-    oath_sworn: ['k-house', 'i-shield'],
-    treaty_signed: ['k-house', 'i-scroll'],
-    ransom_set: ['k-bond', 'i-chain'],
-    ransom_paid: ['k-bond', 'i-chain'],
-    released: ['k-bond', 'i-chain'],
-    contract_posted: ['k-bond', 'i-scroll'],
-    contract_fulfilled: ['k-bond', 'i-chest'],
-    contract_ended: ['k-bond', 'i-scroll']
-  };
+  // Every Chronicle event has its own icon and tone (renderer/heraldry.js, from art/icons/event-map.json).
+  const ART = window.RealmArt;
   const MAX_EVENTS = 14;
   const STALE_MS = 2 * 60 * 1000;
   let events = [];
@@ -229,7 +302,7 @@
     } else if (srv.state === 'running' || srv.state === 'starting') {
       kind = 'warn';
       label = 'Loading';
-      detail = 'The server is starting. It is ready when the console shows "Initialize engine version".';
+      detail = 'The server is starting. It is ready when the console shows "Game has started."';
     } else if (srv.state === 'stopping') {
       kind = 'warn';
       label = 'Stopping';
@@ -261,30 +334,39 @@
     }
   }
 
+  // null until the first poll answers; then 'ok' or 'down' (the Chronicle service did not answer).
+  let chronicleReach = null;
+
   function renderEvents() {
     const list = $('events');
     list.replaceChildren();
+    list.setAttribute('aria-busy', String(chronicleReach === null));
     if (!events.length) {
-      list.appendChild(el('li', 'empty', 'The Chronicle is silent. Events appear here once the plugins record them.'));
+      if (chronicleReach === null && ART) list.append(...ART.skeletonRows(4));
+      else if (chronicleReach === 'down' && ART)
+        list.appendChild(ART.errorBox({ tag: 'li', title: 'The Chronicle is not answering', body: 'Realm runs it on this PC at 127.0.0.1:8787.', fix: 'Open the Overlay screen to see why, or start the server.', action: { label: 'Open Overlay', onClick: () => go('overlay') } }));
+      else if (ART) list.appendChild(ART.emptyState({ tag: 'li', art: 'decree', title: 'The Chronicle is silent', body: 'Coronations, oaths and claims appear here once the plugins record them.' }));
+      else list.appendChild(el('li', 'empty', 'The Chronicle is silent. Events appear here once the plugins record them.'));
       return;
     }
     for (const e of events) {
-      const [kind, glyph] = EVENT_STYLE[e.type] || ['k-house', 'i-scroll'];
-      const li = el('li', 'event ' + kind);
+      const li = el('li', 'event t-' + e.type);
       const body = el('div');
       body.append(el('p', 'event-title', e.title));
       body.append(el('p', 'event-meta', [ago(e.ts), e.detail].filter(Boolean).join(' · ')));
-      li.append(icon(glyph, 'event-ico'), body);
+      li.append(ART ? ART.eventMark(e) : icon('i-scroll', 'event-ico'), body);
       list.appendChild(li);
     }
   }
 
   async function pollChronicle() {
+    if (chronicleReach === null) renderEvents(); // skeleton rows until the first answer
     try {
       chronicleState = await api.getState();
     } catch {
       chronicleState = null;
     }
+    let reached = true;
     try {
       const fresh = (await api.getEvents(lastEventId)).filter((e) => e && Number.isInteger(e.id) && e.id > lastEventId);
       if (fresh.length) {
@@ -292,8 +374,9 @@
         events = fresh.concat(events).sort((a, b) => b.id - a.id).slice(0, MAX_EVENTS);
       }
     } catch {
-      /* chronicle down */
+      reached = false;
     }
+    chronicleReach = reached ? 'ok' : 'down';
     renderEvents();
     renderHomeStatus();
   }
@@ -333,9 +416,12 @@
   let lastLineId = 0;
   const MAX_DOM_LINES = 2000;
 
+  // The two lines that mean the game is up (lib/readiness.js); highlighted in the console.
+  const READY_LINE = /(^|\]\s*)(Server for \d+ players started on port \d+\.|Game has started\.)\s*$/;
+
   function lineNode(l) {
     const cls = l.src === 'err' ? 'err' : l.src === 'sys' ? 'sys' : l.src === 'log' ? 'log' : '';
-    const n = el('span', 'ln ' + cls + (/^\s*Initialize engine version:/.test(l.text) ? ' ready' : ''));
+    const n = el('span', 'ln ' + cls + (READY_LINE.test(l.text) ? ' ready' : ''));
     const d = new Date(l.t);
     const p = (x) => String(x).padStart(2, '0');
     n.append(el('span', 't', `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`), document.createTextNode(l.text));
@@ -383,7 +469,7 @@
     const running = s.state !== 'stopped';
     $('srv-meta-1').textContent = running ? `${s.exe || 'Server'}.exe · pid ${s.pid || '-'}` : s.copied === false ? 'No test copy yet' : 'Not running';
     $('srv-meta-2').textContent = running
-      ? `started ${ago(s.startedAt)} · ${(s.players || []).length} player(s)`
+      ? `started ${ago(s.startedAt)} · ${plural((s.players || []).length, 'player')}`
       : s.lastExit
         ? `last stop ${ago(s.lastExit.at)}${s.lastExit.code != null ? ' (exit ' + s.lastExit.code + ')' : ''}`
         : '';
@@ -618,7 +704,95 @@
     }
   }
 
-  $('srv-start').addEventListener('click', () => guarded(() => api.server.start(selId), 'Server starting. Watch the console for "Initialize engine version".'));
+  // Pre-start dialog (lib/prestart.js and lib/worlds.js do the work). Before Start, ask the app what
+  // the start would run into: another program on the ports, or a world choice.
+  const HOLDER_KIND = {
+    leftover: 'Server from this folder',
+    watchdog: 'Server.exe watchdog',
+    'game-client': 'The game',
+    'other-server': 'Server from another folder',
+    hidden: 'Hidden ROK.exe',
+    unknown: 'Another program'
+  };
+
+  function holderFacts(s) {
+    const facts = [];
+    for (const h of (s.holders || []).slice(0, 4)) {
+      facts.push({ k: HOLDER_KIND[h.kind] || 'Program', v: `${h.name}.exe · pid ${h.pid}${h.ports && h.ports.length ? ' · ' + h.ports.join(', ') : ''}${h.path ? '\n' + h.path : ''}`, mono: true });
+    }
+    if (!facts.length && s.busy && s.busy.length) facts.push({ k: 'In use', v: s.busy.map((x) => `${x.proto.toUpperCase()} ${x.port}`).join(', '), mono: true });
+    return facts;
+  }
+
+  async function startWithChecks(id, opts) {
+    let pre = null;
+    try {
+      pre = await api.server.prestart(id);
+    } catch (e) {
+      return fail(e);
+    }
+    const s = pre && pre.survey;
+    const label = 'Server ' + (ROMAN[id] || id);
+    if (s && !s.clear) {
+      const adopt = s.actions.adopt;
+      const stop = s.actions.stop;
+      if (!adopt.ok && !stop.ok) {
+        // Nothing Steward can safely do: say what holds the ports and the one thing that fixes it.
+        const again = await confirmBox({
+          kicker: label + ' · before start',
+          title: s.verdict === 'game-client' ? 'Reign of Kings is running' : s.verdict === 'watchdog' ? 'The Server.exe watchdog is running' : 'Something else holds this server\u2019s ports',
+          text: s.message,
+          facts: holderFacts(s),
+          fix: stop.why || adopt.why,
+          tone: 'warn',
+          ok: 'Check again',
+          cancel: 'Close'
+        });
+        if (again) return startWithChecks(id, opts);
+        return refreshServer();
+      }
+      const choice = await confirmBox({
+        kicker: label + ' · before start',
+        title: 'This server is already running',
+        text: s.message,
+        facts: holderFacts(s),
+        tone: 'warn',
+        options: [
+          { value: 'adopt', label: 'Adopt it', badge: adopt.ok ? 'Recommended' : null, detail: adopt.ok ? adopt.why : 'Keep it running and let Steward show and control it.', disabled: !adopt.ok, why: adopt.why, okLabel: 'Adopt it' },
+          { value: 'stop', label: 'Stop it cleanly, then start', detail: stop.ok ? stop.why : 'Ask it to save and shut down.', disabled: !stop.ok, why: stop.why, okLabel: 'Stop it cleanly' }
+        ],
+        ok: 'Continue'
+      });
+      if (choice === 'adopt') return guarded(() => api.server.adopt(id), 'Adopted: Steward now shows and controls this server.');
+      if (choice === 'stop') {
+        toast('Asking the other server to save and shut down...');
+        const r = await guarded(() => api.server.stopHolder(id));
+        if (r) toast(r.message, r.stopped && !r.relaunched ? 'ok' : 'bad');
+        if (r && r.stopped && !r.relaunched) return startWithChecks(id, opts);
+      }
+      return null;
+    }
+    const w = pre && pre.world;
+    if (!opts && w && (w.action === 'choose' || w.action === 'blocked')) {
+      if (w.action === 'blocked') {
+        const again = await confirmBox({ kicker: label + ' · before start', title: 'The world is in use', text: w.message, tone: 'warn', ok: 'Check again', cancel: 'Close' });
+        return again ? startWithChecks(id, opts) : refreshServer();
+      }
+      const worlds = w.choices.slice().sort((a, b) => (b.slot === w.suggest) - (a.slot === w.suggest));
+      const options = worlds.map((c) => ({ value: 'slot:' + c.slot, label: `World ${c.slot}`, badge: c.slot === w.suggest ? 'Suggested' : null, detail: [c.remembered ? 'Last run under Realm' : null, c.newestMs ? 'saved ' + ago(new Date(c.newestMs).toISOString()) : null].filter(Boolean).join(', ') || null, okLabel: `Start world ${c.slot}` }));
+      options.push({ value: 'new', label: 'A new world', detail: 'The game makes a fresh world. The others stay on disk.', okLabel: 'Start a new world' });
+      const choice = await confirmBox({ kicker: label + ' · before start', title: 'Which world?', text: w.message, ok: 'Start', options });
+      if (!choice) return null;
+      if (choice === 'new') {
+        const sure = await confirmBox({ title: 'Start a new world?', text: `The game makes a fresh world. The saved worlds stay in ${pre.saveLocation || 'Saves/'} and can be chosen again later.`, ok: 'Start a new world', danger: true });
+        return sure ? startWithChecks(id, { newWorld: true }) : null;
+      }
+      return startWithChecks(id, { worldSlot: Number(choice.slice(5)) });
+    }
+    return guarded(() => api.server.start(id, opts || null), 'Server starting. It is ready at "Game has started."');
+  }
+
+  $('srv-start').addEventListener('click', () => startWithChecks(selId));
   $('srv-stop').addEventListener('click', () => guarded(() => api.server.stop(selId), 'Sent "quit". The server saves and closes.'));
   $('srv-restart').addEventListener('click', async () => {
     toast('Restarting: sending "quit" first...');
@@ -656,7 +830,7 @@
   $('act-plugins').addEventListener('click', () =>
     guarded(
       () => api.server.deployPlugins('all'),
-      (r) => (r.copied ? `Deployed ${r.copied} plugin file(s) to ${r.servers} server(s). Oxide reloads them while the server runs.` : `All plugins are already up to date on ${r.servers} server(s).`)
+      (r) => (r.copied ? `Deployed ${plural(r.copied, 'plugin file')} to ${plural(r.servers, 'server')}. Oxide reloads them while the server runs.` : `All plugins are already up to date on ${plural(r.servers, 'server')}.`)
     )
   );
 
@@ -699,7 +873,7 @@
       ok: 'Undo Oxide',
       danger: true
     });
-    if (ok) guarded(() => api.server.undoOxide(selId), (r) => `Oxide removed: ${r.restored} original file(s) restored, ${r.removed} removed.`);
+    if (ok) guarded(() => api.server.undoOxide(selId), (r) => `Oxide removed: ${plural(r.restored, 'original file')} restored, ${r.removed} removed.`);
   });
 
   for (const b of $$('[data-open]')) {
@@ -708,45 +882,11 @@
 
   // ================================================================ REALM
 
-  const TINCTURES = ['#8e1b1b', '#1f3f73', '#2f5a2a', '#4b2463', '#7a5418', '#1c1c1c', '#6b2a14', '#284e57'];
-
-  function hashName(s) {
-    let h = 7;
-    for (const ch of String(s)) h = (h * 31 + ch.codePointAt(0)) >>> 0;
-    return h;
-  }
-
+  // Great houses show their drawn shield; any other house a plain shield in its overlay dye.
   function houseShield(name, cls) {
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 120 140');
-    svg.setAttribute('class', cls || 'shield');
-    const h = hashName(name);
-    const color = TINCTURES[h % TINCTURES.length];
-    const p = document.createElementNS(ns, 'path');
-    p.setAttribute('d', 'M10 8h100v52c0 38-24 62-50 74C34 122 10 98 10 60z');
-    p.setAttribute('fill', color);
-    p.setAttribute('class', 'field-fill');
-    svg.appendChild(p);
-    const division = (h >> 3) % 4;
-    if (division) {
-      const d = document.createElementNS(ns, 'path');
-      d.setAttribute('d', division === 1 ? 'M60 8h50v52c0 38-24 62-50 74z' : division === 2 ? 'M10 60h100c0 30-24 62-50 74C34 122 10 98 10 60z' : 'M10 8l100 100v-48C110 98 86 122 60 134z');
-      d.setAttribute('fill', '#000');
-      d.setAttribute('opacity', '.28');
-      svg.appendChild(d);
-    }
-    const t = document.createElementNS(ns, 'text');
-    t.setAttribute('x', '60');
-    t.setAttribute('y', '86');
-    t.setAttribute('text-anchor', 'middle');
-    t.setAttribute('font-family', 'Cinzel, serif');
-    t.setAttribute('font-weight', '700');
-    t.setAttribute('font-size', '54');
-    t.setAttribute('fill', '#f4dc98');
-    t.textContent = String(name).trim().charAt(0).toUpperCase();
-    svg.appendChild(t);
-    return svg;
+    if (ART) return ART.houseMark(name, 'shield', cls || 'shield');
+    const span = el('span', cls || 'shield', String(name).trim().charAt(0).toUpperCase());
+    return span;
   }
 
   function houseCard(h, { top, royal }) {
@@ -797,8 +937,13 @@
     tree.replaceChildren();
     const houses = Array.isArray(s.houses) ? s.houses : [];
     $('realm-house-count').textContent = houses.length ? houses.length + ' houses' : '';
+    if (!houses.length && data.stateError && ART) {
+      // No answer is not the same as no houses: say so, with the one place that explains why.
+      tree.appendChild(ART.errorBox({ title: 'The Chronicle did not answer', body: String(data.stateError), fix: 'Start the server, or open the Overlay screen to see why the Chronicle is down.', action: { label: 'Open Overlay', onClick: () => go('overlay') } }));
+      return;
+    }
     if (!houses.length) {
-      tree.appendChild(el('p', 'empty', 'No houses have been founded yet. In game: /house found "Name" Sigil'));
+      tree.appendChild(ART ? ART.emptyState({ art: 'house', title: 'No houses yet', body: 'Houses appear here when players found them in game.', cmd: '/house found "Name" Sigil' }) : el('p', 'empty', 'No houses have been founded yet. In game: /house found "Name" Sigil'));
       return;
     }
     const byName = new Map(houses.map((h) => [h.name, h]));
@@ -835,7 +980,7 @@
       try {
         renderRealm(await api.getRealm());
       } catch (e) {
-        fail(e);
+        renderRealm({ state: {}, stateError: (e && e.message) || String(e) });
       }
     }
   };
@@ -1003,7 +1148,9 @@
   });
   $('pub-test').addEventListener('click', async () => {
     const list = $('pub-checks');
-    list.replaceChildren(el('li', 'empty', 'Checking...'));
+    list.replaceChildren(...(ART ? ART.skeletonRows(4) : [el('li', 'empty', 'Checking...')]));
+    list.setAttribute('aria-busy', 'true');
+    $('pub-test').disabled = true;
     try {
       const r = await api.goPublic.selfTest(pubId);
       list.replaceChildren();
@@ -1013,8 +1160,10 @@
         list.appendChild(li);
       }
     } catch (e) {
-      list.replaceChildren();
-      fail(e);
+      list.replaceChildren(ART ? ART.errorBox({ tag: 'li', title: 'The checks did not finish', body: e.message, fix: 'Start the server, then press Run checks again.' }) : el('li', 'empty', e.message));
+    } finally {
+      list.removeAttribute('aria-busy');
+      $('pub-test').disabled = false;
     }
   });
 
@@ -1147,7 +1296,7 @@
       };
       add('List', r.files.servers);
       add('Player config', r.files.playerConfig);
-      add('Version', `${r.seq} · ${r.servers} server(s) · key ${r.keyId}`);
+      add('Version', `${r.seq} · ${plural(r.servers, 'server')} · key ${r.keyId}`);
       add('Expires', when(r.expires));
       if (r.embedded) add('Player build', r.embedded);
       $('pl-result').hidden = false;
@@ -1190,6 +1339,7 @@
     const box = $('news-rows');
     box.replaceChildren();
     for (const n of list) box.appendChild(newsRow(n));
+    if (!list.length && ART) box.appendChild(ART.emptyState({ art: 'decree', title: 'No news', body: 'Home shows the three newest items. Press Add to write one.' }));
   }
 
   function readNewsRows() {
@@ -1328,6 +1478,7 @@
   }
 
   function wizShow({ kicker, title, lead, folder, progress, error, go, skip, cancel, close }) {
+    $('wizard').dataset.phase = error ? 'error' : wiz.phase;
     $('wiz-kicker').textContent = kicker || '';
     $('wiz-title').textContent = title || '';
     $('wiz-lead').innerHTML = lead || '';
@@ -1367,7 +1518,7 @@
       title: st.allDone ? (extra ? `${st.instanceName} is already standing` : 'Your Realm is already standing') : extra ? `Let’s raise Server ${wiz.id.slice(1)}` : 'Let’s raise your Realm',
       lead: st.allDone
         ? 'Every step is done. You can run the setup again at any time; finished steps are skipped.'
-        : `Realm will make a private <b>${extra ? 'second copy' : 'test copy'}</b> of your dedicated server, add the Oxide mod framework and the Realm plugins. ${remaining} step(s) to go; finished steps are skipped. You will not need a command window.`,
+        : `Realm will make a private <b>${extra ? 'second copy' : 'test copy'}</b> of your dedicated server, add the Oxide mod framework and the Realm plugins. ${plural(remaining, 'step')} to go; finished steps are skipped. You will not need a command window.`,
       folder: true,
       go: st.allDone ? 'Finish' : 'Begin'
     });
@@ -1495,6 +1646,9 @@
   });
   $('wiz-cancel').addEventListener('click', () => api.setup.cancel());
   $('wiz-close').addEventListener('click', closeWizard);
+  $('wizard').addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && !$('wiz-close').hidden && $('modal').hidden) closeWizard();
+  });
   $('open-setup').addEventListener('click', () => openWizard(current === 'server' ? selId : 's1'));
   $('wiz-copy-details').addEventListener('click', async () => {
     const e = wiz.lastError;
@@ -1558,6 +1712,17 @@
   });
 
   // ================================================================ start
+
+  // Rail: Up and Down move between screens, Home and End jump to the ends.
+  document.querySelector('.rail').addEventListener('keydown', (ev) => {
+    const btns = $$('.rail .rail-btn');
+    const i = btns.indexOf(document.activeElement);
+    if (i < 0) return;
+    const to = ev.key === 'ArrowDown' ? btns[(i + 1) % btns.length] : ev.key === 'ArrowUp' ? btns[(i - 1 + btns.length) % btns.length] : ev.key === 'Home' ? btns[0] : ev.key === 'End' ? btns[btns.length - 1] : null;
+    if (!to) return;
+    ev.preventDefault();
+    to.focus();
+  });
 
   document.addEventListener('click', (ev) => {
     const linkBtn = ev.target.closest('[data-link]');

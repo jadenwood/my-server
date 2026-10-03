@@ -508,27 +508,56 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+        #endregion
+
         #region Lang
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Prefix", "[B05040]Court[FFFFFF]: " },
-                { "LawPrefix", "[C8A050]Herald[FFFFFF]: " },
-                { "Help1", "/laws - this help. /law list | /law catalogue | /law info <id> | /law crimes [player]" },
-                { "Help2", "Monarch: /law proclaim <id> | /law repeal <id>. Admin: /law zone list|set <name> <radius> [town]|remove <name>" },
-                { "Help3", "/court cases | /court case <id> | /court outlaws | /court pay <case> | /court collect" },
-                { "Help4", "Crown & council: /court accuse <player> <law> [fine <n> \"<item>\" | outlaw <hours> | exile <hours>]" },
-                { "Help5", "/court trial <case> (crown, council or accused) | /court verdict <case> guilty|innocent (jurors)" },
-                { "Help6", "/court combat <case> (accused demands trial by combat) | /court champion <case> <player> (accuser)" },
-                { "Help7", "Monarch: /court pardon <player>. Admin: /court admin dismiss <case> | verdict <case> guilty|innocent | clear <player>" },
+                { "Speaker", "Court" },
+                { "Herald", "[D6A043]Herald[FFFFFF]: " },
+                { "HelpHeader", "The laws of the realm and the crown's court." },
+                { "Help1", "  [F4C96D]/laws[FFFFFF] - this help. [F4C96D]/law list[FFFFFF] | [F4C96D]/law catalogue[FFFFFF] | [F4C96D]/law info[FFFFFF] <id> | [F4C96D]/law crimes[FFFFFF] [player]" },
+                { "Help2", "  Monarch: [F4C96D]/law proclaim[FFFFFF] <id> | [F4C96D]/law repeal[FFFFFF] <id>. Admin: [F4C96D]/law zone list|set[FFFFFF] <name> <radius> [town]|remove <name>" },
+                { "Help3", "  [F4C96D]/court cases[FFFFFF] | [F4C96D]/court case[FFFFFF] <id> | [F4C96D]/court outlaws[FFFFFF] | [F4C96D]/court pay[FFFFFF] <case> | [F4C96D]/court collect[FFFFFF]" },
+                { "Help4", "  Crown & council: [F4C96D]/court accuse[FFFFFF] <player> <law> [fine <n> \"<item>\" | outlaw <hours> | exile <hours>]" },
+                { "Help5", "  [F4C96D]/court trial[FFFFFF] <case> (crown, council or accused) | [F4C96D]/court verdict[FFFFFF] <case> guilty|innocent (jurors)" },
+                { "Help6", "  [F4C96D]/court combat[FFFFFF] <case> (accused demands trial by combat) | [F4C96D]/court champion[FFFFFF] <case> <player> (accuser)" },
+                { "Help7", "  Monarch: [F4C96D]/court pardon[FFFFFF] <player>. Admin: [F4C96D]/court admin dismiss[FFFFFF] <case> | verdict <case> guilty|innocent | clear <player>" },
                 { "Closed", "The court's records are damaged. An admin must repair oxide/data/RealmLaws.json and reload." },
                 { "NoPermission", "You may not do that." },
                 { "NotKing", "Only the reigning monarch may do that." },
                 { "PlayerNotFound", "No one by that name is online or on the court's records." },
                 { "BadNumber", "'{0}' is not a whole number from {1} to {2}." },
-                { "UnknownLaw", "There is no law '{0}' in the catalogue. See /law catalogue." },
+                { "UnknownLaw", "There is no law '{0}' in the catalogue. See [F4C96D]/law catalogue[FFFFFF]." },
                 { "LawLine", "  {0} - {1} [{2}{3}] {4}" },
                 { "LawInfo", "{0} ({1}): {2}" },
                 { "LawInfo2", "  Kind: {0}. Zone: {1}. Blocks the act: {2}. Default sentence: {3}." },
@@ -574,7 +603,7 @@ namespace Oxide.Plugins
                 { "UnknownItem", "No item is named '{0}'." },
                 { "ItemNotAllowed", "'{0}' may not be used for fines on this server." },
                 { "Accused", "{0} accuses {1} of breaking {2}. Case #{3}; sentence sought: {4}. Evidence: {5} record(s)." },
-                { "AccusedYou", "You are accused in case #{0}. You may demand trial by combat: /court combat {0}" },
+                { "AccusedYou", "You are accused in case #{0}. You may demand trial by combat: [F4C96D]/court combat[FFFFFF] {0}" },
                 { "CaseNotFound", "There is no case #{0}." },
                 { "CaseNotOpen", "Case #{0} is not waiting for that." },
                 { "CaseHeader", "Case #{0} [{1}]: {2} accused by {3} ({4}) of {5}." },
@@ -582,7 +611,7 @@ namespace Oxide.Plugins
                 { "CaseLine3", "  Jury: {0} sworn, {1} votes cast; closes {2} UTC." },
                 { "CaseLine4", "  Trial by combat: {0} vs champion {1}; window closes {2} UTC." },
                 { "CaseLine5", "  Outcome: {0}." },
-                { "CaseLine6", "  Unpaid fine: {0} {1}, due {2} UTC (/court pay {3})." },
+                { "CaseLine6", "  Unpaid fine: {0} {1}, due {2} UTC ([F4C96D]/court pay[FFFFFF] {3})." },
                 { "CasesHeader", "Open cases:" },
                 { "CaseShort", "  #{0} [{1}] {2} - {3}" },
                 { "CasesNone", "The court has no open cases." },
@@ -591,7 +620,7 @@ namespace Oxide.Plugins
                 { "AccusedOffline", "{0} must be online to stand trial (or be tried in absence {1} h after the charge)." },
                 { "TooFewJurors", "Too few sworn lords are online to seat a jury ({0} of {1} needed)." },
                 { "TrialOpened", "The court sits on case #{0}: {1} stands accused of {2}. {3} sworn lords are called to judge." },
-                { "JurorCalled", "You are sworn to the jury of case #{0} ({1} accused of {2}, sentence sought: {3}). Vote within {4} min: /court verdict {0} guilty|innocent" },
+                { "JurorCalled", "You are sworn to the jury of case #{0} ({1} accused of {2}, sentence sought: {3}). Vote within {4} min: [F4C96D]/court verdict[FFFFFF] {0} guilty|innocent" },
                 { "NotJuror", "You are not sworn to that jury." },
                 { "Voted", "Your vote is recorded. It is secret." },
                 { "Mistrial", "Case #{0}: too few jurors voted. Mistrial." },
@@ -602,7 +631,7 @@ namespace Oxide.Plugins
                 { "CombatUsed", "Trial by combat was already demanded in this case." },
                 { "CombatVotesCast", "The jury has begun to vote; it is too late to demand combat." },
                 { "NotAccused", "Only the accused may demand that." },
-                { "ChampionOffline", "The crown's champion {0} must be online. The accuser may name another: /court champion {1} <player>" },
+                { "ChampionOffline", "The crown's champion {0} must be online. The accuser may name another: [F4C96D]/court champion[FFFFFF] {1} <player>" },
                 { "CombatOpened", "Case #{0}: {1} demands TRIAL BY COMBAT against {2}. They have {3} min. The gods will judge." },
                 { "CombatTimeout", "Case #{0}: no blood was shed in the window." },
                 { "CombatFled", "Case #{0}: {1} fled the field." },
@@ -613,10 +642,10 @@ namespace Oxide.Plugins
                 { "NoFine", "You owe no fine in case #{0}." },
                 { "FinePaid", "Fine of case #{0} paid in full." },
                 { "FinePartial", "{0} {1} taken. {2} still owed by {3} UTC." },
-                { "FineNone", "You carry no {0}. {1} owed by {2} UTC (/court pay {3})." },
+                { "FineNone", "You carry no {0}. {1} owed by {2} UTC ([F4C96D]/court pay[FFFFFF] {3})." },
                 { "FineUnpaidOutlaw", "{0} did not pay the fine of case #{1} and is outlawed." },
                 { "OwedPaid", "You receive {0} {1} in fines paid to you." },
-                { "OwedFull", "Your packs are full. {0} {1} wait for you: /court collect" },
+                { "OwedFull", "Your packs are full. {0} {1} wait for you: [F4C96D]/court collect[FFFFFF]" },
                 { "NothingOwed", "Nothing is owed to you." },
                 { "OutlawsHeader", "Outlaws and exiles of the court:" },
                 { "OutlawLine", "  {0} - {1} until {2} UTC (case #{3})" },
@@ -646,22 +675,37 @@ namespace Oxide.Plugins
 
         private void Reply(Player player, string key, params object[] args)
         {
-            player.SendMessage(Msg("Prefix", player) + Fmt(key, player, args));      // single-string overload: brace safe
+            player.SendMessage(Styled(Msg("Speaker", player), ToneOf(key), Fmt(key, player, args)));   // single-string overload: brace safe
         }
 
         private void ReplyError(Player player, string key, params object[] args)
         {
-            player.SendError(Fmt(key, player, args));
+            player.SendError(Styled(Msg("Speaker", player), ChatError, Fmt(key, player, args)));
+        }
+
+        // Tone of a reply (chat style): done, or take care; everything else is news.
+        private static readonly HashSet<string> OkKeys = new HashSet<string>
+        {
+            "Voted", "FinePaid", "OwedPaid", "ZoneSet", "ZoneRemoved", "AdminDone", "Cleared"
+        };
+        private static readonly HashSet<string> WarnKeys = new HashSet<string>
+        {
+            "AccusedYou", "JurorCalled", "FinePartial", "FineNone", "OwedFull"
+        };
+
+        private static string ToneOf(string key)
+        {
+            return OkKeys.Contains(key) ? ChatOk : WarnKeys.Contains(key) ? ChatWarn : ChatGold;
         }
 
         private void Broadcast(string key, params object[] args)
         {
-            Server.BroadcastMessage(Msg("Prefix", null) + Fmt(key, null, args));
+            Server.BroadcastMessage(Msg("Herald", null) + Fmt(key, null, args));
         }
 
         private void Herald(string key, params object[] args)
         {
-            Server.BroadcastMessage(Msg("LawPrefix", null) + Fmt(key, null, args));
+            Server.BroadcastMessage(Msg("Herald", null) + Fmt(key, null, args));
         }
 
         private void NotifyId(string playerId, string key, params object[] args)
@@ -826,6 +870,7 @@ namespace Oxide.Plugins
 
         private void ShowHelp(Player player)
         {
+            Reply(player, "HelpHeader");
             for (int i = 1; i <= 7; i++) player.SendMessage(Msg("Help" + i, player));
         }
 

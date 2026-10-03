@@ -2,7 +2,8 @@
 // Realm art pack build.
 //
 //   node art/tools/build.mjs all        generate + optimize + png + gallery + check (the normal run)
-//   node art/tools/build.mjs generate   banners, shields, logo lockups, Discord art, social cards, icon sprite
+//   node art/tools/build.mjs generate   banners, shields, logo lockups, Discord art, social cards, icon sprite,
+//                                       key art, season and title badges, textures (the last three in sets.mjs)
 //   node art/tools/build.mjs optimize   svgo every SVG in place (pretty-printed, ids/titles/desc kept)
 //   node art/tools/build.mjs png        PNG previews into art/png/ with headless Chromium (Playwright)
 //   node art/tools/build.mjs gallery    writes art/index.html
@@ -14,11 +15,13 @@
 //          --fonts <dir>                 local Cinzel / EB Garamond .ttf files for PNG text (else Google Fonts)
 // Modules (svgo, playwright) come from art/tools/node_modules or $ART_NODE_MODULES; see art/README.md.
 //
-// Hand-written sources: art/sigils/*.svg, art/logo/realm-emblem.svg, art/icons/*.svg, art/palette.json,
-// art/src/wordmark.json (outlined once from Cinzel by wordmark.mjs). Everything else is generated from them.
+// Hand-written sources: art/sigils/*.svg, art/logo/realm-emblem.svg, art/icons/*.svg, art/icons/event-map.json,
+// art/src/emblems/*.svg, art/src/titles.json, art/palette.json, art/src/wordmark.json (outlined once from Cinzel by
+// wordmark.mjs). Everything else is generated from them.
 import fs from 'node:fs';
 import path from 'node:path';
 import { ART, loadModule, walk, rel, innerGroup, attrsOf, esc } from './lib.mjs';
+import { keyartFiles, badgeFiles, textureFiles, scene } from './sets.mjs';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0] && !argv[0].startsWith('--') ? argv[0] : 'all';
@@ -27,7 +30,9 @@ for (let i = 0; i < argv.length; i++) if (argv[i].startsWith('--')) opt[argv[i].
 
 const palette = JSON.parse(fs.readFileSync(path.join(ART, 'palette.json'), 'utf8'));
 const HOUSES = Object.keys(palette.houses);
-const C = Object.fromEntries(palette.brand.map((b) => [b.name.toLowerCase().replace(/\s+/g, '-'), b.hex]));
+const slug = (s) => s.toLowerCase().replace(/\s+/g, '-');
+const C = Object.fromEntries(palette.brand.map((b) => [slug(b.name), b.hex]));
+const S = Object.fromEntries((palette.scene || []).map((b) => [slug(b.name), b.hex]));
 const read = (f) => fs.readFileSync(path.join(ART, f), 'utf8');
 const write = (f, s) => {
   fs.mkdirSync(path.dirname(path.join(ART, f)), { recursive: true });
@@ -86,26 +91,56 @@ const chargeAt = (s, x, y, size) => `<svg x="${n(x)}" y="${n(y)}" width="${n(siz
 
 // ---------------------------------------------------------------- houses: banner + shield
 
+// Shared heraldic pieces: the gold gradient, a faint lozenge diaper for fields, and the sheen of light across metal.
+const goldStops = `<stop offset="0" stop-color="${C['ember-pale']}"/><stop offset=".35" stop-color="${C['ember-hot']}"/><stop offset=".6" stop-color="${C.ember}"/><stop offset="1" stop-color="${C['ember-deep']}"/>`;
+const goldGradient = (id, vertical = true) => `<linearGradient id="${id}" x1="0" y1="0" x2="${vertical ? 0 : 1}" y2="${vertical ? 1 : 0}">${goldStops}</linearGradient>`;
+const diaper = (id, color, size = 18) => `<pattern id="${id}" width="${size}" height="${size}" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><path d="M0 .5h${size}M.5 0v${size}" fill="none" stroke="${color}" stroke-width=".7"/><circle cx="${size / 2}" cy="${size / 2}" r="1.1" fill="${color}"/></pattern>`;
+
 function banner(s) {
   const { p, house } = s;
-  const defs = `<linearGradient id="${house}-cloth" x1="0" x2="1"><stop offset="0" stop-color="${p.fieldDark}"/><stop offset=".3" stop-color="${p.fieldLight}"/><stop offset=".6" stop-color="${p.field}"/><stop offset=".85" stop-color="${p.fieldLight}"/><stop offset="1" stop-color="${p.fieldDark}"/></linearGradient>`;
-  const body = `<path d="M30 16 100 3l70 13" fill="none" stroke="${C['parchment-edge']}" stroke-width="2"/>
-<rect x="8" y="14" width="184" height="9" rx="4.5" fill="${C['iron-600']}" stroke="${C['iron-950']}" stroke-width="1.5"/>
-<circle cx="8" cy="18.5" r="7" fill="${C.ember}" stroke="${C['ember-deep']}" stroke-width="1.5"/>
-<circle cx="192" cy="18.5" r="7" fill="${C.ember}" stroke="${C['ember-deep']}" stroke-width="1.5"/>
-<path d="M24 23h152v300l-76-38-76 38z" fill="url(#${house}-cloth)"/>
-<path d="M24 23h152v14H24z" fill="${p.fieldDark}"/>
-<path d="M35 37v269l65-32.5 65 32.5V37" fill="none" stroke="${C.ember}" stroke-width="2.5"/>
-${chargeAt(s, 34, 84, 132)}`;
+  const cloth = 'M24 26h152v296l-76-40-76 40z';
+  const defs = `<linearGradient id="${house}-cloth" x1="0" x2="1"><stop offset="0" stop-color="${p.fieldDark}"/><stop offset=".18" stop-color="${p.field}"/><stop offset=".32" stop-color="${p.fieldLight}"/><stop offset=".5" stop-color="${p.field}"/><stop offset=".68" stop-color="${p.fieldDark}"/><stop offset=".84" stop-color="${p.fieldLight}"/><stop offset="1" stop-color="${p.fieldDark}"/></linearGradient>
+<linearGradient id="${house}-fold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C['iron-950']}" stop-opacity=".55"/><stop offset=".12" stop-color="${C['iron-950']}" stop-opacity="0"/><stop offset=".8" stop-color="${C['iron-950']}" stop-opacity="0"/><stop offset="1" stop-color="${C['iron-950']}" stop-opacity=".45"/></linearGradient>
+${goldGradient(`${house}-bgold`)}${goldGradient(`${house}-bgold-h`, false)}${diaper(`${house}-bdiaper`, p.fieldLight, 16)}
+<clipPath id="${house}-bclip"><path d="${cloth}"/></clipPath>`;
+  const finial = (x) => `<g transform="translate(${x} 19)"><circle r="8" fill="url(#${house}-bgold)" stroke="${C['iron-950']}" stroke-width="1.2"/><path d="M0-8l2.6-6L0-19l-2.6 5Z" fill="url(#${house}-bgold)" stroke="${C['iron-950']}" stroke-width="1"/><circle r="2.6" cx="-2.4" cy="-2.6" fill="${C['ember-pale']}" opacity=".7"/></g>`;
+  const tassel = (x) => `<g transform="translate(${x} 0)"><path d="M0 24c-2 20 2 40 0 58" fill="none" stroke="${C['parchment-edge']}" stroke-width="1.6"/><circle cy="84" r="3.2" fill="url(#${house}-bgold)" stroke="${C['iron-950']}" stroke-width=".8"/><path d="M-3.4 86h6.8l2.6 14H-6Z" fill="url(#${house}-bgold)" stroke="${C['iron-950']}" stroke-width=".8"/><path d="M-3 90v9M0 90v10M3 90v9" stroke="${C['ember-deep']}" stroke-width=".8"/></g>`;
+  const body = `<path d="M30 17 100 4l70 13" fill="none" stroke="${C['parchment-edge']}" stroke-width="2"/>
+<g clip-path="url(#${house}-bclip)">
+<path d="${cloth}" fill="url(#${house}-cloth)"/>
+<path d="${cloth}" fill="url(#${house}-bdiaper)" opacity=".22"/>
+<path d="M24 26h152v16H24z" fill="${p.fieldDark}"/>
+<path d="M24 42h152" stroke="url(#${house}-bgold-h)" stroke-width="2.5"/>
+<path d="M24 46h152" stroke="${C['ember-deep']}" stroke-width="1" stroke-dasharray="1 3"/>
+<path d="${cloth}" fill="url(#${house}-fold)"/>
+</g>
+<path d="M34 50v258l66-34.5 66 34.5V50z" fill="none" stroke="url(#${house}-bgold)" stroke-width="3"/>
+<path d="M39.5 55v244.5l60.5-31.5 60.5 31.5V55z" fill="none" stroke="${C.ember}" stroke-width="1" stroke-dasharray="3 2.5" opacity=".7"/>
+<path d="M24 322l76-40 76 40" fill="none" stroke="url(#${house}-bgold)" stroke-width="5" stroke-dasharray="1.4 1.6"/>
+<rect x="6" y="14" width="188" height="10" rx="5" fill="${C['iron-700']}" stroke="${C['iron-950']}" stroke-width="1.5"/>
+<path d="M12 16.5h176" stroke="${C['iron-600']}" stroke-width="1.5" stroke-linecap="round"/>
+${finial(8)}${finial(192)}
+${chargeAt(s, 33, 92, 134)}
+${tassel(18)}${tassel(182)}`;
   return doc({ w: 200, h: 340, title: `House ${p.name}: banner`, desc: `Hanging swallow-tailed banner of House ${p.name}, the ${p.sigil}. Generated by art/tools/build.mjs from ${s.file}.`, defs, body });
 }
 
 function shield(s) {
   const { p, house } = s;
-  const defs = fieldGradient(`${house}-shield`, p);
-  const body = `<path d="M20 14h200v114c0 68-44 112-100 138C64 240 20 196 20 128z" fill="url(#${house}-shield)" stroke="${C['iron-900']}" stroke-width="8" stroke-linejoin="round"/>
-<path d="M32 26h176v102c0 60-38 98-88 122-50-24-88-62-88-122z" fill="none" stroke="${C.ember}" stroke-width="3"/>
-${chargeAt(s, 35, 42, 170)}`;
+  const outline = 'M20 14h200v114c0 68-44 112-100 138C64 240 20 196 20 128z';
+  const inner = 'M33 27h174v101c0 59-37 97-87 121-50-24-87-62-87-121z';
+  const defs = `${fieldGradient(`${house}-shield`, p)}${goldGradient(`${house}-sgold`)}${diaper(`${house}-sdiaper`, p.fieldLight)}
+<linearGradient id="${house}-sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${C.parchment}" stop-opacity=".22"/><stop offset=".45" stop-color="${C.parchment}" stop-opacity="0"/><stop offset="1" stop-color="${C['iron-950']}" stop-opacity=".35"/></linearGradient>`;
+  const rivet = (x, y) => `<circle cx="${x}" cy="${y}" r="3.4" fill="url(#${house}-sgold)" stroke="${C['iron-950']}" stroke-width="1"/>`;
+  const body = `<path d="${outline}" fill="${C['iron-800']}" stroke="${C['iron-950']}" stroke-width="3" stroke-linejoin="round"/>
+<path d="${outline}" fill="none" stroke="url(#${house}-sgold)" stroke-width="7" stroke-linejoin="round" transform="translate(120 140) scale(.955) translate(-120 -140)"/>
+<path d="${inner}" fill="url(#${house}-shield)"/>
+<path d="${inner}" fill="url(#${house}-sdiaper)" opacity=".28"/>
+<path d="${inner}" fill="none" stroke="${C['iron-950']}" stroke-width="2.5" opacity=".7"/>
+<path d="M41 35h158v93c0 54-34 89-79 111-45-22-79-57-79-111z" fill="none" stroke="${C.ember}" stroke-width="1" opacity=".55"/>
+${chargeAt(s, 37, 44, 166)}
+<path d="${inner}" fill="url(#${house}-sheen)"/>
+${rivet(30, 24)}${rivet(210, 24)}${rivet(120, 258)}`;
   return doc({ w: 240, h: 280, title: `House ${p.name}: shield`, desc: `Heater shield of House ${p.name}, the ${p.sigil}. Generated by art/tools/build.mjs from ${s.file}.`, defs, body });
 }
 
@@ -203,30 +238,22 @@ function discordFiles() {
   const frame = (w, h, inset) => `<rect x="${inset}" y="${inset}" width="${w - inset * 2}" height="${h - inset * 2}" fill="none" stroke="${C.ember}" stroke-width="2" opacity=".55"/><rect x="${inset + 7}" y="${inset + 7}" width="${w - inset * 2 - 14}" height="${h - inset * 2 - 14}" fill="none" stroke="${C.ember}" stroke-width="1" opacity=".25"/>`;
 
   {
-    const W = 960, H = 540, bg = ironBg('banner', W, H), l = lockup('horizontal', 'dark');
+    // the key-art scene, darkened, behind the lockup and the six sigils (its ids get a suffix: the sigils reuse theirs)
+    const W = 960, H = 540, l = lockup('horizontal', 'dark'), sc = sceneMarkup('bn');
     const lw = 600, lh = (lw * l.h) / l.w, size = 84, gap = 22;
     const x0 = (W - (size * 6 + gap * 5)) / 2;
     out['discord/server-banner.svg'] = doc({
-      w: W, h: H, title: 'Realm Discord server banner', desc: 'Server banner, 960 x 540 (16:9). Discord shows it small at the top of the channel list, so the lockup is large and centred. Generated by art/tools/build.mjs.',
-      defs: bg.defs + l.defs,
-      body: `${bg.body}\n${frame(W, H, 18)}\n<svg x="${n((W - lw) / 2)}" y="120" width="${lw}" height="${n(lh)}" viewBox="0 0 ${n(l.w)} ${n(l.h)}">${l.body}</svg>\n<path d="M${n(x0)} ${H - 156}H${n(W - x0)}" stroke="${C.ember}" stroke-width="1.5" opacity=".5"/>\n${sigilRow(HOUSES.map((_, i) => x0 + i * (size + gap)), H - 136, size)}`,
+      w: W, h: H, title: 'Realm Discord server banner', desc: 'Server banner, 960 x 540 (16:9): the Old Throne key art, darkened, under the logo and the six house sigils. Discord shows it small at the top of the channel list, so the lockup is large and centred. Generated by art/tools/build.mjs.',
+      defs: sc.defs + l.defs,
+      body: `<svg width="${W}" height="${H}" viewBox="0 0 1920 1080">${sc.body}</svg>\n<rect width="${W}" height="${H}" fill="${C['iron-950']}" opacity=".55"/>\n${frame(W, H, 18)}\n<svg x="${n((W - lw) / 2)}" y="120" width="${lw}" height="${n(lh)}" viewBox="0 0 ${n(l.w)} ${n(l.h)}">${l.body}</svg>\n<path d="M${n(x0)} ${H - 156}H${n(W - x0)}" stroke="${C.ember}" stroke-width="1.5" opacity=".5"/>\n${sigilRow(HOUSES.map((_, i) => x0 + i * (size + gap)), H - 136, size)}`,
     });
   }
   {
-    const W = 1920, H = 1080, bg = ironBg('splash', W, H), l = lockup('stacked', 'dark');
-    const lh = 540, lw = (lh * l.w) / l.h, size = 168;
-    // six sigils on a shallow smile under the lockup
-    const cx = W / 2, xs = [], ys = [];
-    HOUSES.forEach((_, i) => {
-      const t = (i - 2.5) / 2.5;
-      xs.push(cx + (i - 2.5) * 236 - size / 2);
-      ys.push(762 - t * t * 46);
-    });
-    out['discord/invite-splash.svg'] = doc({
-      w: W, h: H, title: 'Realm Discord invite splash', desc: 'Invite background, 1920 x 1080. Discord blurs and darkens the edges, so the art sits in the centre. Generated by art/tools/build.mjs.',
-      defs: bg.defs + l.defs,
-      body: `${bg.body}\n${frame(W, H, 36)}\n<svg x="${n((W - lw) / 2)}" y="110" width="${n(lw)}" height="${lh}" viewBox="0 0 ${n(l.w)} ${n(l.h)}">${l.body}</svg>\n${sigilRow(xs, ys, size)}`,
-    });
+    // the invite splash is the 1920 key art with the logo
+    const art = keyartFiles(setsContext())['keyart/old-throne-1920-title.svg'];
+    out['discord/invite-splash.svg'] = art
+      .replace(/<title>[\s\S]*?<\/title>/, '<title>Realm Discord invite splash</title>')
+      .replace(/<desc>[\s\S]*?<\/desc>/, '<desc>Invite background, 1920 x 1080: the Old Throne key art with the logo. Discord blurs and darkens the edges, so the throne and the logo sit in the centre. Generated by art/tools/build.mjs from art/tools/sets.mjs.</desc>');
   }
   return out;
 }
@@ -311,6 +338,25 @@ function socialFiles() {
   };
 }
 
+// ---------------------------------------------------------------- key art, badges, textures (art/tools/sets.mjs)
+
+// The key-art scene with every id suffixed, so it can share a document with the sigils.
+function sceneMarkup(suffix) {
+  const sc = scene(setsContext());
+  const [defs, body] = suffixIds(`${sc.defs}\u0000${sc.body}`, suffix).split('\u0000');
+  return { defs, body };
+}
+
+function setsContext() {
+  return {
+    C, S, palette, doc, n, lockup, read,
+    chargeOf: (h) => sigil(h).charge,
+    throne: innerGroup(read('logo/realm-emblem.svg'), 'throne').inner,
+    // an emblem ("icons/trophy" or "emblems/axe") nested at x, y, size; emblems live in art/src/emblems/
+    nestEmblem: (ref, x, y, size, extra = '') => nest(read(ref.startsWith('emblems/') ? `src/${ref}.svg` : `${ref}.svg`), x, y, size, size, { extra }),
+  };
+}
+
 // ---------------------------------------------------------------- icon sprite
 
 function spriteFile() {
@@ -337,7 +383,7 @@ function generate() {
     files[`banners/${h}.svg`] = banner(s);
     files[`shields/${h}.svg`] = shield(s);
   }
-  Object.assign(files, logoFiles(), discordFiles(), socialFiles());
+  Object.assign(files, logoFiles(), discordFiles(), socialFiles(), keyartFiles(setsContext()), badgeFiles(setsContext()), textureFiles(setsContext()));
   files['sprite/icons.svg'] = spriteFile();
   for (const [f, s] of Object.entries(files)) write(f, s);
   console.log(`generate: wrote ${Object.keys(files).length} files`);
@@ -366,6 +412,7 @@ async function optimize() {
             collapseGroups: false, // keeps <g id="charge"> and its transform intact
             moveGroupAttrsToElems: false,
             convertPathData: { floatPrecision: 2 },
+            convertColors: { names2hex: false }, // white/black stay named: they are mask luminance, not paint
             cleanupNumericValues: { floatPrecision: 2 },
           },
         },
@@ -387,12 +434,13 @@ async function optimize() {
 // ---------------------------------------------------------------- PNG export
 
 function pngSpecs(r) {
-  const [dir, file] = r.split('/');
+  const parts = r.split('/');
+  const dir = parts[0], file = parts[parts.length - 1], sub = parts.slice(0, -1).join('/');
   const base = file.replace(/\.svg$/, '');
   const svg = read(r);
   const vb = attrsOf(svg.match(/<svg\b[^>]*>/)[0]).viewBox.split(/\s+/).map(Number);
   const [w, h] = [vb[2], vb[3]];
-  const at = (scale, suffix = `@${scale}x`, color) => ({ out: `png/${dir}/${base}${suffix}.png`, w: Math.round(w * scale), h: Math.round(h * scale), color });
+  const at = (scale, suffix = `@${scale}x`, color) => ({ out: `png/${sub}/${base}${suffix}.png`, w: Math.round(w * scale), h: Math.round(h * scale), color });
   switch (dir) {
     case 'sigils': return [at(2, '-512'), at(0.5, '-128')];
     case 'banners': case 'shields': return [at(2)];
@@ -402,7 +450,8 @@ function pngSpecs(r) {
       if (base === 'realm-emblem-mono') return [at(2, '-512-gold', C.ember), at(2, '-512-ink', C.ink)];
       if (base === 'realm-favicon') return [at(1, '-32'), at(6, '-192')];
       return [at(2)];
-    case 'discord': case 'social': return [at(1, '')];
+    case 'discord': case 'social': case 'keyart': case 'textures': return [at(1, '')];
+    case 'badges': return [at(1, '-256'), at(0.25, '-64')];
     default: return [];
   }
 }
@@ -468,8 +517,9 @@ async function png() {
   // one contact sheet of every icon, for quick review
   await page.setViewportSize({ width: 900, height: 200 });
   const icons = walk(path.join(ART, 'icons'), (p) => p.endsWith('.svg'));
-  const cell = (f, bg, fg) => `<figure style="margin:0;display:grid;justify-items:center;gap:6px"><div style="width:72px;height:72px;display:grid;place-items:center;background:${bg};color:${fg};border-radius:8px">${fs.readFileSync(f, 'utf8').replace('<svg ', '<svg style="width:48px;height:48px" ')}</div><figcaption style="font:12px sans-serif;color:${C.parchment}">${path.basename(f, '.svg')}</figcaption></figure>`;
-  await page.setContent(`<body style="margin:0;padding:16px;background:${C['iron-900']};display:grid;grid-template-columns:repeat(${icons.length},auto);gap:10px;width:max-content">${icons.map((f) => cell(f, C['iron-800'], C.ember)).join('')}${icons.map((f) => cell(f, C.parchment, C.ink)).join('')}</body>`);
+  const cell = (f, bg, fg) => `<figure style="margin:0;display:grid;justify-items:center;gap:6px;width:84px"><div style="width:72px;height:72px;display:grid;place-items:center;background:${bg};color:${fg};border-radius:8px">${fs.readFileSync(f, 'utf8').replace('<svg ', '<svg style="width:48px;height:48px" ')}</div><figcaption style="font:12px sans-serif;color:${C.parchment}">${path.basename(f, '.svg')}</figcaption></figure>`;
+  const sheet = (bg, fg) => `<div style="display:grid;grid-template-columns:repeat(14,auto);gap:10px">${icons.map((f) => cell(f, bg, fg)).join('')}</div>`;
+  await page.setContent(`<body style="margin:0;padding:16px;background:${C['iron-900']};display:grid;gap:22px;width:max-content">${sheet(C['iron-800'], C.ember)}${sheet(C.parchment, C.ink)}</body>`);
   const box = await page.evaluate(() => ({ w: document.body.scrollWidth, h: document.body.scrollHeight }));
   await page.setViewportSize({ width: box.w, height: box.h });
   write('png/icons/contact-sheet.png', await page.screenshot({ type: 'png', fullPage: true }));
@@ -505,16 +555,44 @@ export function xmlBalanced(s) {
   return null;
 }
 
+// The closed list of Chronicle event types, read from chronicle/server.js (null when the service is not in this checkout).
+export function chronicleTypes() {
+  const server = path.join(ART, '..', 'chronicle', 'server.js');
+  if (!fs.existsSync(server)) return null;
+  const block = (fs.readFileSync(server, 'utf8').match(/EVENT_TYPES = new Set\(\[([\s\S]*?)\]\)/) || [, ''])[1].replace(/\/\/.*$/gm, '');
+  return [...block.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+}
+
+// Every hex colour the pack may use: brand, scene (key art), enamel (badges) and each house's colours.
+export function paletteHexes() {
+  const out = [...palette.brand, ...(palette.scene || []), ...(palette.enamel || [])].map((b) => b.hex.toLowerCase());
+  for (const p of Object.values(palette.houses)) for (const k of HOUSE_KEYS) if (p[k]) out.push(p[k].toLowerCase());
+  for (const p of Object.values(palette.houses)) for (const x of p.extra) out.push(x.toLowerCase());
+  return out;
+}
+const HOUSE_KEYS = ['field', 'fieldLight', 'fieldDark', 'metal', 'metalLight', 'metalShadow', 'discordRole'];
+
+// Colour keywords. Only white and black are allowed, and only inside <mask> (where they mean "show" and "hide").
+export function namedColourErrors(svg) {
+  const out = [];
+  const outside = svg.replace(/<mask\b[\s\S]*?<\/mask>/g, '');
+  const ok = new Set(['none', 'currentcolor', 'transparent', 'inherit']);
+  for (const m of outside.matchAll(/\b(fill|stroke|stop-color|flood-color|lighting-color|color)="([a-zA-Z]+)"/g)) if (!ok.has(m[2].toLowerCase())) out.push(`${m[1]}="${m[2]}" outside a <mask> (use a palette hex)`);
+  for (const mask of svg.match(/<mask\b[\s\S]*?<\/mask>/g) || []) for (const m of mask.matchAll(/\b(fill|stroke|stop-color|flood-color|color)="([a-zA-Z]+)"/g)) if (!ok.has(m[2].toLowerCase()) && !/^(white|black)$/i.test(m[2])) out.push(`${m[1]}="${m[2]}" in a <mask>; only white and black are allowed there`);
+  return out;
+}
+
 const FORBIDDEN = [/reign of kings/i, /game of thrones/i, /song of ice/i, /westeros/i, /\bstark\b/i, /lannister/i, /targaryen/i, /baratheon/i, /\bHBO\b/, /code ?hatch/i, /iron throne/i];
 
 function check() {
   const errors = [], warns = [];
   const err = (f, m) => errors.push(`${f}: ${m}`);
-  const allowed = new Set(palette.brand.map((b) => b.hex.toLowerCase()));
-  for (const p of Object.values(palette.houses)) for (const k of ['field', 'fieldLight', 'fieldDark', 'metal', 'discordRole', ...p.extra.map((_, i) => i)]) allowed.add(String(typeof k === 'number' ? p.extra[k] : p[k]).toLowerCase());
+  const allowed = new Set(paletteHexes());
 
   const files = svgFiles();
-  const budget = (r) => (r.startsWith('icons/') ? 1500 : r.startsWith('sigils/') ? 8000 : r.startsWith('sprite/') ? 12000 : 60000);
+  // byte budgets: icons stay tiny, sigils stay light enough to nest six times, scenes carry the key art
+  const budget = (r) => (r.startsWith('icons/') || r.startsWith('src/emblems/') ? 1500 : r.startsWith('sigils/') ? 16000 : r.startsWith('textures/') ? 8000
+    : r.startsWith('badges/') ? 24000 : r.startsWith('sprite/') ? 60000 : r.startsWith('keyart/') || r.startsWith('discord/') ? 220000 : 80000);
   for (const f of files) {
     const r = rel(f), s = fs.readFileSync(f, 'utf8');
     const bad = xmlBalanced(s); if (bad) err(r, bad);
@@ -535,7 +613,8 @@ function check() {
       const hex = m[0].length === 4 ? '#' + [...m[0].slice(1)].map((c) => c + c).join('') : m[0];
       if (!allowed.has(hex.toLowerCase())) err(r, `colour ${m[0]} is not in art/palette.json`);
     }
-    if (r.startsWith('icons/')) {
+    for (const e of namedColourErrors(s)) err(r, e);
+    if (r.startsWith('icons/') || r.startsWith('src/emblems/')) {
       if (!/viewBox="0 0 24 24"/.test(root)) err(r, 'icons must use the 24 x 24 grid');
       if (/#[0-9a-f]{3,6}\b/i.test(s)) err(r, 'icons must use currentColor only');
       if (!/stroke-width="1\.75"/.test(root)) err(r, 'icons must set stroke-width="1.75" on the root');
@@ -575,16 +654,35 @@ function check() {
   if (fs.existsSync(mapFile)) {
     const map = JSON.parse(fs.readFileSync(mapFile, 'utf8')).icons;
     for (const [t, icon] of Object.entries(map)) if (!fs.existsSync(path.join(ART, 'icons', `${icon}.svg`))) err('icons/event-map.json', `${t} -> ${icon}.svg does not exist`);
-    const server = path.join(ART, '..', 'chronicle', 'server.js');
-    if (fs.existsSync(server)) {
-      const block = (fs.readFileSync(server, 'utf8').match(/EVENT_TYPES = new Set\(\[([\s\S]*?)\]\)/) || [, ''])[1].replace(/\/\/.*$/gm, '');
-      const types = [...block.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+    // every event type gets its own icon, so a feed can tell any two events apart at a glance
+    const byIcon = {};
+    for (const [t, icon] of Object.entries(map)) (byIcon[icon] ||= []).push(t);
+    for (const [icon, ts] of Object.entries(byIcon)) if (ts.length > 1) err('icons/event-map.json', `${ts.join(', ')} share the icon ${icon}; each event type needs its own`);
+    const types = chronicleTypes();
+    if (types) {
       const missing = types.filter((t) => !map[t]);
-      if (missing.length) warns.push(`icons/event-map.json has no icon for: ${missing.join(', ')} (new Chronicle types; add a mapping)`);
+      if (missing.length) warns.push(`icons/event-map.json has no icon for: ${missing.join(', ')} (new Chronicle types; draw an icon and add a mapping)`);
+      for (const t of Object.keys(map)) if (!types.includes(t)) err('icons/event-map.json', `${t} is not a Chronicle event type in chronicle/server.js`);
     }
   } else err('icons/event-map.json', 'missing');
 
   for (const c of palette.contrast) { const v = contrast(c.fg, c.bg); if (v < c.min) err('palette.json', `${c.fg} on ${c.bg} is ${v.toFixed(2)}:1, needs ${c.min} (${c.why})`); }
+  for (const e of palette.seasonEnamels || []) {
+    if (!allowed.has(e.toLowerCase())) err('palette.json', `season enamel ${e} is not a palette colour`);
+    const v = contrast(C.ember, e); if (v < 3) err('palette.json', `gold ${C.ember} on season enamel ${e} is ${v.toFixed(2)}:1, needs 3 for the numeral to read`);
+  }
+  const titlesFile = path.join(ART, 'src', 'titles.json');
+  if (fs.existsSync(titlesFile)) {
+    const titles = JSON.parse(fs.readFileSync(titlesFile, 'utf8')).titles;
+    const ids = titles.map((t) => t.id);
+    if (new Set(ids).size !== ids.length) err('src/titles.json', 'duplicate title ids');
+    for (const t of titles) {
+      const f = t.emblem.startsWith('emblems/') ? path.join(ART, 'src', `${t.emblem}.svg`) : path.join(ART, `${t.emblem}.svg`);
+      if (!fs.existsSync(f)) err('src/titles.json', `${t.id}: emblem ${t.emblem}.svg does not exist`);
+      if (!fs.existsSync(path.join(ART, 'badges', 'titles', `${t.id.replace(/_/g, '-')}.svg`))) err(`badges/titles/${t.id.replace(/_/g, '-')}.svg`, 'missing (run: node art/tools/build.mjs generate)');
+    }
+  }
+  for (let k = 1; k <= 4; k++) if (!fs.existsSync(path.join(ART, 'badges', 'seasons', `season-${k}.svg`))) err(`badges/seasons/season-${k}.svg`, 'missing');
   for (const [k, p] of Object.entries(palette.houses)) {
     const v = contrast(p.discordRole, palette.discordBackgrounds.dark);
     if (v < palette.discordBackgrounds.minDark) err('palette.json', `${k}.discordRole ${p.discordRole} is ${v.toFixed(2)}:1 on Discord dark, needs ${palette.discordBackgrounds.minDark}`);
@@ -596,7 +694,7 @@ function check() {
   const brandDoc = path.join(ART, '..', 'docs', 'brand.md');
   if (fs.existsSync(brandDoc)) {
     const md = fs.readFileSync(brandDoc, 'utf8').toLowerCase();
-    for (const b of palette.brand) if (!md.includes(b.hex.toLowerCase())) err('docs/brand.md', `brand colour ${b.name} ${b.hex} is not documented`);
+    for (const b of [...palette.brand, ...(palette.scene || []), ...(palette.enamel || [])]) if (!md.includes(b.hex.toLowerCase())) err('docs/brand.md', `colour ${b.name} ${b.hex} is not documented`);
     for (const p of Object.values(palette.houses)) for (const hx of [p.field, p.metal, p.discordRole]) if (!md.includes(hx.toLowerCase())) err('docs/brand.md', `${p.name} colour ${hx} is not documented`);
     const docAllowed = new Set([...allowed, palette.discordBackgrounds.dark, palette.discordBackgrounds.light]);
     for (const m of md.matchAll(/#[0-9a-f]{6}\b/g)) if (!docAllowed.has(m[0])) err('docs/brand.md', `mentions ${m[0]}, which is not in art/palette.json`);
@@ -645,12 +743,18 @@ function gallery() {
 </article>`;
   }).join('\n');
 
+  const eventMap = JSON.parse(read('icons/event-map.json')).icons;
+  const typesFor = (name) => Object.entries(eventMap).filter(([, i]) => i === name).map(([t]) => t);
   const icons = walk(path.join(ART, 'icons'), (p) => p.endsWith('.svg')).map((f) => {
     const r = rel(f), name = path.basename(f, '.svg');
     const svg = fs.readFileSync(f, 'utf8');
     const title = (svg.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || name;
-    return `<figure class="icon-tile"><div class="ic">${svg.replace(/<\?xml[^>]*>/, '').replace('<svg ', '<svg aria-hidden="true" ')}</div><figcaption><b>${esc(name)}</b><small>${esc(title)}</small><span>${links(r)}</span></figcaption></figure>`;
+    const types = typesFor(name);
+    return `<figure class="icon-tile"><div class="ic">${svg.replace(/<\?xml[^>]*>/, '').replace('<svg ', '<svg aria-hidden="true" ')}</div><figcaption><b>${esc(name)}</b><small>${esc(title)}</small>${types.length ? `<code>${types.map(esc).join(', ')}</code>` : ''}<span>${links(r)}</span></figcaption></figure>`;
   }).join('\n');
+  const titleList = JSON.parse(read('src/titles.json')).titles;
+  const seasonTiles = [1, 2, 3, 4].map((k) => tile(`badges/seasons/season-${k}.svg`, `Season ${k}`)).join('\n');
+  const titleTiles = titleList.map((t) => tile(`badges/titles/${t.id.replace(/_/g, '-')}.svg`, `${t.name}${t.infamous ? ' (infamy)' : ''}`)).join('\n');
 
   const logos = ['realm-logo-horizontal-dark', 'realm-logo-horizontal-light', 'realm-logo-stacked-dark', 'realm-logo-stacked-light', 'realm-wordmark-dark', 'realm-wordmark-light', 'realm-emblem', 'realm-emblem-mono', 'realm-favicon']
     .map((b) => tile(`logo/${b}.svg`, b.replace(/^realm-/, '').replace(/-/g, ' '), /light|mono/.test(b) ? 'on-light' : '')).join('\n');
@@ -661,7 +765,7 @@ function gallery() {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Realm Heraldry</title>
-<meta name="description" content="The Realm of Ostreval art pack: house sigils, banners, shields, logo, event icons, Discord and social art.">
+<meta name="description" content="The Realm of Ostreval art pack: house sigils, banners, shields, logo, event icons, key art, badges, textures, Discord and social art.">
 <link rel="icon" href="logo/realm-favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=EB+Garamond:ital,wght@0,500;1,500&display=swap">
@@ -717,6 +821,9 @@ h2+p{margin:0 0 18px;color:var(--muted)}
 .icon-tile figcaption{display:grid;font-size:14px;line-height:1.3}
 .icon-tile b{font:600 14px var(--display)}
 .icon-tile small,.icon-tile span{color:var(--muted)}
+.icon-tile code{font-size:12px;color:var(--gold)}
+.badges{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.badges .tile .frame{height:180px}.badges .tile img{max-height:150px}
 .wide{grid-column:1/-1}
 .wide .frame{height:auto;max-height:none}
 pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:14px}
@@ -731,7 +838,7 @@ footer{margin-top:56px;color:var(--muted);font-size:15px;border-top:1px solid va
   <img class="light-only" src="logo/realm-logo-horizontal-light.svg" alt="Realm">
   <button type="button" id="theme">Toggle parchment / iron</button>
 </div>
-<p>The heraldry of the Realm of Ostreval: original art for the six great houses, the Realm logo, Chronicle event icons, and Discord and social images. Every file is a hand-written SVG; PNG previews are in <code>png/</code>. Usage rules are in <a href="../docs/brand.md">docs/brand.md</a>.</p>
+<p>The heraldry of the Realm of Ostreval: original art for the six great houses, the Realm logo, Chronicle event icons, key art, season and title badges, textures, and Discord and social images. Every file is an SVG; PNG exports are in <code>png/</code>. Usage rules are in <a href="../docs/brand.md">docs/brand.md</a>.</p>
 
 <h2>The six great houses</h2>
 <p>Field colours are the exact dyes the Chronicle overlay gives each house name, so these match what viewers see on stream.</p>
@@ -746,9 +853,37 @@ ${logos}
 </section>
 
 <h2>Event icons</h2>
-<p>24px grid, 1.75 stroke, <code>currentColor</code>. They take the text colour of wherever they are placed. A sprite of all icons is at <a href="sprite/icons.svg">sprite/icons.svg</a>; a contact sheet is at <a href="png/icons/contact-sheet.png">png/icons/contact-sheet.png</a>.</p>
+<p>One icon for each of the Chronicle's event types (listed under each icon). 24px grid, 1.75 stroke, <code>currentColor</code>. They take the text colour of wherever they are placed. A sprite of all icons is at <a href="sprite/icons.svg">sprite/icons.svg</a>; a contact sheet is at <a href="png/icons/contact-sheet.png">png/icons/contact-sheet.png</a>.</p>
 <section class="icons">
 ${icons}
+</section>
+
+<h2>Key art</h2>
+<p>The Old Throne on its hill above the Hearth at dusk, with the banners of the six great houses along the road. For the launcher, the portal and Discord: 1920 &times; 1080 for splash screens and headers, 1200 &times; 630 for link previews. The <code>-title</code> versions carry the logo on a dark scrim.</p>
+<section class="grid">
+${tile('keyart/old-throne-1920.svg', 'Key art 1920 × 1080', 'wide')}
+${tile('keyart/old-throne-1920-title.svg', 'Key art with logo 1920 × 1080', 'wide')}
+${tile('keyart/old-throne-1200.svg', 'Key art 1200 × 630')}
+${tile('keyart/old-throne-1200-title.svg', 'Key art with logo 1200 × 630')}
+</section>
+
+<h2>Season badges</h2>
+<p>One medal per season: the numeral in gold on an enamel that cycles every four seasons. 256px, with 64px PNGs.</p>
+<section class="grid badges">
+${seasonTiles}
+</section>
+
+<h2>Renown title badges</h2>
+<p>One badge for each default title in RealmRenown. Honours are gold on iron; infamous titles are bone on blood in blackened iron. Titles a server adds in the plugin config have no badge until one is added to <code>src/titles.json</code>.</p>
+<section class="grid badges">
+${titleTiles}
+</section>
+
+<h2>Textures</h2>
+<p>Tileable 512px patterns for backgrounds: <code>background: #ecdfbf url(textures/parchment.svg)</code> and <code>background: #131417 url(textures/iron.svg)</code>.</p>
+<section class="grid">
+${tile('textures/parchment.svg', 'Parchment')}
+${tile('textures/iron.svg', 'Dark iron')}
 </section>
 
 <h2>Discord</h2>

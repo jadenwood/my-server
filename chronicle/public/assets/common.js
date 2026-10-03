@@ -1,4 +1,5 @@
 // Shared helpers for /overlay and /realm. All text goes into the DOM via textContent, never innerHTML.
+import { houseArt } from './realm-art.js';
 
 export const TYPE_META = {
   coronation:        { label: 'Coronation',        icon: 'crown',   tone: 'gold',  group: 'crown' },
@@ -136,13 +137,21 @@ export function monogram(name) {
   return m ? m[0].toUpperCase() : '?';
 }
 
+// A great house hangs its drawn banner (assets/art/banners); any other house gets the dyed cloth with
+// its initial, in the colour the portal, the bot and the stream scenes use for it.
 export function banner(house, opts = {}) {
+  const art = houseArt(house.name, 'banner');
+  if (art) {
+    const a = el('div', { class: 'banner art' + (opts.cls ? ' ' + opts.cls : ''), 'data-house': art.dataset.house }, art);
+    a.title = houseLabel(house.name) + (house.sigil ? ` (${house.sigil})` : '');
+    return a;
+  }
   const b = el('div', { class: 'banner' + (opts.cls ? ' ' + opts.cls : ''), ...dyeFor(house.name) },
     el('div', { class: 'pole' }),
     el('div', { class: 'cloth' },
       el('div', { class: 'monogram' }, el('span', { class: 'gold-text' }, monogram(house.name))),
       house.sigil ? el('div', { class: 'sigil' }, house.sigil) : null));
-  b.title = `House ${house.name}` + (house.sigil ? ` (${house.sigil})` : '');
+  b.title = houseLabel(house.name) + (house.sigil ? ` (${house.sigil})` : '');
   return b;
 }
 

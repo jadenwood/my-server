@@ -59,7 +59,10 @@ contextBridge.exposeInMainWorld('realm', {
   server: {
     status: c1('server:status'),
     log: c2('server:log'),
-    start: c1('server:start'),
+    start: c2('server:start'),
+    prestart: c1('server:prestart'),
+    stopHolder: c1('server:stopHolder'),
+    adopt: c1('server:adopt'),
     stop: c1('server:stop'),
     forceStop: c1('server:force'),
     restart: c1('server:restart'),

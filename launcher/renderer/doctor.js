@@ -22,6 +22,19 @@
     if (text != null) n.textContent = String(text);
     return n;
   }
+  // Shared loading and error looks (renderer/heraldry.js), with plain fallbacks.
+  const ART = window.RealmArt || null;
+  function checking(text) {
+    const out = ART ? ART.skeletonRows(4) : [];
+    const live = el('li', ART ? 'sr-only' : 'empty', text);
+    live.setAttribute('role', 'status');
+    return [live, ...out];
+  }
+  function failedRun(e, fix) {
+    if (!ART) return el('li', 'empty', e.message);
+    return ART.errorBox({ tag: 'li', title: 'The checks did not finish', body: e.message, fix });
+  }
+
   function icon(id, cls) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', cls || 'ico');
@@ -326,7 +339,8 @@
       if (running) return;
       running = true;
       runBtn.disabled = true;
-      steps.replaceChildren(el('li', 'empty', 'Checking... (sockets, Steam, logs; about 5 seconds)'));
+      steps.replaceChildren(...checking('Checking... (sockets, Steam, logs; about 5 seconds)'));
+      steps.setAttribute('aria-busy', 'true');
       try {
         lastRun = await D.run(selId);
         renderVerdict(verdictBox, lastRun.verdict);
@@ -334,8 +348,9 @@
         renderLogs(lastRun.logs);
         copyBtn.disabled = false;
       } catch (e) {
-        steps.replaceChildren(el('li', 'empty', e.message));
+        steps.replaceChildren(failedRun(e, 'Press Run checks again. If it keeps failing, restart Realm Steward.'));
       } finally {
+        steps.removeAttribute('aria-busy');
         running = false;
         runBtn.disabled = false;
       }
@@ -391,7 +406,7 @@
       const close = el('button', 'win-btn doc-close');
       close.setAttribute('aria-label', 'Close');
       close.appendChild(icon('i-x'));
-      close.addEventListener('click', () => (modal.hidden = true));
+      close.addEventListener('click', () => hide());
       head.appendChild(close);
       card.appendChild(head);
       const verdict = el('div', 'doc-verdict idle');
@@ -417,15 +432,30 @@
       modal.appendChild(card);
       document.body.appendChild(modal);
       modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.hidden = true;
+        if (e.target === modal) hide();
       });
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal && !modal.hidden) modal.hidden = true;
+        if (!modal || modal.hidden) return;
+        if (e.key === 'Escape') hide();
+        else if (e.key === 'Tab') {
+          // keep Tab inside the panel
+          const f = Array.from(card.querySelectorAll('button:not([disabled]), textarea, select, input, [tabindex="0"]')).filter((x) => x.offsetParent);
+          if (!f.length) return;
+          const i = f.indexOf(document.activeElement);
+          if (e.shiftKey && i <= 0) {
+            e.preventDefault();
+            f[f.length - 1].focus();
+          } else if (!e.shiftKey && (i === f.length - 1 || i < 0)) {
+            e.preventDefault();
+            f[0].focus();
+          }
+        }
       });
 
       async function run() {
         runBtn.disabled = true;
-        steps.replaceChildren(el('li', 'empty', 'Checking your game, Steam and the servers...'));
+        steps.replaceChildren(...checking('Checking your game, Steam and the servers...'));
+        steps.setAttribute('aria-busy', 'true');
         try {
           const r = await D.run(null);
           renderVerdict(verdict, r.verdict);
@@ -433,8 +463,9 @@
           renderFindings(findings, r.findings, r.logs && r.logs.length ? 'No known problem in your game log.' : 'No game log found yet. It appears after the game has been started once.');
           copyBtn.disabled = false;
         } catch (e) {
-          steps.replaceChildren(el('li', 'empty', e.message));
+          steps.replaceChildren(failedRun(e, 'Press Check again. If it keeps failing, close and reopen Realm.'));
         } finally {
+          steps.removeAttribute('aria-busy');
           runBtn.disabled = false;
         }
       }
@@ -451,10 +482,18 @@
     }
 
     let run = null;
+    let back = null;
+    function hide() {
+      modal.hidden = true;
+      if (back && document.contains(back)) back.focus();
+    }
     return {
       open() {
         if (!modal) run = build();
+        back = document.activeElement;
         modal.hidden = false;
+        const closeBtn = modal.querySelector('.doc-close');
+        if (closeBtn) closeBtn.focus();
         if (!ran) {
           ran = true;
           run();

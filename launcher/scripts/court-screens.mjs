@@ -46,6 +46,8 @@ say('Loading level CrownLand...');
 const i = argv.indexOf('-cport');
 setTimeout(async () => {
   say('Initialize engine version: 5.x (imitation for tests)');
+  say('Server for 40 players started on port 7350.');
+  say('Game has started.');
   if (i < 0) return;
   const port = Number(argv[i + 1]);
   const game = new FakeAdminConsole({
@@ -86,7 +88,7 @@ setTimeout(async () => {
 setInterval(() => {}, 1000);
 `;
 
-const CFG = ["# -- Server --", "isPrivate = 'True'", "serverName = 'Realm - Kingslanding Test'", "maxPlayers = '120'", "bindIP = '127.0.0.1'", "portNumber = '7350'", "pingPort = '7350'", "steamAuthPort = '27015'", "restartTime = '0'", "timeBetweenPlayerJoin = '10'", "enableCommands = 'True'", ""].join('\r\n');
+const CFG = ["# -- Server --", "isPrivate = 'True'", "serverName = 'Realm - Hearthmoor Test'", "maxPlayers = '120'", "bindIP = '127.0.0.1'", "portNumber = '7350'", "pingPort = '7350'", "steamAuthPort = '27015'", "restartTime = '0'", "timeBetweenPlayerJoin = '10'", "enableCommands = 'True'", ""].join('\r\n');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log('[court]', ...a);

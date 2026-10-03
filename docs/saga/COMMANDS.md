@@ -73,7 +73,7 @@ act, because its syntax can still move.
 | `/raven spy` | RealmRavens | being built this run | runsheets/act-3-the-lawful-hours.md |
 | `/raven spymaster` | RealmRavens | being built this run | locations.md, runsheets/act-3-the-lawful-hours.md, season-1-the-hollow-crown.md |
 | `/raven watch` | RealmRavens | being built this run | runsheets/act-3-the-lawful-hours.md, season-1-the-hollow-crown.md |
-| `/realm.save` | RealmCourt | uncommitted in working tree; console only; UNVERIFIED at run time | runsheets/act-1-the-empty-seat.md, runsheets/act-2-the-charter-tested.md, runsheets/act-3-the-lawful-hours.md, runsheets/act-4-the-reckoning.md |
+| `/realm.save` | RealmCourt | committed; console only; UNVERIFIED at run time | runsheets/act-1-the-empty-seat.md, runsheets/act-2-the-charter-tested.md, runsheets/act-3-the-lawful-hours.md, runsheets/act-4-the-reckoning.md |
 | `/renounce` | RealmHouses | committed | legends.md |
 | `/renown top` | RealmRenown | being built this run | runsheets/act-3-the-lawful-hours.md |
 | `/rumour` | RealmRavens | being built this run | locations.md, runsheets/act-3-the-lawful-hours.md, season-1-the-hollow-crown.md |

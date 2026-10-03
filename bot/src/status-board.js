@@ -5,13 +5,16 @@
 // - If the message was deleted, a new one is posted. If the channel cannot be reached, it backs off
 //   (doubling up to 10 minutes) and logs once per kind of problem.
 
+import { createArt, decorate, stripArt } from './art.js';
 import { NO_MENTIONS } from './handlers.js';
 import { statusEmbed, unavailableEmbed } from './views.js';
 
 const FORCE_REFRESH_MS = 10 * 60 * 1000;
 const MAX_BACKOFF_MS = 10 * 60 * 1000;
 
-export function createStatusBoard({ client, cfg, chronicle, realmData, store, logger = console, now = Date.now, timers = globalThis }) {
+export function createStatusBoard({ client, cfg, chronicle, realmData, store, logger = console, now = Date.now, timers = globalThis, art = createArt(cfg.art || { enabled: false }) }) {
+  // Set when Discord refused the pictures (no Attach Files permission in the channel): post without them.
+  let artRefused = false;
   let timer = null;
   let stopped = true;
   let lastKey = null;
@@ -29,7 +32,9 @@ export function createStatusBoard({ client, cfg, chronicle, realmData, store, lo
         chronicle.events(10),
         realmData.realmEvents().catch(() => null),
       ]);
-      return { embeds: [statusEmbed({ cfg, state, events, realmEvents, now: now() })] };
+      const payload = { embeds: [statusEmbed({ cfg, state, events, realmEvents, now: now() })] };
+      if (artRefused) return payload;
+      return decorate(payload, { emblem: art.emblem(), thumb: (state.house && art.house(state.house)) || art.eventIcon('coronation'), authorName: cfg.realmName });
     } catch (e) {
       return { embeds: [unavailableEmbed(cfg)], unavailable: e.message };
     }
@@ -67,6 +72,8 @@ export function createStatusBoard({ client, cfg, chronicle, realmData, store, lo
       if (key === lastKey && fresh) return 'unchanged';
 
       const body = { embeds: payload.embeds, allowedMentions: NO_MENTIONS };
+      // An edit replaces the old pictures instead of adding to them.
+      if (payload.files) Object.assign(body, { files: payload.files, attachments: [] });
       const channel = await fetchChannel();
       let result;
       const saved = store.data.status;
@@ -78,13 +85,13 @@ export function createStatusBoard({ client, cfg, chronicle, realmData, store, lo
           if (e.code !== 10008) throw e; // 10008 Unknown Message: it was deleted
         }
         if (msg && msg.author?.id === client.user?.id) {
-          await msg.edit(body);
+          await withoutArtIfRefused(body, (b) => msg.edit(b));
           result = 'edited';
         } else {
-          result = await postNew(channel, body);
+          result = await withoutArtIfRefused(body, (b) => postNew(channel, b));
         }
       } else {
-        result = await postNew(channel, body);
+        result = await withoutArtIfRefused(body, (b) => postNew(channel, b));
       }
       lastKey = key;
       lastWrite = now();
@@ -102,6 +109,20 @@ export function createStatusBoard({ client, cfg, chronicle, realmData, store, lo
       return 'error';
     } finally {
       running = false;
+    }
+  }
+
+  // Pictures need Attach Files in the channel. If Discord refuses them (50013 Missing Permissions),
+  // say so once and keep the status message going without them.
+  async function withoutArtIfRefused(body, send) {
+    try {
+      return await send(body);
+    } catch (e) {
+      if (e.code !== 50013 || !body.files) throw e;
+      artRefused = true;
+      logger.warn('[status] the bot may not attach files in the status channel (Attach Files); the status message is shown without pictures');
+      const { attachments, ...plain } = stripArt(body);
+      return send({ ...plain, attachments: [] });
     }
   }
 

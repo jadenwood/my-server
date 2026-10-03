@@ -1,18 +1,30 @@
 {
-  "_comment": "Realm world-mood rotation. Read by server/Set-Mood.ps1 (-Season, -Event, -List). Mood ids are folder names under mods/presets/. Explained in mods/moods.md.",
+  "_comment": "Realm world-mood rotation. Read by server/Set-Mood.ps1 (-Season, -Event, -List). Mood ids are folder names under mods/presets/. Explained in mods/moods.md. seasonLooks lists optional alternatives an owner may pick by hand with -Mood instead of the cycle's mood; Set-Mood.ps1 does not read it.",
   "moods": {
     "grim-but-readable": { "name": "Grim but Readable", "kind": "season", "summary": "Baseline: cool grey light, mixed weather. The Thaw and the default between arcs." },
     "golden-summer":     { "name": "Golden Summer",     "kind": "season", "summary": "Warm honey light, thin haze, almost no rain, slightly longer days." },
     "storm-season":      { "name": "Storm Season",      "kind": "season", "summary": "Rain most of the time, slate light, wet fog. Clear skies are rare." },
     "long-winter":       { "name": "Long Winter",       "kind": "season", "summary": "Pale cold sun, low grey skies, icy fog, a bright cold moon." },
-    "blood-moon":        { "name": "Blood Moon",        "kind": "overlay", "summary": "Red moon nights under clear skies. A weekend overlay, not a season." },
+    "spring-rains":      { "name": "Spring Rains",      "kind": "season", "summary": "Fresh green-gold light, a light mist, showers but never a storm." },
+    "hunters-moon":      { "name": "Hunter's Moon",     "kind": "season", "summary": "A copper moon, amber afternoons, valley mist, grey days without storms." },
+    "first-frost":       { "name": "First Frost",       "kind": "season", "summary": "Crisp blue-white light, a bright cold moon, thin air, mostly clear." },
+    "blood-moon":        { "name": "Blood Moon",        "kind": "overlay", "summary": "Red moon nights under clear skies. A season finale overlay, not a season." },
+    "crown-night":       { "name": "Crown Night",       "kind": "overlay", "summary": "A gold moon over a violet haze, clear skies. The weekly Crown Night overlay." },
+    "truce":             { "name": "Truce",             "kind": "overlay", "summary": "Soft pale light, thin air, no rain. For a scheduled Truce of the Realm." },
     "ashfall":           { "name": "Ashfall",           "kind": "overlay", "summary": "Brown-grey ash haze, orange sun, dry overcast. A short war-arc overlay." }
   },
   "seasonCycle": ["golden-summer", "storm-season", "long-winter", "grim-but-readable"],
+  "seasonLooks": {
+    "grim-but-readable": ["spring-rains"],
+    "storm-season": ["hunters-moon"],
+    "long-winter": ["first-frost"]
+  },
   "events": {
-    "crown_night":    "blood-moon",
-    "season_finale":  "blood-moon",
-    "war_arc":        "ashfall",
-    "royal_tournament": "golden-summer"
+    "crown_night":       "crown-night",
+    "crown_night_blood": "blood-moon",
+    "season_finale":     "blood-moon",
+    "war_arc":           "ashfall",
+    "royal_tournament":  "golden-summer",
+    "truce":             "truce"
   }
 }

@@ -1,14 +1,14 @@
 # Realm Stream Scenes (`streamkit/`)
 
-Five extra OBS browser-source scenes for the Chronicle of Ostreval. They sit next to the Chronicle's own `/overlay` and use the same iron, parchment and ember-gold look and the same house colours.
+Five extra OBS browser-source scenes for the Chronicle of Ostreval. They sit next to the Chronicle's own `/overlay` and use the same iron, parchment and ember-gold look, the same house colours and the same Realm art pack: the six great houses' engraved sigils, banners and shields, an icon for every Chronicle event type and the key art of the Old Throne. The art and the OFL fonts are local copies in `public/assets` (made by `node portal/scripts/sync-art.mjs`), so the scenes need no internet. A house a player founds keeps the line-art sigil matched from its sigil name, or its initial.
 
 | Scene | URL | What it shows |
 |---|---|---|
 | **War Board** | `/war-board` | Every house as a node with its drawn sigil. Gold arrows are liege lines, green arcs are treaties, red dashed arcs are treaties broken in the last 24 hours, and red arrows are declared claims on the crown, tagged with their window. A side ledger lists claims (with time to the window), treaties (time left) and fealty. The crown house glows, a claiming house has a turning red ring, and oathbreaker/treaty-breaker marks show as a red badge. Nodes glide to new places when fealty changes. |
-| **Throne Room** | `/throne-room` | A coronation lower third. A medallion drops in and turns, the new monarch's sigil draws itself stroke by stroke, the name plate unrolls with the house words and the predecessor. An abdication gets a darker "The crown falls" plate. |
-| **Breaking News** | `/breaking-news` | A queue of alerts for betrayals and war: oath and treaty breaking, broken truces, claims, rebellions, abdications, blood claims, accusations and trials by combat. Urgent alerts (rebellion, abdication, oath/treaty/truce broken) jump the queue. A bar drains while each alert holds. |
+| **Throne Room** | `/throne-room` | A coronation lower third. A medallion drops in and turns while light rays open behind it and sparks burst; the new monarch's engraved sigil turns into place (a player house's sigil draws itself stroke by stroke); the name plate unrolls with the house words and the predecessor. An abdication gets a darker "The crown falls" plate. |
+| **Breaking News** | `/breaking-news` | A queue of alerts for betrayals and war: oath and treaty breaking, broken truces, claims, rebellions, abdications, blood claims, accusations and trials by combat. Urgent alerts (rebellion, abdication, oath/treaty/truce broken) jump the queue. A great house named in the headline hangs its shield on the card. A **rebellion** is the biggest alert: "To Arms", a larger card that shakes as it lands, and the edges of the whole frame pulse red. A bar drains while each alert holds. |
 | **Countdown** | `/countdown` | Time to the next thing worth waiting for: a live rebellion's end, a declared claim's window, the next Lawful Hours, the next realm event (Crown Night, the Royal Tournament, the King's Hunt, the Truce), or your own moment. |
-| **Starting Soon** | `/starting-soon` | A full-screen holding scene: title, an optional countdown, the reigning crown, the house banners, the next Lawful Hours and a rotating "Lately in the realm" line. |
+| **Starting Soon** | `/starting-soon` | A full-screen holding scene over the key art of the Old Throne at dusk, slowly pushing in: title, an optional countdown, the reigning crown, the house banners, the next Lawful Hours and a rotating "Lately in the realm" line with each entry's icon. |
 
 ![War Board](../docs/img/stream-war-board.png)
 
@@ -101,6 +101,10 @@ Per scene:
 | | `in=` / `at=` | Show a countdown. |
 | | `banners=6` | How many house banners (0 to 8). The crown house goes first. |
 
+### Safe areas
+
+Everything with text stays inside the 1080p title-safe area: 96 px from the left and right edges and 54 px from the top and bottom of the 1920 x 1080 stage (`--safe-x` and `--safe-y` in `public/assets/kit.css`). Only decoration (the rebellion's red edge, the Starting Soon backdrop) reaches the frame edge.
+
 ### Reduced motion
 
 With `motion=0`, or when the OS asks for reduced motion (OBS's Chromium follows the Windows "Show animations" setting, **UNVERIFIED** on every OBS version), scenes still change but only by fading. Turning medallions, drawing sigils, embers, fog, shaking alerts, pulsing rings and gliding nodes are all switched off; animations jump to their end state. The Breaking News timer bar still drains, because it tells the viewer how long the alert stays. `tools/screenshots.mjs` checks this in Chromium for every scene.
@@ -141,12 +145,13 @@ None. The scenes only read existing types, so there is no `EVENTS.json` here.
 ## Tests and screenshots
 
 ```bash
-npm test                         # node:test: model (fixtures) + server (relay, loopback, traversal, demo)
+npm test                         # node:test: model (fixtures) + server (relay, loopback, traversal, demo) + art and fonts
 node tools/screenshots.mjs       # Playwright + Chromium: browser checks, then docs/img/stream-*.png
 node tools/screenshots.mjs --check-only
+node tools/chronicle-shots.mjs   # the Chronicle's own /overlay (with its coronation and rebellion moments) and /realm: docs/img/overlay-*.png, realm-*.png
 ```
 
-The screenshot script is a dev tool. Web fonts load only if Chromium can reach Google Fonts (set `SHOTS_PROXY=1` to route through `HTTPS_PROXY`); otherwise the fallback fonts are used. Playwright is not a dependency; it looks for `PLAYWRIGHT_MODULE`, then `playwright`, then `/opt/node-tools/node_modules/playwright`, and uses `CHROMIUM` (default `/opt/pw-browsers/chromium`). Besides writing the PNGs it fails if any scene throws, a request fails, a scene never becomes ready, transparency is wrong, a house filter shows the wrong nodes, reduced motion leaves an animation running, or a live demo event never reaches Breaking News.
+The screenshot scripts are dev tools. The fonts are local, so the screenshots use the real Cinzel and EB Garamond with no network. Playwright is not a dependency; it looks for `PLAYWRIGHT_MODULE`, then `playwright`, then `/opt/node-tools/node_modules/playwright`, and uses `CHROMIUM` (default `/opt/pw-browsers/chromium`). Besides writing the PNGs it fails if any scene throws, a request fails, a scene never becomes ready, transparency is wrong, a house filter shows the wrong nodes, reduced motion leaves an animation running, or a live demo event never reaches Breaking News.
 
 ## Files
 
@@ -154,17 +159,20 @@ The screenshot script is a dev tool. Web fonts load only if Chromium can reach G
 server.js                     loopback static server + chronicle relay + fixtures/demo mode
 public/<scene>.html           the five scenes; index.html lists them
 public/assets/model.js        pure data model (war board, layout, countdown, alert queue, params). Tested in Node.
-public/assets/kit.js          browser helpers: stage scaling, polling, dye, icons
-public/assets/sigils.js       sigil line art
+public/assets/kit.js          browser helpers: stage scaling, polling, dye, banners, icons
+public/assets/realm-art.js    which art file belongs to an event, a house, a season or a title (copy of chronicle/public/assets/realm-art.js)
+public/assets/art, fonts      the Realm art pack and the OFL fonts (copies; run node portal/scripts/sync-art.mjs)
+public/assets/sigils.js       great houses' engraved sigils; line art for player houses
 public/assets/kit.css         shared tokens; <scene>.css / <scene>.js per scene
 fixtures/                     state.json + events.json in the API's shape, demo.json for --demo
 schedule.example.json         schedule template (the plugin defaults)
 test/                         node:test suites
 tools/screenshots.mjs         Playwright checks + docs/img/stream-*.png
+tools/chronicle-shots.mjs     Playwright checks + docs/img/overlay-*.png, realm-*.png (chronicle/public)
 ```
 
 ## Not verified yet
 
 - **UNVERIFIED in OBS itself.** The scenes were checked in Playwright's Chromium (build 1194) only. OBS's browser source is CEF/Chromium too, so they should behave the same, but nobody has tried them in OBS on Windows yet.
 - **UNVERIFIED against a live server.** The event wording above is read from the plugin source, not from a running game server.
-- The Google Fonts (Cinzel, EB Garamond) need internet. Offline, the scenes fall back to Palatino or Georgia.
+- **UNVERIFIED in OBS:** the bigger moments. In OBS, play `/throne-room?replay=1` and `/breaking-news?types=rebellion_started&replay=1` over the game and check that the rays, sparks and the red frame edge read well at 1080p and do not cover the game's own HUD for too long.

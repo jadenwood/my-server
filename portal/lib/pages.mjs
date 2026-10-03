@@ -1,10 +1,12 @@
 // HTML templates for the portal. Every dynamic value goes through esc(); markdown goes through
 // lib/markdown.mjs, which escapes all source text. No inline scripts or style attributes, so the
 // pages run under a strict Content-Security-Policy (house colours live in assets/houses.css).
+// The art (event icons, great-house arms, season and title badges, key art) comes from lib/art.mjs.
 
 import { esc, fmtDate, duration, houseLabel, monogram, safeUrl } from './util.mjs';
 import { GROUPS } from './model.mjs';
 import { inline } from './markdown.mjs';
+import { artIcon, eventIcon, greatHouse, GREAT_HOUSES, houseArt, seasonBadge, spriteFor, titleBadge, titleOf, TITLES } from './art.mjs';
 
 // Lore fields are short Markdown fragments ("*them*", `#4a2347`); render them inline, links dropped.
 const md = (s) => inline(String(s || ''), () => null);
@@ -38,9 +40,17 @@ export function icon(name, cls = 'icon') {
   return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${ICON_PATHS[name] || ICON_PATHS.scroll}"/></svg>`;
 }
 
-// Swallow-tailed house banner as inline SVG. Colours come from the .dye-<slug> class (houses.css).
-export function banner(house, size = 'md') {
+// A house's banner. A great house hangs its drawn banner from the art pack; any other house gets the
+// swallow-tailed cloth as inline SVG with its initial, coloured by the .dye-<slug> class (houses.css).
+export function banner(house, size = 'md', up = '') {
   const name = house.name;
+  const art = houseArt(name, 'banner', up);
+  if (art) {
+    return `<div class="banner banner-${size} art dye-${esc(house.slug)}" title="${esc(houseLabel(name))}${house.sigil ? ` (${esc(house.sigil)})` : ''}">
+  ${art}
+  ${house.sigil ? `<span class="sigil-name">${esc(house.sigil)}</span>` : ''}
+</div>`;
+  }
   return `<div class="banner banner-${size} dye-${esc(house.slug)}" title="${esc(houseLabel(name))}${house.sigil ? ` (${esc(house.sigil)})` : ''}">
   <svg viewBox="0 0 120 170" aria-hidden="true">
     <rect class="pole" x="2" y="2" width="116" height="9" rx="4"/>
@@ -63,9 +73,35 @@ const NAV = [
   { id: 'download', href: 'download.html', label: 'Download', cta: true },
 ];
 
-export function layout({ site, title, active, body, depth = 0, description = '' }) {
+// Link previews (Open Graph / Twitter cards). Previews need an absolute image URL, so with no siteUrl in
+// portal.config.json the image is relative: fine in browsers, ignored by Discord and other unfurlers.
+function socialMeta({ site, pageTitle, description, path, og }) {
+  const base = site.siteUrl ? site.siteUrl.replace(/\/?$/, '/') : '';
+  const image = og && og.image ? og.image : { src: 'assets/art/og/realm-card.png', w: 1200, h: 630, alt: `${site.realmName}: the Old Throne above the Hearth at dusk` };
+  const imageUrl = base + image.src;
+  const card = image.w === image.h ? 'summary' : 'summary_large_image';
+  return [
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:site_name" content="${esc(site.realmName)}">`,
+    `<meta property="og:title" content="${esc(pageTitle)}">`,
+    `<meta property="og:description" content="${esc(description)}">`,
+    base ? `<meta property="og:url" content="${esc(base + path)}">` : '',
+    `<meta property="og:image" content="${esc(imageUrl)}">`,
+    `<meta property="og:image:width" content="${image.w}">`,
+    `<meta property="og:image:height" content="${image.h}">`,
+    `<meta property="og:image:alt" content="${esc(image.alt)}">`,
+    `<meta name="twitter:card" content="${card}">`,
+    `<meta name="twitter:title" content="${esc(pageTitle)}">`,
+    `<meta name="twitter:description" content="${esc(description)}">`,
+    `<meta name="twitter:image" content="${esc(imageUrl)}">`,
+    base ? `<link rel="canonical" href="${esc(base + path)}">` : '',
+  ].filter(Boolean).join('\n');
+}
+
+export function layout({ site, title, active, body, depth = 0, description = '', path = 'index.html', og = null }) {
   const up = depth ? '../'.repeat(depth) : '';
   const pageTitle = title ? `${title} · ${site.realmName}` : site.realmName;
+  const desc = description || site.tagline;
   const nav = NAV.map((n) => `<a href="${up}${n.href}" class="${n.cta ? 'nav-cta' : ''}${n.id === active ? ' active' : ''}"${n.id === active ? ' aria-current="page"' : ''}>${esc(n.label)}</a>`).join('');
   return `<!doctype html>
 <html lang="en">
@@ -75,21 +111,24 @@ export function layout({ site, title, active, body, depth = 0, description = '' 
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>${esc(pageTitle)}</title>
-<meta name="description" content="${esc(description || site.tagline)}">
-<meta property="og:title" content="${esc(pageTitle)}">
-<meta property="og:description" content="${esc(description || site.tagline)}">
+<meta name="description" content="${esc(desc)}">
+${socialMeta({ site, pageTitle, description: desc, path, og })}
 <meta name="theme-color" content="#131417">
-<link rel="icon" href="${up}assets/favicon.svg" type="image/svg+xml">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="${up}assets/art/logo/realm-favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="${up}assets/art/logo/realm-emblem-192.png">
+<link rel="manifest" href="${up}manifest.webmanifest">
 <link rel="alternate" type="application/atom+xml" title="${esc(site.realmName)} Chronicle" href="${up}feed.xml">
 <link rel="stylesheet" href="${up}assets/portal.css">
 <link rel="stylesheet" href="${up}assets/houses.css">
 <script src="${up}assets/portal.js" defer></script>
 </head>
-<body class="page-${esc(active)}" data-root="${up || './'}">
+<body class="page-${esc(active || 'none')}" data-root="${up || './'}">
+${spriteFor(body)}
 <a class="skip" href="#main">Skip to content</a>
 <header class="topbar">
   <div class="wrap topbar-in">
-    <a class="brand" href="${up}index.html">${icon('crown', 'brand-ico')}<span>${esc(site.realmName)}</span></a>
+    <a class="brand" href="${up}index.html"><img class="brand-emblem" src="${up}assets/art/logo/realm-emblem.svg" alt="" width="36" height="36"><span>${esc(site.realmName)}</span></a>
     <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Menu">
     <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
     <nav class="nav" aria-label="Main">${nav}</nav>
@@ -100,7 +139,7 @@ ${body}
 </main>
 <footer class="footer">
   <div class="wrap footer-in">
-    <p class="footer-mark">${icon('crown')} ${esc(site.realmName)}</p>
+    <p class="footer-mark"><img src="${up}assets/art/logo/realm-logo-horizontal-dark.svg" alt="${esc(site.realmName)}" width="230" height="62" loading="lazy"></p>
     <p class="fine">A community server for <em>Reign of Kings</em>. Play with your own Steam copy of the game; nothing here modifies it. Not affiliated with the game's developer or publisher. Lore and art are original to this community.</p>
     <p class="fine">Built ${esc(fmtDate(new Date(site.generatedAt).toISOString()))} · <a href="${up}feed.xml">${icon('rss')} Chronicle feed</a> · <a href="${up}status.json">status.json</a>${site.discordInvite ? ` · <a href="${esc(site.discordInvite)}" rel="noopener" target="_blank">Discord</a>` : ''}</p>
   </div>
@@ -116,12 +155,35 @@ function houseLink(name, model, up = '') {
   return `<a class="house-link dye-${esc(h.slug)}" href="${up}houses/${esc(h.slug)}.html"><i class="swatch"></i>${esc(houseLabel(h.name))}</a>`;
 }
 
+// "Season 2 begins" -> 2; a custom season name is matched against the seasons the portal knows.
+function seasonNumberOf(e, model) {
+  const m = /\bseason\s+(\d{1,3})\b/i.exec(e.title || '');
+  if (m) return Number(m[1]);
+  const all = [model.seasons.current, ...model.seasons.past].filter(Boolean);
+  const s = all.find((x) => x.name && x.number && (e.title || '').toLowerCase().startsWith(x.name.toLowerCase()));
+  return s ? s.number : null;
+}
+
+// The mark beside an event: its own icon from the art pack, a season medal for season events, or the
+// badge of a known renown title.
+function eventMark(e, model, up) {
+  if (e.type === 'season_started' || e.type === 'season_ended') {
+    const b = seasonBadge(seasonNumberOf(e, model), up, 'ev-badge');
+    if (b) return `<span class="ev-ico badge">${b}</span>`;
+  }
+  if (e.type === 'title_earned' || e.type === 'title_bestowed') {
+    const t = titleOf(e.title);
+    if (t) return `<span class="ev-ico badge${t.infamous ? ' infamous' : ''}">${titleBadge(t, up, 'ev-badge')}</span>`;
+  }
+  return `<span class="ev-ico">${eventIcon(e.type)}</span>`;
+}
+
 function eventItem(e, model, up = '', { compact = false } = {}) {
   const groups = e.meta.group;
   const houses = (e.houses || []).map((n) => n.toLowerCase()).join('|');
   const text = `${e.title} ${e.detail} ${e.actors.join(' ')}`.toLowerCase();
-  return `<li class="ev tone-${esc(e.meta.tone)}" data-group="${esc(groups)}" data-houses="${esc(houses)}" data-text="${esc(text)}" id="e${e.id}">
-  <span class="ev-ico">${icon(e.meta.icon)}</span>
+  return `<li class="ev tone-${esc(e.meta.tone)}" data-type="${esc(e.type)}" data-group="${esc(groups)}" data-houses="${esc(houses)}" data-text="${esc(text)}" id="e${e.id}">
+  ${eventMark(e, model, up)}
   <div class="ev-body">
     <p class="ev-kicker"><span class="ev-type">${esc(e.meta.label)}</span>${e.ts ? `<time datetime="${esc(e.ts)}" data-rel="${esc(e.ts)}">${esc(fmtDate(e.ts))}</time>` : ''}</p>
     <h3 class="ev-title">${esc(e.title)}</h3>
@@ -137,9 +199,9 @@ function countdown(at, end) {
 
 function upcomingList(model, emptyText) {
   if (!model.upcoming.length) return `<p class="empty">${esc(emptyText)}</p>`;
-  const ico = { war: 'swords', season: 'hourglass', treaty: 'seal', herald: 'flag', event: 'horn' };
+  const ico = { war: 'rebellion', season: 'laurel', treaty: 'treaty', herald: 'decree', event: 'beacon' };
   return `<ol class="upcoming">${model.upcoming.map((u) => `<li class="up up-${esc(u.kind)}${u.live ? ' live' : ''}">
-  <span class="up-ico">${icon(ico[u.kind] || 'flag')}</span>
+  <span class="up-ico">${artIcon(ico[u.kind] || 'decree')}</span>
   <div><h3>${esc(u.title)}</h3>${u.detail ? `<p>${esc(u.detail)}</p>` : ''}
   <p class="when">${u.live ? '<b class="live-tag">Now</b> ' : ''}${countdown(u.at, u.end)}</p></div>
 </li>`).join('')}</ol>`;
@@ -150,30 +212,51 @@ function upcomingList(model, emptyText) {
 export function homePage(model, site, news) {
   const s = model.state;
   const crownHouse = s.house ? model.houses.find((h) => h.name.toLowerCase() === s.house.toLowerCase()) : null;
+  const great = crownHouse ? greatHouse(crownHouse.name) : null;
   const status = `<p class="status-pill${model.stale ? ' stale' : ''}" data-status>
   <i class="dot"></i><span data-status-text>${model.stale ? 'Last word from the realm' : 'The realm stirs'}</span>
   <b data-status-online>${s.online}</b>/<span data-status-max>${s.maxPlayers || '?'}</span> in the realm
   ${s.updated ? `<span class="fine">· <time data-rel="${esc(s.updated)}" data-status-updated>${esc(fmtDate(s.updated))}</time></span>` : ''}
 </p>`;
-  const crownCard = `<section class="crown-card" aria-labelledby="crown-h">
-  ${crownHouse ? banner(crownHouse, 'lg') : `<div class="crown-empty">${icon('crown', 'big-ico')}</div>`}
+  // The monarch's plate sits on the hero's lower edge, under the Old Throne of the key art.
+  const crownCard = `<section class="crown-card${s.king ? '' : ' vacant'}${great ? ' has-art' : ''}${crownHouse ? ` dye-${esc(crownHouse.slug)}` : ''}" aria-labelledby="crown-h">
+  <div class="crown-crest">${crownHouse ? banner(crownHouse, 'lg') : `<div class="crown-empty">${artIcon('abdication', 'big-ico')}</div>`}</div>
   <div class="crown-body">
-    <p class="eyebrow" id="crown-h">The Old Throne</p>
+    <p class="eyebrow" id="crown-h">${artIcon('crown')} The Old Throne</p>
     ${s.king
-      ? `<h2 class="king" data-status-king>${esc(s.king)}</h2>
-         <p class="reign">${s.house ? `of ${houseLink(s.house, model)} · ` : ''}reigning <b data-since="${esc(s.since || '')}">${esc(duration(model.now - Date.parse(s.since)))}</b></p>`
+      ? `<h2 class="king gold" data-status-king>${esc(s.king)}</h2>
+         <p class="reign">${s.house ? `of ${houseLink(s.house, model)} · ` : ''}reigning <b data-since="${esc(s.since || '')}">${esc(duration(model.now - Date.parse(s.since)))}</b></p>
+         ${great ? `<p class="crown-words">“${esc(GREAT_HOUSES[great].words)}”</p>` : ''}`
       : `<h2 class="king" data-status-king>The throne stands empty</h2><p class="reign">Anyone may sit the Old Throne while it is empty. Claims are not needed.</p>`}
-    ${model.crown.council.length ? `<p class="council">${model.crown.council.map((c) => `<span><em>${esc(c.seat)}</em> ${esc(c.name)}</span>`).join('')}</p>` : ''}
   </div>
+  ${model.crown.council.length ? `<div class="council"><p class="council-h">The council</p><dl>${model.crown.council.map((c) => `<div><dt>${esc(c.seat)}</dt><dd>${esc(c.name)}</dd></div>`).join('')}</dl></div>` : ''}
 </section>`;
   const latest = model.events.slice(-6).reverse();
   const houses = model.houses.slice(0, 8);
   const newsHtml = (news || []).slice(0, 3).map((n) => `<article class="news"><p class="eyebrow">${esc(fmtDate(n.date + 'T00:00:00Z', false))}</p><h3>${esc(n.title)}</h3><p>${esc(n.body)}</p></article>`).join('');
-  const season = model.seasons.current
-    ? `<section class="season-band"><p class="eyebrow">${model.seasons.current.number != null ? `Season ${esc(model.seasons.current.number)}` : 'This season'}</p><h2>${esc(model.seasons.current.name)}</h2>${model.seasons.current.theme ? `<p>${esc(model.seasons.current.theme)}</p>` : ''}${model.seasons.current.endsAt ? `<p class="when">Ends ${countdown(model.seasons.current.endsAt)}</p>` : ''}${(model.seasons.standings || []).length ? `<ol class="podium">${model.seasons.standings.slice(0, 3).map((r) => `<li>${icon('trophy')} ${houseLink(r.house, model)} <b>${esc(r.score)}</b></li>`).join('')}</ol><p class="fine"><a href="houses.html">Full standings →</a></p>` : ''}</section>`
+  const cur = model.seasons.current;
+  const podium = (model.seasons.standings || []).slice(0, 3).map((r, i) => {
+    const h = model.houses.find((x) => x.name.toLowerCase() === String(r.house).toLowerCase());
+    const mark = houseArt(r.house, 'sigil', '', 'podium-sigil') || (h ? `<span class="podium-dye dye-${esc(h.slug)}">${esc(monogram(h.name))}</span>` : '');
+    return `<li class="place place-${i + 1}"><span class="place-no">${['I', 'II', 'III'][i]}</span>${mark}<span class="place-name">${houseLink(r.house, model)}</span><b>${esc(r.score)}<small> pts</small></b></li>`;
+  }).join('');
+  const season = cur
+    ? `<section class="season-band" aria-labelledby="season-h">
+  ${cur.number ? seasonBadge(cur.number, '', 'season-medal') : `<span class="season-medal-ico">${artIcon('dawn', 'big-ico')}</span>`}
+  <div class="season-text">
+    <p class="eyebrow">${cur.number != null ? `Season ${esc(cur.number)}` : 'This season'}</p>
+    <h2 id="season-h">${esc(cur.name)}</h2>
+    ${cur.theme ? `<p>${esc(cur.theme)}</p>` : ''}
+    ${cur.endsAt ? `<p class="when">${artIcon('laurel')} Ends ${countdown(cur.endsAt)}</p>` : ''}
+    ${podium ? '<p class="fine"><a href="houses.html">Full standings →</a></p>' : ''}
+  </div>
+  ${podium ? `<ol class="podium" aria-label="Leading houses">${podium}</ol>` : ''}
+</section>`
     : '';
   const body = `
 <section class="hero">
+  <div class="hero-art" aria-hidden="true"></div>
+  <div class="hero-embers" aria-hidden="true">${'<i></i>'.repeat(14)}</div>
   <div class="wrap hero-in">
     <div class="hero-copy">
       <p class="kicker">${esc(site.kicker)}</p>
@@ -185,33 +268,33 @@ export function homePage(model, site, news) {
         <a class="btn" href="play.html">${icon('book')} How to play</a>
       </p>
     </div>
-    ${crownCard}
   </div>
+  <div class="wrap hero-crown">${crownCard}</div>
 </section>
 <div class="wrap">
   ${season}
   <div class="grid-2">
     <section class="panel" aria-labelledby="up-h">
-      <header class="panel-head"><h2 id="up-h">${icon('hourglass')} What comes next</h2></header>
+      <header class="panel-head"><h2 id="up-h">${artIcon('beacon')} What comes next</h2></header>
       ${upcomingList(model, 'No claims are declared and no windows are set. The realm is quiet, for now.')}
     </section>
     <section class="panel" aria-labelledby="latest-h">
-      <header class="panel-head"><h2 id="latest-h">${icon('scroll')} Lately in the Chronicle</h2><a class="more" href="chronicle.html">The full Chronicle →</a></header>
+      <header class="panel-head"><h2 id="latest-h">${artIcon('decree')} Lately in the Chronicle</h2><a class="more" href="chronicle.html">The full Chronicle →</a></header>
       ${latest.length ? `<ol class="events compact">${latest.map((e) => eventItem(e, model, '', { compact: true })).join('')}</ol>` : '<p class="empty">The Chronicle is still blank. Its first page is written when the first house is founded.</p>'}
     </section>
   </div>
   <section class="panel" aria-labelledby="houses-h">
-    <header class="panel-head"><h2 id="houses-h">${icon('shield')} The Great Houses</h2><a class="more" href="houses.html">All houses →</a></header>
-    ${houses.length ? `<div class="banner-row">${houses.map((h) => `<a class="banner-link" href="houses/${esc(h.slug)}.html">${banner(h, 'sm')}<span class="banner-name">${esc(h.name)}</span><span class="fine">${h.members} sworn</span></a>`).join('')}</div>` : '<p class="empty">No house has been founded yet.</p>'}
+    <header class="panel-head"><h2 id="houses-h">${artIcon('house')} The Great Houses</h2><a class="more" href="houses.html">All houses →</a></header>
+    ${houses.length ? `<div class="banner-row">${houses.map((h) => `<a class="banner-link${h.isCrown ? ' crowned' : ''}" href="houses/${esc(h.slug)}.html">${h.isCrown ? `<span class="crest-crown">${artIcon('crown')}</span>` : ''}${banner(h, 'sm')}<span class="banner-name">${esc(h.name)}</span><span class="fine">${h.members} sworn</span></a>`).join('')}</div>` : '<p class="empty">No house has been founded yet.</p>'}
   </section>
   <div class="grid-3 stats">
-    <div class="stat"><b>${model.houses.length}</b><span>houses</span></div>
-    <div class="stat"><b>${model.reigns.length}</b><span>reigns recorded</span></div>
-    <div class="stat"><b>${model.events.length}</b><span>entries in the Chronicle</span></div>
+    <div class="stat">${artIcon('house', 'stat-ico')}<b>${model.houses.length}</b><span>houses</span></div>
+    <div class="stat">${artIcon('crown', 'stat-ico')}<b>${model.reigns.length}</b><span>reigns recorded</span></div>
+    <div class="stat">${artIcon('decree', 'stat-ico')}<b>${model.events.length}</b><span>entries in the Chronicle</span></div>
   </div>
-  ${newsHtml ? `<section class="panel" aria-labelledby="news-h"><header class="panel-head"><h2 id="news-h">${icon('flag')} Heralds' news</h2></header><div class="news-grid">${newsHtml}</div></section>` : ''}
+  ${newsHtml ? `<section class="panel" aria-labelledby="news-h"><header class="panel-head"><h2 id="news-h">${artIcon('whisper')} Heralds' news</h2></header><div class="news-grid">${newsHtml}</div></section>` : ''}
 </div>`;
-  return layout({ site, title: '', active: 'home', body, description: s.king ? `${s.king} holds the Old Throne. ${site.tagline}` : site.tagline });
+  return layout({ site, title: '', active: 'home', body, path: 'index.html', description: s.king ? `${s.king} holds the Old Throne. ${site.tagline}` : site.tagline });
 }
 
 // ---------------------------------------------------------------- chronicle
@@ -223,7 +306,7 @@ export function chroniclePage(model, site) {
   const houseOpts = model.houses.map((h) => `<option value="${esc(h.name.toLowerCase())}">${esc(houseLabel(h.name))}</option>`).join('');
   const list = model.events.slice().reverse();
   const body = `
-<section class="page-head"><div class="wrap">
+<section class="page-head art-head"><div class="wrap">
   <p class="kicker">Being a true account of the realm</p>
   <h1 class="gold">The Chronicle</h1>
   <p class="lead">Every coronation, oath, betrayal, treaty, decree, claim, rebellion and ransom, as it was written. Public names and public acts only.</p>
@@ -239,7 +322,7 @@ export function chroniclePage(model, site) {
   </div>
   ${list.length ? `<ol class="events timeline" data-events>${list.map((e) => eventItem(e, model)).join('')}</ol><p class="empty" data-filter-empty hidden>Nothing in the Chronicle matches. Try fewer filters.</p>` : '<p class="empty">The Chronicle is still blank.</p>'}
 </div>`;
-  return layout({ site, title: 'The Chronicle', active: 'chronicle', body, description: 'The complete history of the realm: crowns, oaths, betrayals and wars.' });
+  return layout({ site, title: 'The Chronicle', active: 'chronicle', body, path: 'chronicle.html', description: 'The complete history of the realm: crowns, oaths, betrayals and wars.' });
 }
 
 // ---------------------------------------------------------------- houses
@@ -262,38 +345,38 @@ export function standingsTable(model, up = '', limit = 50) {
   if (!rows.length) return '';
   return `<div class="table-wrap standings"><table>
 <thead><tr><th>#</th><th>House</th><th>Points</th><th>Crown days</th><th>Rebellions won / held</th><th>Treaties kept / broken</th><th>Oaths broken</th><th>Contracts</th><th>Event points</th></tr></thead>
-<tbody>${rows.map((r) => `<tr${r.rank === 1 ? ' class="lead-row"' : ''}><td>${r.rank === 1 ? icon('trophy') : esc(r.rank)}</td><td>${houseLink(r.house, model, up)}</td><td><b>${esc(r.score)}</b></td><td>${esc(r.crownDays)}</td><td>${esc(r.rebellionsWon)} / ${esc(r.rebellionsDefended)}</td><td>${esc(r.treatiesKept)} / ${esc(r.treatiesBroken)}</td><td>${esc(r.oathsBroken)}</td><td>${esc(r.contractsFulfilled)}</td><td>${esc(r.eventPoints)}</td></tr>`).join('')}</tbody>
+<tbody>${rows.map((r) => `<tr${r.rank === 1 ? ' class="lead-row"' : ''}><td>${r.rank === 1 ? artIcon('trophy') : esc(r.rank)}</td><td class="house-cell">${houseArt(r.house, 'sigil', up, 'row-sigil')}${houseLink(r.house, model, up)}</td><td><b>${esc(r.score)}</b></td><td>${esc(r.crownDays)}</td><td>${esc(r.rebellionsWon)} / ${esc(r.rebellionsDefended)}</td><td>${esc(r.treatiesKept)} / ${esc(r.treatiesBroken)}</td><td>${esc(r.oathsBroken)}</td><td>${esc(r.contractsFulfilled)}</td><td>${esc(r.eventPoints)}</td></tr>`).join('')}</tbody>
 </table></div>
 <p class="fine">Points use RealmSeasons' default weights (crown day 10, rebellion won 25, held 15, treaty kept 5, treaty or oath broken -10, contract 2). The server's own settings may weigh them differently; <code>/season standings</code> in game is the final word.</p>`;
 }
 
 export function housesPage(model, site) {
-  const cards = model.houses.map((h) => `<a class="house-card dye-${esc(h.slug)}${h.isCrown ? ' crowned' : ''}" href="houses/${esc(h.slug)}.html">
+  const cards = model.houses.map((h) => `<a class="house-card dye-${esc(h.slug)}${h.isCrown ? ' crowned' : ''}${greatHouse(h.name) ? ' has-art' : ''}" href="houses/${esc(h.slug)}.html">
   ${banner(h, 'md')}
   <div class="house-card-body">
-    <h2>${esc(houseLabel(h.name))}${h.isCrown ? ` <span class="badge gold-badge">${icon('crown')} Holds the crown</span>` : ''}</h2>
+    <h2>${esc(houseLabel(h.name))}${h.isCrown ? ` <span class="badge gold-badge">${artIcon('crown')} Holds the crown</span>` : ''}</h2>
     ${h.lore && h.lore.words ? `<p class="words">${md(h.lore.words.replace(/[*"]/g, ''))}</p>` : ''}
     <ul class="facts">
       <li>${icon('people')} ${h.members} sworn</li>
-      ${h.liege ? `<li>${icon('oath')} Sworn to House ${esc(h.liege.replace(/^house\s+/i, ''))}</li>` : ''}
-      ${h.vassals.length ? `<li>${icon('shield')} ${h.vassals.length} vassal house${h.vassals.length === 1 ? '' : 's'}</li>` : ''}
-      ${h.crowns ? `<li>${icon('crown')} ${h.crowns} reign${h.crowns === 1 ? '' : 's'}</li>` : ''}
-      ${h.standing ? `<li>${icon('trophy')} ${ordinal(h.standing.rank)} this season · ${esc(h.standing.score)} pts</li>` : ''}
-      ${marks(h).map((m) => `<li class="mark">${icon('chainX')} ${esc(m)}</li>`).join('')}
+      ${h.liege ? `<li>${artIcon('oath')} Sworn to House ${esc(h.liege.replace(/^house\s+/i, ''))}</li>` : ''}
+      ${h.vassals.length ? `<li>${artIcon('house')} ${h.vassals.length} vassal house${h.vassals.length === 1 ? '' : 's'}</li>` : ''}
+      ${h.crowns ? `<li>${artIcon('crown')} ${h.crowns} reign${h.crowns === 1 ? '' : 's'}</li>` : ''}
+      ${h.standing ? `<li>${artIcon('trophy')} ${ordinal(h.standing.rank)} this season · ${esc(h.standing.score)} pts</li>` : ''}
+      ${marks(h).map((m) => `<li class="mark">${artIcon('oath-broken')} ${esc(m)}</li>`).join('')}
     </ul>
   </div>
 </a>`).join('');
   const body = `
-<section class="page-head"><div class="wrap">
+<section class="page-head art-head"><div class="wrap">
   <p class="kicker">Banners of Ostreval</p>
   <h1 class="gold">The Great Houses</h1>
   <p class="lead">Every house of the realm, its sigil, its sworn swords and the oaths that bind it. Found your own in game with <code>/house found "&lt;name&gt;" &lt;sigil&gt;</code>.</p>
 </div></section>
 <div class="wrap">
-  ${model.seasons.standings && model.seasons.standings.length ? `<section class="panel"><header class="panel-head"><h2>${icon('trophy')} ${esc(model.seasons.current ? model.seasons.current.name : 'Season')} standings</h2></header>${standingsTable(model)}</section>` : ''}
+  ${model.seasons.standings && model.seasons.standings.length ? `<section class="panel"><header class="panel-head"><h2>${artIcon('trophy')} ${esc(model.seasons.current ? model.seasons.current.name : 'Season')} standings</h2></header>${standingsTable(model)}</section>` : ''}
   ${model.houses.length ? `<div class="house-grid">${cards}</div>` : '<p class="empty">No house has been founded yet. Be the first.</p>'}
 </div>`;
-  return layout({ site, title: 'Great Houses', active: 'houses', body, description: 'The great houses of the realm, their sigils, oaths and treaties.' });
+  return layout({ site, title: 'Great Houses', active: 'houses', body, path: 'houses.html', description: 'The great houses of the realm, their sigils, oaths and treaties.' });
 }
 
 export function housePage(h, model, site) {
@@ -304,24 +387,25 @@ export function housePage(h, model, site) {
   const reigns = model.reigns.filter((r) => r.house && r.house.toLowerCase() === h.name.toLowerCase());
   const events = h.events.slice().reverse().slice(0, 60);
   const body = `
-<section class="page-head house-head dye-${esc(h.slug)}"><div class="wrap house-head-in">
-  ${banner(h, 'xl')}
+<section class="page-head house-head dye-${esc(h.slug)}${greatHouse(h.name) ? ' has-art' : ''}"><div class="wrap house-head-in">
+  ${banner(h, 'xl', up)}
   <div>
     <p class="kicker">${l.epithet ? esc(l.epithet) : 'A house of the realm'}</p>
     <h1 class="gold">${esc(houseLabel(h.name))}</h1>
     ${l.words ? `<p class="words big">${md(l.words.replace(/[*"]/g, ''))}</p>` : ''}
     <ul class="facts inline">
       <li>${icon('people')} ${h.members} sworn</li>
-      ${h.founded ? `<li>${icon('shield')} Founded ${esc(fmtDate(h.founded, false))}</li>` : ''}
-      ${h.isCrown ? `<li class="gold-li">${icon('crown')} Holds the crown</li>` : ''}
-      ${h.crowns ? `<li>${icon('crown')} ${h.crowns} reign${h.crowns === 1 ? '' : 's'}</li>` : ''}
+      ${h.founded ? `<li>${artIcon('house')} Founded ${esc(fmtDate(h.founded, false))}</li>` : ''}
+      ${h.isCrown ? `<li class="gold-li">${artIcon('crown')} Holds the crown</li>` : ''}
+      ${h.crowns ? `<li>${artIcon('crown')} ${h.crowns} reign${h.crowns === 1 ? '' : 's'}</li>` : ''}
     </ul>
   </div>
+  ${houseArt(h.name, 'shield', up, 'head-shield')}
 </div></section>
 <div class="wrap">
   <div class="grid-2">
     <section class="panel">
-      <header class="panel-head"><h2>${icon('oath')} Oaths</h2></header>
+      <header class="panel-head"><h2>${artIcon('oath')} Oaths</h2></header>
       <dl class="dl">
         <dt>Liege</dt><dd>${h.liege ? `${houseLink(h.liege, model, up)}${h.swornSince ? ` <span class="fine">since ${esc(fmtDate(h.swornSince, false))}</span>` : ''}` : 'None. This house answers to no one.'}</dd>
         <dt>Vassals</dt><dd>${h.vassals.length ? h.vassals.map((v) => houseLink(v, model, up)).join(' ') : 'None sworn.'}</dd>
@@ -334,13 +418,13 @@ export function housePage(h, model, site) {
       </dl>
     </section>
     <section class="panel">
-      <header class="panel-head"><h2>${icon('seal')} Treaties</h2></header>
+      <header class="panel-head"><h2>${artIcon('treaty')} Treaties</h2></header>
       ${treaties.length ? `<ul class="treaties">${treaties.map((t) => `<li class="${t.active ? 'active' : 'lapsed'}">${houseLink(t.with, model, up)} <span class="fine">${t.active ? (t.expires ? `until ${esc(fmtDate(t.expires))}` : 'standing') : `lapsed ${esc(fmtDate(t.expires || t.signed || '', false))}`}</span></li>`).join('')}</ul>` : '<p class="empty">No treaties on record.</p>'}
       ${l.history ? `<h3 class="sub">History</h3><p>${md(l.history)}</p>` : ''}
       ${l.hook ? `<h3 class="sub">Who it suits</h3><p>${md(l.hook)}</p>` : ''}
     </section>
   </div>
-  ${h.standing ? `<section class="panel"><header class="panel-head"><h2>${icon('trophy')} This season</h2><span class="fine">${ordinal(h.standing.rank)} of ${model.seasons.standings.length}</span></header>
+  ${h.standing ? `<section class="panel"><header class="panel-head"><h2>${artIcon('trophy')} This season</h2><span class="fine">${ordinal(h.standing.rank)} of ${model.seasons.standings.length}</span></header>
     <div class="season-stats">
       <div class="stat"><b>${esc(h.standing.score)}</b><span>points</span></div>
       <div class="stat"><b>${esc(h.standing.crownDays)}</b><span>crown days</span></div>
@@ -349,23 +433,26 @@ export function housePage(h, model, site) {
       <div class="stat"><b>${esc(h.standing.contractsFulfilled)}</b><span>contracts</span></div>
       <div class="stat"><b>${esc(h.standing.eventPoints)}</b><span>event points</span></div>
     </div>
-    ${h.standing.honours.length ? `<h3 class="sub">Honours</h3><ul class="honours">${h.standing.honours.map((x) => `<li>${icon('trophy')} ${esc(x)}</li>`).join('')}</ul>` : ''}
+    ${h.standing.honours.length ? `<h3 class="sub">Honours</h3><ul class="honours">${h.standing.honours.map((x) => `<li>${artIcon('medal')} ${esc(x)}</li>`).join('')}</ul>` : ''}
   </section>` : ''}
-  ${reigns.length ? `<section class="panel"><header class="panel-head"><h2>${icon('crown')} Monarchs of this house</h2></header><ol class="reign-list">${reigns.map((r) => reignRow(r, model, up, now)).join('')}</ol></section>` : ''}
+  ${reigns.length ? `<section class="panel"><header class="panel-head"><h2>${artIcon('crown')} Monarchs of this house</h2></header><ol class="reign-list">${reigns.map((r) => reignRow(r, model, up, now)).join('')}</ol></section>` : ''}
   <section class="panel">
-    <header class="panel-head"><h2>${icon('scroll')} In the Chronicle</h2><a class="more" href="${up}chronicle.html">The full Chronicle →</a></header>
+    <header class="panel-head"><h2>${artIcon('decree')} In the Chronicle</h2><a class="more" href="${up}chronicle.html">The full Chronicle →</a></header>
     ${events.length ? `<ol class="events">${events.map((e) => eventItem(e, model, up)).join('')}</ol>` : '<p class="empty">This house has not yet entered the Chronicle.</p>'}
   </section>
 </div>`;
-  return layout({ site, title: houseLabel(h.name), active: 'houses', body, depth: 1, description: `${houseLabel(h.name)}${h.sigil ? `, the ${h.sigil}` : ''}: ${h.members} sworn.` });
+  const g = greatHouse(h.name);
+  const og = g ? { image: { src: `assets/art/og/${g}.png`, w: 512, h: 512, alt: `Arms of House ${GREAT_HOUSES[g].name}, the ${GREAT_HOUSES[g].sigil}` } } : null;
+  return layout({ site, title: houseLabel(h.name), active: 'houses', body, depth: 1, path: `houses/${h.slug}.html`, og, description: `${houseLabel(h.name)}${h.sigil ? `, the ${h.sigil}` : ''}: ${h.members} sworn.` });
 }
 
 // ---------------------------------------------------------------- kings
 
 function reignRow(r, model, up, now) {
   const how = r.endingText || { abdicated: 'fell or left the throne', succeeded: 'was succeeded', vacant: 'the throne went empty', overthrown: 'overthrown by rebellion', wiped: 'cut short by a wipe' }[r.endedBy] || '';
+  const sigil = houseArt(r.house, 'sigil', up, 'reign-sigil');
   return `<li class="reign-row${r.current ? ' current' : ''}">
-  <span class="reign-crown">${icon(r.current ? 'crown' : 'crownX')}</span>
+  <span class="reign-crown${sigil ? ' has-sigil' : ''}">${sigil}${r.current ? `<span class="reign-mark">${artIcon('crown')}</span>` : sigil ? '' : artIcon('abdication')}</span>
   <div>
     <h3>${esc(r.king)}${r.house ? ` <span class="of">of</span> ${houseLink(r.house, model, up)}` : ''}${r.season ? ` <span class="badge season-badge">Season ${esc(r.season)}</span>` : ''}</h3>
     <p class="fine">${r.start ? esc(fmtDate(r.start)) : 'Unknown start'} → ${r.current ? '<b>reigns still</b>' : esc(r.end ? fmtDate(r.end) : 'unknown')}${how ? ` · ${esc(how)}` : ''}</p>
@@ -377,21 +464,49 @@ function reignRow(r, model, up, now) {
 </li>`;
 }
 
+// Renown titles named in the Chronicle (RealmRenown writes "<name> is named <title>"), newest holder first.
+export function renownRoll(model) {
+  const holders = new Map(TITLES.map((t) => [t.id, []]));
+  for (const e of model.events) {
+    if (e.type !== 'title_earned') continue;
+    const t = titleOf(e.title);
+    if (!t) continue;
+    const m = /^(.+?) is named /i.exec(e.title);
+    holders.get(t.id).unshift({ name: m ? m[1] : (e.actors[0] || ''), ts: e.ts });
+  }
+  return TITLES.map((t) => ({ ...t, holders: holders.get(t.id).filter((x) => x.name) }));
+}
+
 export function kingsPage(model, site) {
   const rec = model.records;
   const reigns = model.reigns.slice().reverse();
-  const card = (title, value, sub, ico) => `<div class="record">${icon(ico, 'rec-ico')}<p class="eyebrow">${esc(title)}</p><p class="rec-value">${value}</p>${sub ? `<p class="fine">${sub}</p>` : ''}</div>`;
+  const card = (title, value, sub, ico) => `<div class="record">${artIcon(ico, 'rec-ico')}<p class="eyebrow">${esc(title)}</p><p class="rec-value">${value}</p>${sub ? `<p class="fine">${sub}</p>` : ''}</div>`;
   const records = [
-    rec.longest ? card('Longest reign', esc(rec.longest.king), `${esc(duration(rec.longest.ms))}${rec.longest.house ? ` · ${esc(houseLabel(rec.longest.house))}` : ''}`, 'hourglass') : '',
-    rec.mostCrownedHouse ? card('Most crowned house', esc(houseLabel(rec.mostCrownedHouse[0])), `${rec.mostCrownedHouse[1]} reign${rec.mostCrownedHouse[1] === 1 ? '' : 's'}`, 'shield') : '',
+    rec.longest ? card('Longest reign', esc(rec.longest.king), `${esc(duration(rec.longest.ms))}${rec.longest.house ? ` · ${esc(houseLabel(rec.longest.house))}` : ''}`, 'succession') : '',
+    rec.mostCrownedHouse ? card('Most crowned house', esc(houseLabel(rec.mostCrownedHouse[0])), `${rec.mostCrownedHouse[1]} reign${rec.mostCrownedHouse[1] === 1 ? '' : 's'}`, 'house') : '',
     rec.mostCrownedKing && rec.mostCrownedKing[1] > 1 ? card('Crowned most often', esc(rec.mostCrownedKing[0]), `${rec.mostCrownedKing[1]} times`, 'crown') : '',
-    rec.faithless ? card('Most faithless', esc(houseLabel(rec.faithless.name)), esc(marks(rec.faithless).join(' · ')), 'chainX') : '',
+    rec.faithless ? card('Most faithless', esc(houseLabel(rec.faithless.name)), esc(marks(rec.faithless).join(' · ')), 'oath-broken') : '',
   ].filter(Boolean).join('');
   const past = model.seasons.past.length
-    ? `<section class="panel"><header class="panel-head"><h2>${icon('hourglass')} Seasons past</h2></header><ol class="reign-list">${model.seasons.past.map((s) => `<li class="reign-row"><span class="reign-crown">${icon('trophy')}</span><div><h3>${esc(s.name)}</h3><p class="fine">${esc(fmtDate(s.startedAt || '', false))} → ${esc(fmtDate(s.endsAt || '', false))}</p></div><div class="reign-stats">${s.championHouse ? `<b>${icon('trophy')} ${esc(houseLabel(s.championHouse))}</b>` : s.champion ? `<b>${esc(s.champion)}</b>` : ''}${s.championScore != null ? `<span class="fine">${esc(s.championScore)} points</span>` : ''}${s.longestReign ? `<span class="fine">Longest reign: ${esc(s.longestReign)}</span>` : ''}</div></li>`).join('')}</ol></section>`
+    ? `<section class="panel"><header class="panel-head"><h2>${artIcon('laurel')} Seasons past</h2></header><ol class="reign-list seasons-past">${model.seasons.past.map((s) => `<li class="reign-row"><span class="reign-crown has-sigil">${seasonBadge(s.number, '', 'reign-sigil') || artIcon('laurel')}</span><div><h3>${esc(s.name)}</h3><p class="fine">${esc(fmtDate(s.startedAt || '', false))} → ${esc(fmtDate(s.endsAt || '', false))}</p></div><div class="reign-stats">${s.championHouse ? `<b>${artIcon('trophy')} ${esc(houseLabel(s.championHouse))}</b>` : s.champion ? `<b>${esc(s.champion)}</b>` : ''}${s.championScore != null ? `<span class="fine">${esc(s.championScore)} points</span>` : ''}${s.longestReign ? `<span class="fine">Longest reign: ${esc(s.longestReign)}</span>` : ''}</div></li>`).join('')}</ol></section>`
+    : '';
+  const roll = renownRoll(model);
+  const earned = roll.filter((t) => t.holders.length).length;
+  const titleCard = (t) => `<li class="renown${t.holders.length ? ' earned' : ''}${t.infamous ? ' infamous' : ''}">
+  ${titleBadge(t, '', 'renown-badge')}
+  <span class="renown-name">${esc(t.name)}</span>
+  <span class="renown-holder">${t.holders.length ? `${esc(t.holders[0].name)}${t.holders.length > 1 ? ` <span class="fine">and ${t.holders.length - 1} more</span>` : ''}` : 'Unclaimed'}</span>
+</li>`;
+  const renown = roll.length
+    ? `<section class="panel" aria-labelledby="renown-h"><header class="panel-head"><h2 id="renown-h">${artIcon('medal')} Titles of renown</h2><span class="fine">${earned} of ${roll.length} claimed</span></header>
+  <p class="fine renown-note">Earned in play and named in the Chronicle. In game, <code>/titles all</code> lists every title and how it is earned.</p>
+  <ul class="renown-grid">${roll.filter((t) => !t.infamous).map(titleCard).join('')}</ul>
+  <h3 class="sub">Marks of infamy</h3>
+  <ul class="renown-grid">${roll.filter((t) => t.infamous).map(titleCard).join('')}</ul>
+</section>`
     : '';
   const body = `
-<section class="page-head"><div class="wrap">
+<section class="page-head art-head"><div class="wrap">
   <p class="kicker">Those who sat the Old Throne</p>
   <h1 class="gold">The Hall of Kings</h1>
   <p class="lead">The crown belongs to the seat, not the blood. Here is everyone who has held it, for how long, and how it ended. Rebuilt from the Chronicle, so reigns older than its retention may be missing.</p>
@@ -399,12 +514,13 @@ export function kingsPage(model, site) {
 <div class="wrap">
   ${records ? `<div class="records">${records}</div>` : ''}
   <section class="panel">
-    <header class="panel-head"><h2>${icon('crown')} Every reign</h2><span class="fine">${model.reigns.length} recorded</span></header>
+    <header class="panel-head"><h2>${artIcon('crown')} Every reign</h2><span class="fine">${model.reigns.length} recorded</span></header>
     ${reigns.length ? `<ol class="reign-list">${reigns.map((r) => reignRow(r, model, '', model.now)).join('')}</ol>` : '<p class="empty">No one has yet been crowned. The Old Throne waits.</p>'}
   </section>
+  ${renown}
   ${past}
 </div>`;
-  return layout({ site, title: 'Hall of Kings', active: 'kings', body, description: 'Every monarch of the realm, their reigns and records.' });
+  return layout({ site, title: 'Hall of Kings', active: 'kings', body, path: 'kings.html', description: 'Every monarch of the realm, their reigns and records.' });
 }
 
 // ---------------------------------------------------------------- docs (how to play, rules, lore, streamers)
@@ -421,7 +537,7 @@ export function docPage({ site, id, title, kicker, rendered, active = 'play', ex
     ? `<nav class="doc-tabs" aria-label="Codex">${DOC_TABS.map((t) => `<a href="${t.href}"${t.id === id ? ' class="active" aria-current="page"' : ''}>${esc(t.label)}</a>`).join('')}</nav>`
     : '';
   const body = `
-<section class="page-head"><div class="wrap">
+<section class="page-head art-head"><div class="wrap">
   <p class="kicker">${esc(kicker)}</p>
   <h1 class="gold">${esc(title)}</h1>
   ${tabs}
@@ -430,7 +546,7 @@ export function docPage({ site, id, title, kicker, rendered, active = 'play', ex
   ${toc.length > 2 ? `<aside class="toc"><p class="eyebrow">On this page</p><ol>${toc.map((h) => `<li><a href="#${esc(h.id)}">${esc(h.text)}</a></li>`).join('')}</ol></aside>` : ''}
   <article class="doc">${extraTop}${rendered.html}</article>
 </div>`;
-  return layout({ site, title, active, body });
+  return layout({ site, title, active, body, path: `${id}.html` });
 }
 
 export function streamersPage(model, site, rendered) {
@@ -454,7 +570,7 @@ export function downloadPage(model, site) {
     ? `<a class="btn primary big" href="${esc(d.url)}" rel="noopener">${icon('download')} Download Realm${d.version ? ` ${esc(d.version)}` : ''} for Windows</a>`
     : `<span class="btn primary big disabled" aria-disabled="true">${icon('download')} Download coming soon</span><p class="fine">The stewards have not published the installer link yet.</p>`;
   const body = `
-<section class="page-head"><div class="wrap">
+<section class="page-head art-head"><div class="wrap">
   <p class="kicker">Take up your banner</p>
   <h1 class="gold">Join the Realm</h1>
   <p class="lead">The Realm app finds the server, shows who holds the crown and joins through <b>your own Steam copy</b> of Reign of Kings. It never changes your game files.</p>
@@ -484,12 +600,12 @@ export function downloadPage(model, site) {
     </section>
   </div>
 </div>`;
-  return layout({ site, title: 'Download', active: 'download', body, description: 'Get the Realm app and join the server with your own Steam copy of Reign of Kings.' });
+  return layout({ site, title: 'Download', active: 'download', body, path: 'download.html', description: 'Get the Realm app and join the server with your own Steam copy of Reign of Kings.' });
 }
 
 export function notFoundPage(site) {
-  const body = `<section class="page-head"><div class="wrap"><p class="kicker">Lost on the King's Road</p><h1 class="gold">No such page</h1><p class="lead">The ravens could not find it. <a href="index.html">Return to the realm</a>.</p></div></section>`;
-  return layout({ site, title: 'Not found', active: '', body });
+  const body = `<section class="page-head art-head"><div class="wrap"><p class="kicker">Lost on the King's Road</p><h1 class="gold">No such page</h1><p class="lead">The ravens could not find it. <a href="index.html">Return to the realm</a>.</p></div></section>`;
+  return layout({ site, title: 'Not found', active: '', body, path: '404.html' });
 }
 
 // ---------------------------------------------------------------- feeds
@@ -535,6 +651,23 @@ ${items.map((e) => `  <entry>
 `;
 }
 
+// Lets phones add the portal to the home screen with the Realm emblem.
+export function webManifest(site) {
+  return {
+    name: site.realmName,
+    short_name: site.realmName.replace(/^the\s+/i, '').slice(0, 24),
+    description: site.tagline,
+    start_url: 'index.html',
+    display: 'browser',
+    background_color: '#131417',
+    theme_color: '#131417',
+    icons: [
+      { src: 'assets/art/logo/realm-emblem-192.png', sizes: '192x192', type: 'image/png' },
+      { src: 'assets/art/logo/realm-favicon.svg', sizes: 'any', type: 'image/svg+xml' },
+    ],
+  };
+}
+
 export function houseCss(model) {
   return model.houses.map((h) => {
     const d = h.dye;
@@ -544,7 +677,9 @@ export function houseCss(model) {
       const r = m(n >> 16), g = m((n >> 8) & 255), b = m(n & 255);
       return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
     };
-    return `.dye-${h.slug}{--dye:${d};--dye-light:${mix(0.16)};--dye-bright:${mix(0.45)};--dye-dark:${mix(-0.38)}}`;
+    // A great house also gets its sigil for card and page-head watermarks (this file is assets/houses.css).
+    const g = greatHouse(h.name);
+    return `.dye-${h.slug}{--dye:${d};--dye-light:${mix(0.16)};--dye-bright:${mix(0.45)};--dye-dark:${mix(-0.38)}${g ? `;--sigil:url('art/sigils/${g}.svg')` : ''}}`;
   }).join('\n') + '\n';
 }
 

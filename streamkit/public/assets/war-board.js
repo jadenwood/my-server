@@ -1,7 +1,7 @@
 // War Board: the houses of Ostreval as a live graph. Liege lines (gold), treaties (green, red when
 // broken in the last day) and declared claims (red arrows at the crown) with a side ledger.
 
-import { setupScene, startFeed, loadSchedule, el, clear, dyeFor, monogram, houseLabel, icon, healthChip } from './kit.js';
+import { setupScene, startFeed, loadSchedule, el, clear, dyeFor, monogram, houseLabel, icon, artIcon, healthChip } from './kit.js';
 import {
   buildWarBoard, layoutForest, normalizeSchedule, parseWindowsParam, houseIn, splitDuration, formatUtc,
 } from './model.js';
@@ -20,7 +20,7 @@ const showTitle = kit.params.get('title') !== '0';
 
 const header = el('header', { class: 'wb-header' },
   el('div', { class: 'eyebrow' }, 'The War Board of Ostreval'),
-  el('div', { class: 'wb-crown' }, icon('crown'), el('span', { id: 'wb-king', class: 'gold-text' }, ' ')),
+  el('div', { class: 'wb-crown' }, artIcon('crown'), el('span', { id: 'wb-king', class: 'gold-text' }, ' ')),
 );
 const svg = el('svg', { class: 'wb-graph', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Houses, liege lines, treaties and claims' },
   el('defs', {},
@@ -143,7 +143,8 @@ function drawNode(g, n, r, focused) {
   g.appendChild(el('circle', { class: 'disc', r: String(r), style: { fill: dye['--dye'], stroke: dye['--dye-light'] } }));
   g.appendChild(el('circle', { class: 'rim', r: String(r - 6) }));
   const art = sigilSvg(n.sigil, n.name, 'sigil-art');
-  const s = r * 1.25;
+  // An engraved sigil covers the whole disc; line art sits inside the rim.
+  const s = art.dataset.kind === 'art' ? r * 2 + 4 : r * 1.25;
   art.setAttribute('x', String(-s / 2));
   art.setAttribute('y', String(-s / 2));
   art.setAttribute('width', String(s));
@@ -208,7 +209,7 @@ function renderLedger(board, names, now) {
   const treaties = board.treaties.filter((t) => names.has(t.a) && names.has(t.b));
   const sworn = board.lieges.filter((l) => names.has(l.vassal) && names.has(l.liege));
 
-  ledger.appendChild(el('h2', {}, icon('flag'), 'Claims'));
+  ledger.appendChild(el('h2', {}, artIcon('claim'), 'Claims'));
   if (!claims.length) ledger.appendChild(el('p', { class: 'none' }, 'No house has raised a claim.'));
   for (const c of claims) {
     const when = c.status === 'active'
@@ -220,7 +221,7 @@ function renderLedger(board, names, now) {
       el('div', { class: 'when' }, when)));
   }
 
-  ledger.appendChild(el('h2', {}, icon('seal'), 'Treaties'));
+  ledger.appendChild(el('h2', {}, artIcon('treaty'), 'Treaties'));
   if (!treaties.length) ledger.appendChild(el('p', { class: 'none' }, 'No treaty holds.'));
   for (const t of treaties.slice(0, 7)) {
     const when = t.status === 'broken'
@@ -232,7 +233,7 @@ function renderLedger(board, names, now) {
       el('div', { class: 'when' }, when)));
   }
 
-  ledger.appendChild(el('h2', {}, icon('shield'), 'Fealty'));
+  ledger.appendChild(el('h2', {}, artIcon('oath'), 'Fealty'));
   if (!sworn.length) ledger.appendChild(el('p', { class: 'none' }, 'Every house stands alone.'));
   for (const l of sworn.slice(0, 6)) {
     ledger.appendChild(el('div', { class: 'row liege' },

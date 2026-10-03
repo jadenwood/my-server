@@ -620,21 +620,51 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+        #endregion
+
         #region Lang
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Herald", "[C8A050]Herald[FFFFFF]: " },
-                { "Help1", "Dynasties: /dynasty found <name> | info [line|player] | list | tree [line] | accept | decline | leave" },
-                { "Help2", "Head of a line: /dynasty heir name <player> | heir remove <player> | heir order <player> <position> | disown <player> | abdicate | dissolve" },
-                { "Help3", "Blood and crown: /dynasty claim (heirs of a fallen monarch) | /dynasty bestow \"<line>\" <title> (the reigning monarch)" },
-                { "Help4", "Succession: when the head abdicates or is unseen for {0} days, the first active heir in the line becomes head and takes the line's titles." },
-                { "HelpAdmin", "Admin: /dynasty admin pass \"<line>\" [heir] | dissolve \"<line>\" | title add|remove \"<line>\" <title> | prestige \"<line>\" <+/-n> | check | save" },
+                { "Herald", "[D6A043]Herald[FFFFFF]: " },
+                { "Speaker", "Dynasties" },
+                { "HelpHeader", "Bloodlines, heirs and the claims of fallen crowns." },
+                { "Help1", "  [F4C96D]/dynasty found[FFFFFF] <name> | info [line|player] | list | tree [line] | accept | decline | leave" },
+                { "Help2", "  Head of a line: [F4C96D]/dynasty heir name[FFFFFF] <player> | heir remove <player> | heir order <player> <position> | disown <player> | abdicate | dissolve" },
+                { "Help3", "  Blood and crown: [F4C96D]/dynasty claim[FFFFFF] (heirs of a fallen monarch) | [F4C96D]/dynasty bestow[FFFFFF] \"<line>\" <title> (the reigning monarch)" },
+                { "Help4", "  Succession: when the head abdicates or is unseen for {0} days, the first active heir in the line becomes head and takes the line's titles." },
+                { "HelpAdmin", "  Admin: [F4C96D]/dynasty admin pass[FFFFFF] \"<line>\" [heir] | dissolve \"<line>\" | title add|remove \"<line>\" <title> | prestige \"<line>\" <+/-n> | check | save" },
                 { "NoPermission", "You may not do that." },
                 { "Throttled", "Slow down." },
-                { "NotInDynasty", "You belong to no line. Found one with /dynasty found <name>." },
+                { "NotInDynasty", "You belong to no line. Found one with [F4C96D]/dynasty found[FFFFFF] <name>." },
                 { "AlreadyInDynasty", "You already belong to the line of {0}." },
                 { "NoSuchDynasty", "No line named '{0}' exists." },
                 { "NoSuchPlayer", "No online player matches '{0}'." },
@@ -655,8 +685,8 @@ namespace Oxide.Plugins
                 { "DynastyFull", "Your line already has {0} members." },
                 { "TooManyOffers", "Your line already has {0} offers waiting for an answer." },
                 { "OfferCooldown", "Wait {0} s before naming another heir." },
-                { "OfferSent", "You name {0} heir of the line of {1}. They must type /dynasty accept within {2} s." },
-                { "OfferReceived", "{0} names you heir of the line of {1}. Type /dynasty accept or /dynasty decline within {2} s." },
+                { "OfferSent", "You name {0} heir of the line of {1}. They must type [F4C96D]/dynasty accept[FFFFFF] within {2} s." },
+                { "OfferReceived", "{0} names you heir of the line of {1}. Type [F4C96D]/dynasty accept[FFFFFF] or [F4C96D]/dynasty decline[FFFFFF] within {2} s." },
                 { "NoOffer", "No one has named you heir." },
                 { "OfferDeclined", "{0} declines to be named heir." },
                 { "YouDeclined", "You decline." },
@@ -666,8 +696,8 @@ namespace Oxide.Plugins
                 { "HeirRemoved", "{0} is removed from the line of succession but remains kin." },
                 { "NotHeir", "{0} is not in your line of succession." },
                 { "HeirMoved", "{0} is now heir {1}." },
-                { "HeirOrderUsage", "Usage: /dynasty heir order <player> <position>" },
-                { "HeirUsage", "Usage: /dynasty heir name <player> | remove <player> | order <player> <position> | list" },
+                { "HeirOrderUsage", "Usage: [F4C96D]/dynasty heir order[FFFFFF] <player> <position>" },
+                { "HeirUsage", "Usage: [F4C96D]/dynasty heir name[FFFFFF] <player> | remove <player> | order <player> <position> | list" },
                 { "LineHeader", "Line of succession of {0}:" },
                 { "LineEntry", "  {0}. {1}{2}" },
                 { "LineEmpty", "  (no heirs named)" },
@@ -677,28 +707,28 @@ namespace Oxide.Plugins
                 { "Disowned", "{0} is cast out of the line of {1}." },
                 { "YouWereDisowned", "You have been cast out of the line of {0}." },
                 { "HeadCannotLeave", "The head cannot leave. Abdicate first, or dissolve the line if you are its only member." },
-                { "LeaveConfirm", "Leaving the line of {0} cannot be undone, and you may not join or found a line for {1}. Type /dynasty leave confirm within 60 s." },
+                { "LeaveConfirm", "Leaving the line of {0} cannot be undone, and you may not join or found a line for {1}. Type [F4C96D]/dynasty leave confirm[FFFFFF] within 60 s." },
                 { "Left", "You leave the line of {0}." },
                 { "MemberLeft", "{0} has left the line of {1}." },
-                { "AbdicateConfirm", "Abdicating passes the line of {0} and its titles to {1}. Type /dynasty abdicate confirm within 60 s." },
+                { "AbdicateConfirm", "Abdicating passes the line of {0} and its titles to {1}. Type [F4C96D]/dynasty abdicate confirm[FFFFFF] within 60 s." },
                 { "AbdicateNoHeir", "No active heir can take the line. Name an heir first." },
                 { "AbdicateCooldown", "The line changed hands too recently. You may abdicate in {0}." },
                 { "DissolveNotAlone", "Only a line with a single member may be dissolved. Others must leave or be disowned first." },
-                { "DissolveConfirm", "Dissolving the line of {0} erases it and returns its titles to the crown. Type /dynasty dissolve confirm within 60 s." },
+                { "DissolveConfirm", "Dissolving the line of {0} erases it and returns its titles to the crown. Type [F4C96D]/dynasty dissolve confirm[FFFFFF] within 60 s." },
                 { "Dissolved", "The line of {0} is ended." },
                 { "Succession", "{0} succeeds {1} as head of the line of {2} ({3})." },
-                { "HouseAdvice", "You lead House {0} in the realm's records. To pass the house to {1} as well, use /house promote {1} leader." },
+                { "HouseAdvice", "You lead House {0} in the realm's records. To pass the house to {1} as well, use [F4C96D]/house promote[FFFFFF] {1} leader." },
                 { "Dormant", "The head of the line of {0} is unseen and no active heir can take the line." },
                 { "InfoHeader", "The line of {0} - founded {1} by {2}" },
-                { "InfoHead", "Head: {0} (gen {1}) since {2} UTC | Members: {3}/{4}" },
-                { "InfoTitles", "Titles: {0}" },
-                { "InfoPrestige", "Prestige {0}: reigns {1}, {2} h on the throne, {3} days of oaths kept, {4} oaths / {5} treaties broken, {6} restorations, {7} generations" },
-                { "InfoSeat", "Seat: House {0}" },
-                { "InfoBlood", "Blood right: the crown fell from {0}; {1}" },
+                { "InfoHead", "  Head: {0} (gen {1}) since {2} UTC | Members: {3}/{4}" },
+                { "InfoTitles", "  Titles: {0}" },
+                { "InfoPrestige", "  Prestige {0}: reigns {1}, {2} h on the throne, {3} days of oaths kept, {4} oaths / {5} treaties broken, {6} restorations, {7} generations" },
+                { "InfoSeat", "  Seat: House {0}" },
+                { "InfoBlood", "  Blood right: the crown fell from {0}; {1}" },
                 { "BloodOpenText", "a claim may be pressed for another {0}" },
                 { "BloodAwaitingText", "pressed by {0}; waiting for House {1} to raise its claim (before {2} UTC)" },
                 { "BloodLinkedText", "pressed by {0} through House {1}; rebellion {2} to {3} UTC" },
-                { "InfoHistory", "Recent: {0}" },
+                { "InfoHistory", "  Recent: {0}" },
                 { "None", "none" },
                 { "ListHeader", "Lines of the realm by prestige ({0}):" },
                 { "ListLine", "  {0}. {1} - {2} prestige, head {3}, {4} members{5}" },
@@ -712,10 +742,10 @@ namespace Oxide.Plugins
                 { "ClaimNoHouse", "A blood claim is raised through a house. Join or found a house first." },
                 { "ClaimCooldown", "Wait {0} s before pressing the claim again." },
                 { "ClaimLinked", "Your blood claim rides on House {0}'s claim. The rebellion runs {1} to {2} UTC." },
-                { "ClaimAwaiting", "Your blood claim is recorded. House {0} has no open claim yet: its head must /claim declare before {1} UTC, or the right lapses." },
+                { "ClaimAwaiting", "Your blood claim is recorded. House {0} has no open claim yet: its head must [F4C96D]/claim declare[FFFFFF] before {1} UTC, or the right lapses." },
                 { "ClaimNoCrownPlugin", "Your blood claim is recorded, but the crown's claim rules are not running here. It will be honoured only if the line retakes the throne before {0} UTC." },
                 { "BroadcastClaim", "{0} presses the blood claim of the line of {1} to the crown of {2}." },
-                { "BloodFallen", "The crown has fallen from {0} of your line. An heir may press the blood claim with /dynasty claim within {1} h." },
+                { "BloodFallen", "The crown has fallen from {0} of your line. An heir may press the blood claim with [F4C96D]/dynasty claim[FFFFFF] within {1} h." },
                 { "BloodLapsed", "The blood claim of the line of {0} has lapsed." },
                 { "BloodRestored", "The line of {0} regains the crown." },
                 { "ReignCounted", "{0} of the line of {1} has held the throne long enough: the reign is entered in the line's record." },
@@ -726,7 +756,7 @@ namespace Oxide.Plugins
                 { "BestowFull", "The line of {0} already holds {1} titles." },
                 { "BestowHeld", "The line of {0} already holds that title." },
                 { "BestowTaken", "That title belongs to the line of {0}." },
-                { "BestowUsage", "Usage: /dynasty bestow \"<line>\" <title>" },
+                { "BestowUsage", "Usage: [F4C96D]/dynasty bestow[FFFFFF] \"<line>\" <title>" },
                 { "Bestowed", "The crown bestows the title {0} on the line of {1}{2}." },
                 { "BestowedFrom", ", taking it from the line of {0}" },
                 { "TitleAdded", "Title {0} given to the line of {1}." },
@@ -737,8 +767,8 @@ namespace Oxide.Plugins
                 { "PrestigeAdjusted", "Prestige adjustment for the line of {0} is now {1} (score {2})." },
                 { "Checked", "Succession, crown and claim checks ran." },
                 { "Saved", "Dynasty data saved." },
-                { "AdminUsage", "Usage: /dynasty admin pass \"<line>\" [heir] | dissolve \"<line>\" | title add|remove \"<line>\" <title> | prestige \"<line>\" <+/-n> | check | save" },
-                { "Unknown", "Unknown subcommand. Type /dynasty help." }
+                { "AdminUsage", "Usage: [F4C96D]/dynasty admin pass[FFFFFF] \"<line>\" [heir] | dissolve \"<line>\" | title add|remove \"<line>\" <title> | prestige \"<line>\" <+/-n> | check | save" },
+                { "Unknown", "Unknown subcommand. Type [F4C96D]/dynasty help[FFFFFF]." }
             }, this);
         }
 
@@ -751,12 +781,29 @@ namespace Oxide.Plugins
         // Single-string overloads only (docs/oxide-rok-api.md 4.2, brace safety).
         private void Reply(Player player, string key, params object[] args)
         {
-            player.SendMessage(Msg(key, player, args));
+            player.SendMessage(Styled(Msg("Speaker", player), ToneOf(key), Msg(key, player, args)));
         }
 
         private void Error(Player player, string key, params object[] args)
         {
-            player.SendError(Msg(key, player, args));
+            player.SendError(Styled(Msg("Speaker", player), ChatError, Msg(key, player, args)));
+        }
+
+        // Tone of a reply (chat style): done, or take care; everything else is news.
+        private static readonly HashSet<string> OkKeys = new HashSet<string>
+        {
+            "Founded", "OfferSent", "HeirAccepted", "KinRestored", "HeirMoved", "Left", "Dissolved", "AdminPassed", "Checked",
+            "Saved", "TitleAdded", "TitleRemoved", "PrestigeAdjusted", "ReignCounted", "ClaimLinked", "YouDeclined"
+        };
+        private static readonly HashSet<string> WarnKeys = new HashSet<string>
+        {
+            "AbdicateConfirm", "DissolveConfirm", "LeaveConfirm", "BloodFallen", "BloodLapsed", "YouWereDisowned", "Dormant",
+            "ClaimAwaiting", "ClaimNoCrownPlugin", "HouseAdvice"
+        };
+
+        private static string ToneOf(string key)
+        {
+            return OkKeys.Contains(key) ? ChatOk : WarnKeys.Contains(key) ? ChatWarn : ChatGold;
         }
 
         private void NotifyId(string id, string key, params object[] args)
@@ -1293,6 +1340,7 @@ namespace Oxide.Plugins
 
         private void CmdHelp(Player player)
         {
+            Reply(player, "HelpHeader");
             Reply(player, "Help1");
             Reply(player, "Help2");
             Reply(player, "Help3");

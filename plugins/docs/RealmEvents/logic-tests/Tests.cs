@@ -205,7 +205,10 @@ static class T
             hall.Count > 0 ? (string)F(hall[0], "Ending") : "none");
         OpenClaims.Clear();
 
-        // Chronicle feed.
+        // Chronicle feed. The anti-farming limits on treaties kept (minimum term and members) are switched off here;
+        // tools/exploit-review/seasons tests them at their defaults.
+        SetF(F(S, "config"), "TreatyKeptMinDays", 0);
+        SetF(F(S, "config"), "TreatyKeptMinMembers", 0);
         ChronAppend("rebellion_ended", "The rebellion of House Morrow ends", "House Morrow prevailed and holds the crown.");
         ChronAppend("treaty_signed", "House Varn and House Thorne sign a treaty", "The treaty holds for 7 days.");
         Treaties.Add("varn|thorne");
@@ -245,7 +248,7 @@ static class T
         Inv(S, "CmdSeason", bryn, "season", new[] { "hall" });
         Ok(bryn.All().Contains("Hall of Kings (2 reigns)") && bryn.All().Contains("Cass of House Morrow"), "/season hall lists past and current reigns", bryn.All());
         Inv(S, "CmdSeason", bryn, "season", new[] { "end" });
-        Ok(bryn.All().Contains("ERR You may not do that."), "non-admin cannot end the season");
+        Ok(bryn.Messages.Any(m => m.StartsWith("ERR ") && m.EndsWith("You may not do that.")), "non-admin cannot end the season", bryn.All());
 
         // Ceremony.
         Clear();
