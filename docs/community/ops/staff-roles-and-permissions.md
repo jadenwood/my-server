@@ -41,6 +41,7 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmrenown.admin` | `RealmRenown.cs` | `/renown admin grant`, `title give\|take`, `reset`, `status`, `save` | Skips the command cooldown; can grant points and titles | Yes | On call | No | No |
 | `realmtreasury.admin` | `RealmTreasury.cs` | `/treasury audit`, `freeze`, `unfreeze`, `cancel` (any order), `escheat` | Skips trade rate cooldowns; can cancel any market order | Yes | On call | No | No |
 | `realmsentinel.admin` | `RealmSentinel.cs` | `/sentinel status`, `report`, `clear`, `reload`, `freeze`, `unfreeze`, `ban <player> confirm`, `peaks`: suspicion scores, cheat evidence and responses. Holders also count as staff for the name-impersonation check | With `General.AdminsExempt: true` (the default): **skips every cheat check** | Yes | Yes | No | No |
+| `realmlegendary.admin` | `RealmLegendary.cs` | `/ironbreaker status`, `grant <player> [force]`, `revoke`, `reset confirm`, `items [word]`: who bears the Ironbreaker, and its audit | **Can put the legendary blade in anyone's hands**, including their own | Yes | Yes | No | No |
 
 Things that are **not** Oxide permissions but are staff powers all the same:
 
@@ -72,6 +73,7 @@ oxide.grant group realm_admin crownandconsequences.admin
 oxide.grant group realm_admin realmcontracts.admin
 oxide.grant group realm_admin realmlaws.admin
 oxide.grant group realm_admin realmsentinel.admin
+oxide.grant group realm_admin realmlegendary.admin
 
 oxide.grant group realm_mod realmwarden.admin
 oxide.grant group realm_mod realmravens.admin

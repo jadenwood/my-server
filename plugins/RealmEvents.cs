@@ -50,6 +50,9 @@
 // and logged.
 //
 // Season points go to RealmSeasons via its non-public AwardHouse(house, points, honour); without it events still run.
+// The Ironbreaker: the tournament champion and each hunter paid for a quarry are offered the legendary blade through
+// RealmLegendary's non-public AwardEventPrize(kind, playerId, name). RealmLegendary decides (its PrizeEvents config, and
+// only while the blade rests in the armoury); without it nothing changes here.
 // Data: oxide/data/RealmEvents.json (running events, fired occurrences, owed prizes). If it exists but cannot be
 // parsed, the plugin refuses to run and never writes it, so owed prizes are not lost.
 //
@@ -83,6 +86,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin CrownAndConsequences;
         [PluginReference] private Plugin RealmSeasons;
         [PluginReference] private Plugin RealmWarden;
+        [PluginReference] private Plugin RealmLegendary;   // the Ironbreaker prize (OfferLegendary)
 
         private const string PermAdmin = "realmevents.admin";
         private const string DataName = "RealmEvents";
@@ -872,6 +876,7 @@ namespace Oxide.Plugins
                 Chronicle("tournament_champion", champ.Name + " wins the Royal Tournament",
                     (champ.House != null ? champ.Name + " of House " + champ.House : champ.Name) + " is champion with " + champ.Kills
                     + " kills. Standings: " + result + ".", new[] { champ.Name });
+                OfferLegendary(KTournament, ranked[0].Key, champ.Name);
             }
             else Chronicle("event_ended", "The Royal Tournament ends", "No one scored. " + a.Entrants.Count + " entered.", new string[0]);
             AddHistory("Royal Tournament: " + result);
@@ -1054,6 +1059,7 @@ namespace Oxide.Plugins
                         new[] { killer.Name, q.Name });
                     if (kHouse != null) Award(kHouse, config.HuntKillPoints, "Took the King's quarry " + q.Name + " (" + killer.Name + ")");
                     foreach (Prize p in config.HuntPrizes) GrantPrize(kid, killer.Name, p, "the King's Hunt");
+                    OfferLegendary(KHunt, kid, killer.Name);
                 }
             }
 
@@ -1452,6 +1458,15 @@ namespace Oxide.Plugins
             if (r is int && (int)r > 0) chronicleTypeAccepted[type] = true;
             else if (r is int && (int)r == 0 && type != "decree" && !chronicleTypeAccepted.ContainsKey(type))
                 RealmChronicle.Call("Log", "decree", title, detail, actors ?? new string[0]);
+        }
+
+        // The Ironbreaker as a prize: only the winner's id and name go across; RealmLegendary applies its own rules
+        // (which events award it, whether it is free, cooldowns) and does its own herald and Chronicle lines.
+        private void OfferLegendary(string kind, string playerId, string playerName)
+        {
+            if (RealmLegendary == null) return;
+            try { RealmLegendary.Call("AwardEventPrize", kind, playerId, playerName); }
+            catch (Exception ex) { PrintWarning("RealmLegendary prize offer failed: " + ex.Message); }
         }
 
         private void CurrentCrown(out string monarch, out string house)

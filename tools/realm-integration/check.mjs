@@ -45,14 +45,12 @@ export const GAME_COMMANDS = [
 
 // Plugins another team is building that a plugin here already calls. While plugins/<Name>.cs does not exist, a
 // [PluginReference] to it is allowed (the caller must treat null as "not available") and each call must match the
-// method and argument count agreed here. Once the file lands, the normal checks apply and this entry can go.
-export const PENDING_PLUGINS = {
-  RealmLegendary: { GetBearerName: 0 },               // RealmPainter's Ironbreaker poster; returns string or null
-};
+// method and argument count agreed here. Once the file lands, the normal checks apply and its entry goes.
+export const PENDING_PLUGINS = {};
 
 // Staff-only chat commands: the plugin serves only holders of its admin permission (others get one pointer line), so
 // the player hub (/realm) does not list them. Each plugin guide documents its own.
-export const STAFF_COMMANDS = ['sentinel', 'paint'];
+export const STAFF_COMMANDS = ['sentinel', 'paint', 'ironbreaker'];
 
 const SNAKE = /^[a-z]+(?:_[a-z]+)*$/;
 
@@ -394,7 +392,7 @@ export function catalogueProblems(raw, owners) {
   return { problems, entries: entries.length };
 }
 
-export function analyse(repo = REPO) {
+export function analyse(repo = REPO, pending = PENDING_PLUGINS) {
   const dir = join(repo, 'plugins');
   const plugins = readdirSync(dir).filter((f) => f.endsWith('.cs')).sort()
     .map((f) => analysePlugin(join('plugins', f), readFileSync(join(dir, f), 'utf8')));
@@ -404,14 +402,14 @@ export function analyse(repo = REPO) {
 
   for (const p of plugins) {
     if (p.cls && p.cls !== p.name) P(p.file, 1, `class ${p.cls} does not match the file name (Oxide loads by file name)`);
-    for (const r of p.refs) if (!byClass[r.target] && !PENDING_PLUGINS[r.target]) P(p.file, r.line, `[PluginReference] ${r.field} names no plugin in plugins/`);
+    for (const r of p.refs) if (!byClass[r.target] && !pending[r.target]) P(p.file, r.line, `[PluginReference] ${r.field} names no plugin in plugins/`);
     for (const c of p.calls) {
       if (!c.target) continue;                                   // not a plugin reference (e.g. a local helper)
       const t = byClass[c.target];
-      const pending = !t && PENDING_PLUGINS[c.target];
-      if (pending) {
-        if (!(c.method in pending)) P(p.file, c.line, `${c.target} is not built yet and ${c.method} is not among its agreed methods (PENDING_PLUGINS)`);
-        else if (pending[c.method] !== c.arity) P(p.file, c.line, `${c.target}.${c.method} is agreed with ${pending[c.method]} argument(s), called with ${c.arity}`);
+      const pendingCalls = !t && pending[c.target];
+      if (pendingCalls) {
+        if (!(c.method in pendingCalls)) P(p.file, c.line, `${c.target} is not built yet and ${c.method} is not among its agreed methods (PENDING_PLUGINS)`);
+        else if (pendingCalls[c.method] !== c.arity) P(p.file, c.line, `${c.target}.${c.method} is agreed with ${pendingCalls[c.method]} argument(s), called with ${c.arity}`);
         continue;
       }
       if (!t) { P(p.file, c.line, `${c.ref}.Call("${c.method}") targets missing plugin ${c.target}`); continue; }

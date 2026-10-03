@@ -184,7 +184,7 @@ test('a plugin still being built may be called as agreed in PENDING_PLUGINS, and
     [ChatCommand("realm")] private void CmdR(Player p, string c, string[] a) { }`),
   });
   try {
-    const text = analyse(dir).problems.join('\n');
+    const text = analyse(dir, { RealmLegendary: { GetBearerName: 0 } }).problems.join('\n');
     assert.doesNotMatch(text, /names no plugin/);
     assert.match(text, /RealmLegendary\.GetBearerName is agreed with 0 argument\(s\), called with 1/);
     assert.match(text, /Unagreed is not among its agreed methods/);
