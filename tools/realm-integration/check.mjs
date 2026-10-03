@@ -20,7 +20,7 @@
 //      chat palette (house tints read from art/palette.json); no lang string is over 200 visible characters; every
 //      /command a lang string mentions is registered by some plugin and drawn in the command colour;
 //   6. RealmHerald's /realm catalogue lists every chat command exactly once, under the plugin that registers it,
-//      with a "Cmd.<command>" description.
+//      with a "Cmd.<command>" description (staff-only commands in STAFF_COMMANDS are left out of the hub).
 //   7. popups (docs/realm-commands.md, "Popups"): the game's ShowPopup / ShowConfirmPopup / ShowInputPopup are called
 //      only inside a plugin's "Popups" region, inside try, with every argument spelled out and broadcast = true; the
 //      plugin has a UsePopups config switch and a PopupsFor gate, and one that waits for answers ignores them after
@@ -41,6 +41,10 @@ export const GAME_COMMANDS = [
   'ban', 'banlist', 'give', 'kick', 'list', 'logout', 'mute', 'name', 'notice', 'popup', 'quit',
   'restart', 'shutdown', 'suicide', 'time', 'unban', 'videofly', 'whitelist',
 ];
+
+// Chat commands only staff can use (every subcommand is gated by an Oxide permission, listed in
+// docs/community/ops/staff-roles-and-permissions.md). RealmHerald's /realm hub is for players and leaves them out.
+export const STAFF_COMMANDS = ['ironbreaker'];
 
 const SNAKE = /^[a-z]+(?:_[a-z]+)*$/;
 
@@ -378,7 +382,7 @@ export function catalogueProblems(raw, owners) {
     if (!keys.has('Cmd.' + e.cmd)) problems.push({ line: e.line, msg: `lang key "Cmd.${e.cmd}" (its one-line description) is missing` });
   }
   for (const s of subjects) if (!keys.has('Subject.' + s)) problems.push({ line: 1, msg: `lang key "Subject.${s}" is missing` });
-  for (const cmd of Object.keys(owners)) if (!seen.has(cmd)) problems.push({ line: 1, msg: `/${cmd} (${owners[cmd]}) is missing from the /realm catalogue` });
+  for (const cmd of Object.keys(owners)) if (!seen.has(cmd) && !STAFF_COMMANDS.includes(cmd)) problems.push({ line: 1, msg: `/${cmd} (${owners[cmd]}) is missing from the /realm catalogue` });
   return { problems, entries: entries.length };
 }
 

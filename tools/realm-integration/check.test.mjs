@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyse, splitArgs, stripComments, commandsMarkdown } from './check.mjs';
+import { analyse, splitArgs, stripComments, commandsMarkdown, STAFF_COMMANDS } from './check.mjs';
 
 const CHRONICLE = `namespace Oxide.Plugins {
   public class RealmChronicle : ReignOfKingsPlugin {
@@ -200,7 +200,8 @@ test('the /realm catalogue must list every command once, under its owner', () =>
 test('the real plugins keep the chat style and a complete /realm catalogue', () => {
   const r = analyse();
   assert.ok(r.chat.langStrings > 900);
-  assert.equal(r.chat.catalogue, Object.keys(r.commands).length - 2);   // all but RealmCourt's two console commands
+  // all but RealmCourt's two console commands and the staff-only commands
+  assert.equal(r.chat.catalogue, Object.keys(r.commands).length - 2 - STAFF_COMMANDS.filter((c) => r.commands[c]).length);
 });
 
 const POPUPS_OK = `
