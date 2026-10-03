@@ -113,6 +113,8 @@ namespace Oxide.Plugins
         private readonly HashSet<string> forced = new HashSet<string>();   // ... that skip the per-sign interval
         private readonly List<KeyValuePair<DateTime, int>> sent = new List<KeyValuePair<DateTime, int>>();  // when, bytes
         private int chronicleSeen = -1;
+        private List<Wanted> outlawCache;
+        private DateTime outlawAt;
         private List<ChronEntry> chronicleCache = new List<ChronEntry>();
 
         // Indirections so the behaviour tests can move time and stand in for the game's world.
@@ -279,7 +281,7 @@ namespace Oxide.Plugins
         {
             if (e == null) return null;
             ulong id = e.NetViewID;
-            foreach (SignRec s in data.Signs) if (s.ViewId == id && !s.Missing) return s;
+            foreach (SignRec s in data.Signs) if (s.ViewId == id) return s;      // a "missing" record found again too
             return null;
         }
 
@@ -1700,10 +1702,19 @@ namespace Oxide.Plugins
             return "inkSoft";
         }
 
+        // The outlaw roll, read once per refresh pass however many wanted posters there are.
         private List<Wanted> Outlaws()
         {
-            var map = new Dictionary<string, Wanted>();
             DateTime now = clock();
+            if (outlawCache != null && Math.Abs((now - outlawAt).TotalSeconds) < 5) return outlawCache;
+            outlawAt = now;
+            outlawCache = ReadOutlaws(now);
+            return outlawCache;
+        }
+
+        private List<Wanted> ReadOutlaws(DateTime now)
+        {
+            var map = new Dictionary<string, Wanted>();
             if (RealmContracts != null)
             {
                 try
@@ -2555,7 +2566,7 @@ namespace Oxide.Plugins
             {
                 { "Speaker", "Painter" },
                 { "Usage", "[F4C96D]/paint[FFFFFF] <artwork> paints the sign you look at. [F4C96D]/paint list[FFFFFF] shows the artworks and live boards." },
-                { "Usage2", "  [F4C96D]/paint info[FFFFFF] | [F4C96D]/paint signs[FFFFFF] | [F4C96D]/paint redraw[FFFFFF] [id|all] | [F4C96D]/paint unbind[FFFFFF] [id] | [F4C96D]/paint clear[FFFFFF] [id]" },
+                { "Usage2", "  [F4C96D]/paint info[FFFFFF] | [F4C96D]/paint nearby[FFFFFF] | [F4C96D]/paint signs[FFFFFF] | [F4C96D]/paint redraw[FFFFFF] [id|all] | [F4C96D]/paint unbind[FFFFFF] [id] | [F4C96D]/paint clear[FFFFFF] [id]" },
                 { "Usage3", "  [F4C96D]/paint face[FFFFFF] [calibrate|auto|save|w h] | [F4C96D]/paint fit[FFFFFF] fit|fill | [F4C96D]/paint notice[FFFFFF] title | text | [F4C96D]/paint status[FFFFFF] | [F4C96D]/paint reload[FFFFFF]" },
                 { "NoPermission", "Only the realm's painters may do that." },
                 { "LoadFailed", "oxide/data/RealmPainter.json could not be read, so nothing is changed until it is fixed. See the server log." },
@@ -2581,6 +2592,9 @@ namespace Oxide.Plugins
                 { "Info", "Sign {0}: {1} at {2} m, shows {3}{4}. Face {5} x {6} m ({7}), {8}. Drawn {9} time(s){10}." },
                 { "InfoFree", "This {0} is {1} m away and not bound. Its paint area is {2} x {3} m. [F4C96D]/paint[FFFFFF] <artwork> binds it." },
                 { "SignsHeader", "{0} bound sign(s):" },
+                { "NearbyHeader", "{0} paintable object(s) within 20 m, nearest first:" },
+                { "NearbyLine", "  {0}  {1} m  face {2} x {3} m (the game's brush: {4} x {5} px)  {6}" },
+                { "NearbyNone", "No paintable object within 20 m." },
                 { "SignsLine", "  {0}  {1}{2}  {3}  {4}" },
                 { "SignsNone", "No signs are bound yet. Look at a sign and type [F4C96D]/paint[FFFFFF] <artwork>." },
                 { "FaceShow", "Sign {0}: face {1} x {2} m at ({3}, {4}), from {5}." },
@@ -2776,6 +2790,7 @@ namespace Oxide.Plugins
                 case "status": CmdStatus(player); return;
                 case "signs": CmdSigns(player); return;
                 case "info": CmdInfo(player); return;
+                case "nearby": CmdNearby(player); return;
                 case "reload":
                     LoadArt();
                     if (art == null) { Error(player, "NoArt", artError); return; }
@@ -3056,6 +3071,31 @@ namespace Oxide.Plugins
             Reply(player, "Info", s.Id, s.Name, Metres(d), Describe(s), s.Missing ? " (missing)" : "",
                 Metres(s.Face != null ? s.Face.W : 0), Metres(s.Face != null ? s.Face.H : 0), s.FaceFrom, s.Fit ?? config.Fit, s.Draws,
                 ", last " + when + (string.IsNullOrEmpty(s.LastError) ? "" : ", last error: " + s.LastError));
+        }
+
+        // Every paintable object within 20 m: which placeables are paintable is prefab data, not code, so this is how
+        // the first test finds out (plugins/docs/RealmPainter.md).
+        private void CmdNearby(Player player)
+        {
+            UnityEngine.Vector3 me = player.Entity.Position;
+            var found = new List<KeyValuePair<float, Entity>>();
+            foreach (Entity e in Paintables())
+            {
+                float d = (float)Math.Sqrt(Dist2(e.Position, me));
+                if (d <= 20f) found.Add(new KeyValuePair<float, Entity>(d, e));
+            }
+            if (found.Count == 0) { Reply(player, "NearbyNone"); return; }
+            found.Sort(delegate(KeyValuePair<float, Entity> a, KeyValuePair<float, Entity> b) { return a.Key.CompareTo(b.Key); });
+            Reply(player, "NearbyHeader", found.Count);
+            for (int i = 0; i < found.Count && i < 8; i++)
+            {
+                Entity e = found[i].Value;
+                SignRec s = SignOf(e);
+                string from;
+                FaceRect f = s != null && s.Face != null ? s.Face : FaceFor(e, NameOf(e), out from);
+                Line(player, "NearbyLine", NameOf(e), Metres(found[i].Key), Metres(f.W), Metres(f.H),
+                    (int)Math.Round(f.W / TexelWorldSize), (int)Math.Round(f.H / TexelWorldSize), s != null ? s.Id + " " + s.Board : "free");
+            }
         }
 
         private void CmdSigns(Player player)

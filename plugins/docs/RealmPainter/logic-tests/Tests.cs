@@ -400,6 +400,10 @@ static class T
         Ok(!((string)F(w1, "Key")).Contains("Old News") && !((string)F(w4, "Key")).Contains("Old News"), "lapsed outlaws are not shown");
         string k1 = (string)F(w1, "Key");
         Bounties["76561190000000011"] = 4;
+        int contractReads = Interface.Oxide.DataFileSystem.Reads["RealmContracts"];
+        gather("wanted", "2"); gather("wanted", "3");
+        Ok(Interface.Oxide.DataFileSystem.Reads["RealmContracts"] == contractReads, "several wanted posters share one read of RealmContracts.json");
+        Clock = Clock.AddSeconds(10);
         Ok((string)F(gather("wanted", null), "Key") != k1, "a new bounty changes what the poster shows");
 
         // ironbreaker
@@ -641,6 +645,9 @@ static class T
     // ---------------- registry and persistence ----------------
     static void Persistence()
     {
+        Stand(Admin, 0, 0);
+        Cmd(Admin, "nearby");
+        Ok(Admin.All().Contains("paintable object(s) within 20 m") && Admin.All().Contains("SmallSign") && Admin.All().Contains("px"), "/paint nearby lists paintable objects with their face in metres and the game's texels", Admin.All());
         Cmd(Admin, "signs");
         Ok(Admin.All().Contains("2 bound sign(s)") && Admin.All().Contains("sigil-ashgrove"), "/paint signs lists the registry", Admin.All());
         Cmd(Admin, "status");
@@ -665,6 +672,13 @@ static class T
         Ok((bool)F(s, "Missing") && (string)F(s, "LastError") == "sign not found", "a sign that is gone is marked missing, not retried forever");
         Cmd(Admin, "forget", (string)F(s, "Id"));
         Ok(Signs().Count == 1, "/paint forget drops it");
+        object keep = Signs()[0];
+        SetF(keep, "Missing", true);
+        Entity back = Entity.TryGetFromViewID((ulong)F(keep, "ViewId"));
+        Stand(Admin, back.Position.x, back.Position.z - 2);
+        Look(Admin, 0, 0, 1);
+        Cmd(Admin, "realm-emblem");
+        Ok(Signs().Count == 1 && !(bool)F(keep, "Missing") && (string)F(keep, "Board") == "realm-emblem", "binding a sign whose record was marked missing reuses that record", Admin.All());
         Cmd(Admin, "unbind", "s999");
         Ok(Admin.All().Contains("No sign s999"), "an unknown sign id is answered");
 
@@ -723,5 +737,12 @@ static class T
             Console.WriteLine("     board-" + s.Name + ": " + png.Length + " bytes");
         }
         Ok(sizes == shots.Length, "every preview board encodes under 160 KB");
+        SetCfg("BoardTexture", false);
+        object plain = BoardImg(gather("chronicle", null), false);
+        byte[] plainPng = Encode(plain, "deflate");
+        Dump("board-chronicle-plain", plainPng, plain);
+        Console.WriteLine("     board-chronicle-plain: " + plainPng.Length + " bytes; stored: " + Encode(plain, "stored").Length + " bytes");
+        Ok(plainPng.Length < 30 * 1024, "without the texture a board is under 30 KB", plainPng.Length.ToString());
+        SetCfg("BoardTexture", true);
     }
 }
