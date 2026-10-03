@@ -1,4 +1,10 @@
-/* Shared tokens for the Realm Chronicle pages: iron, parchment, ember gold. */
+/* Shared tokens for the Realm Chronicle pages: iron, parchment, ember gold.
+   Fonts are the OFL Cinzel and EB Garamond files in assets/fonts (copied from launcher/renderer/fonts by
+   portal/scripts/sync-art.mjs), so the pages and the OBS overlay work without a network. */
+@font-face { font-family: 'Cinzel'; src: url('fonts/cinzel.woff2') format('woff2'); font-weight: 400 900; font-display: block; }
+@font-face { font-family: 'EB Garamond'; src: url('fonts/ebgaramond.woff2') format('woff2'); font-weight: 400 800; font-display: block; }
+@font-face { font-family: 'EB Garamond'; src: url('fonts/ebgaramond-italic.woff2') format('woff2'); font-style: italic; font-weight: 400 800; font-display: block; }
+
 :root {
   --iron-950: #0c0d0f;
   --iron-900: #131417;
@@ -23,7 +29,7 @@
   --moss: #4d6b3a;
 
   --font-display: 'Cinzel', 'Trajan Pro', 'Cormorant SC', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
-  --font-deco: 'Cinzel Decorative', 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --font-deco: 'Cinzel', 'Trajan Pro', Georgia, serif;
   --font-body: 'EB Garamond', 'Garamond', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
 }
 
@@ -60,6 +66,11 @@
 }
 
 .icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.125em; flex: none; }
+.icon use { fill: none; }
+
+/* A great house's drawn banner (assets/art/banners, 200 x 340, pole included). */
+.banner.art { display: block; }
+.banner.art img { display: block; width: 100%; height: auto; }
 
 /* House banner: swallow-tailed pennant in a dyed cloth colour (set via --dye from JS). */
 .banner {

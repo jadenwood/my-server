@@ -1,5 +1,6 @@
 // /realm: crown, houses and the full chronicle, refreshed by polling the local API.
 import { metaFor, icon, el, getJSON, banner, houseLabel, reignFor } from './common.js';
+import { eventBadge, eventIcon, GREAT_HOUSES, greatHouse, houseArt } from './realm-art.js';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -42,6 +43,16 @@ function renderCrown() {
     const r = reignFor(state.since);
     if (r) parts.push(`reigning for ${r}`);
     $('reign').textContent = parts.join(', ');
+  }
+  // The seal shows the ruling great house's sigil, or the crown for any other house.
+  const key = vacant ? '' : greatHouse(state.house) || 'crown';
+  const seal = $('crown-seal');
+  if (seal.dataset.key !== key) {
+    seal.dataset.key = key;
+    const sigil = key && key !== 'crown' ? houseArt(state.house, 'sigil', 'seal-sigil') : null;
+    seal.classList.toggle('art', !!sigil);
+    seal.replaceChildren(sigil || eventIcon('coronation'));
+    $('crown-words').textContent = sigil ? `“${GREAT_HOUSES[key].words}”` : '';
   }
   $('online').textContent = state.maxPlayers ? `${state.online}/${state.maxPlayers}` : String(state.online);
   $('house-count').textContent = String(state.houses.length);
@@ -87,10 +98,11 @@ function renderFilters() {
 
 function entry(e, isNew) {
   const m = metaFor(e.type);
+  const badge = eventBadge(e, 'entry-badge');
   const d = new Date(e.ts);
   const valid = !Number.isNaN(d.getTime());
   return el('li', { class: 'entry' + (isNew ? ' new' : ''), 'data-tone': m.tone },
-    el('div', { class: 'seal' }, icon(m.icon)),
+    badge ? el('div', { class: 'seal badge' }, badge) : el('div', { class: 'seal' }, eventIcon(e.type)),
     el('div', {},
       el('div', { class: 'label' }, m.label),
       el('h3', {}, e.title),
@@ -144,6 +156,5 @@ async function refresh(initial) {
   }
 }
 
-$('crown-seal').appendChild(icon('crown'));
 renderFilters();
 refresh(true).then(() => setInterval(() => refresh(false), POLL_MS));

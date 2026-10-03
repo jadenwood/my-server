@@ -1,5 +1,6 @@
 // Realm Chronicle web service: serves the RealmChronicle / RealmState data files written by the
-// RealmChronicle Oxide plugin as a small JSON API plus two static pages (/overlay, /realm).
+// RealmChronicle Oxide plugin as a small JSON API plus two static pages (/overlay, /realm). The pages,
+// their fonts and the art pack copies are all served from public/, so nothing is fetched from the internet.
 // Dependency-free: only node: built-ins. Read-only: it never writes to the data directory.
 
 import { createServer } from 'node:http';
@@ -36,6 +37,9 @@ const MIME = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
   '.json': 'application/json; charset=utf-8',
+  '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
+  '.md': 'text/plain; charset=utf-8',
 };
 
 const PAGES = { '/overlay': 'overlay.html', '/realm': 'realm.html' };
@@ -221,7 +225,7 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
   'Content-Security-Policy':
-    "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; " +
+    "default-src 'self'; style-src 'self'; font-src 'self'; " +
     "img-src 'self' data:; script-src 'self'; connect-src 'self'; frame-ancestors 'self'",
 };
 

@@ -1,7 +1,7 @@
 // Throne Room: a lower third for coronations. The new monarch's sigil draws itself inside a turning
 // medallion while the name plate unrolls. mode=always keeps the reigning monarch on screen.
 
-import { setupScene, startFeed, getJSON, el, clear, dyeFor, houseLabel, icon, healthChip } from './kit.js';
+import { setupScene, startFeed, getJSON, el, clear, dyeFor, houseLabel, eventIcon, healthChip } from './kit.js';
 import { parseCoronation, houseIn, HOUSE_WORDS, formatUtc } from './model.js';
 import { sigilSvg } from './sigils.js';
 
@@ -52,15 +52,22 @@ function buildPlate(item) {
     ? [item.when ? formatUtc(item.when) : null].filter(Boolean).join('')
     : [item.when ? `Crowned ${formatUtc(item.when)}` : null, item.previous && item.previous !== item.king ? `succeeds ${item.previous}` : null].filter(Boolean).join(' · ');
 
+  const burst = el('div', { class: 'burst', 'aria-hidden': 'true' },
+    ...Array.from({ length: 22 }, (_, i) => {
+      const a = (i / 22) * Math.PI * 2;
+      const r = 170 + ((i * 53) % 130);
+      return el('b', { style: { '--x': `${Math.round(Math.cos(a) * r)}px`, '--y': `${Math.round(Math.sin(a) * r)}px`, '--d': `${((i * 7) % 5) * 0.06}s` } });
+    }));
+
   return el('section', { class: `throne ${position}${fallen ? ' fallen' : ''}`, ...dye },
-    el('div', { class: 'medallion' }, el('div', { class: 'flare' }), runes, el('div', { class: 'disc' }, art)),
+    el('div', { class: 'medallion' }, el('div', { class: 'rays', 'aria-hidden': 'true' }), el('div', { class: 'flare' }), runes, el('div', { class: 'disc' }, art), burst),
     el('div', { class: 'plate iron' },
       embers,
       el('div', { class: 'eyebrow' }, fallen ? 'The crown falls' : item.replayed && mode === 'always' ? 'The reigning crown' : 'Long live the crown'),
       el('div', { class: 'king gold-text' }, fallen ? `${item.king || 'The monarch'} no longer reigns` : item.king || 'A new monarch'),
       el('div', { class: 'sub' }, sub),
       words && !fallen ? el('div', { class: 'words' }, `“${words}”`) : null,
-      foot ? el('div', { class: 'foot' }, icon(fallen ? 'crownX' : 'crown'), foot) : null));
+      foot ? el('div', { class: 'foot' }, eventIcon(fallen ? 'abdication' : 'coronation'), foot) : null));
 }
 
 async function show(item) {

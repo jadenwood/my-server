@@ -1,0 +1,88 @@
+{
+  "note": "Source of truth for every colour in art/. art/tools/build.mjs check fails on any hex colour in an SVG that is not listed here. Keep docs/brand.md in step with this file. scene colours are for key art only; enamel colours are for badges only.",
+  "brand": [
+    { "name": "Iron 950", "hex": "#0c0d0f", "token": "--iron-950", "use": "Deepest shadow, emblem rim, raven black" },
+    { "name": "Iron 900", "hex": "#131417", "token": "--iron-900", "use": "Default dark background, sigil rims" },
+    { "name": "Iron 800", "hex": "#1b1c20", "token": "--iron-800", "use": "Panels and cards on dark" },
+    { "name": "Iron 700", "hex": "#26282d", "token": "--iron-700", "use": "Raised panels, borders on dark" },
+    { "name": "Iron 600", "hex": "#34363c", "token": "--iron-600", "use": "Hairlines, emblem highlight" },
+    { "name": "Iron 200", "hex": "#a3a6ad", "token": "--iron-200", "use": "Muted text on dark" },
+    { "name": "Parchment", "hex": "#ecdfbf", "token": "--parchment", "use": "Light background, text on dark" },
+    { "name": "Parchment 2", "hex": "#e0cfa4", "token": "--parchment-2", "use": "Light background gradient end, secondary text on dark" },
+    { "name": "Parchment edge", "hex": "#b99a62", "token": "--parchment-edge", "use": "Rules and borders on parchment" },
+    { "name": "Ink", "hex": "#2a1c0f", "token": "--ink", "use": "Text on parchment, light-mode wordmark" },
+    { "name": "Ink soft", "hex": "#5b4630", "token": "--ink-soft", "use": "Secondary text on parchment" },
+    { "name": "Ember", "hex": "#d6a043", "token": "--ember", "use": "Brand gold: rings, rules, wordmark on dark, icons on dark" },
+    { "name": "Ember hot", "hex": "#f4c96d", "token": "--ember-hot", "use": "Gold highlight, sparks" },
+    { "name": "Ember pale", "hex": "#fbe3a2", "token": null, "use": "Top stop of the gold gradient only" },
+    { "name": "Ember deep", "hex": "#9c6a1e", "token": "--ember-deep", "use": "Bottom stop of the gold gradient, gold on parchment (large sizes only)" },
+    { "name": "Blood", "hex": "#8b2b22", "token": "--blood", "use": "Warnings, broken oaths, rebellion accents" },
+    { "name": "Moss", "hex": "#4d6b3a", "token": "--moss", "use": "Success, treaties signed" }
+  ],
+  "scene": [
+    { "name": "Night", "hex": "#0e1119", "use": "Key art only: the sky at the zenith" },
+    { "name": "Dusk", "hex": "#1f2433", "use": "Key art only: upper sky, distant shadow" },
+    { "name": "Far ridge", "hex": "#363a4a", "use": "Key art only: the farthest mountains in haze" },
+    { "name": "Haze", "hex": "#6b5a52", "use": "Key art only: warm haze above the horizon" },
+    { "name": "Afterglow", "hex": "#a8642c", "use": "Key art only: the last light at the horizon" }
+  ],
+  "enamel": [
+    { "name": "Verdigris", "hex": "#245a52", "use": "Season II badge enamel" },
+    { "name": "Lapis", "hex": "#2c4a7a", "use": "Season III badge enamel" }
+  ],
+  "seasonEnamels": ["#8b2b22", "#245a52", "#2c4a7a", "#26282d"],
+  "houses": {
+    "varrow": {
+      "name": "Varrow", "sigil": "Iron Stag", "words": "We Stand Our Ground.",
+      "field": "#4a2347", "fieldLight": "#674664", "fieldDark": "#2e162c",
+      "metal": "#9aa0a8", "metalName": "iron grey", "metalLight": "#d4d8dd", "metalShadow": "#5c626b",
+      "discordRole": "#c58fc0",
+      "extra": []
+    },
+    "ashgrove": {
+      "name": "Ashgrove", "sigil": "White Oak", "words": "Deep Roots, Long Memory.",
+      "field": "#7a3a1a", "fieldLight": "#8f5a3f", "fieldDark": "#4c2410",
+      "metal": "#e8dfc8", "metalName": "bone white", "metalLight": "#fbf6ea", "metalShadow": "#a8987a",
+      "discordRole": "#e08a5c",
+      "extra": []
+    },
+    "corvane": {
+      "name": "Corvane", "sigil": "Black Raven", "words": "Every Secret Has a Price.",
+      "field": "#2c3b42", "fieldLight": "#4e5a60", "fieldDark": "#1b2529",
+      "metal": "#c9ced4", "metalName": "silver", "metalLight": "#eef1f4", "metalShadow": "#7d858e",
+      "discordRole": "#8fb0bf",
+      "extra": []
+    },
+    "dunmere": {
+      "name": "Dunmere", "sigil": "Drowned Bell", "words": "The Tide Returns.",
+      "field": "#5a5a22", "fieldLight": "#747445", "fieldDark": "#383815",
+      "metal": "#e0b56a", "metalName": "tarnished bronze", "metalLight": "#e2c38a", "metalShadow": "#6e4c22",
+      "discordRole": "#b8b85a",
+      "extra": ["#c9d1b0"]
+    },
+    "halloran": {
+      "name": "Halloran", "sigil": "Ember Hound", "words": "Loyal Until the Last Coal.",
+      "field": "#3a2a1a", "fieldLight": "#5a4c3f", "fieldDark": "#241a10",
+      "metal": "#e27a2c", "metalName": "ember orange", "metalLight": "#f4a547", "metalShadow": "#b8561b",
+      "discordRole": "#ec8a3c",
+      "extra": []
+    },
+    "merrin": {
+      "name": "Merrin", "sigil": "Silver Eel", "words": "Slip the Net.",
+      "field": "#24472d", "fieldLight": "#47644f", "fieldDark": "#162c1c",
+      "metal": "#c9ced4", "metalName": "silver", "metalLight": "#eef1f4", "metalShadow": "#7d858e",
+      "discordRole": "#6fbf85",
+      "extra": ["#9fb3a4"]
+    }
+  },
+  "contrast": [
+    { "fg": "#ecdfbf", "bg": "#131417", "min": 7, "why": "Body text on dark" },
+    { "fg": "#a3a6ad", "bg": "#131417", "min": 4.5, "why": "Muted text on dark" },
+    { "fg": "#d6a043", "bg": "#131417", "min": 4.5, "why": "Gold text and icons on dark" },
+    { "fg": "#2a1c0f", "bg": "#ecdfbf", "min": 7, "why": "Body text on parchment" },
+    { "fg": "#5b4630", "bg": "#ecdfbf", "min": 4.5, "why": "Secondary text on parchment" },
+    { "fg": "#8b2b22", "bg": "#ecdfbf", "min": 4.5, "why": "Warning text on parchment" },
+    { "fg": "#9c6a1e", "bg": "#ecdfbf", "min": 3, "why": "Gold on parchment: large text and icons only" }
+  ],
+  "discordBackgrounds": { "dark": "#313338", "light": "#ffffff", "minDark": 4.5 }
+}

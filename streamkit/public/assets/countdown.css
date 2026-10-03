@@ -17,8 +17,8 @@
   padding: 40px 60px 44px;
 }
 .countdown.compact {
-  right: 48px;
-  top: 48px;
+  right: var(--safe-x);
+  top: var(--safe-y);
   width: 560px;
   padding: 18px 26px 20px;
 }

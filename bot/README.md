@@ -58,9 +58,9 @@ You need Node.js 22 or newer on the server PC (https://nodejs.org, the LTS insta
 Replace `APPLICATION_ID` and open the link in a browser:
 
 - With house roles (Manage Roles):
-  `https://discord.com/oauth2/authorize?client_id=APPLICATION_ID&scope=bot%20applications.commands&permissions=268520448`
+  `https://discord.com/oauth2/authorize?client_id=APPLICATION_ID&scope=bot%20applications.commands&permissions=268553216`
 - Without house roles:
-  `https://discord.com/oauth2/authorize?client_id=APPLICATION_ID&scope=bot%20applications.commands&permissions=84992`
+  `https://discord.com/oauth2/authorize?client_id=APPLICATION_ID&scope=bot%20applications.commands&permissions=117760`
 
 **Scopes:** `bot` and `applications.commands`.
 
@@ -72,9 +72,10 @@ Replace `APPLICATION_ID` and open the link in a browser:
 | Send Messages | post the status message | 2048 |
 | Embed Links | the status message and every answer are embeds | 16384 |
 | Read Message History | find its own status message again after a restart | 65536 |
+| Attach Files | the pictures on the status message (the house sigil, the realm emblem) | 32768 |
 | Manage Roles | only for house roles | 268435456 |
 
-Slash command answers do not need channel permissions. The four channel permissions are only needed in the status channel.
+Slash command answers do not need channel permissions. The five channel permissions are only needed in the status channel. Without Attach Files the status message still works, just without pictures; the console says so once.
 
 **For house roles:** in **Server Settings > Roles**, drag the bot's role **above** every "Sworn to ..." role. Discord only lets a bot give roles that sit below its own highest role. Manage Roles does not let the bot give any role that has permissions, because the bot refuses those itself.
 
@@ -116,6 +117,22 @@ Fill in `DISCORD_TOKEN`, `DISCORD_APPLICATION_ID`, `DISCORD_GUILD_ID` and, if yo
 | `REALM_SWEAR_COOLDOWN_MINUTES` | `60` | Wait between oaths |
 | `REALM_SWEAR_MAX_ROLES` | `25` | Most roles the bot creates |
 | `REALM_BOT_STATE_FILE` | `state/bot-state.json` | The bot's own state: status message id and oath times. Gitignored |
+| `REALM_EMBED_ART` | `true` | Pictures on the embeds (see "Pictures" below). `false` sends text only |
+| `REALM_ART_DIR` | `..\art\png` | Where the art pack's PNGs are |
+
+### Pictures
+
+Every answer carries the realm emblem next to the realm's name, and a picture that fits it:
+
+| Answer | Picture |
+|---|---|
+| `status`, `king`, `houses`, the status message | the ruling house's sigil (one of the six great houses), else the crown |
+| `chronicle` | the newest entry's icon, a season medal for a season, or the badge of a renown title |
+| `events` | the beacon, lit when a realm event is running |
+| `whois`, `swear` | the house's sigil (great houses), else the house or oath icon |
+| `join` | the realm emblem |
+
+The pictures are PNGs from the Realm art pack (`art/png` in this repository). They are attached to the message and shown with `attachment://`, so nothing has to be hosted. A house a player founds has no drawn sigil; its embeds keep its banner colour. **UNVERIFIED:** these attachments have only been checked against fakes; post `/realm king` once on your server to see the sigil thumbnail and the emblem.
 
 ### 5. Check, then start
 

@@ -1,8 +1,10 @@
-// Sigil drawings for the Throne Room and War Board. Line art drawn for this project on a 100x100 grid.
-// A house's free-text sigil ("Iron Stag", "Black Raven") is matched by keyword; anything else gets a
-// shield with the house monogram. Every path has pathLength=1 so CSS can "draw" it in.
+// Sigils for the Throne Room and War Board. The six great houses use their engraved sigil from the art
+// pack (assets/art/sigils). Any other house gets line art drawn for this project on a 100x100 grid: its
+// free-text sigil ("Iron Stag", "Black Raven") is matched by keyword, anything else gets a shield with
+// the house monogram. Every line-art path has pathLength=1 so CSS can "draw" it in.
 
 import { el, monogram } from './kit.js';
+import { ART_BASE, greatHouse } from './realm-art.js';
 
 const ART = {
   stag: [
@@ -67,6 +69,12 @@ export function sigilKind(sigil) {
 
 // <svg class="sigil-art"> with drawable strokes. `name` is used for the monogram fallback.
 export function sigilSvg(sigil, name, cls = 'sigil-art') {
+  const great = greatHouse(name);
+  if (great) {
+    // An <svg> wrapping an <image>, so it works both in HTML and inside the War Board's SVG.
+    return el('svg', { viewBox: '0 0 100 100', class: cls, 'aria-hidden': 'true', 'data-kind': 'art', 'data-house': great },
+      el('image', { href: `${ART_BASE}sigils/${great}.svg`, x: '0', y: '0', width: '100', height: '100' }));
+  }
   const kind = sigilKind(sigil);
   const svg = el('svg', { viewBox: '0 0 100 100', class: cls, 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor',
     'stroke-width': '3', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'data-kind': kind || 'monogram' });

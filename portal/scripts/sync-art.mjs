@@ -6,6 +6,9 @@
 //   chronicle/public/assets/art, chronicle/public/assets/fonts
 //   streamkit/public/assets/art, streamkit/public/assets/fonts
 //
+// It also copies chronicle/public/assets/realm-art.js (the browser heraldry helper the Chronicle pages
+// use) to streamkit/public/assets/realm-art.js, so the overlays and the stream scenes draw the same art.
+//
 //   node portal/scripts/sync-art.mjs           copy (overwrites the copies, never the sources)
 //   node portal/scripts/sync-art.mjs --check   exit 1 if any copy differs from its source
 //
@@ -18,14 +21,20 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const REPO = resolve(HERE, '..', '..');
 export const HOUSES = ['varrow', 'ashgrove', 'corvane', 'dunmere', 'halloran', 'merrin'];
+// Renown title badges (art/badges/titles), named after the ids in art/src/titles.json.
+export const TITLES = JSON.parse(readFileSync(join(REPO, 'art', 'src', 'titles.json'), 'utf8')).titles.map((t) => t.id.replace(/_/g, '-'));
 
 // [source under the repo, destination under the package's art folder]
 const COMMON = [
   ...HOUSES.map((h) => [`art/sigils/${h}.svg`, `sigils/${h}.svg`]),
   ...HOUSES.map((h) => [`art/banners/${h}.svg`, `banners/${h}.svg`]),
+  ...HOUSES.map((h) => [`art/shields/${h}.svg`, `shields/${h}.svg`]),
   ['art/sprite/icons.svg', 'icons.svg'],
   ['art/icons/event-map.json', 'event-map.json'],
+  ['art/src/titles.json', 'titles.json'],
+  ['art/palette.json', 'palette.json'],
   ...[1, 2, 3, 4].map((n) => [`art/badges/seasons/season-${n}.svg`, `badges/season-${n}.svg`]),
+  ...TITLES.map((t) => [`art/badges/titles/${t}.svg`, `badges/titles/${t}.svg`]),
   ['art/logo/realm-emblem.svg', 'logo/realm-emblem.svg'],
   ['art/logo/realm-logo-horizontal-dark.svg', 'logo/realm-logo-horizontal-dark.svg'],
   ['art/logo/realm-wordmark-dark.svg', 'logo/realm-wordmark-dark.svg'],
@@ -41,15 +50,20 @@ export const TARGETS = {
     fonts: 'portal/assets/fonts',
     files: [
       ...COMMON,
-      ...HOUSES.map((h) => [`art/shields/${h}.svg`, `shields/${h}.svg`]),
       ['art/logo/realm-logo-stacked-dark.svg', 'logo/realm-logo-stacked-dark.svg'],
-      // Link previews need a raster image: the 1200 x 630 key art with the logo.
+      // Link previews need a raster image: the 1200 x 630 key art with the logo, and each great
+      // house's sigil for its own page.
       ['art/png/keyart/old-throne-1200-title.png', 'og/realm-card.png'],
+      ...HOUSES.map((h) => [`art/png/sigils/${h}-512.png`, `og/${h}.png`]),
       ['art/png/logo/realm-emblem-192.png', 'logo/realm-emblem-192.png'],
     ],
   },
   chronicle: { art: 'chronicle/public/assets/art', fonts: 'chronicle/public/assets/fonts', files: COMMON },
-  streamkit: { art: 'streamkit/public/assets/art', fonts: 'streamkit/public/assets/fonts', files: COMMON },
+  streamkit: {
+    art: 'streamkit/public/assets/art',
+    fonts: 'streamkit/public/assets/fonts',
+    files: [...COMMON, ['chronicle/public/assets/realm-art.js', '../realm-art.js']],
+  },
 };
 
 const FONTS_DIR = 'launcher/renderer/fonts';

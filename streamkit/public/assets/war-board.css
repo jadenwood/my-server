@@ -1,8 +1,8 @@
 /* War Board scene */
 .wb-header {
   position: absolute;
-  left: 60px;
-  top: 34px;
+  left: var(--safe-x);
+  top: var(--safe-y);
   display: flex;
   align-items: baseline;
   gap: 34px;
@@ -18,10 +18,10 @@
 }
 .wb-graph-wrap {
   position: absolute;
-  left: 40px;
-  top: 96px;
-  width: 1340px;
-  height: 944px;
+  left: var(--safe-x);
+  top: 116px;
+  width: 1240px;
+  height: 910px;
   border-radius: 6px;
   overflow: hidden;
 }
@@ -29,9 +29,9 @@ html:not(.opaque) .wb-graph-wrap {
   background:
     radial-gradient(ellipse at 50% 40%, rgba(38, 40, 45, 0.82), rgba(12, 13, 15, 0.9));
 }
-.no-ledger .wb-graph-wrap { left: 290px; }
-.no-title .wb-graph-wrap { top: 68px; }
-.wb-graph { width: 1340px; height: 860px; display: block; }
+.no-ledger .wb-graph-wrap { left: 340px; }
+.no-title .wb-graph-wrap { top: var(--safe-y); }
+.wb-graph { width: 1240px; height: auto; aspect-ratio: 1340 / 860; display: block; }
 
 .wb-legend {
   display: flex;
@@ -111,10 +111,10 @@ html:not(.opaque) .wb-graph-wrap {
 /* ledger */
 .wb-ledger {
   position: absolute;
-  right: 40px;
-  top: 96px;
-  width: 470px;
-  height: 944px;
+  right: var(--safe-x);
+  top: 116px;
+  width: 464px;
+  height: 910px;
   box-sizing: border-box;
   padding: 18px 26px;
   border-radius: 6px;
