@@ -81,7 +81,7 @@ jobs:
         run: bash tools/realm-integration/cross-tests/run.sh
       # The suites below compile the plugin sources unchanged against mocks, on the .NET runtime that check.sh
       # cached above. They prove the plugins' own rules, not the game's behaviour.
-      - name: Plugin logic tests (Dynasties, Seasons and Events, Laws, Ravens, Renown, Treasury, Warden)
+      - name: Plugin logic tests (every plugins/docs/*/logic-tests suite)
         run: |
           for t in plugins/docs/*/logic-tests/run.sh; do
             echo "::group::$t"
@@ -92,6 +92,8 @@ jobs:
         run: bash analytics/plugin-tests/run.sh
       - name: Exploit-review regression suites
         run: bash tools/exploit-review/run.sh
+      - name: RealmSentinel exploit-review suite
+        run: bash tools/exploit-review/sentinel/run.sh
 
   portal:
     name: Portal tests
@@ -125,6 +127,10 @@ jobs:
         run: node art/tools/build.mjs check --skip-png
       - name: Art tools tests
         run: node --test art/tools/test/*.test.mjs
+      - name: Sculptor and sign-painter tools (sculptures valid and up to date)
+        run: |
+          node --test art/tools/sculptor/test/*.test.mjs art/tools/painter/test/*.test.mjs
+          node art/tools/sculptor/cli.mjs check
 
   docs-tools:
     name: Saga, legal and staff tool tests
