@@ -165,6 +165,34 @@ test('chat style: every kind of drift is reported', () => {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('a plugin still being built may be called as agreed in PENDING_PLUGINS, and staff commands stay out of the hub', () => {
+  const dir = fakeRepo({
+    RealmA: plugin('RealmA', `
+    [PluginReference] private Plugin RealmLegendary;
+    private void Go() {
+      string ok = RealmLegendary.Call("GetBearerName") as string;
+      RealmLegendary.Call("GetBearerName", "extra");
+      RealmLegendary.Call("Unagreed");
+    }
+    [ChatCommand("paint")] private void CmdP(Player p, string c, string[] a) { }`),
+    RealmHerald: plugin('RealmHerald', `${STYLE}
+    private static readonly string[] Subjects = { "one" };
+    private static readonly Entry[] Catalogue = { new Entry("realm", "one", "RealmHerald") };
+    protected override void LoadDefaultMessages() {
+      lang.RegisterMessages(new Dictionary<string, string> { { "Speaker", "Realm" }, { "Cmd.realm", "r" }, { "Subject.one", "o" } }, this);
+    }
+    [ChatCommand("realm")] private void CmdR(Player p, string c, string[] a) { }`),
+  });
+  try {
+    const text = analyse(dir).problems.join('\n');
+    assert.doesNotMatch(text, /names no plugin/);
+    assert.match(text, /RealmLegendary\.GetBearerName is agreed with 0 argument\(s\), called with 1/);
+    assert.match(text, /Unagreed is not among its agreed methods/);
+    assert.doesNotMatch(text, /\/paint .* is missing from the \/realm catalogue/);
+    assert.equal(text.split('\n').filter((l) => !l.includes('/chronicle')).length, 2, text);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('the /realm catalogue must list every command once, under its owner', () => {
   const dir = fakeRepo({
     RealmA: plugin('RealmA', `

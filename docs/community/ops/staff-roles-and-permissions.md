@@ -30,6 +30,7 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmravens.admin` | `RealmRavens.cs` | `/raven admin queue`, `approve`, `reject`, `reports`, `resolve`, `audit`, `letter`, `mute`, `unmute`, `purge`, `save`. **`letter` shows a private letter's real sender and text**; every read is audited | Skips the spymaster change cooldown | Yes | Yes | Yes (privacy rule in section 4) | No |
 | `realmstats.admin` | `RealmStats.cs` | `/stats status`, `/stats save` | None | Yes | Yes | No | No |
 | `realmherald.admin` | `RealmHerald.cs` | `/realm admin motd add\|clear\|list`, `tip`, `reset <player>`, `status` | None (changes the welcome text and restarts a player's first steps) | Yes | Yes | No | No |
+| `realmpainter.admin` | `RealmPainter.cs` | `/paint <artwork>` (binds the sign you look at and paints it), `list`, `info`, `signs`, `redraw`, `unbind`, `clear`, `forget`, `face`, `fit`, `notice`, `status`, `reload` | None (changes what signs show; touches no house, crown, law or item) | Yes | Yes | No | Yes |
 | `realmevents.admin` | `RealmEvents.cs` | `/event start`, `stop`, `cancel`; may name King's Hunt quarry | Can name quarry and end events with prizes | Yes | Yes | No | Yes |
 | `realmseasons.admin` | `RealmSeasons.cs` | `/season start`, `/season end`, `/season status` | Ends a season and its standings | Yes | On call | No | No |
 | `realmhouses.admin` | `RealmHouses.cs` | `/house disband`, `pardon`, `unlink`, `sync` | Can dissolve rival houses and clear marks | Yes | Yes | No | No |
@@ -64,6 +65,7 @@ oxide.grant group realm_admin realmwarden.admin
 oxide.grant group realm_admin realmravens.admin
 oxide.grant group realm_admin realmstats.admin
 oxide.grant group realm_admin realmherald.admin
+oxide.grant group realm_admin realmpainter.admin
 oxide.grant group realm_admin realmevents.admin
 oxide.grant group realm_admin realmhouses.admin
 oxide.grant group realm_admin crownandconsequences.admin
@@ -75,6 +77,7 @@ oxide.grant group realm_mod realmwarden.admin
 oxide.grant group realm_mod realmravens.admin
 
 oxide.grant group realm_host realmevents.admin
+oxide.grant group realm_host realmpainter.admin
 
 oxide.usergroup add <SteamID64> realm_mod
 oxide.usergroup remove <SteamID64> realm_mod
