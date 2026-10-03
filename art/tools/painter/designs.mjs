@@ -170,6 +170,7 @@ export function sprites() {
     { id: 'hammer-128', kind: 'rgba', width: 128, height: 128, html: () => maskHtml(hammerSvg(128), 128) },
   ];
   for (const h of HOUSES) list.push({ id: `sigil-96-${h}`, kind: 'rgba', width: 96, height: 96, html: () => single(`sigils/${h}.svg`, 96, 96) });
+  for (const h of HOUSES) list.push({ id: `sigil-32-${h}`, kind: 'rgba', width: 32, height: 32, html: () => single(`sigils/${h}.svg`, 32, 32) });
   const iconNames = fs.readdirSync(path.join(ART, 'icons')).filter((f) => f.endsWith('.svg')).map((f) => f.slice(0, -4)).sort();
   for (const n of iconNames) list.push({ id: `icon-24-${n}`, kind: 'mask', width: 24, height: 24, html: () => maskHtml(icon(n, 24, '#ffffff'), 24) });
   for (const n of BIG_ICONS) list.push({ id: `icon-64-${n}`, kind: 'mask', width: 64, height: 64, html: () => maskHtml(icon(n, 64, '#ffffff'), 64) });
@@ -177,7 +178,9 @@ export function sprites() {
 }
 
 // Glyph atlases for live text. Sizes are pixels on the board canvas the plugin composes (see RealmPainter.md).
+// "display" is the poster headline ("WANTED"): capitals, digits and punctuation only, to keep its atlas small.
 export const FACES = [
+  { id: 'display', family: 'Cinzel', weight: 700, style: 'normal', size: 44, charset: 'display' },
   { id: 'title', family: 'Cinzel', weight: 700, style: 'normal', size: 30 },
   { id: 'head', family: 'Cinzel', weight: 700, style: 'normal', size: 20 },
   { id: 'label', family: 'Cinzel', weight: 600, style: 'normal', size: 13 },
@@ -195,6 +198,30 @@ export const CHARSET = (() => {
   cps.push(0x2013, 0x2014, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2026);
   return cps;
 })();
+
+// The display face: ASCII without lower case, and the Latin-1 capitals. The plugin upper-cases display text.
+export const DISPLAY_CHARSET = (() => {
+  const cps = [];
+  for (let c = 32; c <= 126; c++) if (c < 97 || c > 122) cps.push(c);
+  for (let c = 0xc0; c <= 0xde; c++) if (c !== 0xd7) cps.push(c);
+  cps.push(0x2019, 0x2014);
+  return cps;
+})();
+
+export const charsetOf = (face) => (face.charset === 'display' ? DISPLAY_CHARSET : CHARSET);
+
+// The colours the plugin draws live boards with, from art/palette.json: brand colours by camel-case key
+// ("Ember deep" -> emberDeep) and each house's name, field and metal.
+export function boardPalette() {
+  const brand = {};
+  for (const b of palette.brand) brand[b.name.toLowerCase().replace(/ (\w)/g, (_, c) => c.toUpperCase()).replace(/ /g, '')] = b.hex;
+  const houses = {};
+  for (const h of HOUSES) {
+    const p = palette.houses[h];
+    houses[h] = { Name: p.name, Sigil: p.sigil, Words: p.words, Field: p.field, FieldDark: p.fieldDark, Metal: p.metal };
+  }
+  return { Brand: brand, Houses: houses };
+}
 
 export const FONT_LICENSES = [
   { family: 'Cinzel', file: 'OFL-Cinzel.txt', copyright: 'Copyright 2020 The Cinzel Project Authors', license: 'SIL Open Font License 1.1' },

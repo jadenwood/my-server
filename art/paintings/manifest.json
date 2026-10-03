@@ -345,6 +345,60 @@
       "sha256": "208f9b8e48491a11100bcfb1023b48ec8d91b1402f87676568dafbc1a1715b0e"
     },
     {
+      "id": "sigil-32-varrow",
+      "kind": "rgba",
+      "width": 32,
+      "height": 32,
+      "file": "art/paintings/sprites/sigil-32-varrow.png",
+      "bytes": 2433,
+      "sha256": "a765fb74b326cc2afa52c4aa0056da78e48f355666b49f8c9f6b938331f487fb"
+    },
+    {
+      "id": "sigil-32-ashgrove",
+      "kind": "rgba",
+      "width": 32,
+      "height": 32,
+      "file": "art/paintings/sprites/sigil-32-ashgrove.png",
+      "bytes": 2681,
+      "sha256": "eaaa893c2981d15859facb2904ee506236b3e7f71ac7433d37cd2da5c7b22ee8"
+    },
+    {
+      "id": "sigil-32-corvane",
+      "kind": "rgba",
+      "width": 32,
+      "height": 32,
+      "file": "art/paintings/sprites/sigil-32-corvane.png",
+      "bytes": 2461,
+      "sha256": "a3208a8803bacc6476f21993f70cade38897c713558025f19bc8cbfc08205f00"
+    },
+    {
+      "id": "sigil-32-dunmere",
+      "kind": "rgba",
+      "width": 32,
+      "height": 32,
+      "file": "art/paintings/sprites/sigil-32-dunmere.png",
+      "bytes": 2434,
+      "sha256": "6cdb1cb58cf8c11fe9d7e2e079946bbc309da1cc1e6fec9ba3c71cac056cd53a"
+    },
+    {
+      "id": "sigil-32-halloran",
+      "kind": "rgba",
+      "width": 32,
+      "height": 32,
+      "file": "art/paintings/sprites/sigil-32-halloran.png",
+      "bytes": 2591,
+      "sha256": "753c647570ae994d69d5b4980122b56eb29ceacf246fae31b5f6f76c335597dc"
+    },
+    {
+      "id": "sigil-32-merrin",
+      "kind": "rgba",
+      "width": 32,
+      "height": 32,
+      "file": "art/paintings/sprites/sigil-32-merrin.png",
+      "bytes": 2701,
+      "sha256": "8e210a86c8b7c7703c56c10e76b78000cf64b28fa98e32532bb7f5364a7c15d2"
+    },
+    {
       "id": "icon-24-abdication",
       "kind": "mask",
       "width": 24,
@@ -833,6 +887,22 @@
   ],
   "fonts": [
     {
+      "id": "display",
+      "family": "Cinzel",
+      "weight": 700,
+      "style": "normal",
+      "size": 44,
+      "ascent": 43,
+      "descent": 16,
+      "lineHeight": 53,
+      "glyphs": 101,
+      "width": 256,
+      "height": 391,
+      "file": "art/paintings/fonts/display.png",
+      "bytes": 20883,
+      "sha256": "0b487069ce8e361dfd82d4167b67794eef2e8f939900ff5e057f41d98830a9b7"
+    },
+    {
       "id": "title",
       "family": "Cinzel",
       "weight": 700,
@@ -929,5 +999,5 @@
       "sha256": "742167c3b8fe954a15b8918a667948d5212a78eb609e9edbccacb0810bcd2719"
     }
   ],
-  "version": "403a591d9fa5de6f"
+  "version": "117f2c08901009a0"
 }

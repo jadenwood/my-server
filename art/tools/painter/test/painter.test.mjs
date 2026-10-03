@@ -8,7 +8,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { encodePng, decodePng, crc32, downscale } from '../png.mjs';
 import { check, packAtlas, pack, BUNDLE_NAME } from '../paint.mjs';
-import { OUT, FACES, CHARSET, HOUSES, paintings, sprites, LIMITS } from '../designs.mjs';
+import { OUT, FACES, CHARSET, DISPLAY_CHARSET, HOUSES, paintings, sprites, LIMITS, boardPalette, charsetOf } from '../designs.mjs';
 
 function noise(n, seed) {
   const b = Buffer.alloc(n);
@@ -112,6 +112,7 @@ test('the designs cover every house, stay inside the size caps and use unique id
   for (const h of HOUSES) for (const g of ['sigil', 'banner', 'crest']) assert.ok(ids.has(`${g}-${h}`));
   assert.ok(CHARSET.includes(0xe9) && CHARSET.includes(0x2019));
   assert.equal(new Set(FACES.map((f) => f.id)).size, FACES.length);
+  for (const h of HOUSES) assert.ok(ids.has(`sigil-32-${h}`) && ids.has(`sigil-96-${h}`), h);
 });
 
 test('the built paintings pass the self-check', () => {
@@ -133,15 +134,35 @@ test('the self-check catches a changed file, a stale bundle and a missing licenc
     // a bundle item swapped for another
     const bundle = JSON.parse(fs.readFileSync(path.join(tmp, BUNDLE_NAME), 'utf8'));
     bundle.Items.find((i) => i.Id === 'banner-merrin').Png = bundle.Items.find((i) => i.Id === 'banner-varrow').Png;
-    bundle.Fonts[0].Glyphs = bundle.Fonts[0].Glyphs.filter((g) => g[0] !== 0xe9);
+    const body = bundle.Fonts.find((f) => f.Id === 'body');
+    body.Glyphs = body.Glyphs.filter((g) => g[0] !== 0xe9);
+    bundle.Palette.Brand.ink = '#000000';
     fs.writeFileSync(path.join(tmp, BUNDLE_NAME), JSON.stringify(bundle));
     fs.rmSync(path.join(tmp, 'fonts', 'OFL-Cinzel.txt'));
     const errs = check(tmp).errors.join('\n');
     assert.match(errs, /sigil-varrow\.png changed since the build/);
     assert.match(errs, /banner-merrin: bundle copy differs/);
-    assert.match(errs, /lacks U\+00e9/);
+    assert.match(errs, /font body lacks U\+00e9/);
+    assert.match(errs, /Palette differs/);
     assert.match(errs, /OFL-Cinzel\.txt/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('the display face is capitals only and every other face covers the full charset', () => {
+  assert.ok(!DISPLAY_CHARSET.includes(0x61) && DISPLAY_CHARSET.includes(0x41) && DISPLAY_CHARSET.includes(0xc9) && !DISPLAY_CHARSET.includes(0xd7));
+  for (const f of FACES) assert.equal(charsetOf(f), f.id === 'display' ? DISPLAY_CHARSET : CHARSET, f.id);
+  const bundle = JSON.parse(fs.readFileSync(path.join(OUT, BUNDLE_NAME), 'utf8'));
+  const display = bundle.Fonts.find((f) => f.Id === 'display');
+  assert.equal(display.Glyphs.length, DISPLAY_CHARSET.length);
+});
+
+test('the bundle carries the board palette from art/palette.json', () => {
+  const pal = boardPalette();
+  assert.equal(pal.Brand.parchment, '#ecdfbf');
+  assert.ok(pal.Brand.emberDeep && pal.Brand.iron900 && pal.Brand.parchmentEdge);
+  assert.deepEqual(Object.keys(pal.Houses), HOUSES);
+  const bundle = JSON.parse(fs.readFileSync(path.join(OUT, BUNDLE_NAME), 'utf8'));
+  assert.deepEqual(bundle.Palette, pal);
 });

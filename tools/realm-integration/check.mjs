@@ -6,7 +6,8 @@
 //   node tools/realm-integration/check.mjs --json       print the whole analysis as JSON
 //
 // What it proves (source text only, nothing runs):
-//   1. every [PluginReference] field names a plugin class that exists in plugins/;
+//   1. every [PluginReference] field names a plugin class that exists in plugins/ (or one another team is still
+//      building, listed with its agreed methods in PENDING_PLUGINS);
 //   2. every cross-plugin Call ("X.Call(\"M\", ...)" and the wrapper helpers the plugins use) names a
 //      NON-PUBLIC instance method M in plugin X, with a matching number of arguments (Oxide 2.0.3867
 //      registers only NonPublic|Instance methods as callable hooks);
@@ -20,7 +21,7 @@
 //      chat palette (house tints read from art/palette.json); no lang string is over 200 visible characters; every
 //      /command a lang string mentions is registered by some plugin and drawn in the command colour;
 //   6. RealmHerald's /realm catalogue lists every chat command exactly once, under the plugin that registers it,
-//      with a "Cmd.<command>" description.
+//      with a "Cmd.<command>" description (staff-only commands in STAFF_COMMANDS are left out of the hub).
 //   7. popups (docs/realm-commands.md, "Popups"): the game's ShowPopup / ShowConfirmPopup / ShowInputPopup are called
 //      only inside a plugin's "Popups" region, inside try, with every argument spelled out and broadcast = true; the
 //      plugin has a UsePopups config switch and a PopupsFor gate, and one that waits for answers ignores them after
@@ -41,6 +42,17 @@ export const GAME_COMMANDS = [
   'ban', 'banlist', 'give', 'kick', 'list', 'logout', 'mute', 'name', 'notice', 'popup', 'quit',
   'restart', 'shutdown', 'suicide', 'time', 'unban', 'videofly', 'whitelist',
 ];
+
+// Plugins another team is building that a plugin here already calls. While plugins/<Name>.cs does not exist, a
+// [PluginReference] to it is allowed (the caller must treat null as "not available") and each call must match the
+// method and argument count agreed here. Once the file lands, the normal checks apply and this entry can go.
+export const PENDING_PLUGINS = {
+  RealmLegendary: { GetBearerName: 0 },               // RealmPainter's Ironbreaker poster; returns string or null
+};
+
+// Chat commands only staff can use (every subcommand is gated by an Oxide permission, listed in
+// docs/community/ops/staff-roles-and-permissions.md). RealmHerald's /realm hub is for players and leaves them out.
+export const STAFF_COMMANDS = ['paint'];
 
 const SNAKE = /^[a-z]+(?:_[a-z]+)*$/;
 
@@ -378,7 +390,7 @@ export function catalogueProblems(raw, owners) {
     if (!keys.has('Cmd.' + e.cmd)) problems.push({ line: e.line, msg: `lang key "Cmd.${e.cmd}" (its one-line description) is missing` });
   }
   for (const s of subjects) if (!keys.has('Subject.' + s)) problems.push({ line: 1, msg: `lang key "Subject.${s}" is missing` });
-  for (const cmd of Object.keys(owners)) if (!seen.has(cmd)) problems.push({ line: 1, msg: `/${cmd} (${owners[cmd]}) is missing from the /realm catalogue` });
+  for (const cmd of Object.keys(owners)) if (!seen.has(cmd) && !STAFF_COMMANDS.includes(cmd)) problems.push({ line: 1, msg: `/${cmd} (${owners[cmd]}) is missing from the /realm catalogue` });
   return { problems, entries: entries.length };
 }
 
@@ -392,10 +404,16 @@ export function analyse(repo = REPO) {
 
   for (const p of plugins) {
     if (p.cls && p.cls !== p.name) P(p.file, 1, `class ${p.cls} does not match the file name (Oxide loads by file name)`);
-    for (const r of p.refs) if (!byClass[r.target]) P(p.file, r.line, `[PluginReference] ${r.field} names no plugin in plugins/`);
+    for (const r of p.refs) if (!byClass[r.target] && !PENDING_PLUGINS[r.target]) P(p.file, r.line, `[PluginReference] ${r.field} names no plugin in plugins/`);
     for (const c of p.calls) {
       if (!c.target) continue;                                   // not a plugin reference (e.g. a local helper)
       const t = byClass[c.target];
+      const pending = !t && PENDING_PLUGINS[c.target];
+      if (pending) {
+        if (!(c.method in pending)) P(p.file, c.line, `${c.target} is not built yet and ${c.method} is not among its agreed methods (PENDING_PLUGINS)`);
+        else if (pending[c.method] !== c.arity) P(p.file, c.line, `${c.target}.${c.method} is agreed with ${pending[c.method]} argument(s), called with ${c.arity}`);
+        continue;
+      }
       if (!t) { P(p.file, c.line, `${c.ref}.Call("${c.method}") targets missing plugin ${c.target}`); continue; }
       const decls = (t.methods[c.method] || []).filter((d) => !d.isStatic);
       if (!decls.length) { P(p.file, c.line, `${c.target} has no method ${c.method} (Call returns null)`); continue; }
