@@ -5,7 +5,7 @@
 // exposed API and every channel it can reach stay inside this list.
 const { contextBridge, ipcRenderer } = require('electron');
 
-const PUSH_TYPES = new Set(['status', 'servers', 'deeplink', 'window']);
+const PUSH_TYPES = new Set(['status', 'servers', 'news', 'update', 'deeplink', 'window']);
 
 async function call(channel, ...args) {
   const res = await ipcRenderer.invoke(channel, ...args);
@@ -28,16 +28,22 @@ contextBridge.exposeInMainWorld('realm', {
   installGame: c0('player:installGame'),
   copyAddress: c1('player:copyAddress'),
   openLink: c1('player:openLink'),
-  prefs: c0('player:prefs'),
-  setPrefs: c1('player:setPrefs'),
   takeLink: c0('player:takeLink'),
   windowAction: c1('player:window'),
+  // News (signed news.json): announcements, season news, Chronicle highlights, realm changes.
+  news: c1('player:news'),
+  openNewsLink: c1('player:openNewsLink'),
+  // Updates (signed update.json): check, download and verify, run the verified installer.
+  update: c0('player:update'),
+  checkUpdate: c0('player:updateCheck'),
+  downloadUpdate: c0('player:updateDownload'),
+  cancelUpdate: c0('player:updateCancel'),
+  installUpdate: c0('player:updateInstall'),
+  whatsNew: c0('player:whatsNew'),
   // Connection Doctor ("Can't join?"): read-only checks, log classifier, redacted report.
   doctorRun: c0('player:doctorRun'),
   doctorClassify: c1('player:doctorClassify'),
   doctorReport: c1('player:doctorReport'),
-  // Realm feed (home panel): latest public Chronicle events and the next announced event.
-  feed: c1('player:feed'),
   onPush: (fn) => {
     if (typeof fn !== 'function') return;
     ipcRenderer.on('realm:push', (_event, msg) => {

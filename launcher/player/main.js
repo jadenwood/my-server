@@ -10,10 +10,15 @@
 // - hands allow-listed steam:// URLs to Windows: steam://run/344760//-ip <host> -port <port>/ (quick
 //   join), steam://rungameid/344760 (classic) and steam://install/344760. The player's own Steam
 //   starts the player's own copy; no game file is read, written, patched or launched directly;
-// - accepts realm://join/<server id> links for ids in the signed list, always with a confirmation.
+// - accepts realm://join/<server id> links for ids in the signed list, always with a confirmation;
+// - reads the owner's signed news feed (news.json, lib/news.js) with an offline copy;
+// - checks the owner's signed update manifest (update.json, lib/updater.js) on start and every few
+//   hours, downloads a newer Realm installer, checks its size and SHA-256 against the signed values,
+//   and hands only a verified installer to Windows when the player presses Update.
+// There is no tray, no notification poller and no settings screen: the player sees one screen.
 // The require graph of this file is checked by test/player-edition.test.js.
 
-const { app, BrowserWindow, ipcMain, shell, clipboard, net, Tray, Menu, Notification, nativeImage, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, clipboard, net, screen } = require('electron');
 const LOG = require('../lib/shared/applog');
 const fs = require('fs');
 const fsp = require('fs/promises');
@@ -23,8 +28,8 @@ const ST = require('../lib/shared/steam');
 const A2S = require('../lib/shared/a2s');
 const DL = require('../lib/shared/deeplink');
 const PK = require('../lib/shared/pick');
-const NT = require('../lib/shared/notify');
-const FD = require('../lib/shared/feed');
+const NW = require('../lib/news');
+const UP = require('../lib/updater');
 
 const DEV = !app.isPackaged;
 const ROOT = path.join(__dirname, '..');
@@ -56,12 +61,18 @@ function loadPlayerConfig() {
     }
   }
   const links = raw.links && typeof raw.links === 'object' ? raw.links : {};
+  const manifestUrl = manifestUrlAllowed(raw.manifestUrl) ? raw.manifestUrl : '';
+  // news.json and update.json sit next to servers.json unless the build names other addresses.
+  const sibling = (key, name) => (manifestUrlAllowed(raw[key]) ? raw[key] : NW.siblingUrl(manifestUrl, name));
   return {
     realmName: String(raw.realmName || 'The Realm').slice(0, 60),
     tagline: String(raw.tagline || '').slice(0, 160),
-    manifestUrl: manifestUrlAllowed(raw.manifestUrl) ? raw.manifestUrl : '',
+    manifestUrl,
+    newsUrl: sibling('newsUrl', 'news.json'),
+    updateUrl: sibling('updateUrl', 'update.json'),
     publicKey,
     bundledManifest: raw.bundledManifest && typeof raw.bundledManifest === 'object' ? raw.bundledManifest : null,
+    bundledNews: raw.bundledNews && typeof raw.bundledNews === 'object' ? raw.bundledNews : null,
     links: {
       discord: typeof links.discord === 'string' && M.isWebUrl(links.discord, { httpsOnly: true }) ? links.discord : '',
       rules: typeof links.rules === 'string' && M.isWebUrl(links.rules, { httpsOnly: true }) ? links.rules : ''
@@ -88,7 +99,8 @@ const cfg = loadPlayerConfig();
 
 // ---------- per-user preferences ----------
 
-const PREF_DEFAULTS = { onboarded: false, joinMethod: cfg.joinMethod, notifications: false, background: false, maxSeq: 0, cache: null, cacheAt: null };
+// Older builds also stored first-run and tray choices in this file; they are ignored now.
+const PREF_DEFAULTS = { maxSeq: 0, cache: null, cacheAt: null, newsSeq: 0, newsCache: null, updateSeq: 0, updateCache: null, lastVersion: null };
 let prefs = { ...PREF_DEFAULTS };
 
 function prefsFile() {
@@ -102,16 +114,20 @@ async function loadPrefs() {
   } catch {
     /* first run */
   }
-  prefs.onboarded = prefs.onboarded === true;
-  prefs.joinMethod = prefs.joinMethod === 'classic' ? 'classic' : 'quick';
-  prefs.notifications = prefs.notifications === true;
-  prefs.background = prefs.background === true;
-  prefs.maxSeq = Number.isInteger(prefs.maxSeq) && prefs.maxSeq > 0 ? prefs.maxSeq : 0;
-  if (typeof prefs.cache !== 'string') prefs.cache = null;
+  for (const k of ['maxSeq', 'newsSeq', 'updateSeq']) prefs[k] = Number.isInteger(prefs[k]) && prefs[k] > 0 ? prefs[k] : 0;
+  for (const k of ['cache', 'newsCache', 'updateCache']) if (typeof prefs[k] !== 'string') prefs[k] = null;
+  if (!UP.parseVersion(prefs.lastVersion)) prefs.lastVersion = null;
 }
 
 async function savePrefs(patch) {
   Object.assign(prefs, patch);
+  savePrefsChain = savePrefsChain.then(writePrefs, writePrefs);
+  return savePrefsChain;
+}
+
+// One write at a time: the list, news and update checks can finish together.
+let savePrefsChain = Promise.resolve();
+async function writePrefs() {
   await fsp.mkdir(path.dirname(prefsFile()), { recursive: true });
   const tmp = `${prefsFile()}.${process.pid}.tmp`;
   await fsp.writeFile(tmp, JSON.stringify(prefs, null, 2));
@@ -234,25 +250,197 @@ function statusSnapshot() {
   return { statuses, best: PK.pickBest(list.servers, statuses), at: statusAt ? new Date(statusAt).toISOString() : null };
 }
 
-// ---------- Realm feed (onboarding panel): latest Chronicle events + next announced event ----------
+// ---------- news (signed news.json, lib/news.js) ----------
 
-let feedCache = null;
-let feedAt = 0;
-async function realmFeed(refresh) {
-  if (!refresh && feedCache && Date.now() - feedAt < 20000) return feedCache;
-  const withChronicle = list.servers.slice(0, 16).filter((s) => s.chronicleUrl);
-  const entries = await Promise.all(
-    withChronicle.map(async (s) => {
-      const [events, state] = await Promise.all([
-        fetchText(`${s.chronicleUrl}/api/events?limit=8`, 256 * 1024).then(JSON.parse, () => []).catch(() => []),
-        chronicleState(s.chronicleUrl)
-      ]);
-      return { server: { id: s.id, name: s.name }, events, state };
-    })
+let news = { source: 'none', news: null, reason: 'Not loaded yet.', at: null };
+
+async function loadNewsNow() {
+  const r = await NW.loadNews(
+    { url: cfg.newsUrl, publicKey: cfg.publicKey, cacheText: prefs.newsCache, maxSeq: prefs.newsSeq, bundled: cfg.bundledNews },
+    { fetchText: (u) => fetchText(u, 128 * 1024) }
   );
-  feedCache = { ...FD.mergeFeed(entries, { limit: 8 }), sources: withChronicle.length, at: new Date().toISOString() };
-  feedAt = Date.now();
-  return feedCache;
+  if (r.source === 'online') await savePrefs({ newsCache: r.cacheText, newsSeq: r.maxSeq });
+  news = { source: r.source, news: r.news, reason: r.reason, at: new Date().toISOString() };
+  return news;
+}
+
+function publicNews() {
+  const p = NW.forPlayer(news.news);
+  return { source: news.source, reason: news.reason, seq: news.news ? news.news.seq : null, issued: news.news ? news.news.issued : null, at: news.at, items: p.news, realm: p.realm };
+}
+
+// ---------- updates (signed update.json, lib/updater.js) ----------
+
+const UPDATE_EVERY_MS = 4 * 60 * 60 * 1000;
+const PORTABLE = !!process.env.PORTABLE_EXECUTABLE_FILE; // set by electron-builder's portable exe
+
+function appVersion() {
+  // Development only: lets the walk-through pretend to be an older build.
+  if (DEV && UP.parseVersion(process.env.REALM_DEV_VERSION)) return process.env.REALM_DEV_VERSION;
+  return app.isPackaged ? app.getVersion() : require('../package.json').version;
+}
+
+let update = { status: 'idle', update: null, hotfix: false, reason: null, received: 0, file: null, checkedAt: null };
+let updateAbort = null;
+
+function updatesDir() {
+  return path.join(app.getPath('userData'), 'updates');
+}
+
+function publicUpdate() {
+  const u = update.update;
+  // A failed download keeps its version, so the banner can offer "Try again".
+  const offered = u && ['available', 'downloading', 'ready', 'installing', 'error'].includes(update.status);
+  return {
+    status: update.status,
+    current: appVersion(),
+    version: offered ? u.version : null,
+    hotfix: !!(offered && update.hotfix),
+    released: offered ? u.released : null,
+    size: offered ? u.file.size : null,
+    received: update.received,
+    notes: offered ? u.notes : null,
+    reason: update.reason,
+    checkedAt: update.checkedAt,
+    portable: PORTABLE
+  };
+}
+
+function setUpdate(patch) {
+  Object.assign(update, patch);
+  push({ type: 'update', update: publicUpdate() });
+}
+
+let checking = null;
+function checkUpdates() {
+  if (checking) return checking;
+  // Never interrupt a download or a ready installer with a fresh check.
+  if (['downloading', 'ready', 'installing'].includes(update.status)) return Promise.resolve(publicUpdate());
+  checking = (async () => {
+    setUpdate({ status: 'checking' });
+    const r = await UP.checkForUpdate(
+      { currentVersion: appVersion(), url: cfg.updateUrl, publicKey: cfg.publicKey, maxSeq: prefs.updateSeq, allowLocalHttp: DEV },
+      { fetchText: (u) => fetchText(u, 64 * 1024) }
+    );
+    if (r.cacheText) await savePrefs({ updateCache: r.cacheText, updateSeq: r.maxSeq });
+    // A failed check (offline, refused file) keeps an update that was already offered.
+    if (r.status === 'error' && update.update && update.status === 'available' && UP.compareVersions(update.update.version, appVersion()) > 0) {
+      setUpdate({ status: 'available', reason: r.reason, checkedAt: new Date().toISOString() });
+      return publicUpdate();
+    }
+    setUpdate({ status: r.status, update: r.update || null, hotfix: r.hotfix, reason: r.reason, received: 0, file: null, checkedAt: new Date().toISOString() });
+    if (r.status === 'available') {
+      LOG.write('info', `Update ${r.update.version} available${r.hotfix ? ' (hotfix)' : ''}`);
+      // Urgent updates download by themselves; they still only run when the player presses Update.
+      if (r.hotfix) downloadUpdate().catch(() => {});
+    }
+    return publicUpdate();
+  })().finally(() => {
+    checking = null;
+  });
+  return checking;
+}
+
+async function downloadUpdate() {
+  if (update.status === 'ready' || update.status === 'downloading') return publicUpdate();
+  if (update.status !== 'available' && update.status !== 'error') throw friendly('There is no update to download.');
+  const u = update.update;
+  if (!u) throw friendly('There is no update to download.');
+  updateAbort = new AbortController();
+  setUpdate({ status: 'downloading', received: 0, reason: null });
+  let lastPush = 0;
+  try {
+    const r = await UP.downloadInstaller(
+      u,
+      {
+        dir: updatesDir(),
+        signal: updateAbort.signal,
+        allowLocalHttp: DEV,
+        onProgress: (received) => {
+          update.received = received;
+          if (Date.now() - lastPush > 200) {
+            lastPush = Date.now();
+            push({ type: 'update', update: publicUpdate() });
+          }
+        }
+      },
+      { fetch: (url, init) => net.fetch(url, init) }
+    );
+    LOG.write('info', `Update ${u.version} downloaded and verified (${r.reused ? 'already on disk' : 'new'})`);
+    UP.pruneDownloads(updatesDir(), u.version).catch(() => {});
+    setUpdate({ status: 'ready', file: r.file, received: u.file.size });
+  } catch (e) {
+    LOG.write('warn', `Update download failed: ${e.message}`);
+    setUpdate({ status: 'error', reason: e.message, received: 0, file: null });
+    throw friendly(e.message);
+  } finally {
+    updateAbort = null;
+  }
+  return publicUpdate();
+}
+
+function cancelUpdate() {
+  if (updateAbort) updateAbort.abort();
+  return publicUpdate();
+}
+
+async function installUpdate() {
+  if (update.status !== 'ready' || !update.file || !update.update) throw friendly('The update is not downloaded yet.');
+  // Hashed again right before it runs: a file changed on disk since the download is never run.
+  if (!(await UP.verifyInstaller(update.file, update.update))) {
+    await fsp.rm(update.file, { force: true }).catch(() => {});
+    setUpdate({ status: 'error', reason: 'The downloaded installer changed on disk and no longer matches the signed update. It was deleted.', file: null, received: 0 });
+    throw friendly(update.reason);
+  }
+  if (PORTABLE) {
+    // The portable copy cannot replace itself; show the verified installer instead.
+    shell.showItemInFolder(update.file);
+    return { ...publicUpdate(), shown: true };
+  }
+  setUpdate({ status: 'installing' });
+  LOG.write('info', `Running the verified installer for ${update.update.version}`);
+  const err = await shell.openPath(update.file);
+  if (err) {
+    setUpdate({ status: 'ready', reason: `Windows could not start the installer (${err}).` });
+    throw friendly(update.reason);
+  }
+  // The installer closes Realm if it is still open and starts the new version when it finishes
+  // (electron-builder NSIS, runAfterFinish). Quit now so no file is locked.
+  if (!(DEV && process.env.REALM_DEV_NO_QUIT)) setTimeout(() => app.quit(), 800);
+  return publicUpdate();
+}
+
+// "What's new": once after an update, then on request from the footer.
+let justUpdated = null;
+function releaseNotes() {
+  let bundled = null;
+  try {
+    bundled = JSON.parse(fs.readFileSync(path.join(__dirname, 'release-notes.json'), 'utf8'));
+  } catch {
+    bundled = null;
+  }
+  let cached = null;
+  if (prefs.updateCache && cfg.publicKey) {
+    const v = UP.verifyUpdate(prefs.updateCache, cfg.publicKey, { ignoreExpiry: true, allowLocalHttp: DEV });
+    if (v.ok) cached = v.update;
+  }
+  return { bundled, cached };
+}
+
+async function settleVersion() {
+  const current = appVersion();
+  const { bundled, cached } = releaseNotes();
+  justUpdated = UP.whatsNew({ currentVersion: current, lastVersion: prefs.lastVersion, cachedUpdate: cached, bundledNotes: bundled });
+  if (prefs.lastVersion !== current) await savePrefs({ lastVersion: current });
+  if (justUpdated) LOG.write('info', `Updated from ${justUpdated.from} to ${current}`);
+}
+
+function whatsNewNow() {
+  const current = appVersion();
+  if (justUpdated) return { justUpdated: true, ...justUpdated };
+  const { bundled, cached } = releaseNotes();
+  const n = UP.whatsNew({ currentVersion: current, lastVersion: '0.0.0', cachedUpdate: cached, bundledNotes: bundled });
+  return { justUpdated: false, ...n, from: null };
 }
 
 // ---------- joining ----------
@@ -273,7 +461,7 @@ async function join(id) {
   if (!server) throw friendly('That server is not in the signed list.');
   const inst = await installState();
   if (inst.installed === false) return { needInstall: true, steam: inst.steam };
-  const method = prefs.joinMethod;
+  const method = cfg.joinMethod;
   const url = method === 'quick' ? ST.quickJoinUrl(server.address, server.port, cfg.steamAppId) : `steam://rungameid/${cfg.steamAppId}`;
   clipboard.writeText(server.address);
   await openSteam(url);
@@ -332,68 +520,13 @@ function handleLinkArg(arg) {
   showWindow();
 }
 
-// ---------- tray and notifications ----------
-
-let tray = null;
-let notifyTimer = null;
-const lastEventIds = {};
-
 function iconPath() {
   return path.join(ROOT, 'build', 'icon.png');
-}
-
-function updateTray() {
-  if (prefs.background && !tray) {
-    tray = new Tray(nativeImage.createFromPath(iconPath()).resize({ width: 16, height: 16 }));
-    tray.setToolTip('Realm');
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: 'Open Realm', click: showWindow },
-        { label: 'Join best server', click: () => joinBest().catch(() => {}) },
-        { type: 'separator' },
-        { label: 'Quit', click: () => { quitting = true; app.quit(); } }
-      ])
-    );
-    tray.on('click', showWindow);
-  } else if (!prefs.background && tray) {
-    tray.destroy();
-    tray = null;
-  }
-  clearInterval(notifyTimer);
-  notifyTimer = null;
-  if (prefs.notifications) {
-    pollEvents();
-    notifyTimer = setInterval(pollEvents, 60 * 1000);
-  }
-}
-
-async function pollEvents() {
-  for (const s of list.servers) {
-    if (!s.chronicleUrl) continue;
-    try {
-      const since = lastEventIds[s.id];
-      const q = Number.isInteger(since) ? `since=${since}&limit=20` : 'limit=20';
-      const events = JSON.parse(await fetchText(`${s.chronicleUrl}/api/events?${q}`, 256 * 1024));
-      const r = NT.freshEvents(events, Number.isInteger(since) ? since : null);
-      lastEventIds[s.id] = r.lastId;
-      for (const e of r.events) {
-        const n = NT.eventToNotification(e, s.name);
-        if (n && Notification.isSupported()) {
-          const note = new Notification({ title: n.title, body: n.body, silent: false });
-          note.on('click', showWindow);
-          note.show();
-        }
-      }
-    } catch {
-      /* the Chronicle is optional and may be offline */
-    }
-  }
 }
 
 // ---------- window and IPC ----------
 
 let win = null;
-let quitting = false;
 
 function push(msg) {
   if (win && !win.isDestroyed()) win.webContents.send('realm:push', msg);
@@ -436,10 +569,6 @@ function asId(id) {
   return id;
 }
 
-function publicPrefs() {
-  return { onboarded: prefs.onboarded, joinMethod: prefs.joinMethod, notifications: prefs.notifications, background: prefs.background };
-}
-
 function publicList() {
   return {
     realm: list.realm,
@@ -462,10 +591,11 @@ async function joinBest() {
 }
 
 function registerIpc() {
-  handle('app:info', () => ({ version: app.isPackaged ? app.getVersion() : require('../package.json').version, platform: process.platform, dev: DEV, edition: 'player' }));
+  handle('app:info', () => ({ version: appVersion(), platform: process.platform, dev: DEV, edition: 'player' }));
   handle('player:config', () => ({
     realmName: list.realm || cfg.realmName,
     tagline: cfg.tagline,
+    joinMethod: cfg.joinMethod,
     links: [...(cfg.links.discord || list.links.discord ? [{ id: 'discord', label: 'Discord' }] : []), ...(cfg.links.rules || list.links.rules ? [{ id: 'rules', label: 'Rules' }] : [])]
   }));
   handle('player:servers', async (refresh) => {
@@ -474,7 +604,6 @@ function registerIpc() {
   });
   handle('player:status', async (refresh) => (refresh === true || Date.now() - statusAt > 15000 ? refreshStatus() : statusSnapshot()));
   handle('player:installState', () => installState());
-  handle('player:feed', (refresh) => realmFeed(refresh === true));
   handle('player:join', (id) => join(asId(id)));
   handle('player:joinBest', () => joinBest());
   handle('player:installGame', async () => {
@@ -495,16 +624,21 @@ function registerIpc() {
     await shell.openExternal(url);
     return true;
   });
-  handle('player:prefs', () => publicPrefs());
-  handle('player:setPrefs', async (patch) => {
-    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new TypeError('prefs must be an object');
-    const next = {};
-    if ('joinMethod' in patch) next.joinMethod = asEnum(patch.joinMethod, ['quick', 'classic'], 'join method');
-    for (const k of ['onboarded', 'notifications', 'background']) if (k in patch) next[k] = patch[k] === true;
-    await savePrefs(next);
-    updateTray();
-    return publicPrefs();
+  // News items may carry an https link; only links that are in the signed feed can be opened.
+  handle('player:openNewsLink', async (itemId) => {
+    if (typeof itemId !== 'string' || itemId.length > 40) throw new TypeError('news item id is invalid');
+    const it = news.news && news.news.items.find((x) => x.id === itemId);
+    if (!it || !it.link || !M.isWebUrl(it.link, { httpsOnly: true })) return false;
+    await shell.openExternal(it.link);
+    return true;
   });
+  handle('player:news', async (refresh) => (refresh === true || !news.at ? loadNewsNow().then(publicNews) : publicNews()));
+  handle('player:update', () => publicUpdate());
+  handle('player:updateCheck', () => checkUpdates());
+  handle('player:updateDownload', () => downloadUpdate());
+  handle('player:updateCancel', () => cancelUpdate());
+  handle('player:updateInstall', () => installUpdate());
+  handle('player:whatsNew', () => whatsNewNow());
   handle('player:takeLink', () => {
     const id = pendingLink;
     pendingLink = null;
@@ -523,9 +657,9 @@ function registerIpc() {
 function createWindow() {
   win = new BrowserWindow({
     width: 1240,
-    height: 800,
-    minWidth: 1040,
-    minHeight: 700,
+    height: 780,
+    minWidth: 1000,
+    minHeight: 660,
     frame: false,
     backgroundColor: '#0b0907',
     show: false,
@@ -548,12 +682,6 @@ function createWindow() {
   win.on('maximize', () => push({ type: 'window', maximized: true }));
   win.on('unmaximize', () => push({ type: 'window', maximized: false }));
   win.once('ready-to-show', () => win.show());
-  win.on('close', (e) => {
-    if (!quitting && prefs.background && tray) {
-      e.preventDefault();
-      win.hide();
-    }
-  });
   win.on('closed', () => {
     win = null;
   });
@@ -578,18 +706,19 @@ if (!app.requestSingleInstanceLock()) {
   });
   app.whenReady().then(async () => {
     LOG.init(path.join(app.getPath('userData'), 'logs'));
-    LOG.write('info', `Realm ${app.getVersion()} starting`);
+    LOG.write('info', `Realm ${appVersion()} starting`);
     LOG.installCrashGuards();
     // The installer registers realm:// for this user (electron-builder "protocols"); this keeps the
     // registration pointing at the current exe. Never done from a development run.
     if (app.isPackaged) app.setAsDefaultProtocolClient('realm');
     await loadPrefs();
+    await settleVersion();
     await loadServers();
     registerIpc();
     // ----- Connection Doctor, "Can't join?" (lib/shared/joincheck.js): read-only player checks -----
     require('../lib/shared/joincheck').registerPlayer({
       handle,
-      app: { getVersion: () => (app.isPackaged ? app.getVersion() : require('../package.json').version) },
+      app: { getVersion: appVersion },
       clipboard,
       servers: () => list.servers,
       installState,
@@ -598,20 +727,23 @@ if (!app.requestSingleInstanceLock()) {
     });
     // ----- end Connection Doctor -----
     createWindow();
-    updateTray();
     const first = DL.findDeepLinkArg(process.argv);
     if (first) {
       const parsed = DL.parseDeepLink(first, list.servers.map((s) => s.id));
       if (parsed) pendingLink = parsed.id;
     }
     refreshStatus().catch(() => {});
+    loadNewsNow()
+      .then(() => push({ type: 'news' }))
+      .catch(() => {});
+    setTimeout(() => checkUpdates().catch(() => {}), 3000);
     setInterval(() => refreshStatus().catch(() => {}), 30 * 1000);
     setInterval(() => loadServers().then(() => push({ type: 'servers' })).catch(() => {}), 30 * 60 * 1000);
+    setInterval(() => loadNewsNow().then(() => push({ type: 'news' })).catch(() => {}), 30 * 60 * 1000);
+    setInterval(() => checkUpdates().catch(() => {}), UPDATE_EVERY_MS);
   });
   app.on('before-quit', () => {
-    quitting = true;
+    if (updateAbort) updateAbort.abort();
   });
-  app.on('window-all-closed', () => {
-    if (!prefs.background) app.quit();
-  });
+  app.on('window-all-closed', () => app.quit());
 }
