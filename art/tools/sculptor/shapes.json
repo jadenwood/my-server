@@ -1,0 +1,16 @@
+{
+  "note": "Block shapes (prefabs). The ids and names are the game's prefab type enum (plugins/docs/RealmSculptor.md cites it); ids 10-14, 16 (doors, gates, windows) and 255 (a multi-block part) are never used by sculptures. Each material lists its own shapes in the game's scene data, so the plugin checks that a material has the shape before placing it and falls back to a plain block. 'kind' is the geometry the tools ASSUME for rotation 0 (see shapes.mjs); every kind is UNVERIFIED until the shape-test sculpture has been looked at in game. 'fit' says whether the shape fitter may use it. Only the cube and the ramp are switched on.",
+  "shapes": [
+    { "prefabId": 0, "name": "Block", "kind": "cube", "fit": true, "geometryVerified": true },
+    { "prefabId": 1, "name": "Stair", "kind": "stair", "fit": false, "geometryVerified": false },
+    { "prefabId": 2, "name": "Ramp", "kind": "wedge", "fit": true, "geometryVerified": false },
+    { "prefabId": 3, "name": "RampVar1", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 4, "name": "RampVar2", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 5, "name": "RampVar3", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 6, "name": "RampVar4", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 7, "name": "RampVar5", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 8, "name": "RampVar6", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 9, "name": "Peak", "kind": "peak", "fit": false, "geometryVerified": false },
+    { "prefabId": 15, "name": "ThinWall", "kind": null, "fit": false, "geometryVerified": false }
+  ]
+}

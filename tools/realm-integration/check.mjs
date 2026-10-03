@@ -50,7 +50,7 @@ export const PENDING_PLUGINS = {};
 
 // Staff-only chat commands: the plugin serves only holders of its admin permission (others get one pointer line), so
 // the player hub (/realm) does not list them. Each plugin guide documents its own.
-export const STAFF_COMMANDS = ['sentinel', 'paint', 'ironbreaker'];
+export const STAFF_COMMANDS = ['sentinel', 'paint', 'ironbreaker', 'sculpt'];
 
 const SNAKE = /^[a-z]+(?:_[a-z]+)*$/;
 
