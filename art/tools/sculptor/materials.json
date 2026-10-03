@@ -1,0 +1,14 @@
+{
+  "note": "Block materials (tilesets) a sculpture may use. A sculpture block stores the numeric material id; the role names here are how generators ask for one. Ids 1-9 for full blocks come from a real 2016-2018 Reign of Kings plugin (LevelSystem.cs, GetCubePlaceLevel, in github.com/RustServers-IO/oxideplugins @ 4de21d4) and are UNVERIFIED on our server: run /sculpt materials in game, which writes the real table to oxide/data/RealmSculptorMaterials.json, and fix any id here and in the plugin's MaterialRoles config. previewColour is a guess at each material's unpainted look, used only by the 'unpainted' preview. colourable is unknown until the in-game dump says which tilesets have a TilesetMaterialInfo.Colorable material.",
+  "materials": [
+    { "role": "cobblestone", "id": 1, "label": "Cobblestone", "previewColour": "#6f6a63", "colourable": null },
+    { "role": "stone", "id": 2, "label": "Stone", "previewColour": "#8d8a83", "colourable": null },
+    { "role": "clay", "id": 3, "label": "Clay", "previewColour": "#a0603c", "colourable": null },
+    { "role": "sod", "id": 4, "label": "Sod", "previewColour": "#4f6a33", "colourable": null },
+    { "role": "thatch", "id": 5, "label": "Thatch", "previewColour": "#b99a52", "colourable": null },
+    { "role": "spruce", "id": 6, "label": "Spruce branches", "previewColour": "#3f5a35", "colourable": null },
+    { "role": "wood", "id": 7, "label": "Wood", "previewColour": "#8a6440", "colourable": null },
+    { "role": "log", "id": 8, "label": "Log", "previewColour": "#6b4a2c", "colourable": null },
+    { "role": "reinforced", "id": 9, "label": "Reinforced wood (iron)", "previewColour": "#4a4440", "colourable": null }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "note": "Block shapes (prefabs). The prefab ids and names are CodeHatch.Blocks.CubeInfo.PrefabType in the 2.0.3867 Assembly-CSharp.dll; ids 10-14, 16 (doors, gates, windows) and 255 (a multi-block part) are never used by sculptures. Which material has which prefab, and what each one looks like, lives in the game's scene data, not in code. 'kind' is the geometry the tools ASSUME for prefab rotation 0 (see shapes.mjs); every kind is UNVERIFIED until /sculpt shapes has been looked at in game. 'fit' says whether the shape fitter may use it. Only the cube and the ramp are switched on.",
+  "shapes": [
+    { "prefabId": 0, "name": "Block", "kind": "cube", "fit": true, "geometryVerified": true },
+    { "prefabId": 1, "name": "Stair", "kind": "stair", "fit": false, "geometryVerified": false },
+    { "prefabId": 2, "name": "Ramp", "kind": "wedge", "fit": true, "geometryVerified": false },
+    { "prefabId": 3, "name": "RampVar1", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 4, "name": "RampVar2", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 5, "name": "RampVar3", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 6, "name": "RampVar4", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 7, "name": "RampVar5", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 8, "name": "RampVar6", "kind": null, "fit": false, "geometryVerified": false },
+    { "prefabId": 9, "name": "Peak", "kind": "peak", "fit": false, "geometryVerified": false },
+    { "prefabId": 15, "name": "ThinWall", "kind": null, "fit": false, "geometryVerified": false }
+  ]
+}
