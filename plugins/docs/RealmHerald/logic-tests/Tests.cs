@@ -106,6 +106,9 @@ static class T
         var registered = new HashSet<string>();
         foreach (string f in Directory.GetFiles(Path.Combine(repo, "plugins"), "*.cs"))
             foreach (Match m in Regex.Matches(File.ReadAllText(f), "\\[ChatCommand\\(\"([a-z]+)\"\\)\\]")) registered.Add(m.Groups[1].Value);
+        // Staff-only commands stay out of the player hub; the list lives in tools/realm-integration/check.mjs.
+        var staff = Regex.Match(File.ReadAllText(Path.Combine(repo, "tools", "realm-integration", "check.mjs")), "STAFF_COMMANDS = \\[([^\\]]*)\\]");
+        foreach (Match m in Regex.Matches(staff.Groups[1].Value, "'([a-z]+)'")) registered.Remove(m.Groups[1].Value);
         var listed = new HashSet<string>(catalogue.Select(e => (string)F(e, "Command")));
         Ok(registered.SetEquals(listed), "the catalogue matches the [ChatCommand]s in plugins/*.cs",
             "missing: " + string.Join(",", registered.Except(listed)) + " extra: " + string.Join(",", listed.Except(registered)));
