@@ -1,36 +1,78 @@
 <#
 .SYNOPSIS
-  Copies the "grim but readable" Mods override lines into the test server's Mods\<Name>.cfg files,
-  or reverts them from the backups it made.
+  Copies a Realm mood's Mods override lines (by default "grim but readable") into the test server's
+  Mods\<Name>.cfg files, or reverts them from the backups it made.
 
 .DESCRIPTION
-  The keys in grim-but-readable.cfg were proven from the game's code (docs/mods-keys-from-dll.md),
-  but the Mods file they live in is named by Unity scene data that the DLL does not contain
-  [UNVERIFIED]. So this script looks every key up in Mods\*.defaults.cfg (written by the server
-  itself) and puts each line into the matching <Name>.cfg. Keys it cannot find are skipped and
-  reported, never guessed.
+  The keys in every mods\presets\<mood>\<mood>.cfg were proven from the game's code
+  (docs/mods-keys-from-dll.md), but the Mods file they live in is named by Unity scene data that the
+  DLL does not contain [UNVERIFIED]. So this script looks every key up in Mods\*.defaults.cfg
+  (written by the server itself) and puts each line into the matching <Name>.cfg. Keys it cannot
+  find are skipped and reported, never guessed. A key that is not one of the twelve proven mood keys
+  is refused.
 
+  - -Mood <id> picks any mood folder under mods\presets (see -List); -PresetFile names a file directly.
   - Works only on the test copy made by server\New-TestServer.ps1 (same guard as the other scripts).
   - Refuses to run while that server is running: the server rewrites Mods\*.cfg when it starts.
   - Before the first change to a file it saves <Name>.cfg.realm-backup next to it. -Revert puts the
     backups back (and removes a <Name>.cfg that did not exist before).
   - Prints each key's server default next to the preset value and warns when the default is not
     the value the preset was tuned against.
+  - It adds or replaces the mood's own lines and leaves every other line alone, so lines an earlier
+    mood set and this one does not stay. To swap whole moods use server\Set-Mood.ps1, or -Revert first.
+  - A relative "#@scale Clock.DaySpeed" line (Golden Summer) needs the server's default and is only
+    applied by server\Set-Mood.ps1; this script skips it with a warning.
 
 .EXAMPLE
+  .\Apply-Preset.ps1 -List
   .\Apply-Preset.ps1 -WhatIf
   .\Apply-Preset.ps1
+  .\Apply-Preset.ps1 -Mood crown-night -WhatIf
+  .\Apply-Preset.ps1 -Mood crown-night
   .\Apply-Preset.ps1 -Revert
 #>
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
     [string]$ServerRoot = 'G:\RealmTest\server',
-    [string]$PresetFile = (Join-Path $PSScriptRoot 'grim-but-readable.cfg'),
+    [string]$Mood = 'grim-but-readable',
+    [string]$PresetFile = '',
+    [switch]$List,
     [switch]$Revert
 )
 
 $ErrorActionPreference = 'Stop'
-$repoRoot = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent
+$presetsDir = Split-Path $PSScriptRoot -Parent
+$repoRoot = Split-Path (Split-Path $presetsDir -Parent) -Parent
+
+# The only keys a mood may set: proven in docs/mods-keys-from-dll.md section 3 (the same list as
+# server\Set-Mood.ps1; mods/presets/tests/presets.test.mjs keeps the two in step).
+$provenKeys = @(
+    'Atmosphere.FogDensity', 'Atmosphere.FogColor', 'Atmosphere.SunColor', 'Atmosphere.MoonColor',
+    'Atmosphere.IslandLatitude', 'Atmosphere.IslandLongitude',
+    'Weather.ClearWeight', 'Weather.CloudyWeight', 'Weather.PrecipitateLowWeight',
+    'Weather.PrecipitateMediumWeight', 'Weather.PrecipitateHeavyWeight', 'Clock.DaySpeed'
+)
+
+# -List: read-only, needs no server.
+if ($List) {
+    foreach ($d in @(Get-ChildItem -LiteralPath $presetsDir -Directory | Sort-Object Name)) {
+        $cfg = Join-Path $d.FullName ($d.Name + '.cfg')
+        if (-not (Test-Path -LiteralPath $cfg -PathType Leaf)) { continue }
+        $identity = ''
+        foreach ($line in Get-Content -LiteralPath $cfg) {
+            if ($line -match '^#\s*Identity:\s*(.*)$') { $identity = $Matches[1]; break }
+        }
+        Write-Host ("{0,-18} {1}" -f $d.Name, $identity)
+    }
+    return
+}
+
+if (-not $PresetFile) {
+    if ($Mood -notmatch '^[a-z0-9][a-z0-9-]*$') { throw "Mood id '$Mood' is not valid (lower-case letters, digits and '-'). See -List." }
+    $PresetFile = Join-Path (Join-Path $presetsDir $Mood) ($Mood + '.cfg')
+    if (-not (Test-Path -LiteralPath $PresetFile -PathType Leaf)) { throw "Mood '$Mood' not found ($PresetFile). See .\Apply-Preset.ps1 -List." }
+}
+
 . (Join-Path $repoRoot 'server\RealmCommon.ps1')
 
 $root = Assert-RealmTestCopy $ServerRoot
@@ -77,8 +119,16 @@ $assumedDefaults = @{
 $lineRe = '^\s*([^#=\s][^=]*?)\s+=\s*''?([^''#]*)''?'
 $preset = New-Object System.Collections.Generic.List[object]
 foreach ($line in Get-Content -LiteralPath $PresetFile) {
+    if ($line -match '^\s*#@scale\s+(\S+)') {
+        Write-Warning "$($Matches[1]) is relative to the server's default (#@scale); only server\Set-Mood.ps1 applies it. Skipped."
+        continue
+    }
     $m = [regex]::Match($line, $lineRe)
-    if ($m.Success) { $preset.Add(@{ Key = $m.Groups[1].Value.Trim(); Value = $m.Groups[2].Value.Trim(); Line = $line.Trim() }) }
+    if ($m.Success) {
+        $key = $m.Groups[1].Value.Trim()
+        if ($provenKeys -notcontains $key) { throw "${PresetFile}: '$key' is not a proven mood key (docs/mods-keys-from-dll.md). Nothing was written." }
+        $preset.Add(@{ Key = $key; Value = $m.Groups[2].Value.Trim(); Line = $line.Trim() })
+    }
 }
 if ($preset.Count -eq 0) { throw "No key = 'value' lines found in $PresetFile." }
 

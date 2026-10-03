@@ -273,15 +273,65 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+
+        // A house name in its chat colour. The six great houses of Ostreval keep their own (art/palette.json
+        // "discordRole", chosen for dark backgrounds); any other house gets one of the six by a stable hash of its
+        // name, so it always shows in the same colour. Same table in every plugin that uses it (check.mjs).
+        private static readonly string[] HouseTintNames = { "varrow", "ashgrove", "corvane", "dunmere", "halloran", "merrin" };
+        private static readonly string[] HouseTintColours = { "C58FC0", "E08A5C", "8FB0BF", "B8B85A", "EC8A3C", "6FBF85" };
+
+        private static string HouseTint(string house)
+        {
+            if (string.IsNullOrEmpty(house)) return house;
+            string key = house.Trim().ToLowerInvariant();
+            int i = Array.IndexOf(HouseTintNames, key);
+            if (i < 0)
+            {
+                uint h = 2166136261;
+                foreach (char c in key) { h ^= c; h *= 16777619; }
+                i = (int)(h % (uint)HouseTintColours.Length);
+            }
+            return "[" + HouseTintColours[i] + "]" + house + "[FFFFFF]";
+        }
+
+        #endregion
+
         #region Lang
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Prefix", "[C8A050]Seasons[FFFFFF]: " },
-                { "Help", "/season | /season standings | /season house <name> | /season hall [page] | /season history. Admin: /season start [days] [name] | end | status" },
-                { "NoSeason", "No season is running. The Hall of Kings still remembers: /season hall" },
+                { "Speaker", "Seasons" },
+                { "Help", "  [F4C96D]/season[FFFFFF] | [F4C96D]/season standings[FFFFFF] | [F4C96D]/season house[FFFFFF] <name> | [F4C96D]/season hall[FFFFFF] [page] | [F4C96D]/season history[FFFFFF]" },
+                { "HelpAdmin", "  Admin: [F4C96D]/season start[FFFFFF] [days] [name] | [F4C96D]/season end[FFFFFF] | [F4C96D]/season status[FFFFFF]" },
+                { "NoSeason", "No season is running. The Hall of Kings still remembers: [F4C96D]/season hall[FFFFFF]" },
                 { "Status", "{0} - day {1} of {2}, ends {3} UTC." },
                 { "StatusLeader", "Leading: House {0} with {1} points." },
                 { "StatusYours", "Your house, {0}, stands #{1} with {2} points." },
@@ -297,18 +347,18 @@ namespace Oxide.Plugins
                 { "HistoryLine", "  {0}: champion House {1} ({2} pts). Longest reign: {3}" },
                 { "HistoryNone", "No season has ended yet." },
                 { "NoPermission", "You may not do that." },
-                { "AlreadyRunning", "{0} is already running. End it first with /season end." },
+                { "AlreadyRunning", "{0} is already running. End it first with [F4C96D]/season end[FFFFFF]." },
                 { "NotRunning", "No season is running." },
                 { "BadDays", "Days must be a whole number from 1 to 365." },
                 { "Started", "{0} has begun. It ends {1} UTC." },
                 { "AdminStatus", "Season #{0} active={1} cursor={2} houses={3} treaties tracked={4}; sources: crown={5} chronicle={6} houses={7}" },
                 { "LoadFailed", "The legends file could not be read. Seasons are paused until an admin fixes oxide/data/RealmLegends.json." },
-                { "BroadcastStart", "[C8A050]Herald[FFFFFF]: {0} begins! Houses, win the crown, keep your treaties and fill your contracts. It ends {1} UTC. See /season." },
-                { "BroadcastEnding", "[C8A050]Herald[FFFFFF]: {0} has ended. Hear the standings of the realm:" },
-                { "BroadcastPlace", "[C8A050]Herald[FFFFFF]:   #{0} House {1} - {2} points" },
-                { "BroadcastChampion", "[C8A050]Herald[FFFFFF]: House {0} is champion of {1}! Their name goes into the legends." },
-                { "BroadcastNoChampion", "[C8A050]Herald[FFFFFF]: No house earned glory this season. The legends record an empty page." },
-                { "BroadcastLongest", "[C8A050]Herald[FFFFFF]: Longest reign of the season: {0}." }
+                { "BroadcastStart", "[D6A043]Herald[FFFFFF]: {0} begins! Houses, win the crown, keep your treaties and fill your contracts. It ends {1} UTC. See [F4C96D]/season[FFFFFF]." },
+                { "BroadcastEnding", "[D6A043]Herald[FFFFFF]: {0} has ended. Hear the standings of the realm:" },
+                { "BroadcastPlace", "  #{0} House {1} - {2} points" },
+                { "BroadcastChampion", "[D6A043]Herald[FFFFFF]: House {0} is champion of {1}! Their name goes into the legends." },
+                { "BroadcastNoChampion", "[D6A043]Herald[FFFFFF]: No house earned glory this season. The legends record an empty page." },
+                { "BroadcastLongest", "[D6A043]Herald[FFFFFF]: Longest reign of the season: {0}." }
             }, this);
         }
 
@@ -320,13 +370,24 @@ namespace Oxide.Plugins
         private void Reply(Player player, string key, params object[] args)
         {
             string text = args.Length > 0 ? string.Format(Msg(key, player), args) : Msg(key, player);
-            player.SendMessage(Msg("Prefix", player) + text);              // single-string overload: brace safe
+            player.SendMessage(Styled(Msg("Speaker", player), key == "Started" ? ChatOk : ChatGold, text));   // single-string overload: brace safe
         }
 
         private void ReplyRaw(Player player, string key, params object[] args)
         {
             string text = args.Length > 0 ? string.Format(Msg(key, player), args) : Msg(key, player);
             player.SendMessage(text);
+        }
+
+        private void ShowHelp(Player player)
+        {
+            ReplyRaw(player, "Help");
+            if (IsAdmin(player)) ReplyRaw(player, "HelpAdmin");
+        }
+
+        private void Error(Player player, string text)
+        {
+            player.SendError(Styled(Msg("Speaker", player), ChatError, text));
         }
 
         private void Herald(string key, params object[] args)
@@ -855,8 +916,8 @@ namespace Oxide.Plugins
             legends.Seasons.Add(record);
 
             Herald("BroadcastEnding", season.Name);
-            foreach (StandingLine l in record.Top) Herald("BroadcastPlace", l.Rank, l.House, l.Score);
-            if (hasChampion) Herald("BroadcastChampion", record.Champion, season.Name);
+            foreach (StandingLine l in record.Top) Herald("BroadcastPlace", l.Rank, HouseTint(l.House), l.Score);
+            if (hasChampion) Herald("BroadcastChampion", HouseTint(record.Champion), season.Name);
             else Herald("BroadcastNoChampion");
             if (record.LongestReign != null) Herald("BroadcastLongest", record.LongestReign);
 
@@ -986,12 +1047,12 @@ namespace Oxide.Plugins
         private void CmdSeason(Player player, string command, string[] args)
         {
             if (player == null) return;
-            if (loadFailed) { player.SendError(Msg("LoadFailed", player)); return; }
+            if (loadFailed) { Error(player, Msg("LoadFailed", player)); return; }
             string sub = args != null && args.Length > 0 ? args[0].ToLowerInvariant() : "";
             switch (sub)
             {
                 case "": ShowStatus(player); break;
-                case "help": Reply(player, "Help"); break;
+                case "help": ShowHelp(player); break;
                 case "standings": ShowStandings(player); break;
                 case "house": ShowHouse(player, JoinFrom(args, 1)); break;
                 case "hall": ShowHall(player, args.Length > 1 ? args[1] : null); break;
@@ -999,13 +1060,13 @@ namespace Oxide.Plugins
                 case "start": AdminStart(player, args); break;
                 case "end": AdminEnd(player); break;
                 case "status": AdminStatus(player); break;
-                default: Reply(player, "Help"); break;
+                default: ShowHelp(player); break;
             }
         }
 
         private void ShowStatus(Player player)
         {
-            if (!season.Active) { Reply(player, "NoSeason"); Reply(player, "Help"); return; }
+            if (!season.Active) { Reply(player, "NoSeason"); ShowHelp(player); return; }
             DateTime now = Now();
             int day = Math.Max(1, (int)Math.Ceiling((now - season.StartedAt).TotalDays));
             int total = Math.Max(1, (int)Math.Round((season.EndsAt - season.StartedAt).TotalDays));
@@ -1038,7 +1099,7 @@ namespace Oxide.Plugins
         {
             if (!season.Active) { Reply(player, "NoSeason"); return; }
             if (string.IsNullOrEmpty(name)) name = HouseOfPlayer(player.Id);
-            if (string.IsNullOrEmpty(name)) { Reply(player, "Help"); return; }
+            if (string.IsNullOrEmpty(name)) { ShowHelp(player); return; }
             foreach (StandingLine l in Ranked())
             {
                 if (!SameName(l.House, name)) continue;
@@ -1085,8 +1146,8 @@ namespace Oxide.Plugins
 
         private void AdminStart(Player player, string[] args)
         {
-            if (!IsAdmin(player)) { player.SendError(Msg("NoPermission", player)); return; }
-            if (season.Active) { player.SendError(string.Format(Msg("AlreadyRunning", player), season.Name)); return; }
+            if (!IsAdmin(player)) { Error(player, Msg("NoPermission", player)); return; }
+            if (season.Active) { Error(player, string.Format(Msg("AlreadyRunning", player), season.Name)); return; }
             int days = config.DefaultSeasonDays;
             int nameFrom = 1;
             if (args.Length > 1)
@@ -1094,7 +1155,7 @@ namespace Oxide.Plugins
                 int parsed;
                 if (int.TryParse(args[1], out parsed))
                 {
-                    if (parsed < 1 || parsed > 365) { player.SendError(Msg("BadDays", player)); return; }
+                    if (parsed < 1 || parsed > 365) { Error(player, Msg("BadDays", player)); return; }
                     days = parsed;
                     nameFrom = 2;
                 }
@@ -1106,14 +1167,14 @@ namespace Oxide.Plugins
 
         private void AdminEnd(Player player)
         {
-            if (!IsAdmin(player)) { player.SendError(Msg("NoPermission", player)); return; }
-            if (!season.Active) { player.SendError(Msg("NotRunning", player)); return; }
+            if (!IsAdmin(player)) { Error(player, Msg("NoPermission", player)); return; }
+            if (!season.Active) { Error(player, Msg("NotRunning", player)); return; }
             EndSeason("proclamation of " + player.Name);
         }
 
         private void AdminStatus(Player player)
         {
-            if (!IsAdmin(player)) { player.SendError(Msg("NoPermission", player)); return; }
+            if (!IsAdmin(player)) { Error(player, Msg("NoPermission", player)); return; }
             Reply(player, "AdminStatus", season.Number, season.Active, season.ChronicleCursor, season.Houses.Count, season.Treaties.Count,
                 CrownAndConsequences != null ? "CrownAndConsequences" : "game", RealmChronicle != null, RealmHouses != null);
         }

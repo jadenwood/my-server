@@ -248,7 +248,7 @@ static class T
         Inv(S, "CmdSeason", bryn, "season", new[] { "hall" });
         Ok(bryn.All().Contains("Hall of Kings (2 reigns)") && bryn.All().Contains("Cass of House Morrow"), "/season hall lists past and current reigns", bryn.All());
         Inv(S, "CmdSeason", bryn, "season", new[] { "end" });
-        Ok(bryn.All().Contains("ERR You may not do that."), "non-admin cannot end the season");
+        Ok(bryn.Messages.Any(m => m.StartsWith("ERR ") && m.EndsWith("You may not do that.")), "non-admin cannot end the season", bryn.All());
 
         // Ceremony.
         Clear();

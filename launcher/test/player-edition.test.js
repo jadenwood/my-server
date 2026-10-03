@@ -114,7 +114,7 @@ test('the player build config packs only player files and lib/shared', () => {
   assert.deepEqual(cfg.protocols, [{ name: 'Realm link', schemes: ['realm'] }]);
   for (const pattern of cfg.files) {
     if (pattern.startsWith('!')) continue;
-    assert.match(pattern, /^(player\/|lib\/shared\/|renderer\/(player|coach|styles)\.|renderer\/(player|coach)\.|renderer\/doctor\.(js|css)$|renderer\/fonts\/|build\/icon\.png$)/, pattern);
+    assert.match(pattern, /^(player\/|lib\/shared\/|renderer\/(player|coach|styles)\.|renderer\/(player|coach)\.|renderer\/doctor\.(js|css)$|renderer\/heraldry\.js$|renderer\/fonts\/|renderer\/assets\/|build\/icon\.png$)/, pattern);
   }
   assert.ok(cfg.files.includes('!node_modules/**/*'));
   // Every file the player renderer page loads is packed.

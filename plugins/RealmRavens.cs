@@ -931,7 +931,7 @@ namespace Oxide.Plugins
             int unread = 0;
             List<InboxLetter> box;
             if (data.Inboxes.TryGetValue(id, out box)) foreach (InboxLetter i in box) if (!i.Read) unread++;
-            if (unread > 0) player.SendMessage(Msg("LoginUnread", id, unread));
+            if (unread > 0) Reply(player, "LoginUnread", unread);
             if (IsAdmin(id))
             {
                 int pending = Rules.PendingRumours(data.Rumours, null);
@@ -943,17 +943,49 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+        #endregion
+
         #region Lang
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Help1", "[8AA0B4]Ravens[FFFFFF]: /raven <house|player> <message> - a sealed letter (it flies {0}-{1}s). /raven anon <target> <message> - unsigned. Names with spaces go in \"quotes\"; prefix h: or p: to force a house or a player." },
-                { "Help2", "/raven inbox | read <#> | delete <#|read|all> | sent | status | block <player|house|#letter|anon> | unblock <player|house|anon|hidden> | blocks | report <#> [reason]" },
-                { "Help3", "Intrigue: /raven spymaster <player|none> (leader) | watch <house|none> (spymaster) | spy swear|dismiss <player> (leader) | spy accept|decline | spy list | spy report <house>. Rumours: /rumour <text> (moderated), /rumour list." },
-                { "Help4", "Ravens can be intercepted by a rival spymaster. Never put anything in a letter you could not bear the realm to read." },
-                { "HelpAdmin", "Admin: /raven admin queue | approve <id> | reject <id> [reason] | reports | resolve <report id> | audit <player> [hours] | letter <#> | mute <player> <hours> | unmute <player> | purge <player> | save" },
+                { "Speaker", "Ravens" },
+                { "HelpHeader", "Letters by raven between players and houses. A raven flies {0}-{1}s." },
+                { "HelpSend", "  [F4C96D]/raven[FFFFFF] <house|player> <message> - a sealed letter | [F4C96D]/raven anon[FFFFFF] <target> <message> - unsigned" },
+                { "HelpNames", "  Names with spaces go in \"quotes\"; prefix h: or p: to force a house or a player." },
+                { "HelpInbox", "  [F4C96D]/raven inbox[FFFFFF] | read <#> | delete <#|read|all> | sent | status | block <player|house|#letter|anon> | unblock <player|house|anon|hidden> | blocks | report <#> [reason]" },
+                { "HelpIntrigue", "  Intrigue: [F4C96D]/raven spymaster[FFFFFF] <player|none> (leader) | watch <house|none> (spymaster) | spy swear|dismiss <player> (leader) | spy accept|decline | spy list | spy report <house>" },
+                { "HelpRumours", "  Rumours: [F4C96D]/rumour[FFFFFF] <text> (checked by the stewards first) | [F4C96D]/rumour list[FFFFFF]" },
+                { "HelpWarning", "  Ravens can be intercepted by a rival spymaster. Never put anything in a letter you could not bear the realm to read." },
+                { "HelpAdmin", "  Admin: [F4C96D]/raven admin queue[FFFFFF] | approve <id> | reject <id> [reason] | reports | resolve <id> | audit <player> [hours] | letter <#> | mute <player> <hours> | unmute <player> | purge <player> | save" },
                 { "Closed", "The rookery is closed: the ravens' data file could not be read. An admin must fix oxide/data/RealmRavens.json." },
                 { "NoPermission", "You may not do that." },
                 { "HousesMissing", "That needs the RealmHouses plugin, which is not loaded." },
@@ -964,7 +996,7 @@ namespace Oxide.Plugins
                 { "Ambiguous", "'{0}' could mean: {1}. Be more exact, or use \"quotes\"." },
                 { "NoSelf", "You cannot send a raven to yourself." },
                 { "NoRecipients", "No one in House {0} could receive your raven." },
-                { "SendUsage", "Usage: /raven <house|player> <message>  or  /raven anon <house|player> <message>" },
+                { "SendUsage", "Usage: [F4C96D]/raven[FFFFFF] <house|player> <message>  or  [F4C96D]/raven anon[FFFFFF] <house|player> <message>" },
                 { "TooShort", "Your letter is too short." },
                 { "TooLong", "Your letter is too long ({0} characters; at most {1})." },
                 { "AnonDisabled", "Unsigned letters are not allowed in this realm." },
@@ -979,9 +1011,9 @@ namespace Oxide.Plugins
                 { "RoostFull", "{0} already has too many unread letters from you." },
                 { "Sent", "Your raven takes wing toward {0}. It should land in about {1}. (letter #{2})" },
                 { "SentAnon", "Your unsigned raven takes wing toward {0}. It should land in about {1}. (letter #{2})" },
-                { "Arrived", "[8AA0B4]A raven lands[FFFFFF] bearing a letter from {0}. Read it with /raven read {1}" },
-                { "ArrivedIntercepted", "[8AA0B4]Your agents[FFFFFF] copied a raven from {0} to {1}. Read it with /raven read {2}" },
-                { "LoginUnread", "[8AA0B4]Ravens[FFFFFF]: {0} unread letter(s) wait for you. /raven inbox" },
+                { "Arrived", "[D6A043]A raven lands[FFFFFF] bearing a letter from {0}. Read it with [F4C96D]/raven read[FFFFFF] {1}" },
+                { "ArrivedIntercepted", "[D6A043]Your agents[FFFFFF] copied a raven from {0} to {1}. Read it with [F4C96D]/raven read[FFFFFF] {2}" },
+                { "LoginUnread", "{0} unread letter(s) wait for you. [F4C96D]/raven inbox[FFFFFF]" },
                 { "AnonFrom", "an unknown hand" },
                 { "AnonFromHouse", "an unsigned letter sealed with the mark of House {0}" },
                 { "SignedFrom", "{0}" },
@@ -989,21 +1021,21 @@ namespace Oxide.Plugins
                 { "ToHouse", "House {0}" },
                 { "InboxEmpty", "Your inbox is empty." },
                 { "InboxHeader", "Your letters ({0}, {1} unread), newest first:" },
-                { "InboxLine", "#{0} {1}from {2}, {3} ago: {4}" },
+                { "InboxLine", "  #{0} {1}from {2}, {3} ago: {4}" },
                 { "InboxUnreadTag", "[unread] " },
                 { "InboxInterceptTag", "[intercepted] " },
-                { "InboxMore", "...and {0} older. /raven read <#> works on any of them." },
+                { "InboxMore", "  ...and {0} older. [F4C96D]/raven read[FFFFFF] <#> works on any of them." },
                 { "ReadHeader", "Letter #{0} from {1}, sent {2} ago:" },
                 { "ReadIntercepted", "Letter #{0}, copied in secret: from {1} to {2}, sent {3} ago:" },
-                { "ReadTampered", "(The seal looks as if it has been lifted and pressed again.)" },
-                { "ReadBody", "\"{0}\"" },
+                { "ReadTampered", "  (The seal looks as if it has been lifted and pressed again.)" },
+                { "ReadBody", "  \"{0}\"" },
                 { "NoSuchLetter", "You have no letter #{0}." },
-                { "ReadUsage", "Usage: /raven read <#>" },
+                { "ReadUsage", "Usage: [F4C96D]/raven read[FFFFFF] <#>" },
                 { "Deleted", "Deleted {0} letter(s)." },
-                { "DeleteUsage", "Usage: /raven delete <#|read|all>" },
+                { "DeleteUsage", "Usage: [F4C96D]/raven delete[FFFFFF] <#|read|all>" },
                 { "SentEmpty", "You have sent no ravens in the last day." },
                 { "SentHeader", "Your ravens of the last day:" },
-                { "SentLine", "#{0} to {1}{2} - {3}" },
+                { "SentLine", "  #{0} to {1}{2} - {3}" },
                 { "SentAnonTag", " (unsigned)" },
                 { "SentInFlight", "in the air, lands in about {0}" },
                 { "SentFlown", "flown" },
@@ -1012,7 +1044,7 @@ namespace Oxide.Plugins
                 { "RoleSpymaster", "spymaster of House {0}, watching {1}" },
                 { "RoleSpy", "sworn spy of House {0}" },
                 { "Nothing", "nothing" },
-                { "BlockUsage", "Usage: /raven block <player|house|#letter|anon>" },
+                { "BlockUsage", "Usage: [F4C96D]/raven block[FFFFFF] <player|house|#letter|anon>" },
                 { "Blocked", "You will receive no ravens from {0}." },
                 { "BlockedAnon", "You will receive no unsigned ravens." },
                 { "BlockedLetterSender", "You will receive no more ravens from the sender of letter #{0}." },
@@ -1021,38 +1053,38 @@ namespace Oxide.Plugins
                 { "Unblocked", "{0} may send you ravens again." },
                 { "UnblockedAnon", "You will receive unsigned ravens again." },
                 { "UnblockedHidden", "Lifted {0} block(s) you placed through unsigned letters." },
-                { "HiddenBlocks", "{0} unknown hand(s) (/raven unblock hidden)" },
+                { "HiddenBlocks", "{0} unknown hand(s) ([F4C96D]/raven unblock hidden[FFFFFF])" },
                 { "NotBlocked", "{0} is not blocked." },
                 { "BlocksEmpty", "You block no one." },
                 { "BlocksLine", "Blocked: players {0}; houses {1}; unsigned letters: {2}." },
                 { "Yes", "yes" },
                 { "No", "no" },
-                { "ReportUsage", "Usage: /raven report <#> [reason]" },
+                { "ReportUsage", "Usage: [F4C96D]/raven report[FFFFFF] <#> [reason]" },
                 { "ReportCannot", "Copies made by your own agents cannot be reported." },
-                { "Reported", "Letter #{0} has been reported to the realm's stewards. You can also /raven block #{0}." },
-                { "AdminReportNotice", "[C8A050]Ravens[FFFFFF]: a letter was reported (report {0}). /raven admin reports" },
-                { "SpymasterUsage", "Usage: /raven spymaster <player|none>" },
+                { "Reported", "Letter #{0} has been reported to the realm's stewards. You can also [F4C96D]/raven block[FFFFFF] #{0}." },
+                { "AdminReportNotice", "[E8913A]Ravens[FFFFFF]: a letter was reported (report {0}). [F4C96D]/raven admin reports[FFFFFF]" },
+                { "SpymasterUsage", "Usage: [F4C96D]/raven spymaster[FFFFFF] <player|none>" },
                 { "SpymasterNotMember", "{0} is not a member of your house." },
                 { "SpymasterCooldown", "Your house changed its spymaster too recently. Next change in {0}." },
                 { "SpymasterSet", "{0} is now the spymaster of House {1}. Only your house knows." },
-                { "SpymasterYou", "[8AA0B4]You are now the spymaster of House {0}.[FFFFFF] Choose whom to watch with /raven watch <house>." },
+                { "SpymasterYou", "[D6A043]Ravens[FFFFFF]: you are now the spymaster of House {0}. Choose whom to watch with [F4C96D]/raven watch[FFFFFF] <house>." },
                 { "SpymasterCleared", "House {0} has no spymaster now." },
                 { "NotSpymaster", "Only your house's spymaster may do that." },
-                { "WatchUsage", "Usage: /raven watch <house|none>" },
+                { "WatchUsage", "Usage: [F4C96D]/raven watch[FFFFFF] <house|none>" },
                 { "WatchOwn", "Your agents cannot watch your own house." },
                 { "WatchCooldown", "Your agents are still settling in. You may change whom you watch in {0}." },
                 { "WatchSet", "Your agents now watch the ravens of House {0}." },
                 { "WatchCleared", "Your agents watch no one." },
                 { "InterceptOff", "(Interception is turned off on this server.)" },
-                { "SpyUsage", "Usage: /raven spy swear <player> | dismiss <player> | accept | decline | list | report <house>" },
+                { "SpyUsage", "Usage: [F4C96D]/raven spy swear[FFFFFF] <player> | dismiss <player> | accept | decline | list | report <house>" },
                 { "SpiesDisabled", "Sworn spies are not allowed in this realm." },
                 { "SpyTooMany", "Your house already has {0} sworn spies." },
                 { "SpyAlready", "{0} is already sworn to your house's secret service." },
                 { "SpyNotOnline", "{0} must be online to swear the oath." },
                 { "SpyOffered", "You offer {0} a place among your spies. They must accept within {1}." },
-                { "SpyOfferReceived", "[8AA0B4]Your leader offers you a secret oath[FFFFFF] as a spy of House {0}. /raven spy accept or /raven spy decline" },
+                { "SpyOfferReceived", "[D6A043]Ravens[FFFFFF]: your leader offers you a secret oath as a spy of House {0}. [F4C96D]/raven spy accept[FFFFFF] or [F4C96D]/raven spy decline[FFFFFF]" },
                 { "SpyNoOffer", "No one has offered you a secret oath." },
-                { "SpySworn", "You are sworn as a spy of House {0}. /raven spy report <house> to learn another house's secrets." },
+                { "SpySworn", "You are sworn as a spy of House {0}. [F4C96D]/raven spy report[FFFFFF] <house> to learn another house's secrets." },
                 { "SpySwornLeader", "{0} has sworn the secret oath." },
                 { "SpyDeclined", "You decline the oath." },
                 { "SpyDismissed", "{0} is released from the secret oath." },
@@ -1062,21 +1094,21 @@ namespace Oxide.Plugins
                 { "SpyOwn", "You need no spy to learn your own house's secrets." },
                 { "SpyCooldown", "Your cover needs time. You may spy again in {0}." },
                 { "SpyTargetCooldown", "Your house spied on them too recently. Again in {0}." },
-                { "SpyReportHeader", "[8AA0B4]Your spy's report on House {0}:[FFFFFF]" },
-                { "SpyReportTreaties", "Treaties: {0}" },
-                { "SpyReportFealty", "Sworn to: {0} | Vassals: {1}" },
-                { "SpyReportTraffic", "Ravens sent in the last {0}h: {1}{2}" },
+                { "SpyReportHeader", "Your spy's report on House {0}:" },
+                { "SpyReportTreaties", "  Treaties: {0}" },
+                { "SpyReportFealty", "  Sworn to: {0} | Vassals: {1}" },
+                { "SpyReportTraffic", "  Ravens sent in the last {0}h: {1}{2}" },
                 { "SpyReportTrafficTo", " (to {0})" },
-                { "SpyReportService", "Their secret service: {0}" },
+                { "SpyReportService", "  Their secret service: {0}" },
                 { "SpyServiceNone", "no spymaster" },
                 { "SpyServiceWatch", "a spymaster watching House {0}, and {1} sworn spies" },
                 { "SpyServiceIdle", "a spymaster watching no one, and {0} sworn spies" },
                 { "Unhoused", "the unhoused" },
-                { "SpyCaughtSelf", "[FF6050]You were seen.[FFFFFF] House {0} knows a spy of your house was prying." },
-                { "SpyCaughtTarget", "[FF6050]A spy was caught[FFFFFF] prying into the affairs of House {0}: {1}." },
+                { "SpyCaughtSelf", "[E86A5C]You were seen.[FFFFFF] House {0} knows a spy of your house was prying." },
+                { "SpyCaughtTarget", "[E8913A]A spy was caught[FFFFFF] prying into the affairs of House {0}: {1}." },
                 { "SpyCaughtWho", "a spy of House {0}" },
                 { "SpyCaughtWhoNamed", "{0}, a spy of House {1}" },
-                { "RumourUsage", "Usage: /rumour <text> (it is checked by the realm's stewards before it spreads) | /rumour list" },
+                { "RumourUsage", "Usage: [F4C96D]/rumour[FFFFFF] <text> (it is checked by the realm's stewards before it spreads) | [F4C96D]/rumour list[FFFFFF]" },
                 { "RumoursDisabled", "Rumours are not collected in this realm." },
                 { "RumourTooShort", "That is too short to be a rumour." },
                 { "RumourTooLong", "A rumour must be at most {0} characters ({1} given)." },
@@ -1085,26 +1117,26 @@ namespace Oxide.Plugins
                 { "RumourMine", "You already have a rumour waiting for the stewards." },
                 { "RumourRefused", "That rumour cannot be spread here." },
                 { "RumourQueued", "Your rumour (#{0}) is whispered to the stewards. If they allow it, it spreads without your name." },
-                { "RumourApproved", "[8AA0B4]Your rumour #{0} spreads through the realm.[FFFFFF]" },
+                { "RumourApproved", "[8FC97A]Ravens[FFFFFF]: your rumour #{0} spreads through the realm." },
                 { "RumourRejected", "Your rumour #{0} was not allowed to spread{1}." },
                 { "RumourExpired", "Your rumour #{0} was never heard by the stewards and has faded." },
-                { "RumourBroadcast", "[9A8A70]Whispers in the taverns[FFFFFF]: {0}" },
+                { "RumourBroadcast", "[A3A6AD]Whispers in the taverns[FFFFFF]: {0}" },
                 { "RumourListEmpty", "No rumours have spread yet." },
                 { "RumourListHeader", "The latest rumours:" },
-                { "RumourListLine", "{0} ago: {1}" },
-                { "AdminNewRumour", "[C8A050]Ravens[FFFFFF]: a rumour awaits moderation (#{0}). /raven admin queue" },
+                { "RumourListLine", "  {0} ago: {1}" },
+                { "AdminNewRumour", "[E8913A]Ravens[FFFFFF]: a rumour awaits moderation (#{0}). [F4C96D]/raven admin queue[FFFFFF]" },
                 { "AdminQueueEmpty", "No rumours wait for moderation." },
-                { "AdminQueueLine", "#{0} by {1} ({2} ago): {3}" },
+                { "AdminQueueLine", "  #{0} by {1} ({2} ago): {3}" },
                 { "AdminNoRumour", "No pending rumour #{0}." },
                 { "AdminApproved", "Rumour #{0} approved{1}." },
                 { "AdminApprovedNoChronicle", " (the chronicle did not take it: is RealmChronicle loaded and the 'rumour' type registered?)" },
                 { "AdminRejected", "Rumour #{0} rejected." },
                 { "AdminReportsEmpty", "No open reports." },
-                { "AdminReportLine", "Report {0}: {1} reported letter #{2} from {3}{4} ({5} ago): \"{6}\" Reason: {7}" },
+                { "AdminReportLine", "  Report {0}: {1} reported letter #{2} from {3}{4} ({5} ago): \"{6}\" Reason: {7}" },
                 { "AdminNoReport", "No report {0}." },
                 { "AdminResolved", "Report {0} marked handled." },
                 { "AdminAuditEmpty", "No audit entries for {0} in the last {1}h." },
-                { "AdminAuditLine", "{0} ago [{1}] {2}{3}{4}" },
+                { "AdminAuditLine", "  {0} ago [{1}] {2}{3}{4}" },
                 { "AdminLetterNone", "No record of letter #{0} (records are kept {1} days{2})." },
                 { "AdminLetterTextOff", ", and letter text is not stored" },
                 { "AdminLetter", "Letter #{0} from {1} ({2}){3} to {4}, {5} ago: \"{6}\"" },
@@ -1112,8 +1144,8 @@ namespace Oxide.Plugins
                 { "AdminUnmuted", "{0} may use the rookery again." },
                 { "AdminPurged", "Removed {0} raven(s) in the air from {1}." },
                 { "AdminSaved", "RealmRavens data saved." },
-                { "AdminUsage", "Usage: /raven admin queue | approve <id> | reject <id> [reason] | reports | resolve <id> | audit <player> [hours] | letter <#> | mute <player> <hours> | unmute <player> | purge <player> | save" },
-                { "AdminLoginQueue", "[C8A050]Ravens[FFFFFF]: {0} rumour(s) wait for moderation, {1} open report(s)." }
+                { "AdminUsage", "Usage: [F4C96D]/raven admin queue[FFFFFF] | approve <id> | reject <id> [reason] | reports | resolve <id> | audit <player> [hours] | letter <#> | mute <player> <hours> | unmute <player> | purge <player> | save" },
+                { "AdminLoginQueue", "[E8913A]Ravens[FFFFFF]: {0} rumour(s) wait for moderation, {1} open report(s)." }
             }, this);
         }
 
@@ -1159,10 +1191,9 @@ namespace Oxide.Plugins
         private void ShowHelp(Player player)
         {
             string id = player.Id.ToString();
-            player.SendMessage(Msg("Help1", id, config.TravelSecondsMin, config.TravelSecondsMax));
-            player.SendMessage(Msg("Help2", id));
-            player.SendMessage(Msg("Help3", id));
-            if (config.InterceptionEnabled) player.SendMessage(Msg("Help4", id));
+            Reply(player, "HelpHeader", config.TravelSecondsMin, config.TravelSecondsMax);
+            foreach (string key in new[] { "HelpSend", "HelpNames", "HelpInbox", "HelpIntrigue", "HelpRumours" }) player.SendMessage(Msg(key, id));
+            if (config.InterceptionEnabled) player.SendMessage(Msg("HelpWarning", id));
             if (IsAdmin(id)) player.SendMessage(Msg("HelpAdmin", id));
         }
 
@@ -2223,6 +2254,7 @@ namespace Oxide.Plugins
         private void Notify(string id, string text)
         {
             Player p = Online(id);
+            text = Styled(Msg("Speaker", id), ChatGold, text);
             if (p != null) { p.SendMessage(text); return; }
             PlayerInfo info = Info(id, null);
             info.Notices.Add(text);
@@ -2268,12 +2300,29 @@ namespace Oxide.Plugins
 
         private void Reply(Player player, string key, params object[] args)
         {
-            player.SendMessage(Msg(key, player.Id.ToString(), args));
+            string id = player.Id.ToString();
+            player.SendMessage(Styled(Msg("Speaker", id), ToneOf(key), Msg(key, id, args)));
         }
 
         private void Error(Player player, string key, params object[] args)
         {
-            player.SendError(Msg(key, player.Id.ToString(), args));
+            string id = player.Id.ToString();
+            player.SendError(Styled(Msg("Speaker", id), ChatError, Msg(key, id, args)));
+        }
+
+        // Tone of a reply (chat style): done, or take care; everything else is news.
+        private static readonly HashSet<string> OkKeys = new HashSet<string>
+        {
+            "Sent", "SentAnon", "Deleted", "Blocked", "BlockedAnon", "BlockedLetterSender", "Unblocked", "UnblockedAnon",
+            "UnblockedHidden", "Reported", "SpymasterSet", "SpymasterCleared", "WatchSet", "WatchCleared", "SpyOffered", "SpySworn",
+            "SpyDeclined", "SpyDismissed", "RumourQueued", "AdminApproved", "AdminRejected", "AdminResolved", "AdminMuted",
+            "AdminUnmuted", "AdminPurged", "AdminSaved"
+        };
+        private static readonly HashSet<string> WarnKeys = new HashSet<string> { "LoginUnread" };
+
+        private static string ToneOf(string key)
+        {
+            return OkKeys.Contains(key) ? ChatOk : WarnKeys.Contains(key) ? ChatWarn : ChatGold;
         }
 
         #endregion

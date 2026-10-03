@@ -426,23 +426,52 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+        #endregion
+
         #region Lang
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Prefix", "[D4AF37]Treasury[FFFFFF]: " },
-                { "Help0", "[D4AF37]The coffers of Ostreval[FFFFFF] - currency: {0}. Market fee {1}%, house tithe {2}%, game tax {3}." },
-                { "HelpMarket1", "/market list [item|mine] | /market history <item> | /market items <search> | /market collect" },
-                { "HelpMarket2", "/market sell <qty> <price each> <item> [24h] | /market bid <qty> <price each> <item> [24h]" },
-                { "HelpMarket3", "/market buy <id> [qty] | /market fill <id> [qty] | /market cancel <id> | /purse | /purse pay <player> <n>" },
-                { "HelpVault1", "/vault [house] | /vault deposit <qty> <item> | /vault withdraw <qty> <item> | /vault give <n> | /vault take <n>" },
-                { "HelpVault2", "/vault sell|bid <qty> <price> <item> | /vault buy|fill <id> [qty] | /vault cancel <id> | /vault steward add|remove <player>" },
-                { "HelpTreasury1", "/treasury | /treasury deposit <qty> <item> | /treasury taxin <qty> <item> | /treasury ledger [n] | /treasury tax" },
-                { "HelpTreasury2", "Crown & Keeper of Coin: /treasury withdraw <qty> <item> | award <player> <qty> <item> | grant <player> <n> | sell|bid|buy|fill|cancel" },
-                { "HelpTreasury3", "Crown: /treasury mint <n> | /treasury tithe <percent> | /treasury levy | /treasury fee <percent> | /treasury escheat <house>" },
-                { "HelpAdmin", "Admin: /treasury audit | /treasury freeze | /treasury unfreeze | /treasury cancel <id> (any listing) | /treasury restore <house> (fallen <date>)" },
+                { "Speaker", "Treasury" },
+                { "Herald", "[D6A043]Herald[FFFFFF]: " },
+                { "Help0", "The coffers of Ostreval. Currency: {0}. Market fee {1}%, house tithe {2}%, game tax {3}." },
+                { "HelpMarket1", "  [F4C96D]/market list[FFFFFF] [item|mine] | [F4C96D]/market history[FFFFFF] <item> | [F4C96D]/market items[FFFFFF] <search> | [F4C96D]/market collect[FFFFFF]" },
+                { "HelpMarket2", "  [F4C96D]/market sell[FFFFFF] <qty> <price each> <item> [24h] | [F4C96D]/market bid[FFFFFF] <qty> <price each> <item> [24h]" },
+                { "HelpMarket3", "  [F4C96D]/market buy[FFFFFF] <id> [qty] | [F4C96D]/market fill[FFFFFF] <id> [qty] | [F4C96D]/market cancel[FFFFFF] <id> | [F4C96D]/purse[FFFFFF] | [F4C96D]/purse pay[FFFFFF] <player> <n>" },
+                { "HelpVault1", "  [F4C96D]/vault[FFFFFF] [house] | [F4C96D]/vault deposit[FFFFFF] <qty> <item> | [F4C96D]/vault withdraw[FFFFFF] <qty> <item> | [F4C96D]/vault give[FFFFFF] <n> | [F4C96D]/vault take[FFFFFF] <n>" },
+                { "HelpVault2", "  [F4C96D]/vault sell|bid[FFFFFF] <qty> <price> <item> | [F4C96D]/vault buy|fill[FFFFFF] <id> [qty] | [F4C96D]/vault cancel[FFFFFF] <id> | [F4C96D]/vault steward add|remove[FFFFFF] <player>" },
+                { "HelpTreasury1", "  [F4C96D]/treasury[FFFFFF] | [F4C96D]/treasury deposit[FFFFFF] <qty> <item> | [F4C96D]/treasury taxin[FFFFFF] <qty> <item> | [F4C96D]/treasury ledger[FFFFFF] [n] | [F4C96D]/treasury tax[FFFFFF]" },
+                { "HelpTreasury2", "  Crown & Keeper of Coin: [F4C96D]/treasury withdraw[FFFFFF] <qty> <item> | award <player> <qty> <item> | grant <player> <n> | sell|bid|buy|fill|cancel" },
+                { "HelpTreasury3", "  Crown: [F4C96D]/treasury mint[FFFFFF] <n> | [F4C96D]/treasury tithe[FFFFFF] <percent> | [F4C96D]/treasury levy[FFFFFF] | [F4C96D]/treasury fee[FFFFFF] <percent> | [F4C96D]/treasury escheat[FFFFFF] <house>" },
+                { "HelpAdmin", "  Admin: [F4C96D]/treasury audit[FFFFFF] | [F4C96D]/treasury freeze[FFFFFF] | [F4C96D]/treasury unfreeze[FFFFFF] | [F4C96D]/treasury cancel[FFFFFF] <id> (any listing) | [F4C96D]/treasury restore[FFFFFF] <house> (fallen <date>)" },
                 { "Restored", "The sealed vault '{0}' is returned to House {1}." },
                 { "NotRestorable", "'{0}' is not a sealed vault of a fallen house, or no house of that name stands now." },
                 { "NoPermission", "You may not do that." },
@@ -454,12 +483,12 @@ namespace Oxide.Plugins
                 { "NotSteward", "Only the head of House {0} or its stewards may do that." },
                 { "NotLeader", "Only the head of House {0} may do that." },
                 { "BadNumber", "'{0}' is not a whole number from {1} to {2}." },
-                { "UnknownItem", "No item is named '{0}'. Try /market items <search>." },
+                { "UnknownItem", "No item is named '{0}'. Try [F4C96D]/market items[FFFFFF] <search>." },
                 { "ItemNotAllowed", "'{0}' may not be traded or stored on this server." },
                 { "ItemsFound", "Items matching '{0}': {1}" },
                 { "ItemsNone", "No item matches '{0}'." },
                 { "NotEnoughItems", "You need {0} {1} in your inventory (you have {2})." },
-                { "TakeFailed", "The realm could not take the items. Nothing changed; anything taken is returned (/market collect)." },
+                { "TakeFailed", "The realm could not take the items. Nothing changed; anything taken is returned ([F4C96D]/market collect[FFFFFF])." },
                 { "NotEnoughMarks", "{0} has {1} {2}; {3} are needed." },
                 { "NotEnoughStock", "{0} holds only {1} {2}." },
                 { "Cooldown", "Wait {0} s." },
@@ -471,7 +500,7 @@ namespace Oxide.Plugins
                 { "TooManyMine", "{0} already has {1} open orders." },
                 { "TooManyTotal", "The market board is full. Try again later." },
                 { "NotFound", "There is no open order #{0}." },
-                { "WrongSide", "Order #{0} is a {1} order; use /market {2}." },
+                { "WrongSide", "Order #{0} is a {1} order; use [F4C96D]/market[FFFFFF] {2}." },
                 { "OwnOrder", "You cannot trade with your own order." },
                 { "NotOwner", "That order is not yours to cancel." },
                 { "Posted", "Order #{0} posted: {1}." },
@@ -481,7 +510,7 @@ namespace Oxide.Plugins
                 { "Cancelled", "Order #{0} withdrawn; the escrow returns to {1}." },
                 { "Line", "  #{0} {1} {2} {3} @ {4} - {5} ({6})" },
                 { "ListNone", "No open orders." },
-                { "ListMore", "  ... and {0} more. Filter with /market list <item>." },
+                { "ListMore", "  ... and {0} more. Filter with [F4C96D]/market list[FFFFFF] <item>." },
                 { "HistoryNone", "No trades of {0} are recorded." },
                 { "History", "{0}: last {1} ({2} ago); 24h avg {3} on {4} units; 7d avg {5}; low {6} high {7}; {8} trades in all." },
                 { "HistoryLine", "  {0} {1} x{2} @ {3}  {4} -> {5}" },
@@ -489,7 +518,7 @@ namespace Oxide.Plugins
                 { "Paid", "You paid {0} {1} to {2}." },
                 { "PaidYou", "{0} paid you {1} {2}." },
                 { "Received", "You receive {0} {1}." },
-                { "StillOwed", "Your packs are full. {0} {1} wait for you: /market collect" },
+                { "StillOwed", "Your packs are full. {0} {1} wait for you: [F4C96D]/market collect[FFFFFF]" },
                 { "NothingOwed", "Nothing is owed to you." },
                 { "Deposited", "{0} {1} placed in {2}." },
                 { "DepositedTithe", "{0} {1} placed in {2}." },
@@ -516,7 +545,7 @@ namespace Oxide.Plugins
                 { "Levied", "The tithe of {0}% is gathered from {1} houses: {2}." },
                 { "LevyNone", "No house owed a tithe." },
                 { "LevyCooldown", "The next tithe may be gathered in {0} min." },
-                { "LevyZero", "The tithe is 0%. Set it with /treasury tithe <percent>." },
+                { "LevyZero", "The tithe is 0%. Set it with [F4C96D]/treasury tithe[FFFFFF] <percent>." },
                 { "LevyNeedCrownPlugin", "Only sworn houses pay; that needs the CrownAndConsequences plugin." },
                 { "Granted", "{0} {1} granted from the treasury to {2}." },
                 { "Awarded", "{0} {1} awarded from the treasury to {2}." },
@@ -544,13 +573,26 @@ namespace Oxide.Plugins
         private void Reply(Player player, string key, params object[] args)
         {
             if (player == null) return;
-            player.SendMessage(Msg("Prefix", player) + Fmt(key, player, args));   // single-string overload: brace safe
+            player.SendMessage(Styled(Msg("Speaker", player), ToneOf(key), Fmt(key, player, args)));   // single-string overload: brace safe
         }
 
         private void ReplyError(Player player, string key, params object[] args)
         {
             if (player == null) return;
-            player.SendError(Fmt(key, player, args));
+            player.SendError(Styled(Msg("Speaker", player), ChatError, Fmt(key, player, args)));
+        }
+
+        // Tone of a reply (chat style): done, or take care; everything else is news.
+        private static readonly HashSet<string> OkKeys = new HashSet<string>
+        {
+            "Restored", "Posted", "Bought", "Filled", "Cancelled", "Paid", "Received", "Deposited", "DepositedTithe", "Withdrawn",
+            "MarksMoved", "StewardAdded", "StewardRemoved", "RateSet", "Levied", "Granted", "Awarded", "Escheated", "AuditOk",
+            "FrozenSet", "AdminDone", "Minted", "GrantedYou", "PaidYou"
+        };
+
+        private static string ToneOf(string key)
+        {
+            return OkKeys.Contains(key) ? ChatOk : ChatGold;
         }
 
         #endregion
@@ -2067,7 +2109,7 @@ namespace Oxide.Plugins
 
         private void Broadcast(string text)
         {
-            PrintToChat("{0}", Msg("Prefix", null) + text);
+            PrintToChat("{0}", Msg("Herald", null) + text);
         }
 
         #endregion
