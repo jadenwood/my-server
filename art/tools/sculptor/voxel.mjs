@@ -30,8 +30,9 @@ export const LICENSES = new Set(['realm-original', 'CC0-1.0', 'CC-BY-4.0', 'MIT'
 const K = (x, y, z) => `${x},${y},${z}`;
 const styleKey = (s) => `${s.mat}|${s.color}`;
 
-/** A style is { mat: '<material role>', color: '#rrggbb' }. Colours are quantised to art/palette.json. */
-export const style = (mat, color) => { roleId(mat); return { mat, color: quantise(color) }; };
+/** A style is { mat: '<material role>', color: '#rrggbb' | null }. Colours are quantised to art/palette.json; null
+ * keeps the material's own look (the plugin does not paint it). */
+export const style = (mat, color) => { roleId(mat); return { mat, color: color == null ? null : quantise(color) }; };
 
 export class Grid {
   constructor() { this.cells = new Map(); }
@@ -212,7 +213,8 @@ export function validate(s) {
     if (!SINGLE_BLOCK_PREFABS.has(prefab)) P(`${at} uses prefab ${prefab}; only single-block shapes are allowed`);
     if (rot < 0 || rot > 23) P(`${at} rotation ${rot} is not 0-23`);
     if (prefab === 0 && rot !== 0) P(`${at} is a plain block with rotation ${rot}; plain blocks have no rotation`);
-    if (typeof col !== 'string' || !/^#[0-9a-f]{6}$/.test(col)) P(`${at} colour must be "#rrggbb" in lower case`);
+    if (col === null) { /* unpainted: the material's own colour */ }
+    else if (typeof col !== 'string' || !/^#[0-9a-f]{6}$/.test(col)) P(`${at} colour must be "#rrggbb" in lower case, or null`);
     else if (!PALETTE_HEXES.has(col)) P(`${at} colour ${col} is not in art/palette.json`);
     const k = K(x, y, z);
     if (seen.has(k)) P(`${at} repeats position ${k}`);

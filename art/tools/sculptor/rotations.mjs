@@ -1,12 +1,11 @@
 // The game's 24 block rotations as integer 3 x 3 matrices, and the maths to turn a whole sculpture.
 //
-// The Euler angles are the values of CodeHatch.Blocks.CubeInfo.PossibleRotations in the 2.0.3867
-// Assembly-CSharp.dll (only the numbers are used). A block's rotation travels as an index into that table
-// (CubePlaceEvent.Write writes CubeInfo.GetIndexOfRotation(rotation) for prefab blocks). Unity's
-// Quaternion.Euler(x, y, z) turns about z, then x, then y, so the matrix is Ry * Rx * Rz. The matrices use the
+// The Euler angles are the game's own table of block rotations (the type and member are cited in
+// plugins/docs/RealmSculptor.md; only the numbers are used). A block's rotation travels as an index into that table.
+// Unity's Quaternion.Euler(x, y, z) turns about z, then x, then y, so the matrix is Ry * Rx * Rz. The matrices use the
 // usual formulas; Unity's left-handed axes do not change the numbers.
-// plugins/RealmSculptor.cs carries the same table and both are checked against
-// plugins/docs/RealmSculptor/logic-tests/rotations.json.
+// plugins/RealmSculptor.cs carries the same table; both are checked against
+// plugins/docs/RealmSculptor/logic-tests/rotations.json (written by: node art/tools/sculptor/cli.mjs fixtures).
 
 export const EULER = [
   [0, 0, 0], [0, 90, 0], [0, 180, 0], [0, 270, 0],

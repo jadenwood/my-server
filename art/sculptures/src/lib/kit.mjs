@@ -1,9 +1,9 @@
 // Shared helpers for the sculpture generators. Everything is deterministic: the same code gives the same blocks.
 import { Grid, style } from '../../../tools/sculptor/voxel.mjs';
-import { pal, house } from '../../../tools/sculptor/palette.mjs';
+import { pal, house, HOUSE_KEYS_ORDER } from '../../../tools/sculptor/palette.mjs';
 import { orient } from '../../../tools/sculptor/shapes.mjs';
 
-export { Grid, style, pal, house, orient };
+export { Grid, style, pal, house, orient, HOUSE_KEYS_ORDER as HOUSE_KEYS };
 
 /** A stable pseudo-random number in [0, 1) for a cell and a salt. */
 export function hash(x, y, z, salt = 0) {
@@ -50,6 +50,7 @@ export function stepped(g, cx, cz, y0, steps, { chamfer = false } = {}) {
 export const ST = {
   // stone and iron
   stoneLight: style('stone', pal('Iron 200')),
+  stoneMid: style('stone', house('corvane', 'metalShadow')),
   stoneWarm: style('stone', pal('Haze')),
   stoneDark: style('cobblestone', pal('Iron 600')),
   stoneDeep: style('cobblestone', pal('Far ridge')),
@@ -58,8 +59,14 @@ export const ST = {
   iron: style('reinforced', pal('Iron 700')),
   ironHi: style('reinforced', pal('Iron 600')),
   ironWorn: style('reinforced', pal('Iron 200')),
-  rust: style('reinforced', pal('Afterglow')),
-  rustDeep: style('reinforced', pal('Ember deep')),
+  rust: style('reinforced', pal('Haze')),
+  rustDeep: style('reinforced', pal('Ink soft')),
+  rustHot: style('reinforced', pal('Afterglow')),
+  // steel, darkest to brightest (house metal greys from the palette)
+  steelDark: style('reinforced', house('varrow', 'metalShadow')),
+  steel: style('reinforced', house('corvane', 'metalShadow')),
+  steelLight: style('reinforced', house('varrow', 'metal')),
+  steelEdge: style('reinforced', house('corvane', 'metal')),
   // gold, cloth, wood
   gold: style('thatch', pal('Ember')),
   goldHot: style('thatch', pal('Ember hot')),

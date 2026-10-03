@@ -38,6 +38,7 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmdynasties.admin` | `RealmDynasties.cs` | `/dynasty admin pass`, `dissolve`, `title`, `prestige`, `check`, `save` | Skips disown and abdicate cooldowns | Yes | On call | No | No |
 | `realmrenown.admin` | `RealmRenown.cs` | `/renown admin grant`, `title give\|take`, `reset`, `status`, `save` | Skips the command cooldown; can grant points and titles | Yes | On call | No | No |
 | `realmtreasury.admin` | `RealmTreasury.cs` | `/treasury audit`, `freeze`, `unfreeze`, `cancel` (any order), `escheat` | Skips trade rate cooldowns; can cancel any market order | Yes | On call | No | No |
+| `realmsculptor.admin` | `RealmSculptor.cs` | `/sculpt list`, `preview`, `place`, `undo`, `remove`, `placed`, `status`, `protect`, `repair`, `materials`, `reload`: place, protect and take down the realm's block monuments | `place ... force` replaces players' blocks (put back on undo); a protected monument can block a road or a door | Yes | Yes | No | No |
 
 Things that are **not** Oxide permissions but are staff powers all the same:
 
@@ -66,6 +67,7 @@ oxide.grant group realm_admin realmhouses.admin
 oxide.grant group realm_admin crownandconsequences.admin
 oxide.grant group realm_admin realmcontracts.admin
 oxide.grant group realm_admin realmlaws.admin
+oxide.grant group realm_admin realmsculptor.admin
 
 oxide.grant group realm_mod realmwarden.admin
 oxide.grant group realm_mod realmravens.admin

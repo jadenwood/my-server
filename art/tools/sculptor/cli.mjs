@@ -9,6 +9,7 @@
 //        [--material stone] [--license CC0-1.0] [--source <url>] [--credit "<text>"] [--up y|z] [--no-fit]
 //   node art/tools/sculptor/cli.mjs export <oxide/data folder>   copy every sculpture to <folder>/RealmSculptor/
 //   node art/tools/sculptor/cli.mjs info [id...]       block counts by material and shape
+//   node art/tools/sculptor/cli.mjs fixtures           rewrite the plugin tests' rotations.json from rotations.mjs
 //
 // Playwright comes from art/tools/node_modules or $ART_NODE_MODULES (see art/README.md).
 import fs from 'node:fs';
@@ -16,10 +17,20 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ART } from '../lib.mjs';
 import { validate, stats, FORMAT } from './voxel.mjs';
+import { EULER, turnIndex } from './rotations.mjs';
 
 export const SCULPTURES = path.join(ART, 'sculptures');
 export const SRC = path.join(SCULPTURES, 'src');
 export const PREVIEW = path.join(SCULPTURES, 'preview');
+export const ROTATIONS_FIXTURE = path.join(ART, '..', 'plugins', 'docs', 'RealmSculptor', 'logic-tests', 'rotations.json');
+
+/** The rotation table both sides check: Euler angles and the index after k quarter-turns about the vertical axis. */
+export function rotationsFixture() {
+  const turn = EULER.map((_, i) => [0, 1, 2, 3].map((k) => turnIndex(i, k)));
+  return `{\n  "note": "Written by node art/tools/sculptor/cli.mjs fixtures from art/tools/sculptor/rotations.mjs. plugins/RealmSculptor.cs must carry the same tables.",\n`
+    + `  "euler": [\n${EULER.map((e) => `    ${JSON.stringify(e)}`).join(',\n')}\n  ],\n`
+    + `  "turn": [\n${turn.map((t) => `    ${JSON.stringify(t)}`).join(',\n')}\n  ]\n}\n`;
+}
 
 /** Sculpture JSON text: the header as indented JSON, one block per line so diffs stay readable. */
 export function formatSculpture(s) {
@@ -128,6 +139,10 @@ async function main() {
     fs.mkdirSync(to, { recursive: true });
     for (const f of sculptureFiles()) fs.copyFileSync(path.join(SCULPTURES, f), path.join(to, f));
     console.log(`export: ${sculptureFiles().length} sculptures copied to ${to}`);
+  } else if (cmd === 'fixtures') {
+    fs.mkdirSync(path.dirname(ROTATIONS_FIXTURE), { recursive: true });
+    fs.writeFileSync(ROTATIONS_FIXTURE, rotationsFixture());
+    console.log(`fixtures: ${path.relative(process.cwd(), ROTATIONS_FIXTURE)}`);
   } else if (cmd === 'info') {
     for (const f of sculptureFiles()) {
       const s = readSculpture(f.replace(/\.json$/, ''));
@@ -137,7 +152,7 @@ async function main() {
       console.log(`  materials: ${Object.entries(st.materials).map(([k, v]) => `${k} ${v}`).join(', ')}; shapes: ${Object.entries(st.shapes).map(([k, v]) => `${k} ${v}`).join(', ')}`);
     }
   } else {
-    console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(1, 12).map((l) => l.slice(3)).join('\n'));
+    console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(1, 13).map((l) => l.slice(3)).join('\n'));
     if (cmd) process.exitCode = 1;
   }
 }

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyse, splitArgs, stripComments, commandsMarkdown } from './check.mjs';
+import { analyse, splitArgs, stripComments, commandsMarkdown, STAFF_COMMANDS } from './check.mjs';
 
 const CHRONICLE = `namespace Oxide.Plugins {
   public class RealmChronicle : ReignOfKingsPlugin {
@@ -169,7 +169,8 @@ test('the /realm catalogue must list every command once, under its owner', () =>
   const dir = fakeRepo({
     RealmA: plugin('RealmA', `
     [ChatCommand("alpha")] private void CmdA(Player p, string c, string[] a) { }
-    [ChatCommand("beta")] private void CmdB(Player p, string c, string[] a) { }`),
+    [ChatCommand("beta")] private void CmdB(Player p, string c, string[] a) { }
+    [ChatCommand("sculpt")] private void CmdS(Player p, string c, string[] a) { }`),
     RealmHerald: plugin('RealmHerald', `${STYLE}
     private static readonly string[] Subjects = { "one" };
     private static readonly Entry[] Catalogue = {
@@ -193,6 +194,7 @@ test('the /realm catalogue must list every command once, under its owner', () =>
     assert.match(text, /"Cmd\.gamma" \(its one-line description\) is missing/);
     assert.match(text, /"Subject\.one" is missing/);
     assert.match(text, /\/beta \(RealmA\) is missing from the \/realm catalogue/);
+    assert.doesNotMatch(text, /\/sculpt .*missing from the \/realm catalogue/);
     assert.equal(r.chat.catalogue, 4);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -200,7 +202,9 @@ test('the /realm catalogue must list every command once, under its owner', () =>
 test('the real plugins keep the chat style and a complete /realm catalogue', () => {
   const r = analyse();
   assert.ok(r.chat.langStrings > 900);
-  assert.equal(r.chat.catalogue, Object.keys(r.commands).length - 2);   // all but RealmCourt's two console commands
+  // all but RealmCourt's two console commands and the staff-only commands
+  assert.equal(r.chat.catalogue, Object.keys(r.commands).length - 2 - STAFF_COMMANDS.length);
+  for (const c of STAFF_COMMANDS) assert.ok(r.commands[c], `staff command /${c} is registered by some plugin`);
 });
 
 const POPUPS_OK = `

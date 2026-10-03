@@ -103,7 +103,7 @@ export function projectScene(s, { yaw = 0, pitch = 20, mode = 'painted' } = {}) 
 
   const polys = [];
   for (const b of s.blocks) {
-    const base = mode === 'painted' ? b[6] : (matColour.get(b[3]) || '#888888');
+    const base = mode === 'painted' && b[6] ? b[6] : (matColour.get(b[3]) || '#888888');
     for (const f of shapeFaces(b[4], b[5])) {
       if (f.side >= 0) {
         const d = AXES[f.side];
@@ -151,8 +151,9 @@ export function sceneSvg(s, viewName = 'three-quarter', { width = 560, height = 
   const k = Math.min((width * (1 - 2 * pad)) / (maxX - minX), (height * (1 - 2 * pad)) / (maxY - minY));
   const ox = (width - (maxX - minX) * k) / 2 - minX * k, oy = (height - (maxY - minY) * k) / 2 - minY * k;
   const P = (pts) => pts.map((p) => `${(p[0] * k + ox).toFixed(1)},${(p[1] * k + oy).toFixed(1)}`).join(' ');
-  const sky0 = pal('Night'), sky1 = pal('Dusk'), haze = pal('Haze');
-  const groundCol = mix(pal('Iron 800'), pal('Moss'), 0.35);
+  // An overcast daylight sky, so dark iron and stone read as silhouettes the way they do in the game by day.
+  const sky0 = mix(pal('Iron 200'), pal('Lapis'), 0.35), sky1 = mix(pal('Iron 200'), pal('Parchment'), 0.45), haze = pal('Parchment 2');
+  const groundCol = mix(pal('Moss'), pal('Haze'), 0.35);
   const sw = Math.max(0.4, Math.min(1.2, k / 40)).toFixed(2);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
 <defs><linearGradient id="sky" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${sky0}"/><stop offset=".72" stop-color="${sky1}"/><stop offset="1" stop-color="${mix(sky1, haze, 0.5)}"/></linearGradient>
