@@ -193,6 +193,14 @@ namespace Oxide.Plugins
             d.Add("outlawed", D("was declared outlaw", 0, 50, 720));
             d.Add("truce_broken", D("broke the Truce of the Realm", 0, 30, 0));
             d.Add("holding_taken", D("took a holding for their house", 30, 0, 60));   // RealmDominion (AddDeed)
+            // Reported by RealmQuests through AddDeed (one dedupe key per task, step or tier).
+            d.Add("quest_daily", D("finished a daily task", 5, 0, 0));
+            d.Add("quest_weekly", D("finished a weekly task", 15, 0, 0));
+            d.Add("quest_story", D("followed the season's tale", 20, 0, 0));
+            d.Add("story_complete", D("saw the season's tale to its end", 100, 0, 0));
+            d.Add("achievement", D("earned a deed of note", 10, 0, 0));
+            d.Add("achievement_gold", D("earned a gold deed", 30, 0, 0));
+            d.Add("house_goal", D("met a weekly goal with their house", 15, 0, 0));
             return d;
         }
 

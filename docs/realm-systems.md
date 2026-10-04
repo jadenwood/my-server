@@ -66,6 +66,7 @@ All are Oxide C# plugins, C# 3 syntax, deployed together by Realm Steward or `se
 | `RealmLegendary.cs` | The Ironbreaker: exactly one legendary blade, won at the Royal Tournament, taken by the bearer's slayer; staff `/ironbreaker`. | `RealmLegendary.json` | **On a branch** (`team/ironbreaker`, 93b8cfd). Compile-checked, mock-tested (142), exploit suite (legendary 48). Item identity and damage scaling in game are UNVERIFIED (PT2.16, PT3.12, PT4.3). |
 | `RealmSentinel.cs` | Server-side cheat watch: movement, combat, items, floods and staff-name impersonation scored with evidence; alert, freeze, kick, ban on confirm; staff `/sentinel`. Never touches the game's own anti-cheat. Ships in watch mode. | `RealmSentinel.json`, `RealmSentinelFeed.json`, logs | **On a branch** (`team/anti-cheat`, 8ac7c18). Compile-checked, mock-tested (173), exploit runner (24). Every limit is UNVERIFIED until tuned in game (PT1.16, PT3.13 to PT3.15, PT7.10). |
 | `RealmDominion.cs` | Territorial war: named holdings (villages, keep, mine, harbour, crossroads) that houses take by holding the field in the War Hours (paused in truces, rebellions and shut raid hours); garrisons, daily marks into house vaults (`RealmTreasury.GrantHouseIncome`) and season points, `holding_taken` Chronicle entries, the `/paint dominion` board; `/dominion`. | `RealmDominion.json`, `RealmDominionMap.json` (for the portal and Chronicle; schema in the guide) | **On a branch** (`team/dominion`). Compile-checked, mock-tested (196), exploit suite (dominion 37 + 13). Everything in game is UNVERIFIED (guide steps D1 to D12). Guide: [`plugins/docs/RealmDominion.md`](../plugins/docs/RealmDominion.md). |
+| `RealmQuests.cs` | Daily and weekly tasks, the Season 1 story (The Hollow Crown, 4 acts, 17 steps), 68 deeds in five kinds with tiers, weekly house goals; `/quest`, `/achievements`. Content is JSON in `plugins/docs/RealmQuests/content/` (deployed to `oxide/data/RealmQuests/`). Pays marks (RealmTreasury `RewardMarks`), renown and titles (RealmRenown deeds), house season points. | `RealmQuests.json` | Compile-checked, mock-tested (298), exploit suite (quests 45, plus 13 for `RewardMarks`). Everything at run time is UNVERIFIED (guide QS1 to QS18). Guide: [`plugins/docs/RealmQuests.md`](../plugins/docs/RealmQuests.md). |
 
 Guides for the newer plugins are in [`plugins/docs/`](../plugins/docs/) (the four on branches bring their own guides); the original four are described in [`community/how-to-play.md`](community/how-to-play.md) and [`oxide-rok-api.md`](oxide-rok-api.md). Staff-only commands (`/sculpt`, `/paint`, `/ironbreaker`, `/sentinel`) are listed in `STAFF_COMMANDS` in `tools/realm-integration/check.mjs` and stay out of the `/realm` hub.
 
@@ -135,6 +136,15 @@ Oxide only lets one plugin call **non-public instance methods** of another, by n
 | RealmSeasons | CrownAndConsequences | `GetKingHouse`, `GetKingName`, `GetOpenClaims` |
 | RealmSeasons | RealmChronicle | `GetLastEventId`, `Log` |
 | RealmSeasons | RealmHouses | `GetHouse`, `GetHouseFounded`, `GetHouseSummaries`, `GetMemberNames`, `HasTreaty` |
+| RealmQuests | RealmChronicle | `Log` |
+| RealmQuests | RealmEvents | `GetActiveEvents` |
+| RealmQuests | RealmHerald | `PopupsWanted` |
+| RealmQuests | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetHouseSummaries`, `GetLiege`, `GetMembers`, `HasTreaty` |
+| RealmQuests | RealmRenown | `AddDeed`, `GetRenown`, `GetTitles` |
+| RealmQuests | RealmSeasons | `AwardHouse`, `GetSeasonNumber` |
+| RealmQuests | RealmSentinel | `SentinelItemSource` |
+| RealmQuests | RealmTreasury | `GetPurse`, `RewardMarks` |
+| RealmQuests | RealmWarden | `IsNewPlayerProtected` |
 | RealmSentinel | RealmWarden | `RaiseWardenAlert` (on a branch: `team/anti-cheat`) |
 | RealmStats | RealmHouses | `GetHouse` |
 | RealmTreasury | CrownAndConsequences | `GetCouncilSeat`, `IsSwornToCrown` |

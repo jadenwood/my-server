@@ -1,0 +1,8 @@
+[
+  { "Id": "diligent", "Name": "the Diligent", "Description": "Finished thirty daily tasks.", "Infamous": false, "Requires": { "quest_daily": 30 } },
+  { "Id": "steadfast", "Name": "the Steadfast", "Description": "Finished ten weekly tasks.", "Infamous": false, "Requires": { "quest_weekly": 10 } },
+  { "Id": "witness", "Name": "Witness of the Crown", "Description": "Saw the tale of a season to its end.", "Infamous": false, "Requires": { "story_complete": 1 } },
+  { "Id": "accomplished", "Name": "the Accomplished", "Description": "Earned twenty-five deeds of note.", "Infamous": false, "Requires": { "achievement": 25 } },
+  { "Id": "paragon", "Name": "Paragon of Ostreval", "Description": "Earned ten gold deeds.", "Infamous": false, "Requires": { "achievement_gold": 10 } },
+  { "Id": "pillar", "Name": "Pillar of the House", "Description": "Met six weekly goals with their house.", "Infamous": false, "Requires": { "house_goal": 6 } }
+]

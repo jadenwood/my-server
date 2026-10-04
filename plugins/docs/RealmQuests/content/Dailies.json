@@ -1,0 +1,237 @@
+{
+  "Version": 1,
+  "Quests": [
+    {
+      "Id": "d_wood_fold", "Title": "Timber for the Fold", "Weight": 10,
+      "Text": "Ashgrove's folds need new fences before the wolves learn the old ones. Bring timber to the realm's quartermaster.",
+      "Done": "The fences rise. The wolves will have to learn again.",
+      "Objectives": [ { "Type": "deliver", "Targets": ["Wood"], "Count": 150, "Text": "Hand in wood" } ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_stone_road", "Title": "Stones for the King's Road", "Weight": 10,
+      "Text": "Every road in Ostreval leads to the Old Throne, and every winter breaks a few of them. Bring stone to mend the way.",
+      "Done": "Carts will roll a little straighter this week, and grumble a little less.",
+      "Objectives": [ { "Type": "deliver", "Targets": ["Stone"], "Count": 120, "Text": "Hand in stone" } ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_iron_ore", "Title": "Ore for the Ember Forges", "Weight": 9,
+      "Text": "The forge-camps of the Ember Pass burn through ore faster than the hills give it up. Bring them iron ore.",
+      "Done": "Halloran's smiths nod, which from Halloran's smiths is warm praise.",
+      "Objectives": [ { "Type": "deliver", "Targets": ["IronOre"], "Count": 60, "Text": "Hand in iron ore" } ],
+      "Reward": { "Marks": 15 }
+    },
+    {
+      "Id": "d_clay_kilns", "Title": "Clay for the Kilns", "Weight": 8,
+      "Text": "The kilns below the throne hill fire bricks for every house that pays. Today they need clay more than coin.",
+      "Done": "The kilns roar. Somewhere, a wall will be a little warmer.",
+      "Objectives": [ { "Type": "deliver", "Targets": ["Clay"], "Count": 60, "Text": "Hand in clay" } ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_flax_nets", "Title": "Flax for Merrin's Nets", "Weight": 7,
+      "Text": "Merrin's ferrymen mend their nets every dawn and swear the river eats them. Bring flax for the menders.",
+      "Done": "The nets are whole. Merrin will find a way to charge you for it later.",
+      "Objectives": [ { "Type": "deliver", "Targets": ["Flax"], "Count": 40, "Text": "Hand in flax" } ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_grain_tithe", "Title": "The Granary Tithe", "Weight": 7,
+      "Text": "The realm remembers the hunger of the Long Thaw. Every season the granaries are filled before they are needed.",
+      "Done": "The granary keeper chalks your name on the door. It is an old custom, and a kind one.",
+      "Objectives": [ { "Type": "deliver", "Targets": ["Grain"], "Count": 30, "Text": "Hand in grain" } ],
+      "Reward": { "Marks": 12, "Items": [ { "Item": "Bread", "Count": 2 } ] }
+    },
+    {
+      "Id": "d_hides", "Title": "Hides for the Tanners", "Weight": 8,
+      "Text": "The tanners of Merrin's Ford will take any hide or pelt, and ask no questions about where it walked last.",
+      "Done": "The tanners grunt their thanks and reach for their knives.",
+      "Objectives": [ { "Type": "deliver", "Targets": ["LeatherHide", "DeerSkin", "WolfPelt", "RabbitPelt"], "Count": 8, "Text": "Hand in hides or pelts" } ],
+      "Reward": { "Marks": 15 }
+    },
+    {
+      "Id": "d_feathers", "Title": "Fletching for the Lists", "Weight": 5,
+      "Text": "The Royal Tournament eats arrows, and arrows eat feathers. The Listing Field's fletchers are short again.",
+      "Done": "The fletchers bind your feathers to shafts before you have finished counting them.",
+      "Objectives": [ { "Type": "deliver", "Targets": ["Feather"], "Count": 30, "Text": "Hand in feathers" } ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_tallow_bone", "Title": "Tallow and Bone", "Weight": 6,
+      "Text": "Candles for the Hearth-keepers, glue for the bowyers. Nothing of a beast is wasted in Ostreval.",
+      "Done": "The Hearth-keepers will read the Chronicle by your tallow tonight.",
+      "Objectives": [
+        { "Type": "deliver", "Targets": ["Fat"], "Count": 15, "Text": "Hand in fat" },
+        { "Type": "deliver", "Targets": ["Bone"], "Count": 15, "Text": "Hand in bone" }
+      ],
+      "Reward": { "Marks": 14 }
+    },
+    {
+      "Id": "d_wolves", "Title": "Wolves at the Fold", "Weight": 10,
+      "Text": "Halloran's shepherds count fewer lambs each dawn. Thin the wolves that prowl the edge of the Crown Wold.",
+      "Done": "The folds sleep easier tonight, and so do the shepherds.",
+      "Objectives": [ { "Type": "slay_creature", "Targets": ["wolf"], "Count": 3, "Text": "Slay wolves" } ],
+      "Reward": { "Marks": 15 }
+    },
+    {
+      "Id": "d_venison", "Title": "Venison for the Hall", "Weight": 9,
+      "Text": "A house that feeds its guests is a house that keeps its friends. Bring down deer for the long tables.",
+      "Done": "The spits turn. Whoever eats tonight eats in your debt.",
+      "Objectives": [ { "Type": "slay_creature", "Targets": ["deer", "stag", "moose"], "Count": 3, "Text": "Bring down deer or stags" } ],
+      "Reward": { "Marks": 12, "Items": [ { "Item": "CookedMeat", "Count": 2 } ] }
+    },
+    {
+      "Id": "d_bear", "Title": "The Bear of the Wold", "Weight": 5,
+      "Text": "A bear has taken to the woodcutters' paths. The woodcutters have taken to staying home. Someone must go.",
+      "Done": "The woodcutters return to the paths, singing louder than they need to.",
+      "Objectives": [ { "Type": "slay_creature", "Targets": ["bear"], "Count": 1, "Text": "Slay a bear" } ],
+      "Reward": { "Marks": 20 }
+    },
+    {
+      "Id": "d_small_game", "Title": "Small Game", "Weight": 8,
+      "Text": "Not every hunt is sung about. Snare and shoot the small game that keeps a household fed through a hard week.",
+      "Done": "The larder is full of small things, which is how larders are usually full.",
+      "Objectives": [ { "Type": "slay_creature", "Targets": ["rabbit", "chicken", "duck", "sheep", "boar", "pig"], "Count": 5, "Text": "Take small game" } ],
+      "Reward": { "Marks": 10 }
+    },
+    {
+      "Id": "d_thin_the_wild", "Title": "Thin the Wild", "Weight": 9,
+      "Text": "The wild presses close to every hold in a new season. Push it back a little, beast by beast.",
+      "Done": "The wild draws back to the tree line. It will return. It always does.",
+      "Objectives": [ { "Type": "slay_creature", "Count": 8, "Text": "Slay creatures of the wild" } ],
+      "Reward": { "Marks": 14 }
+    },
+    {
+      "Id": "d_blades", "Title": "Blades for the Watch", "Weight": 9,
+      "Text": "The watch at the Tollbridge is down to two swords and a stern look. Forge weapons fit to hold a crossing.",
+      "Done": "The watch takes your steel and stands a little taller at the bridge.",
+      "Objectives": [ { "Type": "craft", "Targets": ["~Sword", "~Axe", "~Mace", "~Spear", "~Flail", "~Hammer", "~Halberd", "~Morning Star"], "Count": 2, "Text": "Forge weapons" } ],
+      "Reward": { "Marks": 15 }
+    },
+    {
+      "Id": "d_fletcher", "Title": "The Fletcher's Day", "Weight": 8,
+      "Text": "A bow without arrows is a stick with opinions. Fletch a quiverful for the realm's archers.",
+      "Done": "The quivers are full. The archers pretend they were never worried.",
+      "Objectives": [ { "Type": "craft", "Targets": ["~Arrow", "~Bolt"], "Count": 40, "Text": "Fletch arrows or bolts" } ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_smelting", "Title": "Smelting Day", "Weight": 8,
+      "Text": "Ore is a promise; an ingot is a promise kept. Fire the smelters and pour the realm its iron.",
+      "Done": "The ingots cool in rows like loaves. The smith counts them twice.",
+      "Objectives": [ { "Type": "craft", "Targets": ["~Ingot"], "Count": 20, "Text": "Smelt ingots" } ],
+      "Reward": { "Marks": 14 }
+    },
+    {
+      "Id": "d_mason", "Title": "Mason's Work", "Weight": 7,
+      "Text": "Varrow's masons say a keep is only as good as its smallest stone. Cut blocks and slabs for the builders.",
+      "Done": "The masons tap your blocks and listen. They ring true.",
+      "Objectives": [ { "Type": "craft", "Targets": ["~Block", "~Slab", "~Brick"], "Count": 30, "Text": "Cut blocks, slabs or bricks" } ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_carpenter", "Title": "The Carpenter's Bench", "Weight": 7,
+      "Text": "Every hall begins as a tree and a patient carpenter. Saw lumber and planks for the realm's halls.",
+      "Done": "Sawdust in your hair, lumber in the stack. An honest day.",
+      "Objectives": [ { "Type": "craft", "Targets": ["~Lumber", "~Plank"], "Count": 30, "Text": "Saw lumber or planks" } ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_shields", "Title": "Shields on the Wall", "Weight": 6,
+      "Text": "In the Long Thaw a hold was judged by the shields on its wall. Make one worth hanging.",
+      "Done": "The shield goes up on the wall, and the hold looks sterner for it.",
+      "Objectives": [ { "Type": "craft", "Targets": ["~Shield"], "Count": 1, "Text": "Make a shield" } ],
+      "Reward": { "Marks": 14 }
+    },
+    {
+      "Id": "d_raise_walls", "Title": "Raise the Walls", "Weight": 10,
+      "Text": "A house without walls is a rumour waiting to be disproved. Lay blocks and raise something that will stand.",
+      "Done": "The walls rise. Let the realm come and look at them.",
+      "Objectives": [ { "Type": "build", "Count": 80, "Text": "Lay building blocks" } ],
+      "Reward": { "Marks": 14 }
+    },
+    {
+      "Id": "d_stone_not_thatch", "Title": "Stone, Not Thatch", "Weight": 8,
+      "Text": "Thatch burns and wood rots; stone remembers. Build in stone, as the Builders did.",
+      "Done": "Merewin built in stone. So, today, did you.",
+      "Objectives": [ { "Type": "build", "Targets": ["stone", "cobblestone", "reinforced"], "Count": 50, "Text": "Lay stone blocks" } ],
+      "Reward": { "Marks": 16 }
+    },
+    {
+      "Id": "d_timber_halls", "Title": "Timber Halls", "Weight": 7,
+      "Text": "Not every house can afford a quarry. Timber halls have held good houses through bad winters.",
+      "Done": "The beams are up. The hall smells of fresh wood and promises.",
+      "Objectives": [ { "Type": "build", "Targets": ["wood", "log", "spruce"], "Count": 60, "Text": "Lay timber blocks" } ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_market_day", "Title": "Market Day", "Weight": 7,
+      "Text": "The Crown Market's cobbles remember every price ever paid on them. Walk the stalls and be seen there.",
+      "Done": "You did not haggle on the first stone. The traders noticed.",
+      "Objectives": [
+        { "Type": "visit", "Targets": ["crown_market"], "Count": 1, "Text": "Walk the Crown Market" },
+        { "Type": "playtime", "Count": 20, "Text": "Spend active time in the realm, in minutes" }
+      ],
+      "Reward": { "Marks": 10 }
+    },
+    {
+      "Id": "d_pilgrim", "Title": "Pilgrim to the Hearth", "Weight": 7,
+      "Text": "Every child of Ostreval is brought once to the Hearth and once to the throne. It does no harm to go again.",
+      "Done": "The fire and the stone. You have seen both, and both have seen you.",
+      "Objectives": [
+        { "Type": "visit", "Targets": ["the_hearth"], "Count": 1, "Text": "Warm your hands at the Hearth" },
+        { "Type": "visit", "Targets": ["old_throne"], "Count": 1, "Text": "Stand before the Old Throne" }
+      ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_toll_and_ford", "Title": "Paid the Toll", "Weight": 6,
+      "Text": "Carry word from the Tollbridge to Merrin's Ford. Whether you pay the toll is between you and your conscience.",
+      "Done": "Both crossings saw you. Only one of them charged you.",
+      "Objectives": [
+        { "Type": "visit", "Targets": ["tollbridge"], "Count": 1, "Text": "Cross the Tollbridge" },
+        { "Type": "visit", "Targets": ["merrins_ford"], "Count": 1, "Text": "Reach Merrin's Ford" }
+      ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_long_patrol", "Title": "The Long Patrol", "Weight": 6,
+      "Text": "The Stewards like to know the realm's places are still where they left them. Walk a patrol of three.",
+      "Done": "Three places, all still standing. The Stewards will be relieved.",
+      "Objectives": [ { "Type": "visit", "Count": 3, "Text": "Visit named places of the realm" } ],
+      "Reward": { "Marks": 18 }
+    },
+    {
+      "Id": "d_watchman", "Title": "The Watchman's Hours", "Weight": 8,
+      "Text": "Somebody has to be awake when the realm sleeps. Keep watch, and keep moving while you do.",
+      "Done": "The watch is kept. Nothing happened, which is exactly what a watch is for.",
+      "Objectives": [ { "Type": "playtime", "Count": 60, "Text": "Keep watch, in active minutes" } ],
+      "Reward": { "Marks": 12 }
+    },
+    {
+      "Id": "d_steel_tested", "Title": "Steel Tested", "Weight": 7, "AnyOne": true,
+      "Text": "A blade that has never been tested is a guess. Test yours against a foe of another house, or against the wild.",
+      "Done": "Your steel has an answer now, instead of a guess.",
+      "Objectives": [
+        { "Type": "slay_player", "Count": 1, "Text": "Defeat a foe of another house" },
+        { "Type": "slay_creature", "Count": 10, "Text": "Or slay creatures of the wild" }
+      ],
+      "Reward": { "Marks": 16 }
+    },
+    {
+      "Id": "d_contract", "Title": "A Signature on the Board", "Weight": 4,
+      "Text": "The contract board at the Crown Market is never empty for long. Take a job and see it done.",
+      "Done": "The board has one less contract on it and the realm one more honest worker.",
+      "Objectives": [ { "Type": "contract", "Count": 1, "Text": "Finish a contract" } ],
+      "Reward": { "Marks": 18 }
+    },
+    {
+      "Id": "d_answer_herald", "Title": "Answer the Herald", "Weight": 3,
+      "Text": "When the Herald calls the realm to an event, the realm comes. Be there, and be part of it.",
+      "Done": "The Herald saw you in the crowd. The Herald sees everyone in the crowd.",
+      "Objectives": [ { "Type": "event", "Count": 1, "Text": "Take part in a realm event" } ],
+      "Reward": { "Marks": 16 }
+    }
+  ]
+}

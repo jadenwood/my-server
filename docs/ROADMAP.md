@@ -271,7 +271,7 @@ RealmSentinel uses only Oxide hooks and the game's own server-side types. Tuning
 
 | ID | Item | Pri | Size | When | Role |
 |---|---|---|---|---|---|
-| STW-1 | **Deploy data files.** `launcher/lib/realm.js` `deployPlugins` and `server/Deploy-Plugins.ps1` also copy `art/sculptures/*.json` to `oxide\data\RealmSculptor\` and `art/paintings/RealmPainterArt.json` to `oxide\data\`, and the release packaging carries them. Steward shows their versions. | P0 | M | M0 | Launcher dev |
+| STW-1 | **Deploy data files.** `launcher/lib/realm.js` `deployPlugins` and `server/Deploy-Plugins.ps1` also copy `art/sculptures/*.json` to `oxide\data\RealmSculptor\` and `art/paintings/RealmPainterArt.json` to `oxide\data\`, and `plugins/docs/RealmQuests/content/*.json` to `oxide\data\RealmQuests\`, and the release packaging carries them. Steward shows their versions. | P0 | M | M0 | Launcher dev |
 | STW-2 | `launcher/lib/moderation.js`: admin commands for RealmLaws (`/court admin`, `/law zone`), `/paint redraw all`, `/paint status`, `/paint signs`, `/sculpt placed`, `/sculpt status`, `/ironbreaker status`, `/sentinel status`, `/sentinel report`. | P1 | S | M2 | Launcher dev |
 | STW-3 | Sentinel feed in the Court (SEN-5). | P1 | M | M3 | Launcher dev |
 | STW-4 | "Publish news" and "Publish update" forms calling `lib/news.js` (`buildNews`, `signNews`) and `lib/updater.js` (`buildUpdate`, `signUpdate`) with the stored key; the update form reads size and SHA-256 from the release folder. | P1 | M | M3 | Launcher dev |

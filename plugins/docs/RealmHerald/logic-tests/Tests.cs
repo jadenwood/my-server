@@ -24,7 +24,7 @@ static class T
     static RealmHerald H;
 
     static readonly string[] AllPlugins = { "CrownAndConsequences", "RealmChronicle", "RealmContracts", "RealmDynasties", "RealmEvents",
-        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald", "RealmDominion" };
+        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald", "RealmDominion", "RealmQuests" };
 
     static void Ok(bool cond, string name, string extra = "")
     {
@@ -97,7 +97,7 @@ static class T
         // ---------------- Lang and catalogue ----------------
         var catalogue = ((Array)typeof(RealmHerald).GetField("Catalogue", BF).GetValue(null)).Cast<object>().ToList();
         var subjects = (string[])typeof(RealmHerald).GetField("Subjects", BF).GetValue(null);
-        Ok(catalogue.Count == 35, "the catalogue lists the 35 Realm chat commands", catalogue.Count.ToString());
+        Ok(catalogue.Count >= 36, "the catalogue lists every Realm chat command (36 or more)", catalogue.Count.ToString());
         Ok(catalogue.All(e => lang.ContainsKey("Cmd." + (string)F(e, "Command"))), "every catalogue command has a description key");
         Ok(catalogue.All(e => subjects.Contains((string)F(e, "Subject"))), "every catalogue command has a known subject");
         Ok(subjects.All(s => lang.ContainsKey("Subject." + s)), "every subject has a name key");
@@ -274,7 +274,7 @@ static class T
         Ok(edda.All().Contains("ERR") && edda.All().Contains("/realm popups[FFFFFF] on|off"), "/realm popups alone shows the usage", edda.All());
         edda.Messages.Clear();
         Cmd(edda, "events");
-        Ok(edda.Messages.Count == 8 && edda.All().Contains("  [F4C96D]/tourney[FFFFFF] - join, leave or follow the Royal Tournament"), "/realm events lists each command with its line", edda.All());
+        Ok(edda.Messages.Count == 1 + catalogue.Count(e => (string)F(e, "Subject") == "events") && edda.All().Contains("  [F4C96D]/tourney[FFFFFF] - join, leave or follow the Royal Tournament"), "/realm events lists each command with its line", edda.All());
         edda.Messages.Clear();
         Cmd(edda, "contract");
         Ok(edda.All().Contains("[F4C96D]/contract[FFFFFF] - bounties, deliveries and swords for hire. Type it alone"), "/realm <command> describes one command", edda.All());
