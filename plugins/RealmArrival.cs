@@ -1162,6 +1162,7 @@ namespace Oxide.Plugins
             Run run = new Run();
             run.Id = id;
             runs[id] = run;
+            run.Since = now;
             run.LastMoveAt = now;
             run.LastProgressAt = now;
             run.Mode = rec.Variant == VVeteran ? config.VeteranMode : "";
@@ -1322,6 +1323,7 @@ namespace Oxide.Plugins
             run.Id = p.Id;
             run.Narrating = rec.Stage != SGatehouse;
             run.W0 = Now();
+            run.Since = Now();
             run.AutoOpenAt = Now().AddSeconds(config.AutoOpenSeconds);
             run.LastMoveAt = Now();
             run.LastProgressAt = Now();
@@ -1626,6 +1628,8 @@ namespace Oxide.Plugins
             public bool HasAnchor;
             public DateTime LastMoveAt;
             public DateTime LastProgressAt;
+            public DateTime LastNudgeAt;
+            public DateTime Since;                       // start of this run (the Finish click, or a resume): the timeout counts from here
             public string NudgeStage = "";
             public int Nudges;
             public bool InQuiet;
@@ -1713,12 +1717,25 @@ namespace Oxide.Plugins
                 }
                 else run.Narrating = true;
             }
+            if (!run.Narrating) return;                           // nothing is said or triggered under the loader
 
-            // Overall cap: 8 minutes from the Finish click (two hours in road mode).
-            double since = (now - rec.T0).TotalMinutes;
+            // AFK in the hall: after AfkReleaseMinutes without moving, out to the forecourt, written. (A logged-off
+            // sleeper stays where it is: the server has no verified way to move a sleeper.)
+            if (InHall(pos, 0f) && (now - run.LastMoveAt).TotalMinutes >= config.AfkReleaseMinutes && data.Site.Eject != null)
+            {
+                MoveTo(p, data.Site.Eject, 20f, 0.5f);
+                Count("afk");
+                GateMoment(p, rec, run, "afk");
+                Handover(p, rec, true);
+                return;
+            }
+
+            // Overall cap: 8 minutes from the Finish click (two hours in road mode). A player still in the hall gets the
+            // gate opened and keeps the hall's sanctuary; they are written as they leave.
+            double since = (now - (run.Since != DateTime.MinValue ? run.Since : rec.T0)).TotalMinutes;
             if (run.Road ? since >= 120 : since >= config.TimeoutMinutes)
             {
-                if (rec.Stage == SGatehouse && InHall(pos, 0f))
+                if (!run.Road && InHall(pos, 0f))
                 {
                     if (!rec.TimedOut) { rec.TimedOut = true; dirty = true; RequestGateOpen(true); }
                 }
@@ -1730,6 +1747,7 @@ namespace Oxide.Plugins
                     return;
                 }
             }
+            if (rec.TimedOut && rec.Stage != SGatehouse && !InHall(pos, 1f)) { Handover(p, rec, true); return; }
 
             if (rec.Stage == SGatehouse) GatehouseStep(p, rec, run, pos, now);
             else
@@ -1817,14 +1835,6 @@ namespace Oxide.Plugins
             {
                 run.PopupDone = true;
                 if (!config.WaveMode && run.Popups < 2 && GateCard(p, run)) { run.Popups++; Count("popups_sent"); }
-            }
-            // AFK in the hall: after AfkReleaseMinutes without moving, out to the forecourt, written.
-            if ((now - run.LastMoveAt).TotalMinutes >= config.AfkReleaseMinutes && data.Site.Eject != null)
-            {
-                MoveTo(p, data.Site.Eject, 20f, 0.5f);
-                Count("afk");
-                GateMoment(p, rec, run, "afk");
-                Handover(p, rec, true);
             }
         }
 
@@ -2211,9 +2221,10 @@ namespace Oxide.Plugins
             if (!run.Narrating || run.Queue.Count > 0 || run.DwellHouse.Length > 0) return;
             if (run.NudgeStage != rec.Stage) { run.NudgeStage = rec.Stage; run.Nudges = 0; }
             if (run.Nudges >= config.NudgesPerStage) return;
-            if ((now - run.LastMoveAt).TotalSeconds < config.NudgeAfterSeconds || (now - run.LastProgressAt).TotalSeconds < config.NudgeAfterSeconds) return;
+            if ((now - run.LastMoveAt).TotalSeconds < config.NudgeAfterSeconds || (now - run.LastProgressAt).TotalSeconds < config.NudgeAfterSeconds
+                || (now - run.LastNudgeAt).TotalSeconds < config.NudgeAfterSeconds) return;
             run.Nudges++;
-            run.LastMoveAt = now;
+            run.LastNudgeAt = now;
             if (rec.Stage == SGatehouse) { Say(p, rec.GateDone || config.GateMode == "open" ? "CallOpen" : "CallGate"); return; }
             if (rec.Stage == SHearth) { Say(p, TaleRunning(p) ? "Next" : "NextNoTale"); return; }
             if (!HearthSet()) return;
@@ -2560,17 +2571,21 @@ namespace Oxide.Plugins
             gateWantClose = true;
         }
 
-        private int NewcomersInHall()
+        // Newcomers inside the hall box: waiting (gatehouse, not timed out) and released (the gate already opened for
+        // them, or their 8 minutes ran out). The gate is held open while any released one is still inside, and while two
+        // or more wait, so it never closes behind someone who has no way left to open it.
+        private void ArrivalsInHall(out int waiting, out int released)
         {
-            int n = 0;
+            waiting = 0; released = 0;
             foreach (KeyValuePair<ulong, Run> kv in runs)
             {
                 Rec r = FindRec(kv.Key.ToString());
                 Player p = OnlineById(kv.Key);
                 UnityEngine.Vector3 pos;
-                if (r != null && r.Stage == SGatehouse && p != null && TryPos(p, out pos) && InHall(pos, 0f)) n++;
+                if (r == null || p == null || !IsRunning(r.Stage) || !TryPos(p, out pos) || !InHall(pos, 1f)) continue;
+                if (r.Stage == SGatehouse && !r.GateDone && !r.TimedOut) waiting++;
+                else released++;
             }
-            return n;
         }
 
         private bool GateClear()
@@ -2603,7 +2618,9 @@ namespace Oxide.Plugins
             // Open: close again after GateMinOpenSeconds, unless two or more newcomers are inside, wave mode holds it, or
             // the newcomer who opened it is still within reach. A staff "gate close" asks directly.
             bool due = gateWantClose || (now - gateOpenedAt).TotalSeconds >= config.GateMinOpenSeconds;
-            if (!due || config.WaveMode || NewcomersInHall() >= 2 || !config.Open) return;
+            int waiting, released;
+            ArrivalsInHall(out waiting, out released);
+            if (!due || config.WaveMode || waiting >= 2 || released > 0 || !config.Open) return;
             if (!GateClear()) return;                     // retried every tick (at least 2 s apart below)
             gateWantClose = false;
             gateBusy = true;
@@ -2762,25 +2779,24 @@ namespace Oxide.Plugins
             if (stones.Count == 0) return false;
             int[] occ = new int[stones.Count];
             DateTime now = Now();
+            // Each player counts once: one just put on a stone (the move may still be landing) by that stone, everyone
+            // else in the Gatehouse and every sleeper by where they stand.
+            foreach (ulong k in new List<ulong>(placedAt.Keys)) if ((now - placedAt[k]).TotalSeconds > 5) { placedAt.Remove(k); placedStone.Remove(k); }
             var occupants = new List<UnityEngine.Vector3>();
             foreach (KeyValuePair<ulong, Run> kv in runs)
             {
                 if (kv.Key == id) continue;
+                int si;
+                if (placedStone.TryGetValue(kv.Key, out si) && si < occ.Length) { occ[si]++; continue; }
                 Rec r = FindRec(kv.Key.ToString());
                 Player p = OnlineById(kv.Key);
                 UnityEngine.Vector3 pos;
                 if (r != null && r.Stage == SGatehouse && p != null && TryPos(p, out pos)) occupants.Add(pos);
             }
             foreach (UnityEngine.Vector3 s in SleeperPositions()) occupants.Add(s);
-            for (int i = 0; i < stones.Count; i++)
-                foreach (UnityEngine.Vector3 o in occupants)
-                    if (FlatDist(o, PointV(stones[i])) <= config.StoneRadius + config.StoneJitter) occ[i]++;
-            foreach (KeyValuePair<ulong, DateTime> kv in new List<KeyValuePair<ulong, DateTime>>(placedAt))
-            {
-                if ((now - kv.Value).TotalSeconds > 5 || kv.Key == id) { if ((now - kv.Value).TotalSeconds > 5) { placedAt.Remove(kv.Key); placedStone.Remove(kv.Key); } continue; }
-                int si;
-                if (placedStone.TryGetValue(kv.Key, out si) && si < occ.Length) occ[si]++;
-            }
+            foreach (UnityEngine.Vector3 o in occupants)
+                for (int i = 0; i < stones.Count; i++)
+                    if (FlatDist(o, PointV(stones[i])) <= config.StoneRadius + config.StoneJitter) { occ[i]++; break; }
             int cap = config.WaveMode ? 2 : 1;
             int pick = PickStone(occ, cap);
             if (pick < 0 && cap == 1) pick = PickStone(occ, 2);
