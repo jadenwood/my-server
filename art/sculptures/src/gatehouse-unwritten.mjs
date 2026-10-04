@@ -109,7 +109,8 @@ function gatehouse() {
   for (let x = fx0; x <= fx1; x++) { g.set(x, 1, zb, S.edge); g.set(x, 5, zb, S.edge); }
   for (const c of GH.signBoards) for (const x of [c - 2, c + 2]) for (let y = 2; y <= 4; y++) g.set(x, y, zb, S.edge);
 
-  // The Pilgrim's Stair: a door from the court into the left tower, two steps, and the sill out through the outer wall.
+  // The Pilgrim's Stair: a door from the court into the left tower, a step up onto a landing, and the sill out through
+  // the outer wall, its top 2 cells above the ground outside.
   const p = GH.pilgrim;
   for (let y = 1; y <= 2; y++) g.del(p.door[0], y, p.door[1]);
   for (const [x, z, top] of p.steps) for (let y = 1; y <= top; y++) g.set(x, y, z, S.wall);

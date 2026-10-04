@@ -191,7 +191,10 @@ test('arrival site: the Pilgrim\'s Stair climbs from the court to a ledge two ce
     assert.ok(!solid(x, top + 1, z) && !solid(x, top + 2, z), `${x},${z}: two cells of headroom`);
     prev = top;
   }
-  assert.equal(floorTop(-9, 21), 2, 'the ledge is the top of a sill at y 2: two cells above the ground outside');
+  // A piece's bottom layer stands on the ground, so the ground outside is at height 0 and a block at y n has its top at
+  // height n + 1. The design: the ledge is 2 cells above the drop pad.
+  assert.equal(floorTop(-9, 21) + 1, 2, 'the ledge (the sill block at y 1) has its top two cells above the ground outside');
+  assert.equal(floorTop(-10, 21), -1, 'nothing is built outside the wall under the ledge');
   const pad = site.boxes.Z0b;
   assert.ok(pad.max[0] < GH.x0 && pad.min[2] <= 21 && pad.max[2] >= 21, 'the drop pad is outside the left wall under the ledge');
 });

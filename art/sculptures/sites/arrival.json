@@ -454,8 +454,8 @@
     },
     "pilgrimLedge": {
       "kind": "exit",
-      "cell": [-9, 3, 20],
-      "note": "The Pilgrim's ledge: up the two steps in the left tower; the drop pad is below it outside."
+      "cell": [-9, 2, 20],
+      "note": "The Pilgrim's ledge: through the door in the left tower and up one step; the drop pad is 2.4 m below it outside."
     }
   },
   "boxes": {

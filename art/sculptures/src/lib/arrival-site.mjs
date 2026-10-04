@@ -28,13 +28,15 @@ export const GH = {
   court: { x0: -5, x1: 5, z0: 4, z1: 18 },             // the open court under the sky (11 x 15)
   signBoards: [-4, 0, 4],                              // the Chronicle Wall's three boards (G2, G1, G3), centre x
   eave: 2,                                             // eaves run 2 cells in from the walls at the wall top
-  // The Pilgrim's Stair in the left tower: a door from the court, two 1-cell steps, and a 2-cell-wide ledge (a sill
-  // in the outer wall) 2 cells above the ground outside.
+  // The Pilgrim's Stair in the left tower: a door from the court, a 1-cell step up onto a landing, and a 2-cell-wide
+  // ledge (a sill in the outer wall) whose top is 2 cells above the ground outside (docs/arrival-design.md 4.2). The
+  // court floor is the piece's bottom layer, so the court stands 1 cell above the ground; the landing and the sill
+  // stand 1 more cell up (their tops at height 2): a player stepping off the sill drops 2.4 m onto the drop pad.
   pilgrim: {
-    shaft: [[-8, 20], [-7, 20], [-8, 21], [-7, 21]],   // the hollow inside the tower, y 1..10
+    shaft: [[-8, 20], [-7, 20], [-8, 21], [-7, 21]],   // the hollow inside the tower, y 1..9
     door: [-7, 19],                                      // y 1..2, opening onto the court
-    steps: [[-7, 21, 1], [-8, 21, 2], [-8, 20, 2]],      // [x, z, top y] of each step column
-    ledge: { x: -9, z0: 20, z1: 21, y: 2, open: [3, 4] },// sill blocks up to y 2; the opening above is y 3..4
+    steps: [[-7, 21, 1], [-8, 21, 1], [-8, 20, 1]],      // [x, z, top y] of each step column: the step and the landing
+    ledge: { x: -9, z0: 20, z1: 21, y: 1, open: [2, 3] },// the sill block is y 1 (top at height 2); the opening is y 2..3
   },
 };
 

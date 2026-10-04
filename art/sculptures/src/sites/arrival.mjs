@@ -30,6 +30,8 @@ const PREVIEWS = [
     cam: { kind: 'persp', eye: [HEARTH.x + 7.5, EYE + 0.27, HEARTH.z - 9.5], yaw: -22, pitch: -1, fov: 72 } },
   { name: 'look-back', title: 'From the Hearth back down the avenue to the Gatehouse', state: { gate: 'closed', band: 'rest' }, fog: 400,
     cam: { kind: 'persp', eye: [0.5, EYE, AVENUE.b.z1 + 0.5], yaw: 180, pitch: -3, fov: 64 } },
+  { name: 'pilgrim', title: 'Outside the left wall: the Pilgrim\'s ledge, 2 cells above the drop pad (play-test 6b)', state: { gate: 'closed', band: 'rest', pieces: ['gatehouse', 'portcullis', 'processional-a'] }, fog: 0,
+    cam: { kind: 'persp', eye: [GH.x0 - 24.5, 1.6 / 1.2, GH.z1 + 16.5], yaw: 124, pitch: -12, fov: 58 } },
   { name: 'aerial', title: 'The site from behind the Gatehouse', state: { gate: 'closed', band: 'rest' }, width: 1600, height: 900,
     cam: { kind: 'ortho', yaw: 24, pitch: 28, centre: [-6, 10, 96], scale: 7.4 } },
   { name: 'aerial-gate', title: 'The court from above the gate: six stones, the aisle, the gold line, the Chronicle Wall', state: { gate: 'closed', band: 'rest', pieces: ['gatehouse', 'portcullis', 'processional-a'] },
@@ -130,7 +132,7 @@ export default {
     points.M2 = { kind: 'mercy', cell: [HEARTH.x + 6, 2, HEARTH.z] };
     points.M3 = { kind: 'mercy', cell: [HEARTH.x, 2, HEARTH.z - 6] };
     points.wayboard = { kind: 'trigger', cell: [WAYBOARD.x0 - 2, 0, WAYBOARD.z0 + 7], note: 'In front of the wayboard\'s middle bay (/arrival admin wayboard set).' };
-    points.pilgrimLedge = { kind: 'exit', cell: [GH.pilgrim.ledge.x, GH.pilgrim.ledge.y + 1, GH.pilgrim.ledge.z0], note: 'The Pilgrim\'s ledge: up the two steps in the left tower; the drop pad is below it outside.' };
+    points.pilgrimLedge = { kind: 'exit', cell: [GH.pilgrim.ledge.x, GH.pilgrim.ledge.y + 1, GH.pilgrim.ledge.z0], note: 'The Pilgrim\'s ledge: through the door in the left tower and up one step; the drop pad is 2.4 m below it outside.' };
     for (const k of Object.keys(points)) if (points[k].note === undefined) delete points[k].note;
 
     const boxes = {
