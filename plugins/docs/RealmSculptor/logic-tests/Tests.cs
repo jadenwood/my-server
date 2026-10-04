@@ -166,6 +166,7 @@ static class T
             LostAndRepair();
             FailedCells();
             LandRules();
+            PluginApi();
             Materials();
             RestartMidJob();
             DamagedData();
@@ -611,6 +612,34 @@ static class T
         Ok(At(10, 11, 13).MaterialID == 3, "materials: MaterialIds maps a role to another id");
         Cmd(Admin, "undo"); RunJobs();
         ids["reinforced"] = 9;
+    }
+
+    // RealmWorld's festival decorations: PlaceSculptureAt / RemoveSculpture (non-public, Plugin.Call), under /sculpt
+    // place's own rules and never forced.
+    static void PluginApi()
+    {
+        G.Cells.Clear();
+        float wx = 10 * 1.2f, wy = 10 * 1.2f, wz = 10 * 1.2f;
+        int id = (int)Inv(S, "PlaceSculptureAt", "t-small", wx, wy, wz, 0, "RealmWorld");
+        Ok(id > 0 && State(LastPlacement()) == "placing" && (string)F(LastPlacement(), "By") == "RealmWorld", "api: PlaceSculptureAt records a placement by the calling plugin", id.ToString());
+        RunJobs();
+        Ok(State(LastPlacement()) == "standing" && At(9, 10, 13).MaterialID == 2, "api: it stands where /sculpt place would put it for someone there facing +z (turn 0)");
+        Ok((int)Inv(S, "PlaceSculptureAt", "t-small", wx, wy, wz, 0, "RealmWorld") == 0, "api: occupied ground is refused (never forced)");
+        Ok((int)Inv(S, "PlaceSculptureAt", "no-such-thing", wx, wy, wz, 0, "RealmWorld") == 0, "api: an unknown sculpture is refused");
+        Ok((bool)Inv(S, "RemoveSculpture", id) && Jobs().Count == 1, "api: RemoveSculpture starts the take-down");
+        RunJobs();
+        Ok(G.Cells.Count == 0 && State(LastPlacement()) == "removed", "api: the ground is put back");
+        Ok(!(bool)Inv(S, "RemoveSculpture", id) && !(bool)Inv(S, "RemoveSculpture", 9999), "api: removing twice, or an unknown id, is refused");
+        Crest.GroupAt = v => 0UL;
+        SetCfg("AllowUnclaimedLand", true);
+        Ok((int)Inv(S, "PlaceSculptureAt", "t-small", wx, wy, wz, 0, "RealmWorld") == 0, "api: unclaimed land is refused, even with AllowUnclaimedLand true (the call never asks for it)");
+        SetCfg("AllowUnclaimedLand", false);
+        Crest.GroupAt = v => 77UL;
+        int turned = (int)Inv(S, "PlaceSculptureAt", "t-small", wx, wy, wz, 5, "RealmWorld");
+        Ok(turned > 0 && (int)F(LastPlacement(), "Turn") == 1, "api: the turn is taken modulo four");
+        RunJobs();
+        Inv(S, "RemoveSculpture", turned); RunJobs();
+        Ok(G.Cells.Count == 0, "api: clean afterwards");
     }
 
     static void Materials()

@@ -11,6 +11,8 @@
 //                      event [kind]  the running or next event                          (RealmEvents)
 //                      ironbreaker   the Ironbreaker and its current bearer              (RealmLegendary)
 //                      dominion      the holdings, their houses and rising banners       (RealmDominion)
+//                      world [arg]   the living world: what is abroad and next; "clue <n>" a treasure riddle,
+//                                    "festival" the festival standings, "census" the last census (RealmWorld)
 //                      notice       an admin's own title and text
 //                      A live board is redrawn only when what it shows has changed, at most once per
 //                      MinSecondsBetweenRedraws per sign and MaxRedrawsPerMinute / MaxBytesPerMinute for the server.
@@ -54,6 +56,7 @@
 //   RealmEvents.GetActiveEvents() -> string[] "kind|startIso|endIso", GetNextEvent() -> {title, at}
 //   RealmLegendary.GetBearerName() -> string or null (null, or the plugin missing, reads as "unclaimed")
 //   RealmDominion.GetDominionBoard() -> {title, kicker, footer, window, empty, rows: [{name, kind, owner, right}]}
+//   RealmWorld.GetWorldBoard(string arg) -> {title, kicker, subtitle, body, footer, rows: [{name, right, sub, owner}]}
 // No Chronicle entries: painting a sign is not realm history.
 //
 // Language level: C# 3 syntax only, .NET 3.5 API surface. Cross-plugin API methods MUST stay non-public.
@@ -90,6 +93,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin RealmEvents;
         [PluginReference] private Plugin RealmLegendary;
         [PluginReference] private Plugin RealmDominion;
+        [PluginReference] private Plugin RealmWorld;
 
         private const string PermAdmin = "realmpainter.admin";
         private const string DataName = "RealmPainter";
@@ -97,7 +101,7 @@ namespace Oxide.Plugins
         private const float TexelWorldSize = 0.008f;     // PaintArea.TEXEL_WORLD_SIZE [CODE]
 
         // Live boards, in the order /paint list shows them.
-        private static readonly string[] Boards = { "chronicle", "wanted", "standings", "proclamation", "event", "ironbreaker", "dominion", "notice" };
+        private static readonly string[] Boards = { "chronicle", "wanted", "standings", "proclamation", "event", "ironbreaker", "dominion", "world", "notice" };
         private static readonly string[] EventKinds = { "crown_night", "tournament", "kings_hunt", "truce" };
         private static readonly string[] EventIcons = { "crown", "trophy", "hunt", "sheathed" };
         private static readonly string[] HouseIds = { "varrow", "ashgrove", "corvane", "dunmere", "halloran", "merrin" };
@@ -1642,6 +1646,7 @@ namespace Oxide.Plugins
                     case "event": return EventBoard(arg);
                     case "ironbreaker": return IronbreakerBoard();
                     case "dominion": return DominionBoard();
+                    case "world": return WorldBoard(arg);
                     case "notice": return NoticeBoard(arg);
                 }
             }
@@ -1978,6 +1983,42 @@ namespace Oxide.Plugins
                     Text = Clean(name, 24),
                     Right = Clean(Get(r, "right") as string, 16),
                     Sub = string.IsNullOrEmpty(owner) ? null : B("Dominion.Holder", Clean(owner, 24))
+                });
+            }
+            return b;
+        }
+
+        // RealmWorld's living world: its own words (title, kicker, subtitle, body, footer) and up to six rows. A treasure
+        // clue board ("clue <n>") shows the riddle that leads to place n while a hunt runs, and a cold trail otherwise.
+        private Board WorldBoard(string arg)
+        {
+            var b = new Board { Kind = "world", Kicker = B("KickerRealm"), Hero = "icon-64-beacon", HeroTint = "emberDeep", Title = B("World.Title") };
+            Dictionary<string, object> d = null;
+            try { d = RealmWorld != null ? RealmWorld.Call("GetWorldBoard", arg ?? "") as Dictionary<string, object> : null; }
+            catch (Exception) { d = null; }
+            if (d == null) { b.Body = B("World.Missing"); return b; }
+            string title = Get(d, "title") as string, kicker = Get(d, "kicker") as string;
+            if (!string.IsNullOrEmpty(title)) b.Title = Clean(title, 40);
+            if (!string.IsNullOrEmpty(kicker)) b.Kicker = Clean(kicker, 40);
+            b.Subtitle = Clean(Get(d, "subtitle") as string, 90);
+            b.Footer = Get(d, "footer") as string;
+            string body = Get(d, "body") as string;
+            if (!string.IsNullOrEmpty(body)) b.Body = Clean(body, 200);
+            var rows = Get(d, "rows") as List<Dictionary<string, object>>;
+            if (rows == null || rows.Count == 0) return b;
+            b.Hero = null;
+            foreach (Dictionary<string, object> r in rows)
+            {
+                if (b.Rows.Count >= 6) break;
+                string name = Get(r, "name") as string, owner = Get(r, "owner") as string;
+                if (string.IsNullOrEmpty(name)) continue;
+                b.Rows.Add(new Row
+                {
+                    Icon = string.IsNullOrEmpty(owner) ? "icon-24-beacon" : (SigilSprite(owner, 32) ?? "icon-24-house"),
+                    IconTint = "inkSoft",
+                    Text = Clean(name, 24),
+                    Right = Clean(Get(r, "right") as string, 16),
+                    Sub = Clean(Get(r, "sub") as string, 40)
                 });
             }
             return b;
@@ -2670,6 +2711,8 @@ namespace Oxide.Plugins
                 { "Board.Dominion.Title", "Dominion" },
                 { "Board.Dominion.Missing", "The holdings are not kept in this realm." },
                 { "Board.Dominion.Holder", "House {0}" },
+                { "Board.World.Title", "Abroad in Ostreval" },
+                { "Board.World.Missing", "The living world is not kept in this realm." },
                 { "Board.Standings.Title", "The Season" },
                 { "Board.Standings.Kicker", "Season {0} standings" },
                 { "Board.Standings.Footer", "See your house with [F4C96D]/season[FFFFFF]" },
@@ -2860,7 +2903,7 @@ namespace Oxide.Plugins
             }
             else if (IsBoard(name))
             {
-                if (name == "event" && arg != null) arg = arg.ToLowerInvariant();
+                if ((name == "event" || name == "world") && arg != null) arg = arg.ToLowerInvariant();
             }
             else
             {

@@ -53,12 +53,16 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/travel` | RealmTravel | The waystones you know; `/travel <name>` sets out (stand still, toll in marks to the crown's treasury), `all`, `info <name>`, `cancel`. Guide: [`RealmTravel.md`](../plugins/docs/RealmTravel.md) |
 | `/home` | RealmTravel | `set` a home inside your own crest zone, then `/home` to travel back; `info`, `clear` |
 | `/road` | RealmTravel | `/road <waystone>` or `/road home` calls the way (distance and direction) as you walk; `stop` |
+| `/world` | RealmWorld | The living world: what is abroad now and next (`schedule`), `history`, `bloodmoon`, `legend`, `census`, and `collect` for rewards still owed. Guide: [`RealmWorld.md`](../plugins/docs/RealmWorld.md) |
+| `/treasure` | RealmWorld | Your clue in a treasure hunt and how far along you are; `hint` names a direction once per clue |
+| `/caravan` | RealmWorld | The merchant caravan: `carry` (bear it from the start), `escort` (guard it), `leave`; and any raider's price |
+| `/festival` | RealmWorld | The Harvest Fair and Midwinter: the house standings and your part; `give [item\|all]` hands in goods for your house |
 | `/kit` | RealmTravel | Your kits (a newcomer's pack, daily house provisions, the season's bounty); `/kit <name>`, `collect` |
 | `/realm` | RealmHerald | Every command by subject, in a window (`/realm list` in chat), `/realm <subject>`, your first steps (`path`, `skip`, `crown`), `tips on/off`, `popups on/off`, `motd`. Guide: [`RealmHerald.md`](../plugins/docs/RealmHerald.md) |
 
 ## For admins
 
-Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`, `/craft admin status`). Each plugin guide in `plugins/docs/` lists them.
+Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`, `realmworld.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`, `/craft admin status`, `/world admin`). Each plugin guide in `plugins/docs/` lists them.
 
 Oxide runs these chat commands only for a player in game, not from the server console (see [`admin-console.md`](admin-console.md)). Two console-only commands come from `RealmCourt.cs`, which writes them into the game's own command table with the permission `realm.court`: `/realm.save` (save the world now) and `/realm.players` (online players with Steam IDs). Realm Steward's Court screen uses them.
 
@@ -85,6 +89,7 @@ Every Realm plugin answers in one style, so a player can tell at a glance who is
 | RealmArena | Arena (the tavern games: Tavern) | | |
 | RealmTravel | Roads | | |
 | RealmCrafts | Guilds | | |
+| RealmWorld | World | | |
 
 The name is the lang key `Speaker`, so a server can rename it.
 

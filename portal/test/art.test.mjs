@@ -24,7 +24,7 @@ test('the art copies in portal, chronicle and streamkit match art/ (node portal/
 
 test('every Chronicle event type has its own icon, and the sprite has it', () => {
   const types = Object.keys(TYPE_META);
-  assert.equal(types.length, 43);
+  assert.equal(types.length, 44);
   const used = new Set();
   for (const t of types) {
     assert.ok(EVENT_ICONS[t], `${t} has an icon`);
@@ -52,7 +52,7 @@ test('season medals cycle I to IV; titles are found in Chronicle text', () => {
   assert.match(seasonBadge(1), /season-1\.svg/);
   assert.match(seasonBadge(6), /season-2\.svg/);
   assert.equal(seasonBadge(0), '');
-  assert.equal(TITLES.length, 24);
+  assert.equal(TITLES.length, 27);
   assert.equal(titleOf('Wren is named Champion of the Lists').id, 'champion');
   assert.equal(titleOf('Hale is named the Renowned').id, 'renowned');
   assert.equal(titleOf('Hale is named Lord of Ashes'), null);
@@ -98,7 +98,7 @@ test('built pages: art files exist, icons resolve, link previews, manifest, stri
   assert.match(varrow, /og\/varrow\.png/);
   assert.match(varrow, /content="summary"/);
   const kings = r.files.get('kings.html');
-  assert.equal((kings.match(/class="renown-badge"/g) || []).length, 24, 'every title badge on the Hall of Kings');
+  assert.equal((kings.match(/class="renown-badge"/g) || []).length, 27, 'every title badge on the Hall of Kings');
   const css = r.files.get('assets/houses.css');
   assert.match(css, /\.dye-varrow\{[^}]*--sigil:url\('art\/sigils\/varrow\.svg'\)/);
   const manifest = JSON.parse(r.files.get('manifest.webmanifest'));
@@ -121,5 +121,5 @@ test('title badges and season medals reach the Chronicle (showcase sample data)'
   assert.match(chron, /<span class="ev-ico badge infamous"><img class="ev-badge" src="assets\/art\/badges\/titles\/oathbreaker\.svg"/);
   const kings = r.files.get('kings.html');
   assert.match(kings, /renown earned[^"]*"[\s\S]*?Odo the Tall/);
-  assert.match(kings, /2 of 24 claimed/);
+  assert.match(kings, /2 of 27 claimed/);
 });

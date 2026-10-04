@@ -48,6 +48,8 @@ export const TYPE_META = {
   rumour:              { label: 'A Rumour Spreads',        icon: 'scroll',  tone: 'iron',  group: 'treasury' },
   // RealmDominion
   holding_taken:       { label: 'A Holding Taken',         icon: 'flag',    tone: 'blood', group: 'war' },
+  // RealmWorld
+  census_taken:        { label: 'The Census',              icon: 'people',  tone: 'iron',  group: 'seasons' },
 };
 
 export const metaFor = (type) => TYPE_META[type] || { label: 'Chronicle', icon: 'scroll', tone: 'iron', group: 'other' };

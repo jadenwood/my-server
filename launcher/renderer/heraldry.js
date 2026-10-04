@@ -56,7 +56,8 @@
     tithe_levied: ['tithe', 'The Tithe Gathered', 'iron'],
     great_trade: ['purse', 'A Great Sale', 'gold'],
     rumour: ['whisper', 'A Rumour Spreads', 'iron'],
-    holding_taken: ['holding', 'A Holding Taken', 'blood']
+    holding_taken: ['holding', 'A Holding Taken', 'blood'],
+    census_taken: ['census', 'The Census', 'iron']
   };
 
   // The six great houses of Ostreval (docs/community/lore.md, art/palette.json).

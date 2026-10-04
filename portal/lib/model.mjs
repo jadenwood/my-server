@@ -51,6 +51,7 @@ export const TYPE_META = {
   great_trade:         { label: 'A Great Sale',           icon: 'seal',    tone: 'gold',  group: 'treasury' },
   rumour:              { label: 'A Rumour Spreads',       icon: 'scroll',  tone: 'iron',  group: 'treasury' },
   holding_taken:       { label: 'A Holding Taken',        icon: 'flag',    tone: 'blood', group: 'war' },
+  census_taken:        { label: 'The Census',             icon: 'people',  tone: 'iron',  group: 'seasons' },
 };
 
 export const GROUPS = [

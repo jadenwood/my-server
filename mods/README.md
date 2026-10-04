@@ -68,7 +68,7 @@ Do not copy `grim-but-readable.cfg` into `Mods\` as a file of its own. A `grim-b
 
 ### Other moods with Apply-Preset.ps1
 
-Ten more moods sit next to Grim in `presets/`: four season moods, three season looks and four overlays, among them **Crown Night** and **Truce** (described, with their exact weather odds, in [moods.md](moods.md)). `server\Set-Mood.ps1` is the full tool for them: it swaps whole moods, follows the season rotation and remembers overlays. `Apply-Preset.ps1` can install any of them too, the same careful way it installs Grim:
+Twelve more moods sit next to Grim in `presets/`: three more season moods, three season looks and six overlays, among them **Crown Night**, **Truce** and RealmWorld's **Harvest Fair** and **Midwinter** (described, with their exact weather odds, in [moods.md](moods.md)). `server\Set-Mood.ps1` is the full tool for them: it swaps whole moods, follows the season rotation and remembers overlays. `Apply-Preset.ps1` can install any of them too, the same careful way it installs Grim:
 
 ```powershell
 cd <repo>\mods\presets\grim-but-readable
