@@ -2135,6 +2135,22 @@ namespace Oxide.Plugins
             return data != null && item != null ? Held(data.Treasury, item) : 0;
         }
 
+        // A price another Realm plugin charges a player (RealmTravel's road tolls): `amount` marks move from the
+        // player's purse into the crown's treasury, all or nothing. Nothing is minted or destroyed, so the zero-sum audit
+        // holds, and the move is in the journal. Returns true when paid; false for a short purse or a bad argument.
+        private bool ChargeMarks(string playerId, string playerName, long amount, string source, string note)
+        {
+            ulong u;
+            if (data == null || amount <= 0 || amount > 1000000 || string.IsNullOrEmpty(source)) return false;
+            if (playerId == null || playerId.Length < 17 || !ulong.TryParse(playerId, out u)) return false;
+            Party from = PlayerParty(playerId, string.IsNullOrEmpty(playerName) ? NameOf(playerId) : playerName);
+            if (!DebitMarks(from, amount)) return false;
+            CreditMarks(TreasuryParty(), amount);
+            Journal("charge", source, MarksAsset, amount, Label(from), "treasury", note ?? "");
+            SaveData();
+            return true;
+        }
+
         // Last traded price per unit of an item, or 0.
         private long GetLastPrice(string item)
         {
