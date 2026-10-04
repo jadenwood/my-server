@@ -2887,7 +2887,7 @@ namespace Oxide.Plugins
                 int room = f.DailyPlayerCap - today;
                 if (room <= 0) break;
                 int carry = ItemCollection.AutoCount(packs, bp);
-                int want = Math.Min(carry, (room + o.Points - 1) / o.Points);
+                int want = Math.Min(carry, room / o.Points);           // never take goods the cap would not count
                 if (want <= 0) continue;
                 int taken = TakeMeasured(packs, bp, want);
                 if (taken <= 0) continue;
@@ -2993,6 +2993,7 @@ namespace Oxide.Plugins
         private void RunCensus(Player admin)
         {
             CensusWeek w = data.Week;
+            w.Peak = Math.Max(w.Peak, OnlinePlayers().Count);
             var lines = new List<string>();
             lines.Add(Fmt("CensusSouls", null, w.Players.Count, w.Newcomers, w.Peak));
             List<Dictionary<string, object>> houses = Ask(RealmHouses, "GetHouseSummaries") as List<Dictionary<string, object>>;
