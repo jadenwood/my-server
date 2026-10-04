@@ -184,7 +184,41 @@ const PLUGIN_ADMIN = [
   { plugin: 'RealmPainter', perm: 'realmpainter.admin', template: '/paint reload', label: 'Signs: read the art bundle again', args: [] },
   { plugin: 'RealmLegendary', perm: 'realmlegendary.admin', template: '/ironbreaker status', label: 'Ironbreaker: who bears it and since when', args: [] },
   { plugin: 'RealmLegendary', perm: 'realmlegendary.admin', template: '/ironbreaker revoke', label: 'Ironbreaker: back to the armoury', args: [] },
-  { plugin: 'RealmLegendary', perm: 'realmlegendary.admin', template: '/ironbreaker grant {player}', label: 'Ironbreaker: give it to an online player', args: ['player'] }
+  { plugin: 'RealmLegendary', perm: 'realmlegendary.admin', template: '/ironbreaker grant {player}', label: 'Ironbreaker: give it to an online player', args: ['player'] },
+  // RealmLaws (plugins/docs/RealmLaws.md). ROADMAP STW-2.
+  { plugin: 'RealmLaws', perm: null, template: '/law zone list', label: 'Laws: the law zones', args: [] },
+  { plugin: 'RealmLaws', perm: 'realmlaws.admin', template: '/court admin dismiss {case}', label: 'Court: dismiss an open case', args: ['case'] },
+  { plugin: 'RealmLaws', perm: 'realmlaws.admin', template: '/court admin verdict {case} {ruling}', label: 'Court: rule on a case (guilty or innocent)', args: ['case', 'ruling'] },
+  { plugin: 'RealmLaws', perm: 'realmlaws.admin', template: '/court admin clear {player}', label: 'Court: clear a player\'s sentences and cases', args: ['player'] },
+  // Wave 3 (their guides in plugins/docs/). The plugins do the work; Steward only fills the command.
+  { plugin: 'RealmQuests', perm: 'realmquests.admin', template: '/quest admin status', label: 'Quests: content files, problems, owed rewards', args: [] },
+  { plugin: 'RealmQuests', perm: 'realmquests.admin', template: '/quest admin reload', label: 'Quests: read the content files again', args: [] },
+  { plugin: 'RealmQuests', perm: 'realmquests.admin', template: '/quest admin places', label: 'Quests: named places and whether each is marked', args: [] },
+  { plugin: 'RealmQuests', perm: 'realmquests.admin', template: '/quest admin reset {player} {board}', label: 'Quests: reset a player\'s board or story', args: ['player', 'board'] },
+  { plugin: 'RealmTravel', perm: 'realmtravel.admin', template: '/travel admin status', label: 'Travel: counters and integrations', args: [] },
+  { plugin: 'RealmTravel', perm: 'realmtravel.admin', template: '/travel admin list', label: 'Travel: every waystone', args: [] },
+  { plugin: 'RealmTravel', perm: 'realmtravel.admin', template: '/kit admin check', label: 'Kits: check every kit\'s items', args: [] },
+  { plugin: 'RealmTravel', perm: 'realmtravel.admin', template: '/kit admin reset {player} all', label: 'Kits: clear a player\'s kit claims', args: ['player'] },
+  { plugin: 'RealmArena', perm: 'realmarena.admin', template: '/arena admin status', label: 'Arena: duels, games, payouts waiting', args: [] },
+  { plugin: 'RealmArena', perm: 'realmarena.admin', template: '/arena admin void {duel}', label: 'Arena: call a duel off, stakes back', args: ['duel'] },
+  { plugin: 'RealmArena', perm: 'realmarena.admin', template: '/arena admin unbar {player}', label: 'Arena: lift a bar from the ring', args: ['player'] },
+  { plugin: 'RealmArena', perm: 'realmarena.admin', template: '/arena admin settle', label: 'Arena: retry waiting payouts now', args: [] },
+  { plugin: 'RealmDominion', perm: 'realmdominion.admin', template: '/dominion admin status', label: 'Dominion: field state, holdings, last payday', args: [] },
+  { plugin: 'RealmDominion', perm: 'realmdominion.admin', template: '/dominion admin open {minutes}', label: 'Dominion: open the field by hand', args: ['minutes'] },
+  { plugin: 'RealmDominion', perm: 'realmdominion.admin', template: '/dominion admin close', label: 'Dominion: close the field', args: [] },
+  { plugin: 'RealmDominion', perm: 'realmdominion.admin', template: '/dominion admin auto', label: 'Dominion: back to the schedule', args: [] },
+  { plugin: 'RealmWorld', perm: 'realmworld.admin', template: '/world admin status', label: 'World: what runs, festival, postponed events', args: [] },
+  { plugin: 'RealmWorld', perm: 'realmworld.admin', template: '/world admin schedule', label: 'World: the schedule as players see it', args: [] },
+  { plugin: 'RealmWorld', perm: 'realmworld.admin', template: '/world admin stop', label: 'World: call off what runs (no rewards)', args: [] },
+  { plugin: 'RealmWorld', perm: 'realmworld.admin', template: '/world admin census', label: 'World: take the census now', args: [] },
+  { plugin: 'RealmCrafts', perm: 'realmcrafts.admin', template: '/craft admin status', label: 'Guilds: counts, items, next crowning', args: [] },
+  { plugin: 'RealmCrafts', perm: 'realmcrafts.admin', template: '/craft admin unmapped', label: 'Guilds: products that matched no profession', args: [] },
+  { plugin: 'RealmCrafts', perm: 'realmcrafts.admin', template: '/craft admin cancel {commission}', label: 'Guilds: cancel a commission, hold back to poster', args: ['commission'] },
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/heraldry status', label: 'Heraldry: switches, last sync, ballots open', args: [] },
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/heraldry preview', label: 'Heraldry: what a sync would change', args: [] },
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/heraldry sync', label: 'Heraldry: bring every guild in step now', args: [] },
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/ballot admin audit {ballot}', label: 'Council: votes by house, to look for alts', args: ['ballot'] },
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/ballot admin cancel {ballot}', label: 'Council: call a ballot off, deposits back', args: ['ballot'] }
 ];
 
 // Placeholder rules: a player name is quoted when it has spaces (the plugins read "Old Tom" as one
@@ -204,8 +238,32 @@ const ARG_RULES = {
     const n = Number(String(v).replace(/^#/, ''));
     if (!Number.isInteger(n) || n < 1 || n > 99999) throw new Error('Use the placement number from /sculpt placed.');
     return String(n);
-  }
+  },
+  // Numbered records (court cases, duels, commissions, ballots); the plugins accept an optional #.
+  case: numbered('case'),
+  duel: numbered('duel'),
+  commission: numbered('commission'),
+  ballot: numbered('ballot'),
+  // RealmLaws treats anything but "guilty" as an acquittal, so the word is checked here.
+  ruling: oneOf('ruling', ['guilty', 'innocent']),
+  board: oneOf('board', ['daily', 'weekly', 'story', 'all'])
 };
+
+function numbered(what) {
+  return (v) => {
+    const n = Number(String(v).replace(/^#/, ''));
+    if (!Number.isInteger(n) || n < 1 || n > 999999) throw new Error(`Use the ${what} number (for example 12 or #12).`);
+    return String(n);
+  };
+}
+
+function oneOf(what, words) {
+  return (v) => {
+    const w = String(v).trim().toLowerCase();
+    if (!words.includes(w)) throw new Error(`The ${what} is one of: ${words.join(', ')}.`);
+    return w;
+  };
+}
 
 function pluginCommand(index, values = {}) {
   const def = PLUGIN_ADMIN[index];

@@ -52,6 +52,13 @@
 .court-empty { padding: 8px 2px; font-style: italic; }
 
 .court-plugins .mini-h { margin: 10px 0 4px; }
+.court-plug-fold { border-bottom: 1px solid rgba(214, 160, 67, 0.12); }
+.court-plug-fold > summary { cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 2px 0; list-style: none; }
+.court-plug-fold > summary::-webkit-details-marker { display: none; }
+.court-plug-fold > summary::before { content: '\25B8'; color: var(--gold); font-size: 11px; transition: transform 0.15s; }
+.court-plug-fold[open] > summary::before { transform: rotate(90deg); }
+.court-plug-fold > summary:focus-visible { outline: 1px solid var(--gold); outline-offset: 2px; }
+.court-plug-count { margin-left: auto; font-size: 11px; color: var(--muted, #9a8f7a); font-weight: normal; }
 .court-plug { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-bottom: 1px solid rgba(214, 160, 67, 0.08); }
 .court-plug-label { color: var(--parchment); font-size: 13px; }
 .court-plug-cmd { color: var(--gold); font-size: 12px; }

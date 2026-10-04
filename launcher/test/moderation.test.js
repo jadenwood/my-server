@@ -77,6 +77,7 @@ test('plugin admin commands come from the plugins and fill their placeholders', 
     assert.ok(s.includes(`[ChatCommand("${verb}")]`), `chat command ${verb} exists in ${d.plugin}`);
     // The subcommand word is one the plugin's command handler reads.
     if (words[1] && !words[1].startsWith('{') && d.plugin !== 'CrownAndConsequences') assert.ok(s.includes(`"${words[1]}"`), `${d.template}: ${words[1]} is handled by ${d.plugin}`);
+    if (['admin', 'zone'].includes(words[1]) && words[2] && !words[2].startsWith('{')) assert.ok(s.includes(`"${words[2]}"`), `${d.template}: ${words[2]} is handled by ${d.plugin}`);
     for (const a of d.args) assert.ok(d.template.includes(`{${a}}`), `${d.template} has {${a}}`);
   }
   const i = MOD.PLUGIN_ADMIN.findIndex((d) => d.template === '/house pardon {house}');
@@ -93,6 +94,16 @@ test('plugin admin commands come from the plugins and fill their placeholders', 
   assert.throws(() => MOD.pluginCommandFor('/sculpt repair {n}', { n: 'x' }), /placement number/);
   assert.equal(MOD.pluginCommandFor('/sentinel ban {player} confirm', { player: 'Grimsby' }), '/sentinel ban Grimsby confirm');
   assert.throws(() => MOD.pluginCommandFor('/nope', {}), /Unknown plugin command/);
+  // Wave 3 and RealmLaws: every plugin with staff commands is listed, and their arguments are checked.
+  assert.ok(['RealmLaws', 'RealmQuests', 'RealmTravel', 'RealmArena', 'RealmDominion', 'RealmWorld', 'RealmCrafts', 'RealmHeraldry'].every((p) => plugins.includes(p)));
+  assert.equal(MOD.pluginCommandFor('/court admin verdict {case} {ruling}', { case: '#7', ruling: 'Guilty' }), '/court admin verdict 7 guilty');
+  assert.throws(() => MOD.pluginCommandFor('/court admin verdict {case} {ruling}', { case: '7', ruling: 'maybe' }), /guilty, innocent/);
+  assert.throws(() => MOD.pluginCommandFor('/arena admin void {duel}', { duel: 'all' }), /duel number/);
+  assert.equal(MOD.pluginCommandFor('/ballot admin audit {ballot}', { ballot: '3' }), '/ballot admin audit 3');
+  assert.equal(MOD.pluginCommandFor('/quest admin reset {player} {board}', { player: 'Old Tom', board: 'story' }), '/quest admin reset "Old Tom" story');
+  assert.throws(() => MOD.pluginCommandFor('/quest admin reset {player} {board}', { player: 'Wren', board: 'everything' }), /daily, weekly, story, all/);
+  assert.equal(MOD.pluginCommandFor('/dominion admin open {minutes}', { minutes: '90' }), '/dominion admin open 90');
+  assert.equal(MOD.pluginCommandFor('/craft admin cancel {commission}', { commission: '#41' }), '/craft admin cancel 41');
 });
 
 test('reload builds the Oxide console command and refuses anything but a plugin name', () => {

@@ -77,6 +77,28 @@ const CATALOGUE = [
     { path: 'EnableTruce', label: 'Truce of the Realm' },
     { path: 'TruceEnforced', label: 'Truce blocks damage' }
   ] },
+  { plugin: 'RealmCrafts', group: 'Play', title: 'The guilds', blurb: 'Professions, ranks and perks, house workshops, the weekly Master Crafter, commissions.', switches: [
+    { path: 'General.Enabled', label: 'Guilds', master: true },
+    { path: 'Gathering.Enabled', label: 'XP for gathering' },
+    { path: 'Crafting.Enabled', label: 'XP for crafting' },
+    { path: 'Workshops.Enabled', label: 'House workshops' },
+    { path: 'Weekly.Enabled', label: 'Weekly Master Crafter' },
+    { path: 'Commissions.Enabled', label: 'Commission board' },
+    { path: 'Dominion.Enabled', label: 'Holding bonuses' },
+    { path: 'Rewards.QuestReports', label: 'Count toward quests' },
+    { path: 'General.UsePopups', label: 'Popups' }
+  ] },
+  { plugin: 'RealmWorld', group: 'Play', title: 'The living world', blurb: 'Treasure hunts, the blood moon, caravans, legends, festivals and the census.', switches: [
+    { path: 'General.Enabled', label: 'World events', master: true },
+    { path: 'Treasure.Enabled', label: 'Treasure hunts' },
+    { path: 'BloodMoon.Enabled', label: 'Blood moon' },
+    { path: 'Caravan.Enabled', label: 'Caravans' },
+    { path: 'Legends.Enabled', label: 'Legendary beasts' },
+    { path: 'Festivals.Enabled', label: 'Festivals' },
+    { path: 'Census.Enabled', label: 'Weekly census' },
+    { path: 'General.AvoidRealmEvents', label: 'Wait for Realm events to end' },
+    { path: 'General.UsePopups', label: 'Popups' }
+  ] },
   { plugin: 'RealmLegendary', group: 'Play', title: 'The Ironbreaker', blurb: 'The one legendary blade, won at the tournament and taken by the bearer\'s slayer.', switches: [
     { path: 'PassToSlayer', label: 'Passes to the slayer' },
     { path: 'ChatTitleEnabled', label: 'Bearer title in chat' },
@@ -100,6 +122,16 @@ const CATALOGUE = [
     { path: 'TrialByCombat', label: 'Trial by combat' },
     { path: 'CombatInArena', label: 'Trials fought in the Arena' },
     { path: 'OfferOutlawryToContracts', label: 'Outlaws get bounties' }
+  ] },
+  { plugin: 'RealmHeraldry', group: 'Crown and houses', title: 'Colours and the council', blurb: 'House colours on the game\'s guild banners, council elections and the realm\'s votes.', switches: [
+    { path: 'Heraldry.Enabled', label: 'House colours on guilds' },
+    { path: 'Heraldry.SyncGuildNames', label: 'Guilds bear the house name' },
+    { path: 'Heraldry.SyncBannerColours', label: 'Banner colours' },
+    { path: 'Heraldry.Enforce', label: 'Restore colours if changed' },
+    { path: 'Council.Enabled', label: 'Council elections' },
+    { path: 'Referendum.Enabled', label: 'Realm votes' },
+    { path: 'Voters.RequireHouse', label: 'Only house members vote' },
+    { path: 'General.UsePopups', label: 'Popups' }
   ] },
   { plugin: 'RealmDynasties', group: 'Crown and houses', title: 'Dynasties', blurb: 'Bloodlines, heirs, succession and blood claims.', switches: [
     { path: 'BroadcastEvents', label: 'Herald dynasty news' },

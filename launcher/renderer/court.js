@@ -436,12 +436,25 @@
 
   function renderPluginCommands(list) {
     ui.plugins.replaceChildren();
-    let lastPlugin = null;
-    for (const d of list) {
-      if (d.plugin !== lastPlugin) {
-        ui.plugins.appendChild(el('h3', 'mini-h', d.plugin));
-        lastPlugin = d.plugin;
+    // One fold per plugin (more than twenty plugins have staff commands); the first two start open.
+    const folds = new Map();
+    const foldFor = (plugin) => {
+      if (!folds.has(plugin)) {
+        const f = el('details', 'court-plug-fold');
+        if (folds.size < 2) f.open = true;
+        const sum = el('summary', 'mini-h', plugin);
+        sum.appendChild(el('span', 'court-plug-count', ''));
+        f.appendChild(sum);
+        ui.plugins.appendChild(f);
+        folds.set(plugin, { f, n: 0, count: sum.lastChild });
       }
+      const g = folds.get(plugin);
+      g.n++;
+      g.count.textContent = String(g.n);
+      return g.f;
+    };
+    for (const d of list) {
+      const fold = foldFor(d.plugin);
       const row = el('div', 'court-plug');
       row.appendChild(el('span', 'court-plug-label', d.label));
       const fields = {};
@@ -461,7 +474,7 @@
       line.appendChild(copy);
       row.appendChild(el('code', 'court-plug-cmd mono', d.template));
       row.appendChild(line);
-      ui.plugins.appendChild(row);
+      fold.appendChild(row);
     }
   }
 
