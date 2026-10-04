@@ -81,8 +81,8 @@ On `claude/great-maxwell-wrksvt` (2026-10-04, head eaa25f8). None of it has run 
 
 ## Wave 4: the realm's new systems
 
-Eight team branches finished on 2026-10-04. Seven are **merged into `claude/great-maxwell-wrksvt`**;
-`team/steward-integration` is **on its branch, merging next**. All checks passed on each branch and on
+Eight team branches finished on 2026-10-04. All eight are **merged into `claude/great-maxwell-wrksvt`**
+(`team/steward-integration` came in with `team/arrival-plugin`, 3386192). All checks passed on each branch and on
 the merged base. Nothing here has run on the real server: every in-game behaviour is UNVERIFIED, and
 each guide's test steps are folded into [`ROADMAP.md`](ROADMAP.md) section 5 (rows marked "wave 4").
 
@@ -95,7 +95,7 @@ each guide's test steps are folded into [`ROADMAP.md`](ROADMAP.md) section 5 (ro
 | `team/crafts` | bc14c8b | Merged (1298065) | `RealmCrafts.cs`: eight professions with XP from the game's own container, harvest, damage and crafting events; perks, a weekly Master Crafter, house workshops, a commission board with held marks. | 304 mock checks; exploit suite crafts 71 |
 | `team/world-events` | 91a3a67 | Merged (0005ccf) | `RealmWorld.cs`: treasure hunts, the Blood Moon, the Merchant Caravan, Wandering Legends, the Harvest Fair and Midwinter, the weekly Census (`census_taken`); two new moods. | 326 mock checks; exploit suite world 48 |
 | `team/heraldry` | d2b8ba2 | Merged (103a10e) | `RealmHeraldry.cs`: house colours on the game's own guild banners, crests, armour tints and name tags; council elections each season and the crown's referendums (`vote_held`), one vote per account with alt rules. | 274 mock checks; exploit suites heraldry 42, heraldry-crown 33, heraldry-treasury 14 |
-| `team/steward-integration` | 8e86482 | **On branch, merging next** | Realm Steward: deploys the plugins' data files (sculptures, sign art, quest content), a Realm features screen (switches for every plugin), the Sentinel screen with Kick and Ban, Publish news and Publish update forms, staff commands for every plugin in the Court; Chronicle types `blade_claimed` and `blade_lost` for the Ironbreaker. | launcher 267 tests; 40 screenshot checks; every plugin and package suite green |
+| `team/steward-integration` | 8e86482 | Merged (3386192, with `team/arrival-plugin`) | Realm Steward: deploys the plugins' data files (sculptures, sign art, quest content; RealmArrival's site plan since `team/arrival-deploy`), a Realm features screen (switches for every plugin), the Sentinel screen with Kick and Ban, Publish news and Publish update forms, staff commands for every plugin in the Court; Chronicle types `blade_claimed` and `blade_lost` for the Ironbreaker. | launcher 267 tests; 40 screenshot checks; every plugin and package suite green |
 
 **How they connect.** Every new plugin pays and charges marks only through RealmTreasury's new
 non-public methods (`GrantHouseIncome` for Dominion's payday, `RewardMarks` for Quests, World and
@@ -122,8 +122,11 @@ types (47 with `team/steward-integration`), the `/realm` hub lists 53 commands.
   `docs/saga/COMMANDS.md`; 75 painter sprites in the RealmPainter logic test; launcher 267 tests.
 - Mark STW-1 (Steward part), STW-2, STW-3/SEN-5, STW-4/PLA-3 and SRV-6 done in `ROADMAP.md`, and remove
   the "Steward: list /x admin in moderation.js" follow-ups from the Dominion, World and Heraldry guides.
-- `server/Deploy-Plugins.ps1` still copies only `.cs` files. It must follow Steward's rules for the data
-  files (ROADMAP STW-1): until then, deploy from Steward or copy by hand (ROADMAP PT0.3).
+- Done on `team/arrival-deploy`: `server/Deploy-Plugins.ps1` copies the same data files as Steward with
+  Steward's rules (JSON-object check, backup to `_realm-backups\data-<time>\`, owner files left alone,
+  `.realm-part` then rename), and both now copy RealmArrival's site plan `art/sculptures/sites/arrival.json`
+  as `oxide\data\RealmArrival\site.json` (the installer packs it as `realm-data\RealmArrival\arrival.json`).
+  The Court lists RealmArrival's staff commands. The mood folders are still copied by hand (ROADMAP STW-1).
 
 ### Things the owner must do before the wave-4 tests mean anything
 
@@ -142,8 +145,9 @@ types (47 with `team/steward-integration`), the `/realm` hub lists 53 commands.
 
 Follow [`ROADMAP.md`](ROADMAP.md). In short:
 
-1. **Finish M0 Integrate.** Merge `team/steward-integration` with the notes above; then the open M0
-   items: `server/Deploy-Plugins.ps1` copies the data files (STW-1), `paint.mjs check` and the new mood
+1. **Finish M0 Integrate.** `team/steward-integration` is merged (check its notes above) and
+   `team/arrival-deploy` closes STW-1's data files; the open M0
+   items: the mood folders in `Deploy-Plugins.ps1` (STW-1), `paint.mjs check` and the new mood
    keys in CI (SGN-8, QA-5), the removed player screens in the screenshot scripts and docs (PLA-1).
    All checks green.
 2. **M1 Owner proof.** On `G:\RealmTest\server`, run play-test sessions PT0 (build, install, run),

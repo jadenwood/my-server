@@ -153,7 +153,7 @@ Open **Windows PowerShell** in the repo's `server\` folder, then run `Set-Execut
 
 **C. Plugins and Chronicle**
 
-9. `.\Deploy-Plugins.ps1`: copies `plugins\*.cs` into the test copy's `oxide\plugins`, where Oxide hot-loads them. Fix any compile errors in the repo and deploy again.
+9. `.\Deploy-Plugins.ps1`: copies `plugins\*.cs` into the test copy's `oxide\plugins`, where Oxide hot-loads them, and the data files some plugins read (sculptures, sign art, quest content, RealmArrival's site plan as `RealmArrival\site.json`) into `oxide\data`. Fix any compile errors in the repo and deploy again.
 10. Grant yourself admin with `oxide.grant user <name> realmhouses.admin` and `oxide.grant user <name> crownandconsequences.admin`.
 11. In chat, try `/chronicle`, `/house found "Ashveil" Grey Heron`, `/house list`, `/crown`, `/claim list` and `/ransom list`.
 12. Start the Chronicle:
