@@ -50,6 +50,8 @@ static class T
     static object F(object o, string f) { return o.GetType().GetField(f, BF).GetValue(o); }
     static void SetF(object o, string f, object v) { o.GetType().GetField(f, BF).SetValue(o, v); }
     static object Data() { return F(P, "data"); }
+    // The plugin's own default title list (other teams add titles too; the expected count follows it).
+    static int DefaultTitleCount() { return ((IList)typeof(RealmRenown).GetMethod("DefaultTitles", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, null)).Count; }
     static object Pd(string id) { var d = (IDictionary)F(Data(), "Players"); return d.Contains(id) ? d[id] : null; }
     static int Ren(string id) { var p = Pd(id); return p == null ? 0 : (int)F(p, "Renown"); }
     static int Inf(string id) { var p = Pd(id); return p == null ? 0 : (int)F(p, "Infamy"); }
@@ -164,7 +166,7 @@ static class T
         Ok(Data() != null && File.Exists(dataPath), "fresh start creates RealmRenown.json");
         Ok(P.permission.Registered.Contains("realmrenown.admin"), "admin permission realmrenown.admin registered");
         var titles = (IList)F(F(P, "config"), "Titles");
-        Ok(titles.Count == 18, "18 default titles survive validation", titles.Count.ToString());
+        Ok(titles.Count == DefaultTitleCount(), "every default title survives validation", titles.Count + " of " + DefaultTitleCount());
         Ok(P.timer.EveryCount == 1, "one tick timer");
         Inv(P, "OnServerInitialized");
         Ok(P.timer.EveryCount == 1, "OnServerInitialized is idempotent (hot reload)");
@@ -420,7 +422,7 @@ static class T
         Now = Now.AddSeconds(5);
         Clear();
         Cmd("titles", merc, "all");
-        Ok(merc.Messages.Count == 19 && merc.All().Contains("* Champion of the Lists"), "/titles all lists every title, own ones marked", merc.Messages.Count.ToString());
+        Ok(merc.Messages.Count == DefaultTitleCount() + 1 && merc.All().Contains("* Champion of the Lists"), "/titles all lists every title, own ones marked", merc.Messages.Count.ToString());
         Now = Now.AddSeconds(5);
         Clear();
         Cmd("titles", merc, "the unbowed");
@@ -493,7 +495,7 @@ static class T
             arr.Add(JsonNode.Parse("{\"Id\":\"bad\",\"Name\":\"%name% hack\",\"Requires\":{\"renown\":1}}"));
             arr.Add(JsonNode.Parse("{\"Id\":\"bad2\",\"Name\":\"Ghost\",\"Requires\":{\"nonsense\":1}}"));
         }));
-        Ok(((IList)F(F(P, "config"), "Titles")).Count == 18 && P.Log.Count(l => l.StartsWith("WARN Title")) == 2, "invalid titles in config are rejected with a warning");
+        Ok(((IList)F(F(P, "config"), "Titles")).Count == DefaultTitleCount() && P.Log.Count(l => l.StartsWith("WARN Title")) == 2, "invalid titles in config are rejected with a warning");
 
         // ---------- first run on a server with history: every feed baselines ----------
         string fresh = Path.Combine(Dir, "fresh");

@@ -50,6 +50,9 @@
 // and logged.
 //
 // Season points go to RealmSeasons via its non-public AwardHouse(house, points, honour); without it events still run.
+// The Proving Ring: while the Royal Tournament runs, RealmArena may draw a bracket of its entrants (GetTournamentEntrants)
+// and fight it in the ring; ring duels end without a death, so each bracket win is scored here as a kill under the same
+// rules (ScoreTournamentDuel). Without RealmArena nothing changes.
 // The Ironbreaker: the tournament champion and each hunter paid for a quarry are offered the legendary blade through
 // RealmLegendary's non-public AwardEventPrize(kind, playerId, name). RealmLegendary decides (its PrizeEvents config, and
 // only while the blade rests in the armoury); without it nothing changes here.
@@ -1425,6 +1428,48 @@ namespace Oxide.Plugins
             result["title"] = KindTitle(kind);
             result["at"] = DateTime.SpecifyKind(best.Value, DateTimeKind.Utc);
             return result;
+        }
+
+        // RealmArena: the entrants of the Royal Tournament running now (or entered during its countdown), as "id|name".
+        private string[] GetTournamentEntrants()
+        {
+            var list = new List<string>();
+            if (loadFailed || data == null) return list.ToArray();
+            ActiveEvent t = Running(KTournament);
+            foreach (KeyValuePair<string, Entrant> kv in t != null ? t.Entrants : pendingEntrants)
+                if (t == null || !t.Left.Contains(kv.Key)) list.Add(kv.Key + "|" + kv.Value.Name);
+            return list.ToArray();
+        }
+
+        // RealmArena: a bracket duel won in the ring between two entrants of the running Royal Tournament. Ring duels end
+        // without a death, so the death hook never sees them; the win scores as a kill would, under the same rules
+        // (housemates and allies never count, the per-victim caps hold). Returns true when it scored.
+        private bool ScoreTournamentDuel(string winnerId, string loserId)
+        {
+            if (loadFailed || data == null || string.IsNullOrEmpty(winnerId) || string.IsNullOrEmpty(loserId) || winnerId == loserId) return false;
+            ActiveEvent t = Running(KTournament);
+            if (t == null || Now() >= t.End) return false;
+            Entrant ke, ve;
+            ulong kid, vid;
+            if (!t.Entrants.TryGetValue(winnerId, out ke) || !t.Entrants.TryGetValue(loserId, out ve)) return false;
+            if (!ulong.TryParse(winnerId, out kid) || !ulong.TryParse(loserId, out vid)) return false;
+            string kHouse = HouseOf(kid), vHouse = HouseOf(vid);
+            ve.Deaths++;
+            int times;
+            ke.Victims.TryGetValue(loserId, out times);
+            bool housemates = AnySame(kHouse, ke.House, vHouse, ve.House);
+            bool allies = !housemates && !config.TournamentAlliesCount && AnyAllied(kHouse, ke.House, vHouse, ve.House);
+            bool fedOut = config.TournamentMaxScoredDeathsPerVictim > 0 && ve.Fed >= config.TournamentMaxScoredDeathsPerVictim;
+            bool scored = !((housemates && !config.TournamentHousematesCount) || allies) && times < config.TournamentMaxKillsPerVictim && !fedOut;
+            if (scored)
+            {
+                ke.Victims[loserId] = times + 1;
+                ke.Kills++;
+                ke.LastKill = Now();
+                ve.Fed++;
+            }
+            SaveData();
+            return scored;
         }
 
         #endregion

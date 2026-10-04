@@ -52,6 +52,7 @@ All are Oxide C# plugins, C# 3 syntax, deployed together by Realm Steward or `se
 | `RealmContracts.cs` | Bounties on public enemies, deliveries, mercenary work, with real item escrow. Takes court outlawry from RealmLaws. | `RealmContracts.json` | Compile-checked; the court hand-off is mock-tested (`tools/realm-integration/cross-tests`, 25); exploit suite (laws-contracts 24). Item escrow in game is UNVERIFIED (PT1.6). |
 | `RealmSeasons.cs` | Numbered seasons, house standings, the Hall of Kings that survives wipes. | `RealmSeasons.json`, `RealmLegends.json` | Compile-checked; exploit suite (seasons 14). Season 1 auto-started on the real server. Guide: [`plugins/docs/RealmSeasons.md`](../plugins/docs/RealmSeasons.md). |
 | `RealmEvents.cs` | Crown Night, Royal Tournament, King's Hunt, Truce of the Realm, with heralds and item prizes. | `RealmEvents.json` | Compile-checked, mock-tested (89), exploit suite (events 26). Truce damage blocking is UNVERIFIED (PT3.11). `team/ironbreaker` adds a 15-line prize hook for RealmLegendary. |
+| `RealmArena.cs` | Duels to the first fall (the killing blow is turned aside: no death, no loot) in a ring no one else may enter; stakes in marks held by RealmTreasury's escrow; an Elo ladder and a weekly Champion of the Ring (RealmRenown titles); team duels; bracket tournaments and a bracket for the Royal Tournament (RealmEvents `ScoreTournamentDuel`); trial by combat for RealmLaws; Hearth Dice and Twenty-One for marks with no house edge. | `RealmArena.json` | **On a branch** (`team/arena`). Compile-checked, mock-tested with the real treasury (312), exploit suite (arena 52, arena-events 15, arena-laws 12). Everything in game is UNVERIFIED (guide steps U1 to U19). Guide: [`plugins/docs/RealmArena.md`](../plugins/docs/RealmArena.md). |
 | `RealmLaws.cs` | Laws and zones, a public crime ledger, accusations, jury trials, trial by combat, fines, outlawry, exile, pardons. | `RealmLaws.json` | Compile-checked, mock-tested (90). Blocking acts in game is UNVERIFIED (PT3.10). |
 | `RealmDynasties.cs` | Bloodlines, heirs, succession, prestige, blood claims after a monarch falls, titles bestowed by the crown. | `RealmDynasties.json` | Compile-checked, mock-tested (92), exploit suite (dynasties 3). Pressing a claim calls CrownAndConsequences' `/claim` command method (UNVERIFIED in game, PT3.18). |
 | `RealmRenown.cs` | Renown and infamy from deeds, earned titles worn in chat. | `RealmRenown.json` | Compile-checked, mock-tested (108), exploit suite (renown 11). The chat prefix is UNVERIFIED (PT3.17). |
@@ -78,6 +79,8 @@ Oxide only lets one plugin call **non-public instance methods** of another, by n
 |---|---|---|
 | CrownAndConsequences | RealmChronicle | `Log`, `SetCrown` |
 | CrownAndConsequences | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetLiege`, `GetMembers` |
+| RealmArena | RealmChronicle, RealmEvents, RealmHerald, RealmHouses, RealmLaws, RealmLegendary | `Log`; `GetActiveEvents`, `GetTournamentEntrants`, `IsTruceActive`, `ScoreTournamentDuel`; `PopupsWanted`; `GetHouse`, `GetLiege`, `HasTreaty`; `ArenaTrialResult`; `IsBearer` (on a branch: `team/arena`) |
+| RealmArena | RealmRenown, RealmSeasons, RealmSentinel, RealmTreasury, RealmWarden | `AddDeed`; `AwardHouse`; `IsSentinelFrozen`, `SentinelGrace`; `GetPurse`, `HoldMarks`, `PayFromHold`, `ReleaseHold`; `IsNewPlayerProtected`, `RaiseWardenAlert` (on a branch: `team/arena`) |
 | RealmChronicle | CrownAndConsequences | `GetKingHouse`, `GetKingName`, `GetKingSince`, `GetNextRebellionWindow` |
 | RealmChronicle | RealmEvents | `GetNextEvent` |
 | RealmChronicle | RealmHouses | `GetHouseSummaries` |
@@ -113,6 +116,7 @@ Oxide only lets one plugin call **non-public instance methods** of another, by n
 | RealmLaws | RealmChronicle | `Log` |
 | RealmLaws | RealmContracts | `PardonOutlaw`, `ProclaimOutlaw` |
 | RealmLaws | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetLiege`, `GetMembers`, `HasTreaty` |
+| RealmLaws | RealmArena | `StageTrial`, `IsDuelBlow` (on a branch: `team/arena`) |
 | RealmLegendary | RealmChronicle | `Log` (on a branch: `team/ironbreaker`) |
 | RealmLegendary | RealmHerald | `PopupsWanted` (on a branch: `team/ironbreaker`) |
 | RealmLegendary | RealmHouses | `GetHouse`, `GetLiege`, `HasTreaty` (on a branch: `team/ironbreaker`) |

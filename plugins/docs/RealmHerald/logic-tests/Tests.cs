@@ -24,7 +24,7 @@ static class T
     static RealmHerald H;
 
     static readonly string[] AllPlugins = { "CrownAndConsequences", "RealmChronicle", "RealmContracts", "RealmDynasties", "RealmEvents",
-        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald", "RealmDominion", "RealmQuests" };
+        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald", "RealmDominion", "RealmQuests", "RealmArena" };
 
     static void Ok(bool cond, string name, string extra = "")
     {
@@ -97,7 +97,7 @@ static class T
         // ---------------- Lang and catalogue ----------------
         var catalogue = ((Array)typeof(RealmHerald).GetField("Catalogue", BF).GetValue(null)).Cast<object>().ToList();
         var subjects = (string[])typeof(RealmHerald).GetField("Subjects", BF).GetValue(null);
-        Ok(catalogue.Count >= 36, "the catalogue lists every Realm chat command (36 or more)", catalogue.Count.ToString());
+        Ok(catalogue.Count >= 38, "the catalogue lists every Realm chat command (38 or more)", catalogue.Count.ToString());
         Ok(catalogue.All(e => lang.ContainsKey("Cmd." + (string)F(e, "Command"))), "every catalogue command has a description key");
         Ok(catalogue.All(e => subjects.Contains((string)F(e, "Subject"))), "every catalogue command has a known subject");
         Ok(subjects.All(s => lang.ContainsKey("Subject." + s)), "every subject has a name key");
