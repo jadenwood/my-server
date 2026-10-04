@@ -50,6 +50,8 @@ export const TYPE_META = {
   holding_taken:       { label: 'A Holding Taken',         icon: 'flag',    tone: 'blood', group: 'war' },
   // RealmWorld
   census_taken:        { label: 'The Census',              icon: 'people',  tone: 'iron',  group: 'seasons' },
+  // RealmHeraldry
+  vote_held:           { label: 'The Realm Votes',         icon: 'people',  tone: 'gold',  group: 'crown' },
 };
 
 export const metaFor = (type) => TYPE_META[type] || { label: 'Chronicle', icon: 'scroll', tone: 'iron', group: 'other' };

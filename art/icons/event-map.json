@@ -44,6 +44,7 @@
     "great_trade": "purse",
     "rumour": "whisper",
     "holding_taken": "holding",
-    "census_taken": "census"
+    "census_taken": "census",
+    "vote_held": "ballot"
   }
 }

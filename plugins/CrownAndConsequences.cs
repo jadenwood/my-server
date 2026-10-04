@@ -315,6 +315,17 @@ namespace Oxide.Plugins
             public Dictionary<string, Captivity> Captives = new Dictionary<string, Captivity>();
             public Dictionary<string, DateTime> CaptureImmunityUntil = new Dictionary<string, DateTime>();
             public List<DateTime> CouncilChanges = new List<DateTime>();    // rolling 24 h, for CouncilChangesPerDay
+            // RealmHeraldry: seats won by election (seat -> end of the term, UTC) and the realm's votes on decrees.
+            public Dictionary<string, DateTime> ElectedUntil = new Dictionary<string, DateTime>();
+            public Dictionary<string, DecreeMandate> Mandates = new Dictionary<string, DecreeMandate>();
+        }
+
+        // A referendum's answer on one decree (RealmHeraldry): passed = the next issue costs no authority; refused = the
+        // decree may not be issued until Until.
+        private class DecreeMandate
+        {
+            public bool Passed;
+            public DateTime Until;
         }
 
         private void SaveData()
@@ -417,6 +428,9 @@ namespace Oxide.Plugins
                 { "ClaimTooFewMembers", "A claim to the crown needs a house of at least {0} sworn members (yours has {1})." },
                 { "ClaimTooMany", "The realm already has {0} claims pending or under way. Wait for one to end." },
                 { "CouncilDaily", "The council has been changed {0} times today; the realm will not stand more churn until tomorrow." },
+                { "SeatElected", "The realm elected the {0}; the seat is theirs for {1} more hours." },
+                { "DecreeRefusedByRealm", "The realm voted against this decree; it may not be issued for {0} more hours." },
+                { "DecreeMandate", "The realm voted for this decree: it costs no authority this time." },
                 { "ClaimNoWindow", "No rebellion window is configured." },
                 { "ClaimLine", "  House {0}: {1}, window {2} to {3} UTC" },
                 { "ClaimNone", "No claims are open." },
@@ -521,6 +535,8 @@ namespace Oxide.Plugins
             if (data.HouseLastClaim == null) data.HouseLastClaim = new Dictionary<string, DateTime>();
             if (data.Captives == null) data.Captives = new Dictionary<string, Captivity>();
             if (data.CaptureImmunityUntil == null) data.CaptureImmunityUntil = new Dictionary<string, DateTime>();
+            if (data.ElectedUntil == null) data.ElectedUntil = new Dictionary<string, DateTime>();
+            if (data.Mandates == null) data.Mandates = new Dictionary<string, DecreeMandate>();
             data.ActiveDecrees.RemoveAll(IsBrokenActive);
             data.Claims.RemoveAll(IsBrokenClaim);
             foreach (string k in new List<string>(data.Captives.Keys))
@@ -620,8 +636,13 @@ namespace Oxide.Plugins
             data.LastAuthorityTick = now;
             if (config.ClearCouncilOnSuccession)
             {
-                data.Council.Clear();
-                data.CouncilNames.Clear();
+                // Seats the realm elected (RealmHeraldry) outlast a change of monarch until their term ends.
+                foreach (string seat in new List<string>(data.Council.Keys))
+                {
+                    if (ElectedSeat(seat)) continue;
+                    data.Council.Remove(seat);
+                    data.CouncilNames.Remove(seat);
+                }
             }
 
             string house = data.KingHouse ?? "no house";
@@ -742,7 +763,11 @@ namespace Oxide.Plugins
                 DateTime ready = last.AddMinutes(def.CooldownMinutes);
                 if (ready > now) { ReplyError(player, "DecreeCooldown", MinutesUntil(ready)); return; }
             }
-            if (data.Authority < def.AuthorityCost)
+            DecreeMandate mandate;
+            if (!data.Mandates.TryGetValue(def.Id, out mandate) || mandate == null || mandate.Until <= now) mandate = null;
+            if (mandate != null && !mandate.Passed && !IsAdmin(player)) { ReplyError(player, "DecreeRefusedByRealm", HoursLeft(mandate.Until)); return; }
+            float cost = mandate != null && mandate.Passed ? 0f : def.AuthorityCost;
+            if (data.Authority < cost)
             {
                 ReplyError(player, "DecreeAuthority", def.AuthorityCost, Math.Floor(data.Authority));
                 return;
@@ -756,7 +781,8 @@ namespace Oxide.Plugins
                 issued.NextGrantAt = now;                       // first grant right after the proclamation below
             }
 
-            data.Authority -= def.AuthorityCost;
+            data.Authority -= cost;
+            if (mandate != null && mandate.Passed) { data.Mandates.Remove(def.Id); Reply(player, "DecreeMandate"); }
             data.LastDecreeAt = now;
             data.DecreeLastIssued[def.Id] = now;
             data.ActiveDecrees.Add(issued);
@@ -1002,7 +1028,10 @@ namespace Oxide.Plugins
                 if (seat == null) { ReplyError(player, "SeatUnknown", SeatList()); return; }
 
                 string oldSeat = SeatOf(target.Id);
-                if (oldSeat != null) { data.Council.Remove(oldSeat); data.CouncilNames.Remove(oldSeat); }
+                string held = ElectedSeat(seat) ? seat : (oldSeat != null && ElectedSeat(oldSeat) ? oldSeat : null);
+                if (held != null && !admin) { ReplyError(player, "SeatElected", held, HoursLeft(data.ElectedUntil[held])); return; }
+                if (oldSeat != null) { data.Council.Remove(oldSeat); data.CouncilNames.Remove(oldSeat); data.ElectedUntil.Remove(oldSeat); }
+                data.ElectedUntil.Remove(seat);
                 data.Council[seat] = target.Id;
                 data.CouncilNames[seat] = target.Name;
                 ChronicleMinor("decree", target.Name + " named " + seat,
@@ -1021,9 +1050,11 @@ namespace Oxide.Plugins
                         if (kv.Value.StartsWith(rest, StringComparison.OrdinalIgnoreCase)) { seat = kv.Key; break; }
                 }
                 if (seat == null) { ReplyError(player, "PlayerNotFound"); return; }
+                if (ElectedSeat(seat) && !admin) { ReplyError(player, "SeatElected", seat, HoursLeft(data.ElectedUntil[seat])); return; }
                 string name = data.CouncilNames[seat];
                 data.Council.Remove(seat);
                 data.CouncilNames.Remove(seat);
+                data.ElectedUntil.Remove(seat);
                 ChronicleMinor("decree", name + " dismissed as " + seat,
                     name + " no longer serves as " + seat + ".", new[] { name, data.KingName ?? player.Name });
                 Broadcast(string.Format(Msg("Removed", null), name, seat));
@@ -1721,6 +1752,84 @@ namespace Oxide.Plugins
         private bool IsHeldForRansom(ulong playerId)
         {
             return data != null && data.Captives.ContainsKey(playerId.ToString());
+        }
+
+        // RealmHeraldry (council elections and referendums). The seats as configured.
+        private List<string> GetCouncilSeats()
+        {
+            return config != null && config.CouncilSeats != null ? new List<string>(config.CouncilSeats) : new List<string>();
+        }
+
+        // Every seat as "seat|playerId|name|electedUntilIso" (empty fields for a vacant or appointed seat).
+        private string[] GetCouncil()
+        {
+            var list = new List<string>();
+            if (data == null || config.CouncilSeats == null) return list.ToArray();
+            foreach (string seat in config.CouncilSeats)
+            {
+                ulong id;
+                string name;
+                bool held = data.Council.TryGetValue(seat, out id);
+                data.CouncilNames.TryGetValue(seat, out name);
+                list.Add(seat + "|" + (held ? id.ToString() : "") + "|" + (held ? name ?? "" : "") + "|"
+                    + (held && ElectedSeat(seat) ? data.ElectedUntil[seat].ToString("o") : ""));
+            }
+            return list.ToArray();
+        }
+
+        // Seats the winner of a council election until `untilIso` (UTC). The monarch cannot appoint over or dismiss an
+        // elected councillor before then (admins can); the seat also survives a change of monarch. The election itself is
+        // chronicled by RealmHeraldry, so this writes no chronicle line. False for an unknown seat or a bad argument.
+        private bool SeatElectedCouncillor(string seat, string playerId, string name, string untilIso)
+        {
+            ulong id;
+            DateTime until;
+            if (data == null || string.IsNullOrEmpty(playerId) || !ulong.TryParse(playerId, out id) || id == 0) return false;
+            if (!DateTime.TryParse(untilIso, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out until)) return false;
+            string match = null;
+            foreach (string s in config.CouncilSeats) if (string.Equals(s, seat, StringComparison.OrdinalIgnoreCase)) match = s;
+            if (match == null || until <= DateTime.UtcNow || until > DateTime.UtcNow.AddDays(400)) return false;
+            string old = SeatOf(id);
+            if (old != null) { data.Council.Remove(old); data.CouncilNames.Remove(old); data.ElectedUntil.Remove(old); }
+            data.Council[match] = id;
+            data.CouncilNames[match] = string.IsNullOrEmpty(name) ? playerId : name;
+            data.ElectedUntil[match] = DateTime.SpecifyKind(until, DateTimeKind.Utc);
+            SaveData();
+            return true;
+        }
+
+        // The decrees as "id|name".
+        private string[] GetDecreeList()
+        {
+            var list = new List<string>();
+            if (config == null || config.Decrees == null) return list.ToArray();
+            foreach (DecreeDef d in config.Decrees) list.Add(d.Id + "|" + d.Name);
+            return list.ToArray();
+        }
+
+        // A referendum's answer on a decree, for `hours` (1..720): passed = the next issue costs no authority; refused =
+        // only an admin may issue it until then. A later answer replaces an earlier one.
+        private bool SetDecreeMandate(string decreeId, bool passed, int hours)
+        {
+            if (data == null || hours < 1 || hours > 720) return false;
+            DecreeDef def = FindDecree(decreeId);
+            if (def == null) return false;
+            data.Mandates[def.Id] = new DecreeMandate { Passed = passed, Until = DateTime.UtcNow.AddHours(hours) };
+            SaveData();
+            return true;
+        }
+
+        private bool ElectedSeat(string seat)
+        {
+            DateTime until;
+            return seat != null && data.ElectedUntil != null && data.ElectedUntil.TryGetValue(seat, out until) && until > DateTime.UtcNow
+                && data.Council.ContainsKey(seat);
+        }
+
+        private static int HoursLeft(DateTime until)
+        {
+            return Math.Max(1, (int)Math.Ceiling((until - DateTime.UtcNow).TotalHours));
         }
 
         #endregion

@@ -15,11 +15,14 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/renounce` | RealmHouses | Break your house's oath (`/renounce`, then Yes in the window or `/renounce confirm`). Earns an oathbreaker mark |
 | `/treaty` | RealmHouses | `propose <house> [days]`, `accept <house>`, `break <house>`, `list` |
 | `/dominion` | RealmDominion | The holdings of the realm, their houses, garrisons and income, and the War Hours; `/dominion <holding>`, `here`, `rules`. Guide: [`RealmDominion.md`](../plugins/docs/RealmDominion.md) |
+| `/heraldry` | RealmHeraldry | Your house's colours on its game guild's banner, crest, armour and name tags; `house <house>`, `colours` (the pairs), and the head of a house chooses with `colours <pair>`. Guide: [`RealmHeraldry.md`](../plugins/docs/RealmHeraldry.md) |
 | `/crown` | CrownAndConsequences | Who reigns, since when, and the next rebellion window |
 | `/decree` | CrownAndConsequences | The decrees and their cooldowns; the monarch issues one with `/decree <id>` |
-| `/council` | CrownAndConsequences | The council seats; the monarch uses `appoint <player> <seat>` and `remove` |
+| `/council` | CrownAndConsequences | The council seats; the monarch uses `appoint <player> <seat>` and `remove` (not on a seat the realm elected with `/ballot`, during its term) |
 | `/claim` | CrownAndConsequences | Open claims (`list`); a house leader uses `declare` |
 | `/ransom` | CrownAndConsequences | Captives (`list`); a captor uses `set`, `paid` and `release`; a captive uses `free` |
+| `/ballot` | RealmHeraldry | What the realm votes on: `<n>`, `results`, `history`, `me` (can I vote?); heads of houses `stand <seat>` and `withdraw` in council elections; the monarch `propose decree <id>` or `propose law <id>` |
+| `/vote` | RealmHeraldry | `<candidate or house>` in a council election, `yes` or `no` on the crown's question (`<n> yes` when there are several). One vote per account |
 | `/chronicle` | RealmChronicle | The latest Chronicle entries (`/chronicle [count]`) |
 | `/contract` | RealmContracts | Bounties, deliveries and mercenary work: `list`, `info`, `post`, `accept`, `deliver`, `confirm`, `cancel`, `enemies`, `items`, `collect`. The monarch also has `outlaw` and `pardon` |
 | `/season` | RealmSeasons | The season, `standings`, `house [name]`, `hall` (the Hall of Kings) and `history` |
@@ -62,7 +65,7 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 
 ## For admins
 
-Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`, `realmworld.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`, `/craft admin status`, `/world admin`). Each plugin guide in `plugins/docs/` lists them.
+Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`, `realmworld.admin`, `realmheraldry.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`, `/craft admin status`, `/world admin`, `/heraldry sync`, `/ballot admin open`). Each plugin guide in `plugins/docs/` lists them.
 
 Oxide runs these chat commands only for a player in game, not from the server console (see [`admin-console.md`](admin-console.md)). Two console-only commands come from `RealmCourt.cs`, which writes them into the game's own command table with the permission `realm.court`: `/realm.save` (save the world now) and `/realm.players` (online players with Steam IDs). Realm Steward's Court screen uses them.
 
@@ -90,6 +93,7 @@ Every Realm plugin answers in one style, so a player can tell at a glance who is
 | RealmTravel | Roads | | |
 | RealmCrafts | Guilds | | |
 | RealmWorld | World | | |
+| RealmHeraldry | Heraldry (votes: Council) | | |
 
 The name is the lang key `Speaker`, so a server can rename it.
 

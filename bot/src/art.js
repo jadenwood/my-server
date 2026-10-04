@@ -23,6 +23,7 @@ export const EVENT_ICONS = {
   treasury_mint: 'mint', treasury_grant: 'grant', tithe_levied: 'tithe', great_trade: 'purse', rumour: 'whisper',
   holding_taken: 'holding',
   census_taken: 'census',
+  vote_held: 'ballot',
 };
 
 // The six great houses have drawn sigils. A house a player founds has none (it keeps its banner colour).

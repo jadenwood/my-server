@@ -31,6 +31,8 @@ export const EVENT_TYPES = new Set([
   'holding_taken',
   // RealmWorld
   'census_taken',
+  // RealmHeraldry
+  'vote_held',
 ]);
 
 const MIME = {

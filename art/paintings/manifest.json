@@ -417,6 +417,15 @@
       "sha256": "79333854ee0db4a2f9cf7fd77e4433a77ab517d768dd44e815a1896016e6c094"
     },
     {
+      "id": "icon-24-ballot",
+      "kind": "mask",
+      "width": 24,
+      "height": 24,
+      "file": "art/paintings/sprites/icon-24-ballot.png",
+      "bytes": 181,
+      "sha256": "aa7c214a523cd85ce7688066986363eef9b4d4b3272ba39d9aec0181eb862fe0"
+    },
+    {
       "id": "icon-24-beacon",
       "kind": "mask",
       "width": 24,
@@ -1017,5 +1026,5 @@
       "sha256": "742167c3b8fe954a15b8918a667948d5212a78eb609e9edbccacb0810bcd2719"
     }
   ],
-  "version": "d0c68e72ed629549"
+  "version": "9ed7ca63aea12851"
 }

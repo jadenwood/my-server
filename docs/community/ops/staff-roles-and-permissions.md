@@ -49,6 +49,7 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmcrafts.admin` | `RealmCrafts.cs` | `/craft admin status`, `watch <player> [off]`, `unmapped`, `items <word>`, `xp <player> <profession> <amount>`, `level <player> <profession> <level>`, `reset <player> confirm`, `crown`, `cancel <id>`: professions, the weekly Master Crafter and the commission board | **Can set anyone's profession XP and level** (and with it their perks and market fee discount) and close the week early; `cancel` returns a commission's marks to its poster. Holders are never named Master Crafter while `AdminsCountForWeekly` is false (the default) | Yes | Yes | No | No |
 | `realmtravel.admin` | `RealmTravel.cs` | `/travel admin set`, `name`, `note`, `house`, `kind`, `toll`, `radius`, `hidden`, `enabled`, `mark`, `remove`, `list`, `unlock`, `lock`, `throne`, `tp`, `status`; `/kit admin items`, `check`, `reset`: raise and run the realm's waystones and kits | `/travel admin tp` moves them to any waystone; `unlock` and `/kit admin reset` can favour a player. With `General.AdminsExempt: true`: **no channel time, cooldowns or tolls** | Yes | Yes | No | No |
 | `realmworld.admin` | `RealmWorld.cs` | `/world admin status`, `start`, `stop`, `schedule`, `place set\|clear`, `places`, `hunt ...`, `route add\|remove`, `routes`, `deco add\|remove\|list`, `festival start\|stop\|cancel`, `census`, `creatures`, `legends`, `bounty [clear]`: lay out treasure hunts, caravan routes and festival decorations, start or call off world events | `start ... force` can run a world event over a RealmEvents event; a hunt's riddles and dig site are known to whoever lays them out, so holders win nothing in the world while `General.AdminsCanWin` is false (the default) | Yes | Yes | No | Yes |
+| `realmheraldry.admin` | `RealmHeraldry.cs` | `/heraldry sync`, `preview`, `set`, `reset`, `banner`, `status`: house colours on the game's guild banners; `/ballot admin open`, `advance`, `cancel`, `strike`, `audit`, `voter`: council elections and referendums | **Can set any house's colours, call or end an election early, cancel a ballot and strike a vote** (every strike is logged); may put a question to the realm without being monarch | Yes | Yes | No | No |
 
 Things that are **not** Oxide permissions but are staff powers all the same:
 
@@ -88,6 +89,7 @@ oxide.grant group realm_admin realmquests.admin
 oxide.grant group realm_admin realmtravel.admin
 oxide.grant group realm_admin realmcrafts.admin
 oxide.grant group realm_admin realmworld.admin
+oxide.grant group realm_admin realmheraldry.admin
 
 oxide.grant group realm_mod realmwarden.admin
 oxide.grant group realm_mod realmravens.admin

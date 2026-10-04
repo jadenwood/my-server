@@ -78,7 +78,9 @@ namespace Oxide.Plugins
             // RealmDominion
             "holding_taken",
             // RealmWorld
-            "census_taken"
+            "census_taken",
+            // RealmHeraldry
+            "vote_held"
         };
 
         // [SRC] Oxide.CSharp src/CSharpPlugin.cs:91 (PluginReferenceAttribute; the field is filled with the plugin
