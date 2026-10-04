@@ -25,6 +25,8 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/events` | RealmEvents | What is running now and what comes next |
 | `/event` | RealmEvents | `collect` prizes that did not fit in your packs |
 | `/tourney` | RealmEvents | `join`, `leave` and `standings` for the Royal Tournament |
+| `/duel` | RealmArena | Duels to the first fall (no death, no loot): `<player> [marks]`, `accept [player] [marks]`, `decline`, `cancel`, `yield`, `status`, `off`/`on`, team duels `2v2` and `3v3`. Stakes are held by the treasury. Guide: [`RealmArena.md`](../plugins/docs/RealmArena.md) |
+| `/arena` | RealmArena | Your rating and place, `top [team]`, `me`, `<player>`, `history`, `champion` (the weekly Champion of the Ring), `rules`, `zones`, and `tourney` (`join`, `leave`) for the Lists of the Ring |
 | `/hunt` | RealmEvents | The King's Hunt quarry; the monarch uses `name <player>` |
 | `/truce` | RealmEvents | Whether the Truce of the Realm holds |
 | `/laws` | RealmLaws | Help for `/law` and `/court` |
@@ -38,6 +40,8 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/vault` | RealmTreasury | A house vault: view, `deposit`, `give`; heads and stewards also `withdraw`, `take`, trade and name stewards |
 | `/treasury` | RealmTreasury | The crown's treasury, `tax`, `ledger` and `deposit` (tribute); the monarch also `mint` and `levy`, and the monarch or the Keeper of Coin `grant` |
 | `/economy` | RealmTreasury | All the economy help, the market fee, the tithe and the game tax |
+| `/dice` | RealmArena | Hearth Dice for marks against another player (`<player> <marks>`, `accept`, `decline`, `cancel`), no house edge, strict daily limits; `roll [NdM]` throws for show |
+| `/cards` | RealmArena | Twenty-One for marks against another player (`<player> <marks>`, `accept`, `hit`, `stand`, `hand`, `decline`, `cancel`), both play at once, no house edge |
 | `/raven` | RealmRavens | Letters between players and houses: `<house or player> <message>`, `anon`, `inbox`, `read`, `delete`, `sent`, `status`, `block`, `unblock`, `blocks`, `report`; spymasters and spies have `spymaster`, `watch` and `spy ...` |
 | `/rumour` (or `/rumor`) | RealmRavens | Submit an anonymous rumour for moderation, or see the approved ones (`list`) |
 | `/warden` | RealmWarden | `status`, `rules`, `report <player> <reason>`, and `protection off confirm` to give up new-player protection |
@@ -46,7 +50,7 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 
 ## For admins
 
-Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`). Each plugin guide in `plugins/docs/` lists them.
+Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmarena.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/arena admin`, `/arena tourney open`). Each plugin guide in `plugins/docs/` lists them.
 
 Oxide runs these chat commands only for a player in game, not from the server console (see [`admin-console.md`](admin-console.md)). Two console-only commands come from `RealmCourt.cs`, which writes them into the game's own command table with the permission `realm.court`: `/realm.save` (save the world now) and `/realm.players` (online players with Steam IDs). Realm Steward's Court screen uses them.
 
@@ -69,6 +73,7 @@ Every Realm plugin answers in one style, so a player can tell at a glance who is
 | RealmSeasons | Seasons | RealmWarden | Warden |
 | RealmEvents | Events | RealmStats | Stats |
 | RealmChronicle | Chronicle | RealmHerald | Realm |
+| RealmArena | Arena (the tavern games: Tavern) | | |
 
 The name is the lang key `Speaker`, so a server can rename it.
 
@@ -118,6 +123,8 @@ Some commands also open the game's own popup windows. They make the realm feel r
 | An oath offered to your house (RealmHouses) | Accept/Refuse, for the liege's leader. | `/swear accept <house>` or `/swear deny <house>`. |
 | `/renounce` (RealmHouses) | Yes/No: break the oath, with what it costs. | `/renounce confirm` within `RenounceConfirmSeconds` (60 seconds). |
 | `/house found` alone, or with a name only (RealmHouses) | Input windows for the house's name, then its sigil. A bad name or sigil is refused in chat and asked again. | The full line: `/house found "<name>" <sigil>`. |
+| A challenge to a duel, a team duel or a tavern game (RealmArena) | Accept/Decline, with the stake shown. | `/duel accept <player> [marks]` (or `/dice`, `/cards`): with a stake, the stake must be typed. |
+| Crowned Champion of the Ring; a tournament match called (RealmArena) | A notice with an Ok button. | The same news in chat. |
 
 **Switches.** `UsePopups` in `oxide/config/RealmHerald.json` and `oxide/config/RealmHouses.json` switches each plugin's windows off for the server. With RealmHouses' popups off, `/swear <house>` offers the oath at once, as it did before popups. A player turns every Realm window off for themselves with `/realm popups off` (RealmHouses asks RealmHerald's `PopupsWanted` before each window).
 
