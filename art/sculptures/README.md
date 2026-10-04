@@ -87,7 +87,8 @@ generators share, so the pieces and the layout cannot disagree.
 
 ![Plan](preview/site-arrival-plan.png)
 
-The other views are `site-arrival-threshold`, `-court`, `-avenue`, `-hearth`, `-aerial`, `-aerial-gate` and `-side`.
+The other views are `site-arrival-threshold`, `-court`, `-avenue`, `-hearth`, `-aerial`, `-aerial-gate`, `-side` and
+`-pilgrim` (the Pilgrim's ledge from outside the left wall, for play-test 6b).
 The Old Throne on its hill and the fire in the pit are stand-ins in the previews only (`context` pieces and
 `terrain`); nothing places them.
 
