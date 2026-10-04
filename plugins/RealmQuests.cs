@@ -155,6 +155,7 @@ namespace Oxide.Plugins
         private DateTime lastSave = DateTime.MinValue;
         private int depth;                                       // guards achievement-of-achievement recursion
         private int storyChain;                                  // guards story steps closing one another
+        private DateTime treasuryDryUntil = DateTime.MinValue;   // RealmTreasury paid nothing: wait before asking again
 
         // Content (read-only, reloaded with /quest admin reload).
         private readonly Dictionary<string, QuestDef> dailies = new Dictionary<string, QuestDef>(StringComparer.OrdinalIgnoreCase);
@@ -1632,7 +1633,7 @@ namespace Oxide.Plugins
 
         private bool Advance(string id, string name, string type, string subject, long amount, string distinct, bool state)
         {
-            if (!config.Enabled || loadFailed || data == null || amount <= 0 || depth > 3) return false;
+            if (!config.Enabled || loadFailed || data == null || amount <= 0 || depth > 10) return false;   // chains are finite (tiers end); this is a backstop
             PlayerQ p = name != null ? GetPlayer(id, name, true) : FindPlayer(id);
             if (p == null) return false;
             depth++;
@@ -1647,7 +1648,7 @@ namespace Oxide.Plugins
                     foreach (Slot s in new List<Slot>(p.Weekly)) moved |= AdvanceSlot(id, p, online, s, weeklies, KWeekly, type, subject, amount, distinct, state);
                 moved |= AdvanceStory(id, p, online, type, subject, amount, distinct, state);
                 if (config.AchievementsEnabled) moved |= AdvanceAchievements(id, p, online, type, subject, amount, distinct, state);
-                if (config.HouseGoalsEnabled && !state && distinct == null) moved |= AdvanceHouse(id, p, online, type, subject, (int)Math.Min(amount, int.MaxValue));
+                if (config.HouseGoalsEnabled && !state && type != TVisit) moved |= AdvanceHouse(id, p, online, type, subject, (int)Math.Min(amount, int.MaxValue));
                 if (moved) dirty = true;
             }
             finally { depth--; }
@@ -1707,11 +1708,13 @@ namespace Oxide.Plugins
             return progress[index] != before;
         }
 
-        private bool AllDone(QuestDef q, List<int> progress)
+        // waive: a visit to an unmarked place counts as done (story steps only: a daily or weekly that needs a place is
+        // never drawn while it is unmarked, and a place cleared later must not pay out the tasks already drawn).
+        private bool AllDone(QuestDef q, List<int> progress, bool waive)
         {
             int done = 0;
             for (int i = 0; i < q.Objectives.Count; i++)
-                if ((i < progress.Count && progress[i] >= q.Objectives[i].Count) || Waived(q.Objectives[i])) done++;
+                if ((i < progress.Count && progress[i] >= q.Objectives[i].Count) || (waive && Waived(q.Objectives[i]))) done++;
             return q.AnyOne ? done > 0 : done == q.Objectives.Count;
         }
 
@@ -1743,7 +1746,7 @@ namespace Oxide.Plugins
                     moved = true;
                     NoticeProgress(online, kind + q.Id + i, q.Title, q.Objectives[i], s.Progress[i]);
                 }
-            if (moved && AllDone(q, s.Progress)) CompleteSlot(id, p, online, s, q, kind);
+            if (moved && AllDone(q, s.Progress, false)) CompleteSlot(id, p, online, s, q, kind);
             return moved;
         }
 
@@ -1784,7 +1787,7 @@ namespace Oxide.Plugins
                     moved = true;
                     NoticeProgress(online, "story" + q.Id + i, q.Title, q.Objectives[i], p.Story.Progress[i]);
                 }
-            if (moved && AllDone(q, p.Story.Progress)) CompleteStep(id, p, online, ch, q);
+            if (moved && AllDone(q, p.Story.Progress, true)) CompleteStep(id, p, online, ch, q);
             return moved;
         }
 
@@ -1842,7 +1845,7 @@ namespace Oxide.Plugins
             if (online != null && config.PopupOnComplete && PopupsFor(online)) ShowInfoPopup(online, story.Title, popup.ToString(), Msg("PopupButton", online));
             Record(id, null, TQuests, KStory, 1, null);
             // The next step may already be done (a waived visit, an AnyOne step): close it too, a few at most.
-            if (n != null && storyChain < 5 && p.Story.StepId == n.Id && AllDone(n, p.Story.Progress))
+            if (n != null && storyChain < 5 && p.Story.StepId == n.Id && AllDone(n, p.Story.Progress, true))
             {
                 storyChain++;
                 try { CompleteStep(id, p, online, next, n); }
@@ -2088,7 +2091,8 @@ namespace Oxide.Plugins
         {
             if (p == null || p.PendingMarks <= 0 || !config.MarksRewards || RealmTreasury == null) return;
             string held = null;
-            if (p.ActiveMinutes < config.MinActiveMinutesForMarks) held = "MarksHeldNew";
+            if (Now() < treasuryDryUntil) held = "MarksHeldTreasury";        // the reward purse was spent lately: do not ask (and write) every tick
+            else if (p.ActiveMinutes < config.MinActiveMinutesForMarks) held = "MarksHeldNew";
             else if (!AddressAllows(online, id)) held = "MarksHeldAddress";
             if (held == null)
             {
@@ -2116,6 +2120,7 @@ namespace Oxide.Plugins
                     if (online != null) Reply(online, "MarksPaid", paid);
                 }
                 if (paid < want) held = "MarksHeldTreasury";
+                if (paid == 0) treasuryDryUntil = Now().AddMinutes(10);
             }
             if (held != null && online != null && !p.MarksHeldNotice)
             {
@@ -2509,6 +2514,7 @@ namespace Oxide.Plugins
                 PollChronicle();
                 PollContracts();
             }
+            if (Array.IndexOf(events, "truce") < 0) SettleTruce();
             if (dirty && (now - lastSave).TotalSeconds >= 60) SaveData();
         }
 
@@ -2588,9 +2594,27 @@ namespace Oxide.Plugins
                 attendSeconds.Remove(key);
                 data.EventCredits.Add(key);
                 if (data.EventCredits.Count > 3000) data.EventCredits.RemoveRange(0, 1000);
+                // Keeping the truce is only known when it is over: credited then, unless the Chronicle named a breach.
+                if (kind == "truce") { data.EventCredits.Add("pending|" + key); continue; }
                 Record(id, pl.Name, TEvent, kind, 1, null);
             }
             if (attendSeconds.Count > 5000) attendSeconds.Clear();
+        }
+
+        // The truce is over: everyone who kept it for EventAttendMinutes, and whom the Chronicle did not name as breaking it
+        // that day, is credited now.
+        private void SettleTruce()
+        {
+            List<string> pending = data.EventCredits.FindAll(delegate(string k) { return k.StartsWith("pending|truce|"); });
+            if (pending.Count == 0) return;
+            foreach (string k in pending)
+            {
+                data.EventCredits.Remove(k);
+                string[] parts = k.Split('|');                   // pending|truce|day|id
+                if (parts.Length != 4 || data.EventCredits.Contains("breaker|truce|" + parts[2] + "|" + parts[3])) continue;
+                Record(parts[3], null, TEvent, "truce", 1, null);
+            }
+            dirty = true;
         }
 
         // Levels other plugins keep: house membership and leadership, renown, titles, marks.
@@ -2631,20 +2655,20 @@ namespace Oxide.Plugins
                 foreach (Slot s in new List<Slot>(p.Daily))
                 {
                     QuestDef q;
-                    if (!s.Done && !s.Abandoned && s.QuestId != null && dailies.TryGetValue(s.QuestId, out q) && AllDone(q, s.Progress)) CompleteSlot(id, p, online, s, q, KDaily);
+                    if (!s.Done && !s.Abandoned && s.QuestId != null && dailies.TryGetValue(s.QuestId, out q) && AllDone(q, s.Progress, false)) CompleteSlot(id, p, online, s, q, KDaily);
                 }
             if (config.WeekliesEnabled)
                 foreach (Slot s in new List<Slot>(p.Weekly))
                 {
                     QuestDef q;
-                    if (!s.Done && !s.Abandoned && s.QuestId != null && weeklies.TryGetValue(s.QuestId, out q) && AllDone(q, s.Progress)) CompleteSlot(id, p, online, s, q, KWeekly);
+                    if (!s.Done && !s.Abandoned && s.QuestId != null && weeklies.TryGetValue(s.QuestId, out q) && AllDone(q, s.Progress, false)) CompleteSlot(id, p, online, s, q, KWeekly);
                 }
             for (int guard = 0; guard < 3; guard++)
             {
                 ChapterDef ch;
                 string wait;
                 QuestDef step = CurrentStep(p, out ch, out wait);
-                if (step == null || !AllDone(step, p.Story.Progress)) break;
+                if (step == null || !AllDone(step, p.Story.Progress, true)) break;
                 CompleteStep(id, p, online, ch, step);
             }
         }
@@ -2760,7 +2784,7 @@ namespace Oxide.Plugins
                     string breaker;
                     if (byName.TryGetValue(e.actors[0].Trim().ToLowerInvariant(), out breaker) && breaker != null)
                     {
-                        string key = "truce|" + DayKey(Now()) + "|" + breaker;
+                        string key = "breaker|truce|" + DayKey(Now()) + "|" + breaker;
                         if (!data.EventCredits.Contains(key)) data.EventCredits.Add(key);
                     }
                 }
@@ -3141,6 +3165,7 @@ namespace Oxide.Plugins
             public string Label;
             public ObjectiveDef Obj;
             public int Remaining;
+            public Func<bool> Valid;                        // still open? (an earlier hand-in may have moved things on)
             public Action<int> Apply;
         }
 
@@ -3167,15 +3192,18 @@ namespace Oxide.Plugins
                     needs.Add(new Need
                     {
                         Label = q.Title, Obj = o, Remaining = o.Count - have,
+                        Valid = delegate { return p.Story.StepId == q.Id && !p.Story.Finished.Contains(q.Id); },
                         Apply = delegate(int n)
                         {
+                            if (p.Story.StepId != q.Id || p.Story.Finished.Contains(q.Id)) return;
                             while (p.Story.Progress.Count <= idx) p.Story.Progress.Add(0);
                             p.Story.Progress[idx] = Math.Min(o.Count, p.Story.Progress[idx] + n);
-                            if (AllDone(q, p.Story.Progress)) CompleteStep(id, p, player, c, q);
+                            if (AllDone(q, p.Story.Progress, true)) CompleteStep(id, p, player, c, q);
                         }
                     });
                 }
-            if (config.HouseGoalsEnabled && !string.IsNullOrEmpty(p.House) && (Now() - p.HouseSince).TotalHours >= config.HouseMemberMinHours)
+            if (config.HouseGoalsEnabled && !string.IsNullOrEmpty(p.House) && (Now() - p.HouseSince).TotalHours >= config.HouseMemberMinHours
+                && (RealmHouses == null || HouseSize(p.House) >= config.HouseGoalMinMembers))
             {
                 HouseQ h = HouseState(p.House);
                 if (h != null)
@@ -3193,7 +3221,7 @@ namespace Oxide.Plugins
                         if (room <= 0) continue;
                         HouseGoalState gs = g;
                         HouseGoalDef gd = def;
-                        needs.Add(new Need { Label = "House " + h.Name + ": " + def.Title, Obj = def.Objective, Remaining = room, Apply = delegate(int n) { Contribute(id, p, player, h, gs, gd, n); } });
+                        needs.Add(new Need { Label = "House " + h.Name + ": " + def.Title, Obj = def.Objective, Remaining = room, Valid = delegate { return !gs.Done; }, Apply = delegate(int n) { Contribute(id, p, player, h, gs, gd, n); } });
                     }
             }
             return needs;
@@ -3217,11 +3245,13 @@ namespace Oxide.Plugins
                     needs.Add(new Need
                     {
                         Label = q.Title, Obj = o, Remaining = o.Count - have,
+                        Valid = delegate { return !slot.Done && !slot.Abandoned; },
                         Apply = delegate(int n)
                         {
+                            if (slot.Done || slot.Abandoned) return;
                             while (slot.Progress.Count <= idx) slot.Progress.Add(0);
                             slot.Progress[idx] = Math.Min(o.Count, slot.Progress[idx] + n);
-                            if (!slot.Done && AllDone(quest, slot.Progress)) CompleteSlot(id, p, player, slot, quest, kind);
+                            if (AllDone(quest, slot.Progress, false)) CompleteSlot(id, p, player, slot, quest, kind);
                         }
                     });
                 }
@@ -3253,7 +3283,7 @@ namespace Oxide.Plugins
                         continue;
                     }
                     int want = Math.Min(carry, n.Remaining);
-                    if (want <= 0) continue;
+                    if (want <= 0 || (n.Valid != null && !n.Valid())) continue;
                     int taken = TakeMeasured(packs, bp, want);
                     if (taken <= 0) { ReplyError(player, "GiveFailed"); continue; }
                     n.Remaining -= taken;

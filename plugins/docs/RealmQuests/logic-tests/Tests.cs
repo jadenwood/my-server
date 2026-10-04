@@ -363,6 +363,12 @@ static class T
         Clock = Clock.AddDays(1); Tick(1, false);
         Goto(a, 500, 500); Tick(1, false);
         Ok(AchCount(a, "ex_wayfarer") == 2, "a place seen again on another day is still one place");
+        // A place cleared after a task needing it was drawn does not pay that task out.
+        SetDaily(a, 1, "d_toll_and_ford");
+        MarkPlace("tollbridge", 100, 100); MarkPlace("merrins_ford", 200, 200);
+        ((IDictionary)F(Data, "Places")).Remove("tollbridge"); ((IDictionary)F(Data, "Places")).Remove("merrins_ford");
+        Poll();
+        Ok(!Done(Daily(a), 1), "clearing a place never completes the daily tasks already drawn for it");
         Admin(a);
         Clear();
         Cmd(a, "admin", "place", "set", "crown_market", "25");
@@ -421,7 +427,15 @@ static class T
         WriteJson("RealmChronicle", "[{\"id\":1,\"type\":\"truce_broken\",\"title\":\"x\",\"actors\":[\"Aldric\"]}]"); Poll();
         ActiveEvents.Clear(); ActiveEvents.Add("truce");
         Minutes(12);
-        Ok(AchCount(a, "ex_under_truce") == 0 && AchCount(b, "ex_under_truce") == 1, "whoever broke the Truce today is not credited with keeping it");
+        Ok(AchCount(b, "ex_under_truce") == 0, "keeping the truce is not credited while it still runs (a breach may come)");
+        WriteJson("RealmChronicle", "[{\"id\":1,\"type\":\"truce_broken\",\"title\":\"x\",\"actors\":[\"Aldric\"]},{\"id\":2,\"type\":\"truce_broken\",\"title\":\"x\",\"actors\":[\"Brannoc\"]}]");
+        var c = Mk(76561198000000003, "Cyne");
+        Minutes(12);
+        Poll();
+        ActiveEvents.Clear();
+        Tick();
+        Ok(AchCount(a, "ex_under_truce") == 0 && AchCount(b, "ex_under_truce") == 0 && AchCount(c, "ex_under_truce") == 1,
+            "when the truce ends, only those the Chronicle did not name as breaking it are credited (a late breach counts too)");
     }
 
     static void Oaths()
@@ -597,6 +611,9 @@ static class T
         Ok(a.All().Contains("reward purse is spent"), "and the player is told", a.All());
         TreasuryLeft = 1000;
         Tick();
+        Ok(Pending(a) == 25, "after the treasury paid nothing, the board waits before asking again (no file writes every tick)");
+        Clock = Clock.AddMinutes(11);
+        Tick();
         Ok(Pending(a) == 0 && Purse[a.Id.ToString()] == 45, "owed marks are paid on a later tick");
         SetDaily(a, 2, "d_raise_walls");
         TreasuryThrows = true;
@@ -607,6 +624,7 @@ static class T
         Tick();
         Ok(Pending(a) == 14, "without RealmTreasury the marks wait");
         SetF(Q, "RealmTreasury", Treasury);
+        Clock = Clock.AddMinutes(11);
         Tick();
         Ok(Pending(a) == 0, "and are paid when it returns");
         // One hearth, many accounts.
@@ -820,6 +838,21 @@ static class T
         Ok((int)F(goals[0], "Progress") == 1500 && Has(a, "Wood") == 500, "a house delivery takes only the member's share (half of 3000)", F(goals[0], "Progress") + " / " + Has(a, "Wood"));
         string text = (string)Inv(Q, "GetHouseGoalText", "Varrow");
         Ok(text != null && text.StartsWith("The House Woodpile 1500/3000"), "GetHouseGoalText gives a board line", text ?? "null");
+        // A war goal counts fair kills (they carry the victim as their distinct key).
+        SetF(goals[0], "GoalId", "h_banners");
+        SetF(goals[0], "Progress", 0); ((Dictionary<string, int>)F(goals[0], "Contrib")).Clear();
+        var foe = Mk(76561198000000020, "Foe", "Corvane"); Active(foe, 120); Active(a, 120);
+        Kill(a, foe.Entity);
+        Ok((int)F(goals[0], "Progress") == 1, "a house war goal (Banners in the Field) counts a fair kill", F(goals[0], "Progress").ToString());
+        // A house too small for goals is never asked for goods.
+        HouseOf.Remove(b.Id); HouseOf.Remove(c.Id); HouseOf.Remove(d.Id);
+        SetF(goals[0], "GoalId", "h_woodpile");
+        SetF(goals[0], "Progress", 0); ((Dictionary<string, int>)F(goals[0], "Contrib")).Clear();
+        Give(a, "Wood", 100);
+        int woodBefore = Has(a, "Wood");
+        Clear();
+        Cmd(a, "give", "all");
+        Ok(Has(a, "Wood") == woodBefore && (int)F(goals[0], "Progress") == 0, "with the house below HouseGoalMinMembers, /quest give takes nothing for its goal", a.All());
     }
 
     static void PvP()

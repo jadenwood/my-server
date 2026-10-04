@@ -9,7 +9,7 @@
 
 Everything players do is read from real hooks and from what the other Realm plugins already keep. Rewards are marks (RealmTreasury), renown and titles (RealmRenown), house season points (RealmSeasons) and a few goods. All content is data: JSON in the realm's own voice in [`RealmQuests/content/`](RealmQuests/content/).
 
-Status: **compiles with 0 errors against the real 2.0.3867 DLLs, behaviour-tested against mocks (293 checks) and exploit-tested (45 checks, plus 13 for the treasury method that pays its marks). It has never run on a live server.** See [What is UNVERIFIED](#what-is-unverified-and-how-to-test-it-in-game).
+Status: **compiles with 0 errors against the real 2.0.3867 DLLs, behaviour-tested against mocks (298 checks) and exploit-tested (45 checks, plus 13 for the treasury method that pays its marks). It has never run on a live server.** See [What is UNVERIFIED](#what-is-unverified-and-how-to-test-it-in-game).
 
 Tags: **[CODE]** = read in the decompiled 2.0.3867 `Assembly-CSharp.dll` (type and member names only; no game code is kept in this repo). **[ASM]** = confirmed by compiling against that DLL's metadata. **[OPJ]** = the Oxide hook manifest ([`docs/oxide-rok-api.md`](../../docs/oxide-rok-api.md)). **UNVERIFIED** = not seen working in game.
 
