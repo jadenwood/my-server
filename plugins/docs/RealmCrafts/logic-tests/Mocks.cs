@@ -181,13 +181,15 @@ namespace CodeHatch.Networking.Events
     }
     public delegate void EventSubscriber<T>(T theEvent) where T : BaseEvent;
     public enum EventHandlerOrder { VeryEarly, Early, Normal, Late, VeryLate }
+    public enum EventCancelFlags { DoNothing, InvokeHandler }
     public static class EventManager
     {
-        public class Sub { public Delegate D; public EventHandlerOrder Order; }
+        public class Sub { public Delegate D; public EventHandlerOrder Order; public EventCancelFlags Flags; }
         public static Dictionary<Type, List<Sub>> Subs = new Dictionary<Type, List<Sub>>();
-        public static void Subscribe<T>(EventSubscriber<T> s, EventHandlerOrder o) where T : BaseEvent
+        public static void Subscribe<T>(EventSubscriber<T> s, EventHandlerOrder o) where T : BaseEvent { Subscribe(s, o, EventCancelFlags.DoNothing); }
+        public static void Subscribe<T>(EventSubscriber<T> s, EventHandlerOrder o, EventCancelFlags f) where T : BaseEvent
         {
-            List<Sub> l; if (!Subs.TryGetValue(typeof(T), out l)) Subs[typeof(T)] = l = new List<Sub>(); l.Add(new Sub { D = s, Order = o });
+            List<Sub> l; if (!Subs.TryGetValue(typeof(T), out l)) Subs[typeof(T)] = l = new List<Sub>(); l.Add(new Sub { D = s, Order = o, Flags = f });
         }
         public static void Unsubscribe<T>(EventSubscriber<T> s) where T : BaseEvent { List<Sub> l; if (Subs.TryGetValue(typeof(T), out l)) l.RemoveAll(x => x.D == (Delegate)s); }
         public static int Count<T>() { List<Sub> l; return Subs.TryGetValue(typeof(T), out l) ? l.Count : 0; }
@@ -200,6 +202,8 @@ namespace CodeHatch.Networking.Events
             foreach (var s in subs)
             {
                 if (!applied && s.Order > EventHandlerOrder.Early) { applied = true; if (!e.Cancelled && apply != null) apply(); }
+                // As the game's Subscription: a cancelled event reaches only handlers subscribed with InvokeHandler.
+                if (e.Cancelled && s.Flags == EventCancelFlags.DoNothing) continue;
                 ((EventSubscriber<T>)s.D)(e);
             }
             if (!applied && !e.Cancelled && apply != null) apply();
@@ -215,10 +219,18 @@ namespace CodeHatch.Networking.Events.Entities
     using CodeHatch.Inventory.Blueprints;
     public class EntityEvent : CodeHatch.Networking.Events.NetworkEvent { public Entity Entity; }
     public class EntityDeathEvent : EntityEvent { public Damage KillingDamage; }
+    public class EntityDamageEvent : EntityEvent { public Damage Damage; }
     public class ItemCrafterEvent : EntityEvent { public ItemCrafter Crafter; }
     public class ItemCrafterCraftEvent : ItemCrafterEvent { public InvItemBlueprint Product; public int Quantity; }
     public class ItemCrafterItemEvent : ItemCrafterEvent { public InvGameItemStack Stack; public int Cycles; }
     public class ItemCrafterFinishEvent : ItemCrafterEvent { }
+}
+
+namespace CodeHatch.Farming
+{
+    public enum CollectMode { Harvest, Pick }
+    public class FarmEvent : CodeHatch.Networking.Events.NetworkEvent { public UnityEngine.Vector3 Location; }
+    public class PlotCollectEvent : FarmEvent { public CollectMode Mode; public float CollectAmount; }
 }
 
 namespace CodeHatch.Networking.Events.Containers

@@ -8,7 +8,7 @@
 //   market    /market sell|bid|buy|fill|list|history: escrowed asks (items held) and bids (marks held), with expiry,
 //             a capped market fee paid to the treasury, and a public price history. A seller who has risen in the
 //             craft of the goods pays less fee (RealmCrafts.GetMarketFeeDiscount, 0 to 50 percent off).
-//   mint     the king's minting decree creates MARKS ONLY. Marks are pure accounting; no command in this plugin
+//   mint      the king's minting decree creates MARKS ONLY. Marks are pure accounting; no command in this plugin
 //             creates an item. Items only leave the realm's custody as payment of a persisted "owed" ledger that
 //             was filled from items previously TAKEN (measured) from players.
 //

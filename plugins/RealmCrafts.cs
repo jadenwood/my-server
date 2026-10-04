@@ -36,10 +36,15 @@
 //              (a chest, a dropped item pack, a corpse, a station; seen as a Remove or Split by the same client a moment
 //              before, or as a merge whose source stack is still in a collection), and not handed to them by the server
 //              (ItemPassEvent: salvage, broken containers, block pick-ups [DEC SalvageSupplier.AddToInventory,
-//              DamagableContainer, InventoryUtil]; only crops from a farm, LootCountsAsGather, count). Server-made
-//              changes (gifts, payouts, kits, this plugin's own bonus) are never counted.
-//   Corpses    Goods taken out of a creature's corpse (LootableCreatureContainer [ASM]) count for hunting, at most
-//              CorpseCreditPerContainer units per corpse.
+//              DamagableContainer, InventoryUtil], all with the memo "Loot"). The one hand-out that is gathering is a
+//              farm's harvest: the game hands the crops over inside its own PlotCollectEvent [DEC FarmListener.OnPlotCollect
+//              -> FarmManager.CollectPlot], so a "Loot" pass of a LootCountsAsGather crop counts only while that client's
+//              PlotCollectEvent is running (seen at VeryEarly, cleared at VeryLate with EventCancelFlags.InvokeHandler).
+//              Salvaging a flax or grain good outside a harvest is a hand-out like any other. Server-made changes (gifts,
+//              payouts, kits, this plugin's own bonus) are never counted.
+//   Corpses    Goods taken out of a creature's corpse (LootableCreatureContainer [ASM]), or handed over while the player
+//              hits a creature (an EntityDamageEvent on a MonsterMotor/MonsterEntity entity, the DamagableContainer path
+//              [DEC]), count for hunting, at most CorpseCreditPerContainer units per creature.
 //   Hunting    Creature kills: OnEntityDeath [OPJ L188], a creature as the game's SalvageSupplier tells one (MonsterMotor
 //              or MonsterEntity), killer evt.KillingDamage.DamageSource.Owner (as RealmQuests).
 //   Crafting   ItemCrafterCraftEvent (Sender asks Crafter to start) and ItemCrafterItemEvent (each product Stack the
@@ -88,6 +93,7 @@ using CodeHatch.Damaging;                            // Damage [ASM]
 using CodeHatch.Engine.Behaviours;                   // ItemCrafter [ASM]
 using CodeHatch.Engine.Core.Cache;                   // Entity, MonsterEntity [ASM]
 using CodeHatch.Engine.Networking;                   // Player, Server [ASM]
+using CodeHatch.Farming;                             // PlotCollectEvent (a farm's harvest) [ASM]
 using CodeHatch.Inventory.Blueprints;                // InvItemBlueprint, InvBlueprints [ASM]
 using CodeHatch.Inventory.Blueprints.Components;     // ContainerManagement [ASM]
 using CodeHatch.ItemContainer;                       // Container, ItemCollection, LootableCreatureContainer [ASM]
@@ -174,6 +180,16 @@ namespace Oxide.Plugins
         private EventSubscriber<ItemPassEvent> passSub;
         private EventSubscriber<ItemCrafterCraftEvent> craftSub;
         private EventSubscriber<ItemCrafterItemEvent> craftItemSub;
+        private EventSubscriber<PlotCollectEvent> plotEarlySub, plotLateSub;
+        private EventSubscriber<EntityDamageEvent> hitEarlySub, hitLateSub;
+        private bool contextSubscribed;
+
+        // What the game is doing for a client right now, so a hand-out (ItemPassEvent) raised inside it can be told
+        // apart: a farm's harvest (PlotCollectEvent) or a blow on a creature (EntityDamageEvent). Set at VeryEarly,
+        // cleared at VeryLate (also when cancelled); the game raises the pass inside the event, on the same thread.
+        private ulong harvestBy;
+        private ulong hitBy;
+        private object hitCreature;
 
         // Clock and dice indirection so the behaviour tests can move time and fix the rolls; on a server always
         // DateTime.UtcNow and System.Random.
@@ -1170,7 +1186,7 @@ namespace Oxide.Plugins
                 { "StatusCounts", "  Gathered units counted {0}, crafts counted {1}, bonus units given {2}, extra items {3}, commissions filled {4} ({5} marks)." },
                 { "StatusItems", "  Gathering items resolved: {0} of {1}. Unresolved: {2}." },
                 { "StatusCrown", "  Next crowning {0}. Treasury: {1}. Renown: {2}. Houses: {3}. Seasons: {4}. Dominion: {5}." },
-                { "StatusSubs", "  Container events subscribed: {0}." },
+                { "StatusSubs", "  Container events subscribed: {0}. Harvest and creature events: {1}." },
                 { "WatchOn", "Watching {0}'s gathering and crafting here. [F4C96D]/craft admin[FFFFFF] watch {0} off ends it." },
                 { "WatchOff", "No longer watching {0}." },
                 { "UnmappedHeader", "Products and stations that matched no profession (latest {0}):" },
@@ -1339,6 +1355,23 @@ namespace Oxide.Plugins
                 subscribed = false;
                 PrintError("Could not subscribe to the game's container and crafting events (" + ex.Message + "): gathering and crafting XP are off.");
             }
+            try
+            {
+                plotEarlySub = new EventSubscriber<PlotCollectEvent>(OnHarvestEarly);
+                plotLateSub = new EventSubscriber<PlotCollectEvent>(OnHarvestLate);
+                hitEarlySub = new EventSubscriber<EntityDamageEvent>(OnHitEarly);
+                hitLateSub = new EventSubscriber<EntityDamageEvent>(OnHitLate);
+                EventManager.Subscribe<PlotCollectEvent>(plotEarlySub, EventHandlerOrder.VeryEarly);
+                EventManager.Subscribe<PlotCollectEvent>(plotLateSub, EventHandlerOrder.VeryLate, EventCancelFlags.InvokeHandler);
+                EventManager.Subscribe<EntityDamageEvent>(hitEarlySub, EventHandlerOrder.VeryEarly);
+                EventManager.Subscribe<EntityDamageEvent>(hitLateSub, EventHandlerOrder.VeryLate, EventCancelFlags.InvokeHandler);
+                contextSubscribed = true;
+            }
+            catch (Exception ex)
+            {
+                contextSubscribed = false;
+                PrintWarning("Could not subscribe to the game's harvest and damage events (" + ex.Message + "): farm crops and creatures' goods count as hand-outs.");
+            }
         }
 
         private bool subscribed;
@@ -1356,6 +1389,10 @@ namespace Oxide.Plugins
                 if (passSub != null) EventManager.Unsubscribe<ItemPassEvent>(passSub);
                 if (craftSub != null) EventManager.Unsubscribe<ItemCrafterCraftEvent>(craftSub);
                 if (craftItemSub != null) EventManager.Unsubscribe<ItemCrafterItemEvent>(craftItemSub);
+                if (plotEarlySub != null) EventManager.Unsubscribe<PlotCollectEvent>(plotEarlySub);
+                if (plotLateSub != null) EventManager.Unsubscribe<PlotCollectEvent>(plotLateSub);
+                if (hitEarlySub != null) EventManager.Unsubscribe<EntityDamageEvent>(hitEarlySub);
+                if (hitLateSub != null) EventManager.Unsubscribe<EntityDamageEvent>(hitLateSub);
             }
             catch (Exception ex) { PrintWarning("Unsubscribe failed: " + ex.Message); }
             addEarlySub = addLateSub = null;
@@ -1365,7 +1402,12 @@ namespace Oxide.Plugins
             passSub = null;
             craftSub = null;
             craftItemSub = null;
+            plotEarlySub = plotLateSub = null;
+            hitEarlySub = hitLateSub = null;
             subscribed = false;
+            contextSubscribed = false;
+            harvestBy = hitBy = 0;
+            hitCreature = null;
         }
 
         #endregion
@@ -1719,7 +1761,7 @@ namespace Oxide.Plugins
                     ItemCollection col = s.CollectionInterface as ItemCollection;
                     Container from = col != null ? col.Container : null;
                     x.SourceCorpse = from is LootableCreatureContainer;
-                    x.SourceContainer = from;
+                    x.SourceContainer = CorpseKey(from);
                 }
                 InvGameItemStack target = e.TargetStack;
                 if (target != null) x.TargetBefore = target.StackAmount;
@@ -1771,7 +1813,7 @@ namespace Oxide.Plugins
                 if (s == null || s.Blueprint == null) return;
                 Container c = e.Container;
                 bool corpse = c is LootableCreatureContainer;
-                AddTransit(p.Id, s, s.Blueprint.Name, s.StackAmount, corpse ? (object)c : null, config.Gathering.TransitSeconds);
+                AddTransit(p.Id, s, s.Blueprint.Name, s.StackAmount, corpse ? CorpseKey(c) : null, config.Gathering.TransitSeconds);
             }
             catch (Exception ex) { if (!Throttled("remove", 60)) PrintWarning("Container watch failed: " + ex.Message); }
         }
@@ -1787,7 +1829,7 @@ namespace Oxide.Plugins
                 if (s == null || s.Blueprint == null || e.Quantity <= 0) return;
                 Container c = e.Container;
                 bool corpse = c is LootableCreatureContainer;
-                AddTransit(p.Id, e.ResultStack, s.Blueprint.Name, e.Quantity, corpse ? (object)c : null, config.Gathering.TransitSeconds);
+                AddTransit(p.Id, e.ResultStack, s.Blueprint.Name, e.Quantity, corpse ? CorpseKey(c) : null, config.Gathering.TransitSeconds);
             }
             catch (Exception ex) { if (!Throttled("split", 60)) PrintWarning("Container watch failed: " + ex.Message); }
         }
@@ -1804,7 +1846,14 @@ namespace Oxide.Plugins
                 InvGameItemStack s = e.ItemStack;
                 if (s == null || s.Blueprint == null || s.StackAmount <= 0) return;
                 string item = s.Blueprint.Name;
-                if (e.Memo == "Loot" && LootCounts(item)) { Watch(r, s.StackAmount + " " + item + " harvested (counts when it lands)"); return; }
+                bool loot = e.Memo == "Loot";
+                if (loot && harvestBy != 0 && harvestBy == r.Id && LootCounts(item)) { Watch(r, s.StackAmount + " " + item + " harvested (counts when it lands)"); return; }
+                if (loot && hitBy != 0 && hitBy == r.Id && hitCreature != null)
+                {
+                    AddTransit(r.Id, s, item, s.StackAmount, hitCreature, config.Gathering.PassSeconds);
+                    Watch(r, s.StackAmount + " " + item + " taken from a creature (hunting goods count when they land)");
+                    return;
+                }
                 AddTransit(r.Id, s, item, s.StackAmount, null, config.Gathering.PassSeconds);
                 Watch(r, s.StackAmount + " " + item + " handed over by the game (" + Clean(e.Memo, 20) + ")");
             }
@@ -1869,6 +1918,52 @@ namespace Oxide.Plugins
             }
             l.RemoveAll(delegate(Transit x) { return x.Units <= 0; });
             return got;
+        }
+
+        // One allowance per creature, whether its goods are looted from the corpse's container or handed over on a blow.
+        private static object CorpseKey(Container c)
+        {
+            if (c == null) return null;
+            Entity e = null;
+            try { e = c.Entity; }
+            catch (Exception) { }
+            return e != null ? (object)e : c;
+        }
+
+        // A farm's harvest: the client whose PlotCollectEvent the game is running [DEC FarmListener.OnPlotCollect].
+        private void OnHarvestEarly(PlotCollectEvent e)
+        {
+            harvestBy = 0;
+            if (!Counting() || e == null || e.Cancelled) return;
+            try { Player p = ClientOf(e); if (p != null) harvestBy = p.Id; }
+            catch (Exception ex) { if (!Throttled("harvest", 60)) PrintWarning("Harvest watch failed: " + ex.Message); }
+        }
+
+        private void OnHarvestLate(PlotCollectEvent e)
+        {
+            harvestBy = 0;
+        }
+
+        // A client's blow on a creature (alive or dead): goods the game hands over during it are the creature's.
+        private void OnHitEarly(EntityDamageEvent e)
+        {
+            hitBy = 0;
+            hitCreature = null;
+            if (!Counting() || e == null || e.Cancelled || e.Entity == null) return;
+            try
+            {
+                Player p = ClientOf(e);
+                if (p == null || !IsCreature(e.Entity)) return;
+                hitBy = p.Id;
+                hitCreature = e.Entity;
+            }
+            catch (Exception ex) { if (!Throttled("hit", 60)) PrintWarning("Hit watch failed: " + ex.Message); }
+        }
+
+        private void OnHitLate(EntityDamageEvent e)
+        {
+            hitBy = 0;
+            hitCreature = null;
         }
 
         // How many of `units` taken from this corpse still count for hunting (CorpseCreditPerContainer per corpse).
@@ -3019,7 +3114,7 @@ namespace Oxide.Plugins
                     ResolveGatherItems();
                     Reply(player, "StatusItems", resolvedItems, config.Gathering.Items.Count, unresolvedItems.Count > 0 ? string.Join(", ", unresolvedItems.ToArray()) : Msg("None", player));
                     Reply(player, "StatusCrown", When(data.NextCrowning, player), Here(RealmTreasury, player), Here(RealmRenown, player), Here(RealmHouses, player), Here(RealmSeasons, player), Here(RealmDominion, player));
-                    Reply(player, "StatusSubs", Msg(subscribed ? "Yes" : "No", player));
+                    Reply(player, "StatusSubs", Msg(subscribed ? "Yes" : "No", player), Msg(contextSubscribed ? "Yes" : "No", player));
                     return;
                 }
                 case "watch":

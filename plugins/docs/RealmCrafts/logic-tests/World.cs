@@ -301,6 +301,26 @@ static class W
         var a = new ContainerItemAddEvent { Sender = p, Entity = p.Entity, Container = p.Inventory, ItemStack = s };
         EventManager.Raise(a, () => p.Inventory.Contents.Put(s));
     }
+    // A farm's harvest: the client's PlotCollectEvent, inside which the game's FarmListener (Normal order) hands the
+    // crops over with an ItemPassEvent "Loot" [DEC FarmListener.OnPlotCollect -> FarmManager.CollectPlot].
+    public static void Harvest(Player p, string item, int n, bool cancelled = false)
+    {
+        var e = new CodeHatch.Farming.PlotCollectEvent { Sender = p, Cancelled = cancelled };
+        EventManager.Raise(e, () => Pass(p, item, n, "Loot"));
+    }
+    // A creature (alive or slain) as the game's SalvageSupplier tells one: a MonsterMotor on its entity.
+    public static Entity Beast(string label)
+    {
+        var beast = new Entity { IsPlayer = false, Label = label + "(Clone)" };
+        beast.Components.Add(new MonsterMotor());
+        return beast;
+    }
+    // A blow on an entity; the game's DamagableContainer (Normal order) hands goods over inside it [DEC].
+    public static void Hit(Player p, Entity target, string item, int n)
+    {
+        var e = new EntityDamageEvent { Sender = p, Entity = target, Damage = new Damage { Amount = 20, DamageSource = p.Entity } };
+        EventManager.Raise(e, () => { if (item != null) Pass(p, item, n, "Loot"); });
+    }
     // A server-side change to the packs that still raises an event (a give with broadcast): the server is the sender.
     public static void ServerAdd(Player p, string item, int n)
     {

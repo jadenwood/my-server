@@ -32,6 +32,7 @@ static class Tests
             Gathering();
             Transfers();
             Corpses();
+            HarvestAndBlows();
             Hunting();
             Caps();
             Levels();
@@ -162,8 +163,8 @@ static class Tests
         Ok(Xp(bram, "woodcutting") == 0, "another player picking up the pack gathers nothing either");
         Pass(ada, "Wood", 60, "Loot");
         Ok(Xp(ada, "woodcutting") == 25, "goods the server hands over (salvage, a broken crate) are not gathered");
-        Pass(ada, "Cabbage", 10, "Loot");
-        Ok(Xp(ada, "foraging") == 15, "a farm's harvest (a crop handed over as Loot) counts for foraging", Xp(ada, "foraging").ToString());
+        Harvest(ada, "Cabbage", 10);
+        Ok(Xp(ada, "foraging") == 15, "a farm's harvest (a crop handed over as Loot inside the harvest) counts for foraging", Xp(ada, "foraging").ToString());
         Pass(ada, "Cabbage", 10, "Passed");
         Ok(Xp(ada, "foraging") == 15, "a crop passed with another memo (from a player) does not");
         ServerAdd(ada, "Wood", 40);
@@ -212,6 +213,47 @@ static class Tests
         Move(ada, ada.Inventory, chest, "Raw Meat");
         Move(ada, chest, ada.Inventory, "Raw Meat");
         Ok(Xp(ada, "hunting") == before + 40, "corpse goods shuffled through a chest afterwards count nothing more");
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Hand-outs inside a game event: a farm's harvest (PlotCollectEvent) and goods given on a blow (EntityDamageEvent).
+    static void HarvestAndBlows()
+    {
+        Reset();
+        var ada = P("Ada");
+        var bram = P("Bram");
+        Harvest(ada, "Flax", 10);
+        Ok(Xp(ada, "foraging") == 20, "flax from the player's own harvest: foraging (2 XP a unit)", Xp(ada, "foraging").ToString());
+        Pass(ada, "Flax", 10, "Loot");
+        Ok(Xp(ada, "foraging") == 20, "the same crop handed over as Loot outside a harvest (salvage): nothing", Xp(ada, "foraging").ToString());
+        Harvest(ada, "Flax", 10, cancelled: true);
+        Ok(Xp(ada, "foraging") == 20 && Has(ada, "Flax") == 20, "a cancelled harvest gives and counts nothing", Has(ada, "Flax").ToString());
+        Pass(ada, "Flax", 5, "Loot");
+        Ok(Xp(ada, "foraging") == 20, "and the flag does not outlive a cancelled harvest", Xp(ada, "foraging").ToString());
+        var e = new CodeHatch.Farming.PlotCollectEvent { Sender = bram };
+        EventManager.Raise(e, () => Pass(ada, "Flax", 10, "Loot"));
+        Ok(Xp(ada, "foraging") == 20 && Xp(bram, "foraging") == 0, "crops handed to someone else during another's harvest count for no one");
+        Harvest(ada, "Wood", 10);
+        Ok(Xp(ada, "woodcutting") == 0, "only LootCountsAsGather crops count from a harvest");
+
+        var wolf = Beast("Wolf");
+        Hit(ada, wolf, "Raw Meat", 10);
+        Ok(Xp(ada, "hunting") == 20, "meat handed over on a blow to a creature: hunting", Xp(ada, "hunting").ToString());
+        Hit(ada, wolf, "Raw Meat", 100);
+        Ok(Xp(ada, "hunting") == 120, "one creature yields at most CorpseCreditPerContainer (60) units, blows and looting together", Xp(ada, "hunting").ToString());
+        var bed = new CodeHatch.Engine.Core.Cache.Entity { IsPlayer = false, Label = "Bed" };
+        Hit(ada, bed, "Flax", 10);
+        Hit(ada, bed, "Leather Hide", 10);
+        Ok(Xp(ada, "foraging") == 20 && Xp(ada, "hunting") == 120, "salvaging a placed object (not a creature) is a hand-out: nothing");
+        var bear = Beast("Bear");
+        Hit(bram, bear, null, 0);
+        Pass(bram, "Raw Meat", 10, "Loot");
+        Ok(Xp(bram, "hunting") == 0, "the blow's flag ends with the blow");
+        var corpse = Corpse("Stag", ("Raw Meat", 80));
+        corpse.Entity.Components.Add(new CodeHatch.AI.MonsterMotor());
+        Hit(bram, corpse.Entity, "Raw Meat", 50);
+        Move(bram, corpse, bram.Inventory, "Raw Meat");
+        Ok(Xp(bram, "hunting") == 120, "a creature hit for goods and then looted shares one allowance of 60", Xp(bram, "hunting").ToString());
     }
 
     // ------------------------------------------------------------------------------------------------------------
