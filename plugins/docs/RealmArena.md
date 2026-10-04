@@ -2,7 +2,7 @@
 
 `plugins/RealmArena.cs` (Oxide 2.0.3867, C# 3) brings honourable combat to Ostreval: **duels by challenge**, fought to the first fall in a ring no one else may enter, with **stakes in marks held in escrow by the treasury**, an **Elo ladder** and a **weekly Champion of the Ring**, **team duels** (2v2, 3v3), **bracket tournaments** (and a bracket for the Royal Tournament), **trial by combat** for the court, and two **tavern games** played in chat for marks with no house edge. Everything happens on the server through Oxide: chat, the game's own popup windows, health and damage events, and (optionally) the game's own teleport. No game file is added or changed and nothing reaches the players' installs.
 
-Status: **compiles with 0 errors against the real 2.0.3867 DLLs; behaviour-tested against mocks with the real `RealmTreasury.cs` in the loop (306 checks); exploit-tested (52 arena checks, 15 on the Royal Tournament hook in the real `RealmEvents.cs`, 12 on the trial hook in the real `RealmLaws.cs`). It has never run on a live server.** See [What is UNVERIFIED](#what-is-unverified-and-how-to-test-it-in-game).
+Status: **compiles with 0 errors against the real 2.0.3867 DLLs; behaviour-tested against mocks with the real `RealmTreasury.cs` in the loop (312 checks); exploit-tested (52 arena checks, 15 on the Royal Tournament hook in the real `RealmEvents.cs`, 12 on the trial hook in the real `RealmLaws.cs`). It has never run on a live server.** See [What is UNVERIFIED](#what-is-unverified-and-how-to-test-it-in-game).
 
 Tags: **[DEC]** = read in the decompiled 2.0.3867 `Assembly-CSharp.dll` to learn what the game does (type and member names only; no game code is kept in this repo). **[ASM]** = confirmed by compiling against that DLL's metadata (`tools/plugin-compile-check/check.sh`). **[OPJ]** = the Oxide hook manifest ([`docs/oxide-rok-api.md`](../../docs/oxide-rok-api.md)). **UNVERIFIED** = not seen working in game.
 
@@ -59,8 +59,8 @@ All four commands are in RealmHerald's `/realm` hub (duel and arena under *Seaso
 2. **Answer** (window or chat) within 60 s. Every check is run again for everyone involved: if the challenger has taken another fight meanwhile, the challenge is called off and every stake goes back. The acceptor's stake is held.
 3. **Meeting.** The duellists have 90 s (`GatherSeconds`) to stand together: the ring forms around them (15 m; 25 m for teams), or an **arena zone** becomes the ring if they all stand in one. With `RequireArena`, duels are only fought in an arena. With `Teleport` (UNVERIFIED), they are brought into the first arena at once.
 4. **The count** (5 s): no blow lands between the duellists yet.
-5. **The fight** (5 min). Inside the ring, from the count until the shield lapses: **no one outside the duel can strike a duellist, and duellists strike only their foes** (in team duels, never their own side). No ropes on or by duellists; no building inside a drawn ring. Out of the ring for 8 s is fleeing.
-6. **The first fall.** A blow that would kill (or leave less than 5% of full health) is turned aside and its target is **felled**. A deadly fall, fire or beast fells a duellist the same way. A team is beaten when every member is felled.
+5. **The fight** (5 min). Inside the ring, from the count until the shield lapses: **no one outside the duel can strike a duellist, and duellists strike only their foes** (in team duels, never their own side). No ropes on or by duellists; no building inside a drawn ring. Out of the ring for 8 s is fleeing. Until the ring is drawn (while the duellists are still meeting) they are in the world like anyone else, but a duellist in a drawn ring cannot strike them, nor they the duellist.
+6. **The first fall.** A blow that would kill (or leave less than 5% of full health) is turned aside and its target is **felled**. A deadly fall, fire or beast fells a duellist the same way, and is turned aside for a fighter already felled while their side fights on. A team is beaten when every member is felled.
 7. **After.** Both sides are tended (half their health) and shielded for 15 s; stakes are paid; ratings move; the herald speaks for a stake of 100 marks or more, or when the Champion fights (at most 6 times an hour).
 
 **Ends that are not a fall.** Time runs out: a **draw** (stakes back, no rating change). Logging off or leaving the ring in the fight: **forfeit** (stake and rating lost). Logging off before the fight: void (stakes back; logging off during the count also counts as a flight). Fleeing three times in a day bars the player from the ring for 12 h. A reload, a server shutdown, staff, or a truce that begins mid-fight: void, every stake back.
@@ -237,7 +237,7 @@ Nothing here has been seen on a live server. Run these with two or three account
 ## Tests
 
 ```
-bash plugins/docs/RealmArena/logic-tests/run.sh   # 306 checks: RealmArena.cs + the real RealmTreasury.cs against mocks
+bash plugins/docs/RealmArena/logic-tests/run.sh   # 312 checks: RealmArena.cs + the real RealmTreasury.cs against mocks
 bash tools/exploit-review/run.sh arena            # arena (52), arena-events (15, real RealmEvents.cs), arena-laws (12, real RealmLaws.cs)
 bash tools/plugin-compile-check/check.sh          # C# 3 against the real 2.0.3867 metadata
 node tools/realm-integration/check.mjs            # cross-plugin calls, chat style, popups, the /realm catalogue

@@ -666,11 +666,14 @@ namespace Oxide.Plugins
             public long PotPaid;                        // lifetime marks paid out of stakes (for /arena admin status)
         }
 
+        private DateTime lastSave = DateTime.MinValue;
+
         private void SaveData()
         {
             if (loadFailed || data == null) return;            // never overwrite the file after a failed load
             Interface.Oxide.DataFileSystem.WriteObject(DataName, data);
             dirty = false;
+            lastSave = Now();
         }
 
         private void Normalize()
@@ -856,7 +859,7 @@ namespace Oxide.Plugins
                 { "AnswerWager", "  Answer with [F4C96D]/duel accept[FFFFFF] {0} {1} (the stake confirms it) or [F4C96D]/duel decline[FFFFFF] {0} within {2} s." },
                 { "NoChallenge", "No challenge is waiting for you." },
                 { "NoChallengeFrom", "No challenge from '{0}' is waiting for you." },
-                { "WhichChallenge", "Several challenges wait for you: name the one you answer, e.g. [F4C96D]/duel accept[FFFFFF] <player>." },
+                { "WhichChallenge", "Several challenges wait for you: name the challenger after accept or decline." },
                 { "Confirm.duel", "That challenge is for {0} marks each. To take it, type [F4C96D]/duel accept[FFFFFF] {1} {0}" },
                 { "Confirm.dice", "That game is for {0} marks each. To take it, type [F4C96D]/dice accept[FFFFFF] {1} {0}" },
                 { "Confirm.cards", "That game is for {0} marks each. To take it, type [F4C96D]/cards accept[FFFFFF] {1} {0}" },
@@ -1414,7 +1417,8 @@ namespace Oxide.Plugins
             RoyalTick(now);
             ChampionTick(now);
             Prune(now);
-            if (dirty) SaveData();
+            // Results, stakes and challenges are saved when they happen; counters (time played) at most once a minute.
+            if (dirty && (now - lastSave).TotalSeconds >= 60) SaveData();
         }
 
         private void FastTick()
@@ -2295,9 +2299,9 @@ namespace Oxide.Plugins
                 // The world (a fall, fire, a beast) may hurt a duellist, but it does not kill one in the fight.
                 if (vd == null || vd.State != SFight) return null;
                 Member vm = MemberOf(vd, vid);
-                if (vm.Out || !WouldFell(victim, d, false)) return null;
+                if (!WouldFell(victim, d, false)) return null;
                 Turn(evt, d);
-                MemberOut(vd, vm, "fell", null);
+                if (!vm.Out) MemberOut(vd, vm, "fell", null);           // a fighter already felled is still spared the death
                 return true;
             }
 
@@ -2317,11 +2321,11 @@ namespace Oxide.Plugins
             }
             if (ad != vd)
             {
-                // One of them is in a duel the other is not part of.
-                Duel inDuel = vd ?? ad;
-                if (inDuel.State == SGather) { lastPvp[aid] = now; lastPvp[vid] = now; return null; }   // no ring is drawn yet
+                // One of them is in a duel the other is not part of. Until a ring is drawn (gathering) the world is the world.
+                bool attackerInRing = ad != null && ad.State != SGather, victimInRing = vd != null && vd.State != SGather;
+                if (!attackerInRing && !victimInRing) { lastPvp[aid] = now; lastPvp[vid] = now; return null; }
                 Turn(evt, d);
-                if (ad != null) NoticeOnce(attacker, "StrikeYourFoe");
+                if (attackerInRing) NoticeOnce(attacker, "StrikeYourFoe");
                 else NoticeOnce(attacker, "RingClosed", CleanName(victim.Name));
                 return true;
             }

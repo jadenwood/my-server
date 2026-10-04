@@ -173,6 +173,16 @@ static class Tests
         var cube2 = new CubePlaceEvent { SenderId = cy.Id, Grid = new Grid { World = new Vector3(80, 0, 80) } };
         Inv(A, "OnCubePlacement", cube2);
         Ok(!cube2.Cancelled, "building elsewhere is untouched");
+        // A second duel still gathering (far apart): its fighters are in the world, but not against a drawn ring.
+        var eve = P("Eve", 200, 0); var fay = P("Fay", 600, 0);
+        Challenge(eve, fay); Accept(fay, eve);
+        Ok(State(eve) == "gather", "a second duel is gathering", State(eve));
+        Clear();
+        Ok(Hit(ada, eve, 10) == "turned", "a duellist in the ring cannot strike someone gathering for another duel");
+        Ok(Hit(eve, ada, 10) == "turned", "nor be struck by one");
+        Ok(Hit(eve, cy, 5) == "applied", "between a gathering fighter and the world, the world is the world");
+        Cmd(eve, "duel", "yield");
+        Ok(Duel(eve) == null && Duel(ada) != null, "the gathering duel is set aside", State(eve));
         Ok((bool)Inv(A, "IsDuelBlow", ada.Id.ToString(), bram.Id.ToString()) && !(bool)Inv(A, "IsDuelBlow", cy.Id.ToString(), ada.Id.ToString()),
             "IsDuelBlow (for RealmLaws' peace): foes in a fight yes, an outsider no");
         Ok((bool)Inv(A, "IsInDuel", ada.Id.ToString()) && !(bool)Inv(A, "IsInDuel", cy.Id.ToString()), "IsInDuel");
@@ -527,6 +537,7 @@ static class Tests
         Clear();
         Ok(Hit(ada, bram, 500) == "turned" && Duel(ada) != null && dee.All().Contains("Bram is felled by Ada"), "one foe felled; the fight goes on", dee.All());
         Ok(Hit(bram, ada, 10) == "turned", "a felled fighter is out of it");
+        Ok(Fall(bram, 500) == "turned" && !bram.Health.Dead, "and a fall that would kill a felled fighter is still turned (no death, no loot)");
         Hit(dee, ada, 5);
         Tick(16);
         Hit(cy, dee, 500);
@@ -906,6 +917,8 @@ static class Tests
     }
 
     // ------------------------------------------------------------------------------------------------------------
+    // Each deal below is fixed first with Rng(4, 5, 6, 7) (5 and 7 to the challenger, 6 and 8 to the other): a dealt 21
+    // stands at once, which would leave the rigged hands to chance.
     static void SetHands(object g, int[] a, int[] b, params int[] deckTop)
     {
         var ha = (List<int>)F(g, "HandA"); ha.Clear(); ha.AddRange(a);
@@ -920,7 +933,7 @@ static class Tests
         Ok((int)typeof(RealmArena).GetMethod("HandValue", BF | System.Reflection.BindingFlags.Static).Invoke(null, new object[] { new List<int> { 0, 12 } }) == 21, "Ace and King: 21");
         Ok((int)typeof(RealmArena).GetMethod("HandValue", BF | System.Reflection.BindingFlags.Static).Invoke(null, new object[] { new List<int> { 0, 13, 12 } }) == 12, "two Aces and a King: 12");
         Cmd(ada, "cards", "Bram", "30");
-        Cmd(bram, "cards", "accept", "Ada", "30");
+        Rng(4, 5, 6, 7); Cmd(bram, "cards", "accept", "Ada", "30");
         Ok(L("Games").Count == 1 && ada.All().Contains("Your hand:") && bram.All().Contains("Your hand:") && Held() == 60, "both stakes held; each sees only their own hand");
         var g = L("Games")[0];
         SetHands(g, new[] { 12, 19 }, new[] { 4, 5 }, 9);                    // Ada King+7 = 17; Bram 5+6 = 11; next card a 10
@@ -931,7 +944,7 @@ static class Tests
         Ok(L("Games").Count == 0 && Purse(bram) == 1030 && Purse(ada) == 970 && ada.All().Contains("King of Stags, 7 of Oaks (17)"), "both stand: hands shown, closest to 21 takes the pot", ada.All());
         Ok(ZeroSum() == "", "balanced", ZeroSum());
         Tick(11);
-        Cmd(ada, "cards", "Bram", "30"); Cmd(bram, "cards", "accept", "Ada", "30");
+        Cmd(ada, "cards", "Bram", "30"); Rng(4, 5, 6, 7); Cmd(bram, "cards", "accept", "Ada", "30");
         g = L("Games")[0];
         SetHands(g, new[] { 12, 25 }, new[] { 4, 5 }, 22);                   // Ada King+King = 20, draws a 10: bust
         Cmd(ada, "cards", "hit");
@@ -939,20 +952,20 @@ static class Tests
         Cmd(bram, "cards", "stand");
         Ok(Purse(bram) == 1060 && Purse(ada) == 940, "the bust loses to any standing hand");
         Tick(11);
-        Cmd(ada, "cards", "Bram", "30"); Cmd(bram, "cards", "accept", "Ada", "30");
+        Cmd(ada, "cards", "Bram", "30"); Rng(4, 5, 6, 7); Cmd(bram, "cards", "accept", "Ada", "30");
         g = L("Games")[0];
         SetHands(g, new[] { 12, 6 }, new[] { 25, 19 });                       // 17 and 17
         Cmd(ada, "cards", "stand"); Cmd(bram, "cards", "stand");
         Ok(Purse(bram) == 1060 && Purse(ada) == 940 && Held() == 0 && ada.All().Contains("Level hands"), "level hands: both stakes back");
         Tick(11);
-        Cmd(ada, "cards", "Bram", "30"); Cmd(bram, "cards", "accept", "Ada", "30");
+        Cmd(ada, "cards", "Bram", "30"); Rng(4, 5, 6, 7); Cmd(bram, "cards", "accept", "Ada", "30");
         g = L("Games")[0];
         SetHands(g, new[] { 12, 6 }, new[] { 4, 5 });
         Clear();
         Tick(46);
         Ok(L("Games").Count == 0 && Purse(ada) == 970, "a hand stands by itself when its time runs out", ada.All());
         Tick(11);
-        Cmd(ada, "cards", "Bram", "30"); Cmd(bram, "cards", "accept", "Ada", "30");
+        Cmd(ada, "cards", "Bram", "30"); Rng(4, 5, 6, 7); Cmd(bram, "cards", "accept", "Ada", "30");
         g = L("Games")[0];
         SetHands(g, new[] { 12, 6 }, new[] { 4, 5 });
         Clear();
