@@ -229,7 +229,7 @@ async function main() {
       console.log(`  materials: ${Object.entries(st.materials).map(([k, v]) => `${k} ${v}`).join(', ')}; shapes: ${Object.entries(st.shapes).map(([k, v]) => `${k} ${v}`).join(', ')}`);
     }
   } else {
-    console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(1, 13).map((l) => l.slice(3)).join('\n'));
+    console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(1, 19).map((l) => l.slice(3)).join('\n'));
     if (cmd) process.exitCode = 1;
   }
 }

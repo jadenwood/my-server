@@ -64,7 +64,7 @@ export function bandOffsets() {
   }
   return out;
 }
-// Clockwise from the avenue side (-z), so a flare can run round the ring in order.
+// In order from the avenue side (-z) round through +x (anticlockwise seen from above), so a flare can run round it.
 export const BAND = bandOffsets().sort((a, b) => ang(a) - ang(b));
 function ang([dx, dz]) { const a = Math.atan2(dx, -dz); return a < 0 ? a + 2 * Math.PI : a; }
 
