@@ -1,6 +1,6 @@
 // Shared test world for RealmWorld: players and creatures on a map, chests, fake RealmTreasury (RewardMarks with a cap),
 // RealmRenown, RealmSeasons, RealmChronicle, RealmHouses, RealmEvents (a schedule the tests set), RealmWarden,
-// RealmHerald, RealmSentinel, RealmPainter, RealmSculptor, RealmTravel, RealmQuests and CrownAndConsequences, and a clock
+// RealmHerald, RealmSentinel, RealmPainter, RealmSculptor, RealmTravel, RealmQuests, RealmArena and CrownAndConsequences, and a clock
 // the tests move. Used by the logic tests (plugins/docs/RealmWorld/logic-tests) and the exploit suite
 // (tools/exploit-review/world).
 using System;
@@ -46,6 +46,7 @@ static class W
     public static DateTime? EventsNext;
     public static string EventsNextTitle = "Crown Night";
     public static HashSet<string> Travelling = new HashSet<string>();
+    public static HashSet<string> InDuel = new HashSet<string>();     // RealmArena.IsInDuel
     public static HashSet<string> PopupsOff = new HashSet<string>();
     public static int ChronicleId = 10;
     public static string King, KingHouse;
@@ -85,7 +86,7 @@ static class W
         Server.ClientPlayers.Clear(); Server.Broadcasts.Clear(); Everyone.Clear(); Entity.World.Clear(); Entity.ListThrows = false;
         Purses.Clear(); RewardCap = long.MaxValue; Minted = 0; Clear(); NextPlacement = 100; SculptorRefuses = false;
         HouseOf.Clear(); Liege.Clear(); Treaties.Clear(); Protected.Clear(); Truce = false; EventsActive.Clear(); EventsNext = null; EventsNextTitle = "Crown Night";
-        Travelling.Clear(); PopupsOff.Clear(); ChronicleId = 10; King = null; KingHouse = null; Absent.Clear();
+        Travelling.Clear(); InDuel.Clear(); PopupsOff.Clear(); ChronicleId = 10; King = null; KingHouse = null; Absent.Clear();
         GameClock.Instance = new GameClock();
         InvBlueprints.Instance = new InvBlueprints();
         Clock = new DateTime(2026, 10, 6, 12, 0, 0, DateTimeKind.Utc);    // a Tuesday
@@ -158,6 +159,7 @@ static class W
         if (h == "CancelJourney") { Cancelled.Add((string)a[0]); return Travelling.Remove((string)a[0]); }
         return null;
     });
+    public static Plugin Arena = Fake("RealmArena", (h, a) => h == "IsInDuel" ? (object)InDuel.Contains((string)a[0]) : null);
     public static Plugin Quests = Fake("RealmQuests", (h, a) => { if (h == "ReportQuestEvent") { QuestEvents.Add(a[0] + "|" + a[1] + "|" + a[2]); return true; } return null; });
     public static Plugin Crown = Fake("CrownAndConsequences", (h, a) =>
     {
@@ -171,7 +173,7 @@ static class W
         new[] { "RealmTreasury", "Treasury" }, new[] { "RealmRenown", "Renown" }, new[] { "RealmSeasons", "Seasons" }, new[] { "RealmChronicle", "Chronicle" },
         new[] { "RealmHouses", "Houses" }, new[] { "RealmEvents", "Events" }, new[] { "RealmWarden", "Warden" }, new[] { "RealmHerald", "Herald" },
         new[] { "RealmSentinel", "Sentinel" }, new[] { "RealmPainter", "Painter" }, new[] { "RealmSculptor", "Sculptor" }, new[] { "RealmTravel", "Travel" },
-        new[] { "RealmQuests", "Quests" }, new[] { "CrownAndConsequences", "Crown" },
+        new[] { "RealmQuests", "Quests" }, new[] { "CrownAndConsequences", "Crown" }, new[] { "RealmArena", "Arena" },
     };
 
     // A plugin with the default config (tweak changes it before Init), wired to the fakes, loaded and started.

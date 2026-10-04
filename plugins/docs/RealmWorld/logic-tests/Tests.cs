@@ -24,7 +24,7 @@ static class Tests
     {
         Repo = argv.Length > 0 ? argv[0] : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
         Setup(); DefaultsNeverMeetRealmEvents(); Schedule(); ClashWithRealmEvents(); TreasureLayout(); TreasureHunt(); TreasureChest(); TreasureHints();
-        BloodMoon(); Caravan(); CaravanPlunder(); CaravanFailures(); CaravanWaystones(); LegendBound(); LegendRegion(); Festival(); FestivalClose();
+        BloodMoon(); Caravan(); CaravanPlunder(); CaravanFailures(); CaravanDuels(); CaravanWaystones(); LegendBound(); LegendRegion(); Festival(); FestivalClose();
         Census(); OwedRewards(); Board(); DataSafety(); Config(); ChatStyle();
         Console.WriteLine(pass + " passed, " + fail + " failed");
         return fail == 0 ? 0 : 1;
@@ -450,6 +450,10 @@ static class Tests
         Online(hal);
         Kill(ada, hal);
         Ok(Deeds.Count == 1, "staff: no");
+        InDuel.Add(H.ToString());
+        Kill(bob, hal);
+        Ok(Deeds.Count == 1, "a fighter in a duel (RealmArena.IsInDuel): no");
+        InDuel.Clear();
         Kill(bob, hal);
         Kill(bob, dan);
         Kill(bob, gus);
@@ -693,6 +697,59 @@ static class Tests
         CaravanWorld(out ada);
         Ok(AdminCmd(ada, "route", "remove", "grain-road").Contains("route grain-road removed"), "route remove");
         Ok(AdminCmd(ada, "start", "caravan").Contains("no caravan route is set"), "no route: it cannot start");
+    }
+
+    // RealmArena: a duel (and its ring, which may move the fighters) is no road.
+    static void CaravanDuels()
+    {
+        Player ada;
+        CaravanWorld(out ada);
+        var bob = Mk(Bb, "Bob", 5, 0, "Varrow");
+        var cat = Mk(C, "Cat", 8, 0, "Ashgrove");
+        var dan = Mk(Dd, "Dan", 6, 0, "Corvane");
+        AdminCmd(ada, "start", "caravan");
+        InDuel.Add(Bb.ToString());
+        Ok(Cmd(bob, "caravan", "carry").Contains("Finish your duel first") && Sub("Caravan") != null && F(Sub("Caravan"), "BearerId") == null, "a player in a duel cannot take up the goods");
+        InDuel.Clear();
+        Cmd(bob, "caravan", "carry");
+        InDuel.Add(Bb.ToString());
+        Clear();
+        Tick();
+        Ok(F(Sub("Caravan"), "BearerId") == null && B().Contains("needs a new bearer"), "a bearer who goes into a duel at the muster frees the goods", B());
+        InDuel.Clear();
+        Cmd(cat, "caravan", "carry");
+        Cmd(dan, "caravan", "escort");
+        Minutes(10);
+        Ok(ActiveKind() == "caravan" && (string)F(Sub("Caravan"), "Phase") == "road", "(on the road)");
+        // Dan duels the whole way: never counted near, so never paid.
+        InDuel.Add(Dd.ToString());
+        for (int x = 100; x <= 1000; x += 100) { At(cat, x, 0); At(dan, x + 5, 0); Tick(); }
+        Ok(Active() == null && Rewards.Any(r => r.StartsWith(C + "|")) && !Rewards.Any(r => r.StartsWith(Dd + "|")), "an escort in a duel is not counted near the bearer", string.Join(",", Rewards));
+        // A bearer who duels on the road loses the caravan; nothing is paid.
+        CaravanWorld(out ada);
+        bob = Mk(Bb, "Bob", 5, 0, "Varrow");
+        AdminCmd(ada, "start", "caravan");
+        Cmd(bob, "caravan", "carry");
+        Minutes(10);
+        At(bob, 100, 0); Tick();
+        Clear();
+        InDuel.Add(Bb.ToString());
+        Tick();
+        Ok(Active() == null && B().Contains("The bearer Bob left the road for a duel; the caravan to Greywater is lost.") && Rewards.Count == 0, "a bearer who duels on the road loses the caravan", B());
+        Ok(Logs.Any(l => l.StartsWith("event_ended|The caravan to Greywater is lost|")), "Chronicle entry for the lost caravan");
+        // Without RealmArena loaded, nobody is in a duel.
+        Reset();
+        Absent.Add("RealmArena");
+        NewWorld();
+        ada = Staff();
+        Place(ada, "kingsreach", 0, 0, "Kingsreach");
+        Place(ada, "greywater", 1000, 0, "Greywater");
+        AdminCmd(ada, "route", "add", "grain-road", "kingsreach", "greywater");
+        bob = Mk(Bb, "Bob", 5, 0, "Varrow");
+        InDuel.Add(Bb.ToString());
+        AdminCmd(ada, "start", "caravan");
+        Ok(Cmd(bob, "caravan", "carry").Contains("You bear the caravan"), "without RealmArena the duel check reads as no duel");
+        Absent.Clear();
     }
 
     static void CaravanWaystones()

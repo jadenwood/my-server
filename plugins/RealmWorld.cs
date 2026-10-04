@@ -25,6 +25,8 @@
 //              by the bearer and the escorts who kept close, the bearer's house earns season points. A player who
 //              kills the bearer plunders it (a share of the purse) and a raider's bounty is set on their head for
 //              RaiderBountyHours, paid to whoever kills them (never the plundered bearer, their house or allies).
+//              A bearer who takes up a duel (RealmArena.IsInDuel) gives up the goods: at the muster the place is free
+//              again, on the road the caravan is lost; an escort in a duel is not counted as near.
 //              Housemates and allies cannot plunder; their blow only loses the caravan. RealmContracts' rules for
 //              bounties are followed: a verified kill from the death hook, an online victim, no allies.
 //   legend     A Wandering Legend: a named beast. If a creature of the legend's kind is found (Entity.TryGetAll of
@@ -78,7 +80,8 @@
 //   RealmHerald.PopupsWanted; RealmSentinel.SentinelItemSource; RealmPainter.RefreshBoards("world");
 //   RealmSculptor.PlaceSculptureAt, RemoveSculpture; RealmTravel.IsTravelling, CancelJourney; RealmQuests.
 //   ReportQuestEvent(id, "event", subject, 1); CrownAndConsequences.GetKingName, GetKingHouse; RealmTreasury.
-//   GetTreasurySummary; RealmSeasons.GetSeasonStandings.
+//   GetTreasurySummary; RealmSeasons.GetSeasonStandings; RealmArena.IsInDuel (no caravan bearer, escort or Blood Moon
+//   kill counts in a duel).
 //
 // Data: oxide/data/RealmWorld.json. If it exists but cannot be read, or reads as empty (a truncated file), the plugin
 // pauses and NEVER writes it. Rewards: an owed entry is saved before anything is given; a crash can lose a reward,
@@ -122,6 +125,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin RealmSculptor;
         [PluginReference] private Plugin RealmTravel;
         [PluginReference] private Plugin RealmQuests;
+        [PluginReference] private Plugin RealmArena;
         [PluginReference] private Plugin CrownAndConsequences;
 
         private const string PermAdmin = "realmworld.admin";
@@ -1053,6 +1057,8 @@ namespace Oxide.Plugins
                 { "CaravanNoBearer", "The caravan at {2} finds no bearer and stays home." },
                 { "CaravanDeserted", "The bearer {1} has left the road; the caravan to {0} is lost." },
                 { "CaravanJumped", "The goods bound for {0} vanished from the road with {1}. The caravan is lost." },
+                { "CaravanDuelled", "The bearer {1} left the road for a duel; the caravan to {0} is lost." },
+                { "CaravanInDuel", "Finish your duel first: the merchants want a bearer on the road, not in the ring." },
                 { "CaravanFell", "The bearer {1} fell on the road to {0}; the goods are scattered." },
                 { "CaravanBetrayed", "The bearer {1} was cut down by friends on the road to {0}. Nobody profits; the goods are lost." },
                 { "CaravanStopped", "The caravan to {0} is called off." },
@@ -2033,6 +2039,7 @@ namespace Oxide.Plugins
             if (OnlineById(victim.Id) == null || OnlineById(killer.Id) == null) return "offline";
             if (AskBool(RealmWarden, "IsNewPlayerProtected", victim.Id)) return "protected";
             if (AskBool(RealmEvents, "IsTruceActive")) return "truce";
+            if (InDuel(killer.Id.ToString()) || InDuel(victim.Id.ToString())) return "duel";
             string kh = HouseOf(killer.Id), vh = HouseOf(victim.Id);
             if (kh != null && vh != null && (SameText(kh, vh) || Allied(kh, vh))) return "allies";
             return null;
@@ -2175,6 +2182,7 @@ namespace Oxide.Plugins
             string id = player.Id.ToString();
             if (data.Bounties.ContainsKey(id)) { ReplyError(player, "CaravanRaiderNo"); return; }
             if (AskBool(RealmWarden, "IsNewPlayerProtected", player.Id)) { ReplyError(player, "CaravanProtected"); return; }
+            if (InDuel(id)) { ReplyError(player, "CaravanInDuel"); return; }
             UnityEngine.Vector3 pos;
             if (!TryPos(player, out pos)) { ReplyError(player, "NoPosition"); return; }
             if (FlatDist(pos.x, pos.z, c.FX, c.FZ) > config.Caravan.StartRadius) { ReplyError(player, "CaravanTooFar", c.FromName, (int)config.Caravan.StartRadius); return; }
@@ -2255,6 +2263,12 @@ namespace Oxide.Plugins
             CaravanRun c = a.Caravan;
             if (c.Phase == "muster")
             {
+                if (c.BearerId != null && InDuel(c.BearerId))
+                {
+                    c.BearerId = null; c.BearerName = null; c.BearerHouse = null;
+                    dirty = true;
+                    Herald(Fmt("CaravanBearerLeft", null, c.FromName));
+                }
                 if (now < c.Depart) return;
                 if (c.BearerId == null) { Finish(a, "nobearer"); return; }
                 Player b0 = OnlineById(ParseId(c.BearerId));
@@ -2276,6 +2290,7 @@ namespace Oxide.Plugins
                 return;
             }
             c.OfflineSince = DateTime.MinValue;
+            if (InDuel(c.BearerId)) { Finish(a, "duel"); return; }      // a duel (and its ring) is no road
             if (RealmTravel != null && AskBool(RealmTravel, "IsTravelling", c.BearerId))
             {
                 Ask(RealmTravel, "CancelJourney", c.BearerId);
@@ -2290,7 +2305,7 @@ namespace Oxide.Plugins
             {
                 Player e = OnlineById(ParseId(kv.Key));
                 UnityEngine.Vector3 ep;
-                if (e != null && TryPos(e, out ep) && FlatDist(ep.x, ep.z, pos.x, pos.z) <= config.Caravan.EscortRadius) kv.Value.Near++;
+                if (e != null && TryPos(e, out ep) && FlatDist(ep.x, ep.z, pos.x, pos.z) <= config.Caravan.EscortRadius && !InDuel(kv.Key)) kv.Value.Near++;
             }
             dirty = true;
             if (FlatDist(pos.x, pos.z, c.TX, c.TZ) <= config.Caravan.ArriveRadius) { CaravanArrives(a, bearer); return; }
@@ -2387,7 +2402,7 @@ namespace Oxide.Plugins
             if (outcome == "arrived" || outcome == "plundered") return;
             CaravanRun c = a.Caravan;
             string key = outcome == "nobearer" ? "CaravanNoBearer" : outcome == "deserted" ? "CaravanDeserted" : outcome == "jumped" ? "CaravanJumped"
-                : outcome == "fell" ? "CaravanFell" : outcome == "betrayed" ? "CaravanBetrayed" : outcome == "stopped" ? "CaravanStopped" : "CaravanLate";
+                : outcome == "duel" ? "CaravanDuelled" : outcome == "fell" ? "CaravanFell" : outcome == "betrayed" ? "CaravanBetrayed" : outcome == "stopped" ? "CaravanStopped" : "CaravanLate";
             if (outcome != "nobearer") data.Week.CaravansLost++;
             Herald(Fmt(key, null, c.ToName, c.BearerName ?? "?", c.FromName));
             if (outcome != "nobearer" && outcome != "stopped")
@@ -3546,6 +3561,8 @@ namespace Oxide.Plugins
             AddLoaded(plugins, "RealmSculptor", RealmSculptor);
             AddLoaded(plugins, "RealmPainter", RealmPainter);
             AddLoaded(plugins, "RealmTravel", RealmTravel);
+            AddLoaded(plugins, "RealmQuests", RealmQuests);
+            AddLoaded(plugins, "RealmArena", RealmArena);
             Reply(player, "AdminStatus3", string.Join(", ", plugins.ToArray()));
             foreach (KeyValuePair<string, DateTime> kv in data.Postponed) Reply(player, "AdminPostponed", kv.Key, ClockText(kv.Value));
         }
@@ -4116,6 +4133,12 @@ namespace Oxide.Plugins
         private bool Eligible(Player player)
         {
             return player != null && !player.IsServer && (config.General.AdminsCanWin || !IsAdmin(player));
+        }
+
+        // RealmArena: is the player in a duel (gathering, counting down or fighting)? Absent arena: no.
+        private bool InDuel(string playerId)
+        {
+            return RealmArena != null && !string.IsNullOrEmpty(playerId) && AskBool(RealmArena, "IsInDuel", playerId);
         }
 
         private string HouseOf(ulong playerId)
