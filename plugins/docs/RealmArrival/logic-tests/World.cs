@@ -6,7 +6,7 @@
 // The site (metres; one block is 1.2 m; the floor is block row y=7, players stand at y=10):
 //   hall box (0,0)-(22,26), six stones at z 5 and 10, the gold line at (11,22), the gate opening cells x 8-12, z 22,
 //   rows y 8-13 (bottom-left cell at (9.6,10,26.4)), the eject point at (11,31), the avenue along x=11 to the Hearth at
-//   (11,130): pledge stones in pairs at z 46, 74 and 103 (x 3 and 19), mercy stones at the Hearth, the wayboard at
+//   (11,130): pledge stones in pairs at z 46, 74 and 103 (x 3 and 19), mercy stones on the Hearth's rim (outside the ember band), the wayboard at
 //   (11,147), the drop pad west of the hall, the Old Throne at (11,300).
 using System;
 using System.Collections;
@@ -341,9 +341,10 @@ static class W
         Stand(adm, -6, 2, "droppad", "corner1");
         Stand(adm, -2, 8, "droppad", "corner2");
         foreach (var s in StoneXZ) Stand(adm, s[0], s[1], "stone", "add");
-        Stand(adm, 8, 125, "mercy", "add");
-        Stand(adm, 14, 122, "mercy", "add");
-        Stand(adm, 11, 140, "mercy", "add");
+        // Mercy stones on the dais rim, outside the ember band (as M1-M3 in the plan: 6 cells out from the fire).
+        Stand(adm, 3.8f, 130, "mercy", "add");
+        Stand(adm, 18.2f, 130, "mercy", "add");
+        Stand(adm, 11, 122.8f, "mercy", "add");
         Stand(adm, 11, 31, "eject", "set");
         Stand(adm, 11, 22, "threshold", "set");
         Stand(adm, 11, 130, "hearth", "set");

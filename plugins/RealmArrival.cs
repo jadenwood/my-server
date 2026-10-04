@@ -20,6 +20,13 @@
 //   Written    on /quest, on walking 70 m from the fire or 60 s after the last line: the arrival is done.
 //   Safety     a sanctuary in the hall box for players in arrival (and their sleepers), eviction of others to the eject
 //              point, a 30 s release shield and an arrival-zone guard; Hearth's Mercy respawns; skip, tour, resume.
+//   The site   art/sculptures/sites/arrival.json (format realm-site/1), copied to oxide/data/RealmArrival/site.json and
+//              read-only here, names every spot by its id: stones A1-A6, mercy stones M1-M3, the eject point E, the
+//              threshold (gold line), hearth, wayboard, gateSet, banner.<slot>, the boxes Z0 (hall) and Z0b (drop pad),
+//              the gate rows, the ember band and the stone floors. /arrival admin site anchor (stand on gateSet, facing
+//              out) stores every point from it; the pair lot (lot draw) gives each slot its house; the self-check reads
+//              the stone floors; site pieces and site signs print the run-sheet with world positions. Without the file,
+//              every point is stored by staff standing on it, as before.
 //
 // Game API ([DEC] = read in the decompiled shipped patched Assembly-CSharp.dll, type.member names only; [ASM] = in its
 // metadata; [OPJ]/[SRC] as in docs/oxide-rok-api.md). No game code is copied here.
@@ -46,6 +53,7 @@
 //              Apply(Entity) [DEC] (hearth buff, off), GameClock.Instance.TimeOfDay / HourOfSunsetStart / HourOfSunsetEnd /
 //              HourOfSunriseStart [DEC] (dusk tip and the night reveal; inferred that the server's clock follows the sky).
 //   Throne     AncientThrone.EntityPosition [DEC] (the site check), unless an admin stored the point.
+//   Facing     Entity.Forward [ASM] (as RealmSculptor), rounded to an axis, for site anchor and gate set.
 //
 // Cross-plugin (all optional; null = not available): RealmSentinel.SentinelGrace; RealmTravel.CancelJourney,
 // GetDiscoveredCount, IsTravelling; RealmWarden.IsNewPlayerProtected, IsInCombat, RaiseWardenAlert,
@@ -105,7 +113,11 @@ namespace Oxide.Plugins
         private const string PermAdmin = "realmarrival.admin";
         private const string PermSkip = "realmarrival.skip";
         private const string DataName = "RealmArrival";
+        private const string SiteFileName = "RealmArrival/site";       // oxide/data/RealmArrival/site.json, read only
         private const int DataFormat = 1;
+        private const float BlockSize = 1.2f;                          // BlockManager.BLOCK_SIZE, as RealmSculptor
+        private static readonly string[] FacingNames = { "+z", "+x", "-z", "-x" };
+        private static readonly string[] DefaultSlots = { "p1-left", "p1-right", "p2-left", "p2-right", "p3-left", "p3-right" };
         private const string ChatCmdColour = "F4C96D";
         private const string ChatMuted = "A3A6AD";
 
@@ -172,6 +184,7 @@ namespace Oxide.Plugins
         private bool gateWantClose;
         private DateTime gateOpenedAt = DateTime.MinValue;
         private DateTime gateCycleAt = DateTime.MinValue;
+        private DateTime gateTestCloseAt = DateTime.MinValue;   // /arrival admin gate test: close again at this time
         private DateTime lastFlare = DateTime.MinValue;
         private bool flaring;
         private bool selfPlacing;
@@ -244,7 +257,7 @@ namespace Oxide.Plugins
             public bool UseCompassWords = false;
             public bool HourOneTips = true;
             public bool SeedFromHerald = true;
-            public string WrittenDeed = "written";       // RealmRenown deed kind ("" = none)
+            public string WrittenDeed = "";              // RealmRenown deed kind; "" = none: RealmQuests' ex_written pays "written"
             public string HearthWaystone = "the-hearth";
             public string RoadsWaystone = "crown-market";
             public bool LogHooks = false;                // play-test 1: log every spawn hook with a timestamp
@@ -371,6 +384,10 @@ namespace Oxide.Plugins
             public List<Cell> BeaconCells = new List<Cell>();
             public bool Paused;
             public string PairOrder = "";
+            // The site plan (oxide/data/RealmArrival/site.json) placed on the ground: world cell = anchor + turn(site cell).
+            public bool Anchored;
+            public int AnchorX, AnchorY, AnchorZ, Turn;
+            public Dictionary<string, string> Lot = new Dictionary<string, string>();   // slot (p1-left ...) -> house id
         }
 
         private class Rec
@@ -381,6 +398,7 @@ namespace Oxide.Plugins
             public bool Play;                             // /arrival admin play: no Herald line, quests or deed
             public bool Staff;
             public bool Seeded;                           // a veteran seeded from RealmHerald.json
+            public bool Finished;                         // has made a character on some world (OnPlayerSpawned, or a returning spawn)
             public DateTime Created;
             public DateTime StageAt;
             public DateTime LastSeen;
@@ -484,6 +502,12 @@ namespace Oxide.Plugins
             s.GateCells.RemoveAll(delegate(Cell c) { return c == null; });
             s.BeaconCells.RemoveAll(delegate(Cell c) { return c == null; });
             if (s.PairOrder == null) s.PairOrder = "";
+            var lot = new Dictionary<string, string>();
+            if (s.Lot != null)
+                foreach (KeyValuePair<string, string> kv in s.Lot)
+                    if (kv.Key != null && kv.Value != null && Array.IndexOf(GreatHouses, kv.Value.ToLowerInvariant()) >= 0) lot[kv.Key.ToLowerInvariant()] = kv.Value.ToLowerInvariant();
+            s.Lot = lot;
+            s.Turn = ((s.Turn % 4) + 4) % 4;
             Stats st = data.Stats;
             if (st.Counters == null) st.Counters = new Dictionary<string, int>();
             if (st.StageSeconds == null) st.StageSeconds = new Dictionary<string, double>();
@@ -714,7 +738,8 @@ namespace Oxide.Plugins
                 { "PlayerNotFound", "No such person is online (or the name is ambiguous)." },
                 { "Help1", "[F4C96D]/arrival[FFFFFF] - where you are in your arrival and what is next." },
                 { "Help2", "  [F4C96D]/arrival skip[FFFFFF] ends it now; [F4C96D]/arrival tour[FFFFFF] tells you the banners, the fire and the roads again." },
-                { "HelpAdmin", "  Staff: [F4C96D]/arrival admin[FFFFFF] status | check | open | close | pause | resume | mode | gatemode | stone | mercy | hall | gate | beacon | banner | play" },
+                { "HelpAdmin", "  Staff: [F4C96D]/arrival admin[FFFFFF] status | site | check | runsheet | lot | open | close | pause | resume | mode | gatemode | evict | wave" },
+                { "HelpAdmin2", "  [F4C96D]/arrival admin[FFFFFF] stone | mercy | hall | droppad | eject | threshold | hearth | wayboard | throne | banner | gate | beacon | play | skip | reset | veteran | pass" },
                 { "StageNow", "Your arrival: {0}." },
                 { "Stage.pending", "not begun" },
                 { "Stage.crossing", "on the crossing" },
@@ -751,6 +776,34 @@ namespace Oxide.Plugins
                 { "Resumed", "Arrivals resumed." },
                 { "SelfCheckClosed", "The Gatehouse closed itself: {0}" },
                 { "PointList", "  {0}. {1}" },
+                { "SiteFile", "Site file: {0} ({1})." },
+                { "SiteAnchor", "  Anchored at cell {0}, turn {1} (the gate faces {2})." },
+                { "SiteNotAnchored", "  Not anchored: stand in the gateSet cell facing out, then [F4C96D]/arrival admin site anchor[FFFFFF]." },
+                { "SiteLot", "  Pair lot: {0}." },
+                { "LotNone", "not drawn" },
+                { "LotDrawn", "[D6A043]Herald[FFFFFF]: The lot is cast for the Gatehouse road. Nearest the gate stand {0} and {1}; then {2} and {3}; and by the fire {4} and {5}." },
+                { "PlanLine", "  {0} ({1}): {2} - {3}" },
+                { "PlanOk", "stored" },
+                { "PlanNotStored", "not stored" },
+                { "PlanOff", "stored {0} m away" },
+                { "PieceLine", "  {0}. {1}: stand at {2} facing {3}, then [F4C96D]/sculpt place[FFFFFF] {4} {5}{6}" },
+                { "PieceOptional", " (optional)" },
+                { "SignLine", "  {0} {1}: at {2}, facing {3}. Bind with [F4C96D]/paint[FFFFFF]." },
+                { "SignText", "    [A3A6AD]{0}[FFFFFF]" },
+                { "RunsheetHead", "After a wipe, in order:" },
+                { "Runsheet1", "  1. [F4C96D]/arrival admin close[FFFFFF] - {0}" },
+                { "Runsheet2", "  2. Put the staff crests back - {0}" },
+                { "Runsheet3", "  3. Draw the pair lot in public: [F4C96D]/arrival admin lot draw[FFFFFF] - {0}" },
+                { "Runsheet4", "  4. Place the pieces in route order ([F4C96D]/arrival admin site pieces[FFFFFF]), then the fire pit and lights - {0}" },
+                { "Runsheet5", "  5. Rebind the {1} signs ([F4C96D]/arrival admin site signs[FFFFFF]) - {0}" },
+                { "Runsheet6", "  6. [F4C96D]/arrival admin gate build[FFFFFF] and [F4C96D]/arrival admin beacon build[FFFFFF] 5 - {0}" },
+                { "Runsheet7", "  7. Re-store any point that moved ([F4C96D]/arrival admin site plan[FFFFFF]) - {0}" },
+                { "Runsheet8", "  8. [F4C96D]/arrival admin check[FFFFFF], then [F4C96D]/arrival admin open[FFFFFF] - {0}" },
+                { "StepDone", "done" },
+                { "StepToDo", "to do" },
+                { "StepUnknown", "not known yet" },
+                { "ByHand", "check by eye" },
+                { "CheckPasses", "the check passes; open when ready" },
                 { "PlayStarted", "{0} is in the Gatehouse (a staff run: no Herald line, quest credit or deed)." },
                 { "PlayRefused", "{0} is in a fight or travelling; try again in a moment." }
             }, this);
@@ -821,6 +874,7 @@ namespace Oxide.Plugins
             permission.RegisterPermission(PermSkip, this);
             LoadData();
             if (!loadFailed) SeedFromHerald();
+            LoadSite();
         }
 
         private void OnServerInitialized()
@@ -1016,6 +1070,7 @@ namespace Oxide.Plugins
             staleWake.Remove(id);
             firstSightC.Remove(id.ToString());
             popupAsks.Remove(id.ToString());
+            firstMoveWatch.Remove(id);
             if (loadFailed || data == null || player.IsServer) return;
             Rec rec = FindRec(id.ToString());
             if (rec == null) return;
@@ -1064,7 +1119,11 @@ namespace Oxide.Plugins
                 StageTo(rec, config.StaffToHearth && Handling() ? SCrossing : SNone);
                 return;
             }
-            if (rec.Stage == SDone || rec.Seeded && rec.Stage != SCrossing && !IsRunning(rec.Stage) && rec.Stage != SNone)
+            // A known veteran: done (finished, or seen returning), seeded from RealmHerald, or not handled last time (none:
+            // closed, paused) after making a character. An in-arrival stage means the world was reset mid-arrival: restart.
+            bool veteran = rec.Stage == SDone || rec.Seeded && rec.Stage != SCrossing && !IsRunning(rec.Stage)
+                || rec.Stage == SNone && rec.Finished;
+            if (veteran)
             {
                 // Variant B: a known veteran on a fresh world.
                 rec.Variant = VVeteran;
@@ -1088,6 +1147,7 @@ namespace Oxide.Plugins
         {
             ulong id = player.Id;
             string idS = id.ToString();
+            if (!rec.Finished) { rec.Finished = true; dirty = true; }     // a character exists on this world
             if (rec.Stage == SPending)
             {
                 // Variant C seen for the first time: a known veteran from now on (a later wipe treats them as B).
@@ -1123,8 +1183,10 @@ namespace Oxide.Plugins
                 if (player == null || player.IsServer) return;
                 Rec rec = FindRec(player.Id.ToString());
                 LogHook("OnPlayerSpawned", player, "stage " + (rec != null ? rec.Stage : "(no record)"));
+                if (config.LogHooks) WatchFirstMove(player);
                 if (rec == null) return;
                 ulong id = player.Id;
+                if (!rec.Finished) { rec.Finished = true; dirty = true; }
                 if (pendingVet.Remove(id))
                 {
                     if (Handling()) StartVeteranLine(player, rec);
@@ -1174,6 +1236,16 @@ namespace Oxide.Plugins
             }
             UnityEngine.Vector3 target;
             bool mercy;
+            UnityEngine.Vector3 provided;
+            if (config.RoutingMode == "provider" && providerAnswers.TryGetValue(id, out provided))
+            {
+                // The game's own teleport already went to the stone the provider chose (and marked taken); nothing moves.
+                providerAnswers.Remove(id);
+                run.Placed = provided;
+                run.HasPlaced = true;
+                ScheduleArrivalChecks(id);
+                return;
+            }
             if (!ChooseTarget(id, out target, out mercy))
             {
                 StartRoadMode(player, rec, run, false);
@@ -1192,13 +1264,12 @@ namespace Oxide.Plugins
                 MoveNow(player, target, 30f);
                 return;
             }
-            UnityEngine.Vector3 provided;
-            if (config.RoutingMode == "provider" && providerAnswers.TryGetValue(id, out provided))
-            {
-                providerAnswers.Remove(id);
-                run.Placed = provided;                       // the game's own teleport already went there
-            }
-            else MoveNow(player, target, 30f);
+            MoveNow(player, target, 30f);
+            ScheduleArrivalChecks(id);
+        }
+
+        private void ScheduleArrivalChecks(ulong id)
+        {
             for (int i = 0; i < config.ArrivalCheckSeconds.Count; i++)
             {
                 int k = i;
@@ -1321,10 +1392,14 @@ namespace Oxide.Plugins
         {
             Run run = new Run();
             run.Id = p.Id;
-            run.Narrating = rec.Stage != SGatehouse;
-            run.W0 = Now();
-            run.Since = Now();
-            run.AutoOpenAt = Now().AddSeconds(config.AutoOpenSeconds);
+            DateTime now = Now();
+            // In the Gatehouse, a run whose narration had already begun (past the start cap) does not hear the Wake and
+            // Naming lines again: the gate opens on the gold line, or 20 s on, as after a resume.
+            bool spoken = rec.T0 != DateTime.MinValue && (now - rec.T0).TotalSeconds >= config.NarrationStartCapSeconds;
+            run.Narrating = rec.Stage != SGatehouse || spoken;
+            run.W0 = now;
+            run.Since = now;
+            run.AutoOpenAt = rec.Stage == SGatehouse && spoken ? now.AddSeconds(20) : now.AddSeconds(config.AutoOpenSeconds);
             run.LastMoveAt = Now();
             run.LastProgressAt = Now();
             run.Road = rec.RoadMode;
@@ -1681,6 +1756,7 @@ namespace Oxide.Plugins
             if (HallSet()) EvictTick(now);
             WayboardTick(now);
             GateTick(now);
+            FirstMoveTick(now);
             if (now >= nextMinute)
             {
                 nextMinute = now.AddSeconds(60);
@@ -2545,6 +2621,11 @@ namespace Oxide.Plugins
             return config.GateMode == "portcullis" && data != null && data.Site.GateCells.Count > 0 && GridReady();
         }
 
+        private int GateRowsCount()
+        {
+            return data == null ? 0 : GateRows().Count;
+        }
+
         // Rows of the stored gate cells, bottom row first.
         private List<List<Cell>> GateRows()
         {
@@ -2566,6 +2647,7 @@ namespace Oxide.Plugins
             gateWantClose = false;
             gateWantOpen = false;
             gateBusy = false;
+            gateTestCloseAt = DateTime.MinValue;
             if (data == null || data.Site.GateCells.Count == 0 || !GridReady()) { gateClosed = false; gateRows = 0; return; }
             foreach (Cell c in data.Site.GateCells) if (MaterialAt(c) != 0) PlaceCell(c, 0);
             gateClosed = false;
@@ -2634,14 +2716,18 @@ namespace Oxide.Plugins
             }
             if (gateWantOpen) { gateWantOpen = false; gateOpenedAt = now; }
             if (gateRows > 0 || data.Site.Paused) return;
-            // Open: close again after GateMinOpenSeconds, unless two or more newcomers are inside, wave mode holds it, or
-            // the newcomer who opened it is still within reach. A staff "gate close" asks directly.
-            bool due = gateWantClose || (now - gateOpenedAt).TotalSeconds >= config.GateMinOpenSeconds;
+            // Open: close again after GateMinOpenSeconds while the arrival is open, unless two or more newcomers are
+            // inside, wave mode holds it, or a released newcomer is still inside. A staff "gate close", a fresh "gate
+            // build" and the end of a "gate test" ask directly, so a test wall works while the arrival is closed.
+            bool auto = config.Open && (now - gateOpenedAt).TotalSeconds >= config.GateMinOpenSeconds;
+            bool test = gateTestCloseAt != DateTime.MinValue && now >= gateTestCloseAt;
+            if (!gateWantClose && !auto && !test) return;
             int waiting, released;
             ArrivalsInHall(out waiting, out released);
-            if (!due || config.WaveMode || waiting >= 2 || released > 0 || !config.Open) return;
+            if (config.WaveMode || waiting >= 2 || released > 0) return;
             if (!GateClear()) return;                     // retried every tick (at least 2 s apart below)
             gateWantClose = false;
+            gateTestCloseAt = DateTime.MinValue;
             gateBusy = true;
             timer.Once(0.01f, CloseRow);
         }
@@ -2988,10 +3074,12 @@ namespace Oxide.Plugins
                     {
                         if (rec.Stage == SGatehouse && runs.TryGetValue(u, out run) && run.Narrating) GateMoment(p, rec, run, "popup");
                     }
-                    else if (kind == "pledge" && (selection & (Options.Yes | Options.OK)) != 0)
+                    else if (kind == "pledge")
                     {
-                        if (runs.TryGetValue(u, out run)) run.DwellDone = true;
-                        DoPledge(p, rec, ask.Data);
+                        // Either answer ends the dwell: "Walk on" (or closing the window) is a no, and standing on does
+                        // not turn it into a yes.
+                        if (runs.TryGetValue(u, out run) && SameText(run.DwellHouse, ask.Data)) run.DwellDone = true;
+                        if ((selection & (Options.Yes | Options.OK)) != 0) DoPledge(p, rec, ask.Data);
                     }
                 }
                 catch (Exception ex) { PrintError("Popup answer (" + kind + ") failed: " + ex.Message); }
@@ -3038,7 +3126,7 @@ namespace Oxide.Plugins
                 case "help":
                     Reply(player, "Help1");
                     player.SendMessage(Msg("Help2", player));
-                    if (IsAdmin(player)) player.SendMessage(Msg("HelpAdmin", player));
+                    if (IsAdmin(player)) { player.SendMessage(Msg("HelpAdmin", player)); player.SendMessage(Msg("HelpAdmin2", player)); }
                     return;
                 case "admin":
                     if (!IsAdmin(player)) { ReplyError(player, "NoPermission"); return; }
@@ -3133,8 +3221,10 @@ namespace Oxide.Plugins
             switch (sub)
             {
                 case "status": AdminStatus(player); return;
-                case "site":
+                case "site": AdminSite(player, args, hasPos, here); return;
                 case "check": AdminCheck(player); return;
+                case "lot": AdminLot(player, args); return;
+                case "runsheet": AdminRunsheet(player); return;
                 case "open":
                     {
                         List<string> problems = SiteProblems(new List<string>());
@@ -3211,11 +3301,6 @@ namespace Oxide.Plugins
                         Done(player, "wave on for " + minutes + " min");
                         return;
                     }
-                case "pairs":
-                    s.PairOrder = Clean(JoinFrom(args, 2), 120);
-                    dirty = true;
-                    Done(player, "pair order '" + s.PairOrder + "'");
-                    return;
                 case "play":
                 case "skip":
                 case "reset":
@@ -3224,7 +3309,9 @@ namespace Oxide.Plugins
                     AdminPlayer(player, sub, args);
                     return;
                 default:
-                    Usage(player, "/arrival admin status|check|open|close|pause|resume|mode|gatemode|stone|mercy|hall|droppad|eject|threshold|hearth|wayboard|throne|banner|gate|beacon|evict|wave|pairs|play|skip|reset|veteran|pass");
+                    Usage(player, "/arrival admin <subcommand>");
+                    player.SendMessage(Msg("HelpAdmin", player));
+                    player.SendMessage(Msg("HelpAdmin2", player));
                     return;
             }
         }
@@ -3310,8 +3397,11 @@ namespace Oxide.Plugins
                         { Usage(player, "/arrival admin gate set <w> <h> (stand on the bottom-left cell inside the opening, facing out)"); return; }
                         if (!GridReady()) { Reply(player, "AdminRefused", "block grid not ready (" + bindError + ")"); return; }
                         if (s.GateCells.Count > 0) { Reply(player, "AdminRefused", "remove the built gate first"); return; }
+                        // Facing out: given (+z|+x|-z|-x), else where the admin looks (Entity.Forward), else hall toward Hearth.
                         int sx, sz;
-                        if (!GateSpan(here, out sx, out sz)) { Reply(player, "AdminRefused", "store the hall corners and the hearth first (the gate faces the Hearth)"); return; }
+                        int q = args.Length > 5 ? Array.IndexOf(FacingNames, args[5].ToLowerInvariant()) : FacingOf(player);
+                        if (q >= 0) TurnXZ(1, 0, q, out sx, out sz);
+                        else if (!GateSpan(here, out sx, out sz)) { Reply(player, "AdminRefused", "say which way the gate faces (+z|+x|-z|-x), or store the hall corners and the hearth first"); return; }
                         Cell c = CellAt(here);
                         s.GateSet = true; s.GateX = c.X; s.GateY = c.Y; s.GateZ = c.Z; s.GateW = w; s.GateH = h; s.SpanX = sx; s.SpanZ = sz;
                         dirty = true;
@@ -3320,17 +3410,14 @@ namespace Oxide.Plugins
                     }
                 case "build":
                     {
-                        if (!s.GateSet) { Usage(player, "/arrival admin gate set <w> <h> first"); return; }
+                        if (!s.GateSet && !PlanReady()) { Usage(player, "/arrival admin gate set <w> <h> first (or site anchor)"); return; }
                         if (s.GateCells.Count > 0) { Reply(player, "AdminRefused", "the gate is built; gate remove first"); return; }
                         int skipped = 0;
-                        for (int y = 0; y < s.GateH; y++)
-                            for (int i = 0; i < s.GateW; i++)
-                            {
-                                Cell c = new Cell();
-                                c.X = s.GateX + i * s.SpanX; c.Y = s.GateY + y; c.Z = s.GateZ + i * s.SpanZ;
-                                if (MaterialAt(c) != 0) { skipped++; continue; }
-                                s.GateCells.Add(c);
-                            }
+                        foreach (Cell c in PlannedGateCells())
+                        {
+                            if (MaterialAt(c) != 0) { skipped++; continue; }
+                            s.GateCells.Add(c);
+                        }
                         dirty = true;
                         gateRows = 0; gateClosed = false;
                         Done(player, "gate cells " + s.GateCells.Count + (skipped > 0 ? " (" + skipped + " cells were not empty and are left alone)" : "") + "; closing now");
@@ -3342,6 +3429,7 @@ namespace Oxide.Plugins
                 case "close": RequestGateClose(); Done(player, "gate closing (waits while anyone stands within " + config.GateClearanceMetres + " m)"); return;
                 case "test":
                     RequestGateOpen(true);
+                    gateTestCloseAt = Now().AddSeconds(config.GateMinOpenSeconds + GateRowsCount() * config.GateRowSeconds + 2);
                     Done(player, "gate test: opens now, closes after " + config.GateMinOpenSeconds + " s");
                     return;
                 case "remove":
@@ -3351,7 +3439,7 @@ namespace Oxide.Plugins
                     Done(player, "gate removed (its cells are air)");
                     return;
                 default:
-                    Usage(player, "/arrival admin gate set <w> <h>|build|open|close|test|remove");
+                    Usage(player, "/arrival admin gate set <w> <h> [+z|+x|-z|-x]|build|open|close|test|remove");
                     return;
             }
         }
@@ -3368,8 +3456,8 @@ namespace Oxide.Plugins
             return sx != 0 || sz != 0;
         }
 
-        // beacon build <radius> [dy]: 24 clay cells on a ring round the stored Hearth centre (cell k at angle 15k degrees,
-        // rounded to the grid), resting Ember deep; only empty cells are used. clear: air again. test: one flare.
+        // beacon build <radius> [dy]: the ember band round the stored Hearth centre (BandCells: the plan's 24 cells at its
+        // radius 5), clay resting Ember deep; only empty cells are used. clear: air again. test: one flare.
         private void AdminBeacon(Player player, string[] args)
         {
             string a2 = args.Length > 2 ? args[2].ToLowerInvariant() : "";
@@ -3385,7 +3473,7 @@ namespace Oxide.Plugins
                         if (s.BeaconCells.Count > 0) { Reply(player, "AdminRefused", "the band is built; beacon clear first"); return; }
                         Cell centre = CellAt(HearthV());
                         int skipped = 0;
-                        foreach (Cell c in RingCells(centre, r, dy))
+                        foreach (Cell c in BandCells(centre, r, dy))
                         {
                             if (MaterialAt(c) != 0) { skipped++; continue; }
                             if (PlaceCell(c, config.BeaconMaterialId)) { s.BeaconCells.Add(c); PaintLater(c, config.EmberDeep); }
@@ -3410,24 +3498,6 @@ namespace Oxide.Plugins
                     Usage(player, "/arrival admin beacon build <radius> [dy]|clear|test");
                     return;
             }
-        }
-
-        // The ember band's ring: 24 cells, cell k at round(r cos 15k), round(r sin 15k); duplicates dropped. The
-        // hearth-ring sculpture leaves the same 24 cells empty at radius 5.
-        private static List<Cell> RingCells(Cell centre, int r, int dy)
-        {
-            var list = new List<Cell>();
-            var seen = new HashSet<string>();
-            for (int k = 0; k < 24; k++)
-            {
-                double a = k * Math.PI / 12.0;
-                int x = (int)Math.Round(r * Math.Cos(a), MidpointRounding.AwayFromZero), z = (int)Math.Round(r * Math.Sin(a), MidpointRounding.AwayFromZero);
-                if (!seen.Add(x + "," + z)) continue;
-                Cell c = new Cell();
-                c.X = centre.X + x; c.Y = centre.Y + dy; c.Z = centre.Z + z;
-                list.Add(c);
-            }
-            return list;
         }
 
         private void AdminPlayer(Player player, string sub, string[] args)
@@ -3546,6 +3616,661 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region The site plan (realm-site/1)
+
+        // art/sculptures/sites/arrival.json, copied by staff (or the deploy) to oxide/data/RealmArrival/site.json. Read
+        // only, never written or created. Field names follow the file exactly (art/sculptures/README.md, "Site layouts").
+        // Every coordinate is a block cell of RootCubeGrid; a site cell becomes a world cell by
+        //     world = anchor + turn(site cell, R),    turn([x, y, z], 1) = [z, y, -x]
+        // with R the quarter-turns about the vertical, as /sculpt place turns (RealmSculptor TurnXZ). The anchor and R are
+        // found by /arrival admin site anchor: the admin stands in the gateSet cell facing out (the site's +z).
+        private class SiteFile
+        {
+            public string format;
+            public string id;
+            public string name;
+            public float cellMetres;
+            public SiteLot lot;
+            public List<SitePiece> pieces;
+            public SiteCells cells;
+            public Dictionary<string, SitePoint> points;
+            public Dictionary<string, SiteBox> boxes;
+            public List<SiteZone> zones;
+            public List<SiteSign> signs;
+        }
+
+        private class SiteLot
+        {
+            public List<string> slots;
+            public List<string> houses;
+        }
+
+        private class SitePiece
+        {
+            public string key;
+            public string sculpture;
+            public string by;
+            public string slot;
+            public int turn;
+            public List<int> at;
+            public int order;
+            public SiteStand stand;
+            public bool optional;
+        }
+
+        private class SiteStand
+        {
+            public List<int> cell;
+            public string facing;
+        }
+
+        private class SiteCells
+        {
+            public SiteGate gate;
+            public SiteBand emberBand;
+            public SiteCellList goldLine;
+            public SiteCellList stoneFloors;
+        }
+
+        private class SiteGate
+        {
+            public List<List<List<int>>> rows;               // top row first, each left to right as seen from the court
+        }
+
+        private class SiteBand
+        {
+            public List<int> centre;
+            public int radius;
+            public List<List<int>> cells;
+        }
+
+        private class SiteCellList
+        {
+            public List<List<int>> cells;
+        }
+
+        private class SitePoint
+        {
+            public string kind;
+            public string slot;
+            public string facing;
+            public List<int> cell;
+        }
+
+        private class SiteBox
+        {
+            public List<int> min;
+            public List<int> max;
+        }
+
+        private class SiteZone
+        {
+            public string key;
+            public string point;
+            public float radiusM;
+            public float dwellSeconds;
+            public float halfWidthM;
+        }
+
+        private class SiteSign
+        {
+            public string key;
+            public string slot;
+            public List<int> cell;
+            public string faces;
+            public string binding;
+            public string text;
+        }
+
+        private SiteFile site;
+        private string siteStatus = "not read";
+        private readonly List<string> siteStones = new List<string>();      // A1..A6, in id order
+        private readonly List<string> siteMercy = new List<string>();       // M1..M3
+
+        private void LoadSite()
+        {
+            site = null;
+            siteStones.Clear();
+            siteMercy.Clear();
+            try
+            {
+                if (!Interface.Oxide.DataFileSystem.ExistsDatafile(SiteFileName))
+                {
+                    siteStatus = "missing (copy art/sculptures/sites/arrival.json to oxide/data/RealmArrival/site.json)";
+                    return;
+                }
+                SiteFile f = Interface.Oxide.DataFileSystem.ReadObject<SiteFile>(SiteFileName);
+                string why = SiteInvalid(f);
+                if (why != null)
+                {
+                    siteStatus = "not usable: " + why;
+                    PrintWarning("oxide/data/" + SiteFileName + ".json is " + siteStatus + ". Points are stored by hand until it is fixed.");
+                    return;
+                }
+                site = f;
+                foreach (KeyValuePair<string, SitePoint> kv in f.points)
+                {
+                    if (kv.Value.kind == "stone") siteStones.Add(kv.Key);
+                    else if (kv.Value.kind == "mercy") siteMercy.Add(kv.Key);
+                }
+                siteStones.Sort(StringComparer.Ordinal);
+                siteMercy.Sort(StringComparer.Ordinal);
+                siteStatus = "ok";
+            }
+            catch (Exception ex)
+            {
+                siteStatus = "unreadable (" + ex.Message + ")";
+                PrintWarning("oxide/data/" + SiteFileName + ".json is " + siteStatus + ". Points are stored by hand until it is fixed.");
+            }
+        }
+
+        private static bool IsCell(List<int> c)
+        {
+            return c != null && c.Count == 3;
+        }
+
+        // The checks a plugin needs before trusting the file; the full validation is the sculptor tool's (cli.mjs check).
+        private static string SiteInvalid(SiteFile f)
+        {
+            if (f == null) return "empty";
+            if (f.format != "realm-site/1") return "format '" + Clean(f.format, 20) + "' is not realm-site/1";
+            if (f.id != "arrival") return "it is the site '" + Clean(f.id, 30) + "', not arrival";
+            if (f.points == null || f.points.Count == 0) return "no points";
+            foreach (KeyValuePair<string, SitePoint> kv in f.points)
+                if (kv.Value == null || !IsCell(kv.Value.cell)) return "point " + Clean(kv.Key, 30) + " has no cell";
+            int stones = 0;
+            foreach (SitePoint p in f.points.Values) if (p.kind == "stone") stones++;
+            if (stones == 0) return "no arrival stones (kind stone)";
+            foreach (string id in new[] { "E", "threshold", "hearth", "gateSet" })
+                if (!f.points.ContainsKey(id)) return "no point " + id;
+            if (f.boxes == null || !f.boxes.ContainsKey("Z0") || f.boxes["Z0"] == null || !IsCell(f.boxes["Z0"].min) || !IsCell(f.boxes["Z0"].max))
+                return "no hall box Z0";
+            if (f.cells == null || f.cells.gate == null || f.cells.gate.rows == null || f.cells.gate.rows.Count == 0) return "no gate rows";
+            foreach (List<List<int>> row in f.cells.gate.rows)
+            {
+                if (row == null || row.Count == 0) return "an empty gate row";
+                foreach (List<int> c in row) if (!IsCell(c)) return "a gate cell without three coordinates";
+            }
+            if (f.cells.emberBand != null)
+            {
+                if (!IsCell(f.cells.emberBand.centre) || f.cells.emberBand.cells == null) return "the ember band has no centre or cells";
+                foreach (List<int> c in f.cells.emberBand.cells) if (!IsCell(c)) return "an ember band cell without three coordinates";
+            }
+            if (f.cells.stoneFloors != null && f.cells.stoneFloors.cells != null)
+                foreach (List<int> c in f.cells.stoneFloors.cells) if (!IsCell(c)) return "a stone floor without three coordinates";
+            return null;
+        }
+
+        private List<string> LotSlots()
+        {
+            if (site != null && site.lot != null && site.lot.slots != null && site.lot.slots.Count > 0) return site.lot.slots;
+            return new List<string>(DefaultSlots);
+        }
+
+        private bool LotComplete()
+        {
+            foreach (string slot in LotSlots()) if (!data.Site.Lot.ContainsKey(slot)) return false;
+            return true;
+        }
+
+        private static int FacingIndex(string facing)
+        {
+            int i = Array.IndexOf(FacingNames, facing == null ? "" : facing.Trim().ToLowerInvariant());
+            return i < 0 ? 0 : i;
+        }
+
+        // Quarter-turns about the vertical: Ry(90k) applied to (x, z), the same as RealmSculptor's TurnXZ.
+        private static void TurnXZ(int x, int z, int k, out int tx, out int tz)
+        {
+            switch (((k % 4) + 4) % 4)
+            {
+                case 1: tx = z; tz = -x; return;
+                case 2: tx = -x; tz = -z; return;
+                case 3: tx = -z; tz = x; return;
+                default: tx = x; tz = z; return;
+            }
+        }
+
+        // Facing as an axis index (0 +z, 1 +x, 2 -z, 3 -x) from Entity.Forward, as RealmSculptor rounds it; -1 unknown.
+        private static int FacingOf(Player p)
+        {
+            try
+            {
+                if (p == null || p.Entity == null) return -1;
+                UnityEngine.Vector3 f = p.Entity.Forward;
+                if (Math.Abs(f.x) < 0.01f && Math.Abs(f.z) < 0.01f) return -1;
+                if (Math.Abs(f.x) >= Math.Abs(f.z)) return f.x >= 0 ? 1 : 3;
+                return f.z >= 0 ? 0 : 2;
+            }
+            catch (Exception) { return -1; }
+        }
+
+        private Cell PlanCell(List<int> c)
+        {
+            Site s = data.Site;
+            int tx, tz;
+            TurnXZ(c[0], c[2], s.Turn, out tx, out tz);
+            Cell r = new Cell();
+            r.X = s.AnchorX + tx; r.Y = s.AnchorY + c[1]; r.Z = s.AnchorZ + tz;
+            return r;
+        }
+
+        // Where a player stands in a cell: its centre (LocalToWorldCoordinate [DEC]), lowered to just above the floor.
+        private UnityEngine.Vector3 StandAt(Cell c)
+        {
+            UnityEngine.Vector3 w = WorldOf(c);
+            return V(w.x, w.y - BlockSize * 0.45f, w.z);
+        }
+
+        private bool PlanReady()
+        {
+            return site != null && data != null && data.Site.Anchored && GridReady();
+        }
+
+        // A named point of the plan in world metres, or null (no file, not anchored, no such point).
+        private Point PlanPoint(string id)
+        {
+            SitePoint sp;
+            if (!PlanReady() || !site.points.TryGetValue(id, out sp)) return null;
+            return P(StandAt(PlanCell(sp.cell)));
+        }
+
+        // A box of the plan as two world corners, grown by half a block so the walls' own cells are inside.
+        private bool PlanBox(string id, out Point lo, out Point hi)
+        {
+            lo = null; hi = null;
+            SiteBox b;
+            if (!PlanReady() || site.boxes == null || !site.boxes.TryGetValue(id, out b) || b == null || !IsCell(b.min) || !IsCell(b.max)) return false;
+            UnityEngine.Vector3 a = StandAt(PlanCell(b.min)), c = StandAt(PlanCell(b.max));
+            float h = BlockSize / 2f;
+            lo = P(V(Math.Min(a.x, c.x) - h, Math.Min(a.y, c.y), Math.Min(a.z, c.z) - h));
+            hi = P(V(Math.Max(a.x, c.x) + h, Math.Max(a.y, c.y), Math.Max(a.z, c.z) + h));
+            return true;
+        }
+
+        // Every point the plan names, by id, as stored now (null if not stored).
+        private Point StoredPoint(string id)
+        {
+            Site s = data.Site;
+            int i = siteStones.IndexOf(id);
+            if (i >= 0) return i < s.Stones.Count ? s.Stones[i] : null;
+            i = siteMercy.IndexOf(id);
+            if (i >= 0) return i < s.Mercy.Count ? s.Mercy[i] : null;
+            switch (id)
+            {
+                case "E": return s.Eject;
+                case "threshold": return s.Threshold;
+                case "hearth": return s.Hearth;
+                case "wayboard": return s.Wayboard;
+            }
+            if (id.StartsWith("banner."))
+            {
+                string house;
+                Point bp;
+                if (s.Lot.TryGetValue(id.Substring(7), out house) && s.Banners.TryGetValue(house, out bp)) return bp;
+                return null;
+            }
+            return null;
+        }
+
+        // Stores every point, box and the gate's place from the plan. Points staff stored by hand are replaced; any one
+        // can be stored again by standing on it ("re-store any point that moved").
+        private int ApplyPlan()
+        {
+            Site s = data.Site;
+            int n = 0;
+            s.Stones = new List<Point>(); s.StoneUsed = new List<DateTime>();
+            foreach (string id in siteStones) { Point p = PlanPoint(id); if (p != null) { s.Stones.Add(p); s.StoneUsed.Add(DateTime.MinValue); n++; } }
+            s.Mercy = new List<Point>(); s.MercyUsed = new List<DateTime>();
+            foreach (string id in siteMercy) { Point p = PlanPoint(id); if (p != null) { s.Mercy.Add(p); s.MercyUsed.Add(DateTime.MinValue); n++; } }
+            s.Eject = PlanPoint("E");
+            s.Threshold = PlanPoint("threshold");
+            s.Hearth = PlanPoint("hearth");
+            s.Wayboard = PlanPoint("wayboard");
+            n += (s.Eject != null ? 1 : 0) + (s.Threshold != null ? 1 : 0) + (s.Hearth != null ? 1 : 0) + (s.Wayboard != null ? 1 : 0);
+            Point lo, hi;
+            if (PlanBox("Z0", out lo, out hi)) { s.Hall1 = lo; s.Hall2 = hi; n++; }
+            if (PlanBox("Z0b", out lo, out hi)) { s.Pad1 = lo; s.Pad2 = hi; n++; }
+            List<List<List<int>>> rows = site.cells.gate.rows;
+            Cell g = PlanCell(rows[rows.Count - 1][0]);
+            int sx, sz;
+            TurnXZ(1, 0, s.Turn, out sx, out sz);
+            s.GateSet = true; s.GateX = g.X; s.GateY = g.Y; s.GateZ = g.Z; s.GateW = rows[0].Count; s.GateH = rows.Count; s.SpanX = sx; s.SpanZ = sz;
+            if (site.cells.emberBand != null) s.BeaconRadius = site.cells.emberBand.radius;
+            n += ApplyLot();
+            dirty = true;
+            return n;
+        }
+
+        // Each slot's banner point goes to the house the lot gave it.
+        private int ApplyLot()
+        {
+            if (!PlanReady()) return 0;
+            int n = 0;
+            foreach (string slot in LotSlots())
+            {
+                string house;
+                if (!data.Site.Lot.TryGetValue(slot, out house)) continue;
+                Point bp = PlanPoint("banner." + slot);
+                if (bp == null) continue;
+                data.Site.Banners[house] = bp;
+                n++;
+            }
+            dirty = true;
+            return n;
+        }
+
+        // The gate's cells: the plan's rows when anchored, else the stored gate set (w x h to the right of facing out).
+        private List<Cell> PlannedGateCells()
+        {
+            var list = new List<Cell>();
+            Site s = data.Site;
+            if (PlanReady())
+            {
+                foreach (List<List<int>> row in site.cells.gate.rows) foreach (List<int> c in row) list.Add(PlanCell(c));
+                return list;
+            }
+            for (int y = 0; y < s.GateH; y++)
+                for (int i = 0; i < s.GateW; i++)
+                {
+                    Cell c = new Cell();
+                    c.X = s.GateX + i * s.SpanX; c.Y = s.GateY + y; c.Z = s.GateZ + i * s.SpanZ;
+                    list.Add(c);
+                }
+            return list;
+        }
+
+        // The ember band round the stored Hearth centre: the plan's 24 cells (their offsets from its centre) when the
+        // radius is the plan's, else the same rule for another radius: max(|dx|,|dz|) <= r and |dx|+|dz| <= r+1, but not
+        // max <= r-1 and |dx|+|dz| <= r (an octagon), round from the avenue side.
+        private List<Cell> BandCells(Cell centre, int r, int dy)
+        {
+            var offsets = new List<int[]>();
+            SiteBand band = site != null && site.cells != null ? site.cells.emberBand : null;
+            if (band != null && band.radius == r && band.cells != null && band.cells.Count > 0)
+            {
+                foreach (List<int> c in band.cells) offsets.Add(new[] { c[0] - band.centre[0], c[1] - band.centre[1], c[2] - band.centre[2] });
+            }
+            else
+            {
+                var ring = new List<KeyValuePair<double, int[]>>();
+                for (int dx = -r; dx <= r; dx++)
+                    for (int dz = -r; dz <= r; dz++)
+                    {
+                        int m = Math.Max(Math.Abs(dx), Math.Abs(dz)), sum = Math.Abs(dx) + Math.Abs(dz);
+                        if (m > r || sum > r + 1 || (m <= r - 1 && sum <= r)) continue;
+                        double a = Math.Atan2(dx, -dz);            // 0 toward the avenue (-z), then round through +x
+                        if (a < 0) a += Math.PI * 2;
+                        ring.Add(new KeyValuePair<double, int[]>(a, new[] { dx, 0, dz }));
+                    }
+                ring.Sort(delegate(KeyValuePair<double, int[]> p, KeyValuePair<double, int[]> q) { return p.Key.CompareTo(q.Key); });
+                foreach (KeyValuePair<double, int[]> kv in ring) offsets.Add(kv.Value);
+            }
+            int turn = data.Site.Anchored ? data.Site.Turn : 0;
+            var list = new List<Cell>();
+            foreach (int[] o in offsets)
+            {
+                int tx, tz;
+                TurnXZ(o[0], o[2], turn, out tx, out tz);
+                Cell c = new Cell();
+                c.X = centre.X + tx; c.Y = centre.Y + o[1] + dy; c.Z = centre.Z + tz;
+                list.Add(c);
+            }
+            return list;
+        }
+
+        // The floors under the arrival stones: the plan's stoneFloors when anchored, else the cell under each stone.
+        private List<KeyValuePair<string, Cell>> StoneFloorCells()
+        {
+            var list = new List<KeyValuePair<string, Cell>>();
+            if (PlanReady() && site.cells.stoneFloors != null && site.cells.stoneFloors.cells != null && site.cells.stoneFloors.cells.Count > 0)
+            {
+                List<List<int>> floors = site.cells.stoneFloors.cells;
+                for (int i = 0; i < floors.Count; i++)
+                    list.Add(new KeyValuePair<string, Cell>(i < siteStones.Count ? siteStones[i] : "stone " + (i + 1), PlanCell(floors[i])));
+                return list;
+            }
+            for (int i = 0; i < data.Site.Stones.Count; i++)
+            {
+                Cell c = CellAt(PointV(data.Site.Stones[i]));
+                Cell below = new Cell(); below.X = c.X; below.Y = c.Y - 1; below.Z = c.Z;
+                list.Add(new KeyValuePair<string, Cell>(StoneName(i), below));
+            }
+            return list;
+        }
+
+        // A stone's name: its site id (A1 ...) when the file names it, else its number.
+        private string StoneName(int i)
+        {
+            return site != null && i < siteStones.Count ? siteStones[i] : "stone " + (i + 1);
+        }
+
+        private string MercyName(int i)
+        {
+            return site != null && i < siteMercy.Count ? siteMercy[i] : "mercy stone " + (i + 1);
+        }
+
+        private string HouseInSlot(string slot)
+        {
+            string h;
+            return slot != null && data.Site.Lot.TryGetValue(slot, out h) ? h : null;
+        }
+
+        private string FillHouse(string text, string slot)
+        {
+            if (text == null) return "";
+            if (text.IndexOf("{house}", StringComparison.Ordinal) < 0) return text;
+            string h = HouseInSlot(slot);
+            return text.Replace("{house}", h ?? "<lot " + (slot ?? "?") + ">");
+        }
+
+        private string WorldFacing(string siteFacing)
+        {
+            return FacingNames[(FacingIndex(siteFacing) + data.Site.Turn) % 4];
+        }
+
+        // /arrival admin site [anchor [facing] | plan | pieces | signs | reload]
+        private void AdminSite(Player player, string[] args, bool hasPos, UnityEngine.Vector3 here)
+        {
+            string a2 = args.Length > 2 ? args[2].ToLowerInvariant() : "";
+            Site s = data.Site;
+            switch (a2)
+            {
+                case "":
+                    Reply(player, "SiteFile", siteStatus, site != null ? Clean(site.name, 60) : "-");
+                    if (s.Anchored) player.SendMessage(Fmt("SiteAnchor", player, s.AnchorX + "," + s.AnchorY + "," + s.AnchorZ, s.Turn, FacingNames[s.Turn]));
+                    else player.SendMessage(Msg("SiteNotAnchored", player));
+                    player.SendMessage(Fmt("SiteLot", player, LotText()));
+                    AdminCheck(player);
+                    return;
+                case "reload":
+                    LoadSite();
+                    Done(player, "site file " + siteStatus);
+                    return;
+                case "anchor":
+                    {
+                        if (site == null) { Reply(player, "AdminRefused", "no site file: " + siteStatus); return; }
+                        if (!GridReady()) { Reply(player, "AdminRefused", "block grid not ready (" + bindError + ")"); return; }
+                        if (!hasPos) return;
+                        if (s.GateCells.Count > 0 || s.BeaconCells.Count > 0) { Reply(player, "AdminRefused", "gate remove and beacon clear first: their cells belong to the old anchor"); return; }
+                        int q = args.Length > 3 ? Array.IndexOf(FacingNames, args[3].ToLowerInvariant()) : FacingOf(player);
+                        if (q < 0) { Usage(player, "/arrival admin site anchor [+z|+x|-z|-x] (stand in the gateSet cell, facing out toward the Hearth)"); return; }
+                        SitePoint gs = site.points["gateSet"];
+                        int turn = ((q - FacingIndex(gs.facing ?? "+z")) % 4 + 4) % 4;
+                        Cell feet = CellAt(here);
+                        int tx, tz;
+                        TurnXZ(gs.cell[0], gs.cell[2], turn, out tx, out tz);
+                        s.Anchored = true; s.Turn = turn;
+                        s.AnchorX = feet.X - tx; s.AnchorY = feet.Y - gs.cell[1]; s.AnchorZ = feet.Z - tz;
+                        int n = ApplyPlan();
+                        Done(player, "site anchored at cell " + s.AnchorX + "," + s.AnchorY + "," + s.AnchorZ + ", turn " + turn + "; " + n + " points and boxes stored"
+                            + (LotComplete() ? "" : "; draw the lot for the banners (lot draw)"));
+                        return;
+                    }
+                case "plan":
+                    {
+                        if (!PlanReady()) { Reply(player, "AdminRefused", site == null ? "no site file: " + siteStatus : "anchor the site first (site anchor)"); return; }
+                        var ids = new List<string>(site.points.Keys);
+                        ids.Sort(StringComparer.Ordinal);
+                        Reply(player, "AdminDone", "plan points (" + ids.Count + "):");
+                        foreach (string id in ids)
+                        {
+                            Point plan = PlanPoint(id);
+                            Point stored = StoredPoint(id);
+                            string state = stored == null ? Msg("PlanNotStored", player) : FlatDist(PointV(stored), PointV(plan)) <= 1.5f ? Msg("PlanOk", player)
+                                : Fmt("PlanOff", player, Math.Round(FlatDist(PointV(stored), PointV(plan)), 1).ToString(CultureInfo.InvariantCulture));
+                            player.SendMessage(Fmt("PlanLine", player, id, site.points[id].kind, PosText(PointV(plan)), state));
+                        }
+                        return;
+                    }
+                case "pieces":
+                    {
+                        if (!PlanReady()) { Reply(player, "AdminRefused", site == null ? "no site file: " + siteStatus : "anchor the site first (site anchor)"); return; }
+                        var pieces = new List<SitePiece>();
+                        if (site.pieces != null) foreach (SitePiece p in site.pieces) if (p != null && p.by == "sculptor" && p.stand != null && IsCell(p.stand.cell)) pieces.Add(p);
+                        pieces.Sort(delegate(SitePiece a, SitePiece b) { return a.order.CompareTo(b.order); });
+                        Reply(player, "AdminDone", "pieces in route order (" + pieces.Count + "); lot: " + LotText());
+                        foreach (SitePiece p in pieces)
+                            player.SendMessage(Fmt("PieceLine", player, p.order, Clean(p.key, 30), PosText(StandAt(PlanCell(p.stand.cell))), WorldFacing(p.stand.facing),
+                                Clean(FillHouse(p.sculpture, p.slot), 40), ((p.turn + s.Turn) % 4 + 4) % 4, p.optional ? Msg("PieceOptional", player) : ""));
+                        return;
+                    }
+                case "signs":
+                    {
+                        if (!PlanReady()) { Reply(player, "AdminRefused", site == null ? "no site file: " + siteStatus : "anchor the site first (site anchor)"); return; }
+                        int count = site.signs != null ? site.signs.Count : 0;
+                        Reply(player, "AdminDone", "sign spots (" + count + "); bind each with /paint");
+                        if (site.signs != null)
+                            foreach (SiteSign g in site.signs)
+                            {
+                                if (g == null || !IsCell(g.cell)) continue;
+                                player.SendMessage(Fmt("SignLine", player, Clean(g.key, 8), Clean(FillHouse(g.binding, g.slot), 40), PosText(StandAt(PlanCell(g.cell))), WorldFacing(g.faces)));
+                                if (!string.IsNullOrEmpty(g.text)) player.SendMessage(Fmt("SignText", player, Clean(g.text, 180)));
+                            }
+                        return;
+                    }
+                default:
+                    Usage(player, "/arrival admin site [anchor [+z|+x|-z|-x]|plan|pieces|signs|reload]");
+                    return;
+            }
+        }
+
+        private string LotText()
+        {
+            if (data.Site.Lot.Count == 0) return Msg("LotNone", null);
+            var parts = new List<string>();
+            foreach (string slot in LotSlots())
+            {
+                string h = HouseInSlot(slot);
+                parts.Add(slot + " " + (h != null ? Pretty(h) : "?"));
+            }
+            return string.Join(", ", parts.ToArray());
+        }
+
+        // /arrival admin lot [draw | set <six houses in slot order> | clear]. The pair order is drawn by lot in public at
+        // every build (after every wipe): draw casts it on the server and the Herald says it to the realm; set records a
+        // lot drawn elsewhere (dice on stream). Each slot's banner point then belongs to its house.
+        private void AdminLot(Player player, string[] args)
+        {
+            string a2 = args.Length > 2 ? args[2].ToLowerInvariant() : "";
+            List<string> slots = LotSlots();
+            switch (a2)
+            {
+                case "":
+                    Reply(player, "AdminDone", "lot: " + LotText());
+                    return;
+                case "clear":
+                    data.Site.Lot.Clear();
+                    data.Site.PairOrder = "";
+                    dirty = true;
+                    Done(player, "lot cleared");
+                    return;
+                case "draw":
+                case "set":
+                    {
+                        var houses = new List<string>();
+                        if (a2 == "draw")
+                        {
+                            houses.AddRange(GreatHouses);
+                            for (int i = houses.Count - 1; i > 0; i--) { int j = rng.Next(i + 1); string t = houses[i]; houses[i] = houses[j]; houses[j] = t; }
+                        }
+                        else
+                        {
+                            for (int i = 3; i < args.Length; i++)
+                            {
+                                string h = args[i].Trim().ToLowerInvariant();
+                                if (h.StartsWith("house")) h = h.Substring(5).Trim();
+                                if (h.Length > 0) houses.Add(h);
+                            }
+                            var distinct = new HashSet<string>(houses);
+                            bool ok = houses.Count == slots.Count && distinct.Count == houses.Count;
+                            foreach (string h in houses) if (Array.IndexOf(GreatHouses, h) < 0) ok = false;
+                            if (!ok) { Usage(player, "/arrival admin lot set <" + slots.Count + " great houses in slot order: " + string.Join(" ", slots.ToArray()) + ">"); return; }
+                        }
+                        if (houses.Count < slots.Count) { Reply(player, "AdminRefused", "the site has " + slots.Count + " slots but there are " + houses.Count + " great houses"); return; }
+                        data.Site.Lot.Clear();
+                        for (int i = 0; i < slots.Count; i++) data.Site.Lot[slots[i]] = houses[i];
+                        data.Site.PairOrder = LotText();
+                        int placed = ApplyLot();
+                        dirty = true;
+                        Puts("The pair lot for the Gatehouse road: " + data.Site.PairOrder + (a2 == "draw" ? " (drawn by " + Clean(player.Name, 40) + ")" : " (recorded by " + Clean(player.Name, 40) + ")"));
+                        if (a2 == "draw" && houses.Count >= 6)
+                            Broadcast(Fmt("LotDrawn", null, HouseTint(Pretty(houses[0])), HouseTint(Pretty(houses[1])), HouseTint(Pretty(houses[2])),
+                                HouseTint(Pretty(houses[3])), HouseTint(Pretty(houses[4])), HouseTint(Pretty(houses[5]))));
+                        Done(player, "lot " + data.Site.PairOrder + (placed > 0 ? "; " + placed + " banner points stored from the plan" : ""));
+                        return;
+                    }
+                default:
+                    Usage(player, "/arrival admin lot [draw|set <houses>|clear]");
+                    return;
+            }
+        }
+
+        // /arrival admin runsheet: the after-wipe list (docs/arrival-design.md 4.5) with what the plugin can see of each
+        // step. Crests, the fire pit, the lights and the signs are checked by eye.
+        private void AdminRunsheet(Player player)
+        {
+            Site s = data.Site;
+            Reply(player, "RunsheetHead");
+            player.SendMessage(Fmt("Runsheet1", player, Mark(player, !config.Open)));
+            player.SendMessage(Fmt("Runsheet2", player, Msg("ByHand", player)));
+            player.SendMessage(Fmt("Runsheet3", player, LotComplete() ? Msg("StepDone", player) + " (" + LotText() + ")" : Msg("StepToDo", player)));
+            string floors;
+            if (!GridReady()) floors = Msg("StepUnknown", player);
+            else
+            {
+                int missing = 0, total = 0;
+                foreach (KeyValuePair<string, Cell> kv in StoneFloorCells()) { total++; if (MaterialAt(kv.Value) == 0) missing++; }
+                floors = total == 0 ? Msg("StepToDo", player) : missing == 0 ? Msg("StepDone", player) + " (" + total + " stone floors)" : Msg("StepToDo", player) + " (" + missing + " of " + total + " stone floors missing)";
+            }
+            player.SendMessage(Fmt("Runsheet4", player, floors));
+            player.SendMessage(Fmt("Runsheet5", player, Msg("ByHand", player), site != null && site.signs != null ? site.signs.Count : 15));
+            bool gateOk = s.GateCells.Count > 0 || config.GateMode == "open";
+            player.SendMessage(Fmt("Runsheet6", player, Mark(player, gateOk && s.BeaconCells.Count > 0) + " (gate " + (s.GateCells.Count > 0 ? s.GateCells.Count + " cells" : config.GateMode == "open" ? "open arch" : "not built")
+                + ", band " + s.BeaconCells.Count + " cells)"));
+            int off = 0, missingPts = 0;
+            if (PlanReady())
+                foreach (string id in site.points.Keys)
+                {
+                    SitePoint sp = site.points[id];
+                    if (sp.kind == "gate" || sp.kind == "exit") continue;
+                    Point st = StoredPoint(id), plan = PlanPoint(id);
+                    if (st == null) missingPts++;
+                    else if (FlatDist(PointV(st), PointV(plan)) > 1.5f) off++;
+                }
+            player.SendMessage(Fmt("Runsheet7", player, !PlanReady() ? Msg("ByHand", player) : off == 0 && missingPts == 0 ? Msg("StepDone", player)
+                : Msg("StepToDo", player) + " (" + off + " off the plan, " + missingPts + " not stored)"));
+            int problems = SiteProblems(new List<string>()).Count;
+            player.SendMessage(Fmt("Runsheet8", player, problems == 0 ? (config.Open ? Msg("StepDone", player) : Msg("CheckPasses", player)) : Msg("StepToDo", player) + " (" + problems + " problems)"));
+        }
+
+        private string Mark(Player player, bool done)
+        {
+            return Msg(done ? "StepDone" : "StepToDo", player);
+        }
+
+        #endregion
+
         #region Site check and self-check
 
         // /arrival admin check, and open: every stored point, the floors, and the site's place in the realm.
@@ -3565,11 +4290,14 @@ namespace Oxide.Plugins
             if (config.GateMode == "portcullis" && s.GateCells.Count == 0) problems.Add("gatemode portcullis but no gate built (gate set, gate build)");
             if (GridReady())
             {
-                for (int i = 0; i < s.Stones.Count; i++) FloorCheck("stone " + (i + 1), s.Stones[i], true, problems, warnings);
-                for (int i = 0; i < s.Mercy.Count; i++) FloorCheck("mercy stone " + (i + 1), s.Mercy[i], false, problems, warnings);
-                if (s.Eject != null) FloorCheck("eject point", s.Eject, false, problems, warnings);
+                for (int i = 0; i < s.Stones.Count; i++) FloorCheck(StoneName(i), s.Stones[i], true, problems, warnings);
+                for (int i = 0; i < s.Mercy.Count; i++) FloorCheck(MercyName(i), s.Mercy[i], false, problems, warnings);
+                if (s.Eject != null) FloorCheck(site != null ? "E" : "eject point", s.Eject, false, problems, warnings);
+                foreach (KeyValuePair<string, Cell> kv in StoneFloorCells())
+                    if (MaterialAt(kv.Value) == 0 && PlanReady()) problems.Add("the floor under " + kv.Key + " is missing (place gatehouse-unwritten)");
             }
             else problems.Add("block grid not ready (" + bindError + "): floors cannot be checked");
+            PlanWarnings(warnings);
             if (HallSet() && HearthSet())
             {
                 UnityEngine.Vector3 hc = HallCentre();
@@ -3604,6 +4332,56 @@ namespace Oxide.Plugins
             return problems;
         }
 
+        // The site plan against what is stored: the file, the anchor, the lot, each point (more than 1.5 m off is noted),
+        // the gate and band cells, and the zone radii the file names against this config.
+        private void PlanWarnings(List<string> warnings)
+        {
+            Site s = data.Site;
+            if (site == null) { warnings.Add("site file " + siteStatus + ": the stored points are not compared with the plan"); return; }
+            if (!LotComplete()) warnings.Add("the pair lot is not drawn (lot draw): the banner points cannot follow the plan");
+            if (!s.Anchored) { warnings.Add("the site plan is not anchored (site anchor): the stored points are not compared with it"); return; }
+            if (!GridReady()) return;
+            var off = new List<string>();
+            var ids = new List<string>(site.points.Keys);
+            ids.Sort(StringComparer.Ordinal);
+            foreach (string id in ids)
+            {
+                string kind = site.points[id].kind;
+                if (kind == "gate" || kind == "exit") continue;
+                Point st = StoredPoint(id), plan = PlanPoint(id);
+                if (st == null) { if (kind != "banner" || LotComplete()) off.Add(id + " not stored"); continue; }
+                float d = FlatDist(PointV(st), PointV(plan));
+                if (d > 1.5f) off.Add(id + " " + Math.Round(d, 1).ToString(CultureInfo.InvariantCulture) + " m off");
+            }
+            if (off.Count > 0)
+            {
+                int more = off.Count - 5;
+                if (more > 0) off.RemoveRange(5, more);
+                warnings.Add("against the plan: " + string.Join(", ", off.ToArray()) + (more > 0 ? " and " + more + " more" : "") + " (site plan lists them)");
+            }
+            if (s.GateCells.Count > 0)
+            {
+                var plan = new HashSet<string>();
+                foreach (Cell c in PlannedGateCells()) plan.Add(c.X + "," + c.Y + "," + c.Z);
+                int stray = 0;
+                foreach (Cell c in s.GateCells) if (!plan.Contains(c.X + "," + c.Y + "," + c.Z)) stray++;
+                if (stray > 0 || s.GateCells.Count != plan.Count) warnings.Add("the built gate has " + s.GateCells.Count + " cells, " + stray + " off the plan's " + plan.Count + " (gate remove, gate build)");
+            }
+            if (site.zones != null)
+                foreach (SiteZone z in site.zones)
+                {
+                    if (z == null || z.key == null) continue;
+                    float want = z.key == "Z1" ? config.GoldLineRadius : z.key == "Z2" ? config.BannerRadius : z.key == "Z2p" ? config.PledgeRadius
+                        : z.key == "Z3q" ? config.QuietRingRadius : z.key == "Z3" ? config.HearthStoneRadius : z.key == "Z4" ? config.WayboardRadius
+                        : z.key == "Z5" ? config.HandoverRadius : z.key == "corridor" ? config.RouteCorridorMetres : -1f;
+                    float have = z.key == "corridor" ? z.halfWidthM : z.radiusM;
+                    if (want >= 0 && have > 0 && Math.Abs(want - have) > 0.01f)
+                        warnings.Add("zone " + z.key + " is " + have.ToString(CultureInfo.InvariantCulture) + " m in the plan but " + want.ToString(CultureInfo.InvariantCulture) + " m in the config");
+                    if (z.key == "Z2p" && z.dwellSeconds > 0 && Math.Abs(z.dwellSeconds - config.PledgeDwellSeconds) > 0.01f)
+                        warnings.Add("the pledge dwell is " + z.dwellSeconds.ToString(CultureInfo.InvariantCulture) + " s in the plan but " + config.PledgeDwellSeconds + " s in the config");
+                }
+        }
+
         private void FloorCheck(string what, Point p, bool required, List<string> problems, List<string> warnings)
         {
             Cell c = CellAt(PointV(p));
@@ -3623,12 +4401,8 @@ namespace Oxide.Plugins
         {
             if (loadFailed || data == null || !config.Open || !GridReady()) return;
             string why = null;
-            for (int i = 0; i < data.Site.Stones.Count && why == null; i++)
-            {
-                Cell c = CellAt(PointV(data.Site.Stones[i]));
-                Cell below = new Cell(); below.X = c.X; below.Y = c.Y - 1; below.Z = c.Z;
-                if (MaterialAt(below) == 0) why = "stone " + (i + 1) + " has no floor (a wipe or a removed Gatehouse?)";
-            }
+            foreach (KeyValuePair<string, Cell> kv in StoneFloorCells())
+                if (MaterialAt(kv.Value) == 0) { why = kv.Key + " has no floor (a wipe or a removed Gatehouse?)"; break; }
             if (why == null && data.Site.Stones.Count == 0) why = "no arrival stones are stored";
             if (why == null) return;
             config.Open = false;
@@ -3786,6 +4560,36 @@ namespace Oxide.Plugins
         {
             if (!config.LogHooks) return;
             Puts("[hook] " + Now().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture) + " " + hook + " " + Clean(p.Name, 40) + " (" + p.Id + "): " + detail);
+        }
+
+        // Play-test 1 (LogHooks): the first movement of more than 1 m after the Finish click is logged with its delay, so
+        // the loader's length can be read from the log. Works whether or not the arrival is open.
+        private readonly Dictionary<ulong, KeyValuePair<DateTime, UnityEngine.Vector3>> firstMoveWatch = new Dictionary<ulong, KeyValuePair<DateTime, UnityEngine.Vector3>>();
+
+        private void WatchFirstMove(Player p)
+        {
+            UnityEngine.Vector3 pos;
+            if (p == null || !TryPos(p, out pos)) return;
+            firstMoveWatch[p.Id] = new KeyValuePair<DateTime, UnityEngine.Vector3>(Now(), pos);
+        }
+
+        private void FirstMoveTick(DateTime now)
+        {
+            if (firstMoveWatch.Count == 0) return;
+            foreach (ulong id in new List<ulong>(firstMoveWatch.Keys))
+            {
+                KeyValuePair<DateTime, UnityEngine.Vector3> w = firstMoveWatch[id];
+                Player p = OnlineById(id);
+                UnityEngine.Vector3 pos;
+                if (p == null || (now - w.Key).TotalMinutes >= 5) { firstMoveWatch.Remove(id); continue; }
+                if (!TryPos(p, out pos)) continue;
+                // A teleport by this plugin is not a move: compare with where the run placed them, if anywhere.
+                Run run;
+                UnityEngine.Vector3 from = runs.TryGetValue(id, out run) && run.HasPlaced ? run.Placed : w.Value;
+                if (Dist(pos, from) <= 1f) continue;
+                firstMoveWatch.Remove(id);
+                LogHook("first move", p, Math.Round((now - w.Key).TotalSeconds, 1).ToString(CultureInfo.InvariantCulture) + " s after OnPlayerSpawned, at " + PosText(pos));
+            }
         }
 
         private void Say(Player p, string key, params object[] args)

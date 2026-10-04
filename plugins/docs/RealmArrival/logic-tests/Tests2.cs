@@ -184,6 +184,8 @@ static partial class Tests
     static void Handover()
     {
         Site();
+        Ok((string)F(Cfg(), "WrittenDeed") == "", "WrittenDeed is off by default: RealmQuests' ex_written pays the written deed");
+        Site(tweak: c => Tweak(c, "WrittenDeed", "written"));
         var n = AtFireDone(N1, "Ada");
         Ok(Stage(n) == "hearth" && Owns(n), "at the fire: stage hearth, still owned");
         Clear();
@@ -483,7 +485,7 @@ static partial class Tests
         var bas = Respawn(n, new PlayerRespawnAtBaseEvent());
         Ok(bed.Position.x == RandomSpawn.x && bas.Position.x == RandomSpawn.x && Graces.Count == 0, "bed and base respawns are never touched");
         var e = Respawn(n, new PlayerRespawnNormalEvent());
-        Ok(Dist(e.Position, 8, 125) < 0.1 || Dist(e.Position, 14, 122) < 0.1 || Dist(e.Position, 11, 140) < 0.1, "a death during the arrival (Normal): a mercy stone at the Hearth", e.Position.ToString());
+        Ok(Dist(e.Position, 3.8f, 130) < 0.1 || Dist(e.Position, 18.2f, 130) < 0.1 || Dist(e.Position, 11, 122.8f) < 0.1, "a death during the arrival (Normal): a mercy stone at the Hearth", e.Position.ToString());
         Ok(Math.Abs(e.Position.y - 10.5f) < 0.01f && Graces.Contains(N1 + "|20"), "+0.5 m, with SentinelGrace(id, 20) first");
         Ok(!e.Cancelled && n.Heals.Count == 0, "never Cancel(), no items or healing in the hook");
         Ok((bool)RecF(n, "ToFire") && Stage(n) == "banners" && (int)RecF(n, "Deaths") == 1, "the stage jumps to the fire beats; the death is counted");

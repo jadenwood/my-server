@@ -88,6 +88,7 @@ namespace CodeHatch.Engine.Core.Cache
     public class Entity : UnityEngine.Component
     {
         public UnityEngine.Vector3 Position;
+        public UnityEngine.Vector3 Forward = new UnityEngine.Vector3(0, 0, 1);   // where the player looks (Entity.Forward)
         public bool IsPlayer = true;
         public Player Owner;
         public List<object> Components = new List<object>();
@@ -274,10 +275,12 @@ namespace CodeHatch.Blocks
             info.CubeColor = c;
             Cells[(p.x, p.y, p.z)] = info;
         }
+        // As the real grid at the origin with a 1.2 m scale: LocalToWorldCoordinate is the cell's centre (TransformPoint),
+        // WorldToLocalCoordinate rounds each axis (new Vector3Int(Vector3) uses Mathf.RoundToInt, round half to even).
         public Vector3 LocalToWorldCoordinate(Vector3Int p) { return new Vector3(p.x * 1.2f, p.y * 1.2f, p.z * 1.2f); }
         public Vector3Int WorldToLocalCoordinate(Vector3 v)
         {
-            return new Vector3Int((int)Math.Floor(v.x / 1.2f + 0.5f), (int)Math.Floor(v.y / 1.2f), (int)Math.Floor(v.z / 1.2f + 0.5f));
+            return new Vector3Int((int)Math.Round(v.x / 1.2f), (int)Math.Round(v.y / 1.2f), (int)Math.Round(v.z / 1.2f));
         }
         public int Mat(int x, int y, int z) { return GetCubeInfoAtLocal(new Vector3Int(x, y, z)).MaterialID; }
         public int Rgb(int x, int y, int z) { return GetCubeInfoAtLocal(new Vector3Int(x, y, z)).CubeColor.Rgb; }

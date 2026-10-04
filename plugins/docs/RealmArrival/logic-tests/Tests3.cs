@@ -29,7 +29,13 @@ static partial class Tests
         NewArrival();
         var adm = Mk(1, "Steward", 9.6f, 26.4f);
         Admin(adm);
-        Ok(Cmd(adm, "admin", "gate", "set", "5", "6").Contains("store the hall corners and the hearth first"), "gate set needs the hall and the hearth (the gate faces the Hearth)");
+        adm.Entity.Forward = new UnityEngine.Vector3(0, 0, 0);    // facing not known
+        Ok(Cmd(adm, "admin", "gate", "set", "5", "6").Contains("say which way the gate faces"), "gate set: without a facing, the hall and the hearth are needed (the gate faces the Hearth)");
+        adm.Entity.Forward = new UnityEngine.Vector3(-0.2f, 0, -0.9f);
+        Ok(Cmd(adm, "admin", "gate", "set", "5", "6").Contains("along -x"), "gate set: facing out from where the admin looks (Entity.Forward -z: the gate runs to -x)");
+        Ok(Cmd(adm, "admin", "gate", "set", "5", "6", "+x").Contains("along -z"), "gate set: an explicit facing (+x: the gate runs to -z)");
+        adm.Entity.Forward = new UnityEngine.Vector3(0, 0, 1);
+        Ok(Cmd(adm, "admin", "gate", "set", "5", "6").Contains("along +x"), "gate set: facing +z runs the gate to +x");
         Grid.Put(12, 13, 22, 2);                                 // one cell of the opening is not empty
         BuildSite(true, true);
         Ok(((IList)F(SiteData(), "GateCells")).Count == 29, "gate build: 5 x 6 cells, only into empty cells (29 here)", ((IList)F(SiteData(), "GateCells")).Count.ToString());
@@ -505,7 +511,8 @@ static partial class Tests
         Ok(Cmd(adm, "admin", "wave", "on", "30").Contains("wave on for 30 min") && (bool)F(Cfg(), "WaveMode"), "wave on <minutes>");
         Ok(Cmd(adm, "admin", "wave", "off").Contains("wave off") && !(bool)F(Cfg(), "WaveMode"), "wave off");
         Ok(Cmd(adm, "admin", "evict", "off").Contains("evict off") && !(bool)F(Cfg(), "Evict"), "evict off");
-        Ok(Cmd(adm, "admin", "pairs", "Merrin-Halloran,", "Varrow-Ashgrove,", "Corvane-Dunmere").Contains("pair order"), "pairs: the public lot is written down");
+        Ok(Cmd(adm, "admin", "lot", "set", "merrin", "halloran", "varrow", "ashgrove", "corvane", "dunmere").Contains("p1-left Merrin, p1-right Halloran"), "lot set: the public lot is written down in slot order");
+        Ok(Cmd(adm, "admin", "lot", "set", "merrin", "merrin", "varrow", "ashgrove", "corvane", "dunmere").Contains("Usage"), "lot set: six different great houses");
         var v = Mk(V1, "Vet", 300, 300);
         FirstSpawn(v, false);
         Ok(Cmd(adm, "admin", "reset", "Vet").Contains("reset to pending") && Stage(v) == "pending", "reset <player>: pending");
