@@ -386,6 +386,23 @@ static partial class Tests
         Advance(12);
         Ok(Stage(w) == "released" && w.All().Contains("The gate opens on its own."), "the gate opens 20 s after the reload, as after a resume", w.All());
 
+        // open force (first-test plan, step 2): one stone on bare ground opens on a test server, with each problem said.
+        Reset();
+        NewArrival();
+        var t = Mk(3, "Tester", 300, 300);
+        Admin(t);
+        Ok(Cmd(t, "admin", "open", "force").Contains("Site check:") && !(bool)F(Cfg(), "Open"), "open force still needs a stone and the hall box");
+        Stand(t, 280, 280, "hall", "corner1"); Stand(t, 320, 320, "hall", "corner2");
+        Stand(t, 300, 300, "stone", "add");
+        At(t, 400, 400);
+        string forced = Cmd(t, "admin", "open", "force");
+        Ok((bool)F(Cfg(), "Open") && forced.Contains("open by force, with ") && forced.Contains("Problem:"), "open force opens a test site, listing every problem", forced);
+        Ok(A.Logged.Any(l => l.Contains("opened the Gatehouse by force")), "and logs who did it and why");
+        var bare = Newcomer(N4 + 7, "Bare");
+        Ok(Dist(Pos(bare), 300, 300) < 1.3, "a newcomer lands on the bare-ground stone (play-test 3)", Pos(bare).ToString());
+        Advance(61 * 60);
+        Ok(!(bool)F(Cfg(), "Open"), "the self-check closes a floorless test stone within SiteSelfCheckMinutes");
+
         // LogHooks: the first move after the Finish click is logged with its delay (play-test 1).
         Site(tweak: cfg => Tweak(cfg, "LogHooks", true));
         var lg = Newcomer(N1 + 50, "Eir");

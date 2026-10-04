@@ -22,6 +22,12 @@ Each in-game system on this server has a matching piece of lore: houses, oaths, 
 6. **The crown's tax has a ceiling.** No monarch may take more than the Charter allows.
 7. **All of this is written down.** The Chronicle records every coronation, oath, treaty, betrayal, decree, claim, rebellion and ransom, so the realm remembers.
 
+**The Unwritten.** The lost winter blanked the Chronicle's pages: the realm calls a new season "the world made new". The people who come now have no page in it. They are the **Unwritten**: no house, no oath and no debt. Under the Charter's first clause that is enough, because the crown belongs to the seat, not the blood, and a person with no page may still rise. By the end of their first hour the Chronicle can write them.
+
+**The Crossing of the Grey Water.** Every newcomer is brought over the Grey Water by its ferrymen, who have carried for every side since the Long Thaw and are sworn to no house. The ferrymen ask only for your face and your banner (in game, the character screen on the raft), and their raft leaves you at the Gatehouse.
+
+**The Gatehouse of the Unwritten.** A walled court of pale stone below the Hearth, older than the Charter. Since the Charter the Stewards of the Seat have kept its gate for anyone who wants to be counted, and it opens only for the Unwritten. When the throne stands empty the Stewards feed the Hearth high, and its smoke is the summons. That is why every newcomer arrives at the same fire. Anyone who walks out of the Gatehouse is written from that moment on: six banners line the road from its gate to the Hearth, and the Old Throne stands on the hill beyond.
+
 **Why the crown is still contested.** The Charter put an end to open war, not to ambition. Any house can sit on the throne, so every house is tempted to try. Each monarch knows that a declared claim may already be on the Chronicle, and that its rebellion window is days or hours away. Oaths bind houses together, but nothing in the Charter forbids breaking them. It only makes sure everyone *knows* you did.
 
 ---
@@ -110,6 +116,9 @@ To found one of them in game (sigils fit the plugin limits: 32 characters at mos
 | Treaty (`/treaty`) | A sealed truce for a set number of days |
 | Ransom (`/ransom`) | The ransom-glass, the Charter's time limit on holding a captive |
 | Chronicle (`/chronicle`, overlay, `/realm` page) | The Chronicle of Ostreval |
+| A new player (RealmArrival, `/arrival`) | One of the Unwritten; their first minutes are the Crossing of the Grey Water and the walk out of the Gatehouse of the Unwritten |
+| Character creation on the raft | The Crossing of the Grey Water (the ferrymen ask for your face and your banner) |
+| The wipe | The lost winter: the Chronicle's pages blanked, the world made new |
 | Chronicle event types | `coronation`, `abdication`, `claim_declared`, `rebellion_started`, `rebellion_ended`, `house_founded`, `oath_sworn`, `oath_broken`, `treaty_signed`, `treaty_broken`, `decree`, `ransom_set`, `ransom_paid`, `released` (from `plugins/RealmChronicle.cs`, `KnownTypes`) |
 
 ## Writing guidelines for community content

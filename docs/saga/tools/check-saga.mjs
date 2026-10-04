@@ -27,7 +27,7 @@ export const PLACEHOLDER_WIDTH = 24;            // a filled-in {placeholder} is 
 export const PLACEHOLDERS = ['monarch', 'house', 'claimant', 'crown_house', 'champion', 'quarry', 'line', 'outlaw',
   'day', 'time', 'location', 'n'];
 
-export const EXPECTED = { proclamations: 30, locations: 12, legends: 10, weeks: 8, acts: 4 };
+export const EXPECTED = { proclamations: 30, locations: 13, legends: 10, weeks: 8, acts: 4 };
 
 const DAY_NAMES = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday',
   sun: 'Sunday' };

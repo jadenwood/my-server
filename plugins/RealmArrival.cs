@@ -771,6 +771,7 @@ namespace Oxide.Plugins
                 { "CheckWarning", "  [A3A6AD]Note: {0}[FFFFFF]" },
                 { "CheckFailed", "Site check: {0} problem(s). [F4C96D]/arrival admin open[FFFFFF] waits until they are fixed." },
                 { "Opened", "The Gatehouse is open: newcomers arrive there." },
+                { "OpenedForce", "The Gatehouse is open by force, with {0} problem(s) (a test server only). The self-check still closes it if a stone loses its floor." },
                 { "ClosedNow", "The Gatehouse is closed: new players spawn as the game spawns them. Arrivals under way finish." },
                 { "PausedNow", "Arrivals paused: vanilla spawns, the gate held open, every arrival handed back to the realm's normal welcome." },
                 { "Resumed", "Arrivals resumed." },
@@ -819,7 +820,7 @@ namespace Oxide.Plugins
             "CallGate", "CallOpen", "GateSelf", "SeekRaven", "PledgeDwell", "PledgeNoneAwake", "PledgeLimit", "PledgeBusy",
             "Shelter", "Unsheltered", "Next", "NextNoTale", "Wander", "RoadMode", "Mercy", "MidDeath", "Evicted", "RoadsB",
             "RoadsBNone", "ProtectionSoon", "FirstBlock", "Dusk", "Sleeper", "ClosedNow", "PausedNow", "SelfCheckClosed",
-            "CheckFailed", "AdminRefused", "PlayRefused", "NotNow", "Closed"
+            "CheckFailed", "AdminRefused", "PlayRefused", "NotNow", "Closed", "OpenedForce"
         };
 
         private static string ToneOf(string key)
@@ -3228,10 +3229,23 @@ namespace Oxide.Plugins
                 case "open":
                     {
                         List<string> problems = SiteProblems(new List<string>());
-                        if (problems.Count > 0) { foreach (string q in problems) player.SendMessage(Fmt("CheckProblem", player, q)); Reply(player, "CheckFailed", problems.Count); return; }
+                        // open force (test servers, first-test plan): opens despite the problems, says and logs each one.
+                        // The stones still have to exist, and the self-check still closes it if a stone loses its floor.
+                        bool force = a2 == "force";
+                        if (problems.Count > 0 && (!force || s.Stones.Count == 0 || !HallSet()))
+                        {
+                            foreach (string q in problems) player.SendMessage(Fmt("CheckProblem", player, q));
+                            Reply(player, "CheckFailed", problems.Count);
+                            return;
+                        }
+                        if (problems.Count > 0)
+                        {
+                            foreach (string q in problems) player.SendMessage(Fmt("CheckProblem", player, q));
+                            PrintWarning(Clean(player.Name, 40) + " opened the Gatehouse by force with " + problems.Count + " problem(s): " + string.Join("; ", problems.ToArray()));
+                        }
                         config.Open = true; SaveConfigNow(); UpdateProvider();
                         nextSelfCheck = Now().AddMinutes(config.SiteSelfCheckMinutes);
-                        Reply(player, "Opened");
+                        Reply(player, problems.Count > 0 ? "OpenedForce" : "Opened", problems.Count);
                         return;
                     }
                 case "close":
