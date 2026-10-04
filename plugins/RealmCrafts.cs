@@ -2275,7 +2275,7 @@ namespace Oxide.Plugins
             if (config.Rewards.MasterDeed.Length > 0)
                 Ask(RealmRenown, "AddDeed", id, rec.Name, config.Rewards.MasterDeed, title, "crafts:master:" + id + ":" + prof);
             if (config.Rewards.ChronicleMasters)
-                Ask(RealmChronicle, "Log", TitleChronicleType, rec.Name + " is named " + title, ProfName(prof, null) + ": the rank of Master, the highest the guild knows.", new string[] { rec.Name });
+                Ask(RealmChronicle, "Log", TitleChronicleType, rec.Name + " is named Guildmaster of " + ProfName(prof, null), title + ": the rank of Master, the highest the guild knows.", new string[] { rec.Name });
             if (config.Rewards.QuestReports) Ask(RealmQuests, "ReportQuestEvent", id, "custom", "mastery", 1);
         }
 

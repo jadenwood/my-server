@@ -6,8 +6,9 @@
 //   vaults    each house (RealmHouses) has a vault of items and marks. Any member deposits; the head of the house
 //             and up to MaxStewards named stewards withdraw, within a daily outflow budget.
 //   market    /market sell|bid|buy|fill|list|history: escrowed asks (items held) and bids (marks held), with expiry,
-//             a capped market fee paid to the treasury, and a public price history.
-//   mint      the king's minting decree creates MARKS ONLY. Marks are pure accounting; no command in this plugin
+//             a capped market fee paid to the treasury, and a public price history. A seller who has risen in the
+//             craft of the goods pays less fee (RealmCrafts.GetMarketFeeDiscount, 0 to 50 percent off).
+//   mint     the king's minting decree creates MARKS ONLY. Marks are pure accounting; no command in this plugin
 //             creates an item. Items only leave the realm's custody as payment of a persisted "owed" ledger that
 //             was filled from items previously TAKEN (measured) from players.
 //
@@ -67,6 +68,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin RealmChronicle;
         [PluginReference] private Plugin RealmHouses;
         [PluginReference] private Plugin CrownAndConsequences;
+        [PluginReference] private Plugin RealmCrafts;      // mastery perk: a lower market fee for a master selling their craft
 
         private const string PermAdmin = "realmtreasury.admin";
         private const string DataName = "RealmTreasury";
@@ -1253,10 +1255,23 @@ namespace Oxide.Plugins
             SetCooldown(cdKey, config.TradeCooldownSeconds);
         }
 
-        private long FeeOn(Party payee, long total)
+        private long FeeOn(Party payee, long total, string item)
         {
             if (payee.Kind == KTreasury) return 0;               // the crown does not tax itself
-            return total * data.MarketFeePercent / 100;
+            long fee = total * data.MarketFeePercent / 100;
+            if (fee > 0 && payee.Kind == KPlayer) fee -= fee * CraftsFeeDiscount(payee.Id, item) / 100;
+            return fee;
+        }
+
+        // RealmCrafts' mastery perk: 0 to 50 percent off the fee when a player sells goods of a craft they have risen in;
+        // 0 without RealmCrafts, or if it fails.
+        private int CraftsFeeDiscount(string playerId, string item)
+        {
+            if (RealmCrafts == null) return 0;
+            object r;
+            try { r = RealmCrafts.Call("GetMarketFeeDiscount", playerId, item); }
+            catch (Exception) { return 0; }
+            return r is int ? Math.Max(0, Math.Min(50, (int)r)) : 0;
         }
 
         private void Buy(Player player, Party buyer, Listing l, int qty)
@@ -1266,7 +1281,7 @@ namespace Oxide.Plugins
             if (MarksOf(buyer) < total) { ReplyError(player, "NotEnoughMarks", buyer.Name, MarksOf(buyer), config.CurrencyName, total); return; }
             if (buyer.Kind != KPlayer && !VaultCanHold(buyer, l.Item, qty)) { ReplyFull(player, buyer, l.Item); return; }
             if (!SpendMarks(player, buyer, total)) return;
-            long fee = FeeOn(seller, total);
+            long fee = FeeOn(seller, total, l.Item);
             // State first, then the transfers; all in memory and saved together before any item is paid out.
             DebitMarks(buyer, total);
             CreditMarks(seller, total - fee);
@@ -1307,7 +1322,7 @@ namespace Oxide.Plugins
             string reference = "order #" + l.Id;
             int taken = TakeGoods(seller, player, bp, qty, "escrow_in", reference);
             if (taken < qty) { ReplyError(player, "TakeFailed"); SaveData(); return; }
-            long fee = FeeOn(seller, total);
+            long fee = FeeOn(seller, total, l.Item);
             l.EscrowMarks -= total;
             l.Remaining -= qty;
             CreditMarks(seller, total - fee);
