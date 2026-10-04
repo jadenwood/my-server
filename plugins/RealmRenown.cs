@@ -187,6 +187,9 @@ namespace Oxide.Plugins
             d.Add("contract_delivery", D("filled an order", 15, 0, 30));
             d.Add("contract_merc", D("fought as a hired sword", 30, 0, 0));
             d.Add("tournament_win", D("won the Royal Tournament", 80, 0, 0));
+            d.Add("duel_won", D("won a ranked duel in the Proving Ring", 3, 0, 10));          // RealmArena (AddDeed)
+            d.Add("arena_champion", D("was crowned Champion of the Ring", 60, 0, 0));         // RealmArena (AddDeed), weekly
+            d.Add("arena_tourney", D("won the Lists of the Ring", 40, 0, 0));                 // RealmArena (AddDeed)
             d.Add("quarry_taken", D("took the King's quarry", 30, 0, 0));
             d.Add("oath_broken", D("broke a sworn oath", 0, 60, 0));
             d.Add("treaty_broken", D("tore up a treaty", 0, 40, 0));
@@ -215,6 +218,10 @@ namespace Oxide.Plugins
             t.Add(T("sellsword", "Sellsword", "Fought three times as a hired sword.", false, "contract_merc", 3));
             t.Add(T("headtaker", "Headtaker", "Collected three bounties.", false, "contract_bounty", 3));
             t.Add(T("champion", "Champion of the Lists", "Won the Royal Tournament.", false, "tournament_win", 1));
+            t.Add(T("duelist", "the Duelist", "Won twenty-five ranked duels in the Proving Ring.", false, "duel_won", 25));
+            t.Add(T("ring_champion", "Champion of the Ring", "Was crowned the Proving Ring's champion of the week.", false, "arena_champion", 1));
+            t.Add(T("ring_master", "Master of the Ring", "Was crowned champion of the week three times.", false, "arena_champion", 3));
+            t.Add(T("ring_victor", "Victor of the Ring", "Won the Lists of the Ring.", false, "arena_tourney", 1));
             t.Add(T("huntsman", "Crown's Huntsman", "Took the King's quarry three times.", false, "quarry_taken", 3));
             t.Add(T("renowned", "the Renowned", "Gathered 500 renown.", false, "renown", 500));
             t.Add(T("legend", "Legend of Ostreval", "Gathered 2000 renown.", false, "renown", 2000));

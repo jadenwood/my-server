@@ -30,6 +30,9 @@
 // and after, as in RealmContracts [IL StationListener.OnStationUpgradeRequest]), outlawry (held here; also offered
 // to RealmContracts via Call("ProclaimOutlaw", ...) so court outlaws become bounty targets; null if it is not loaded),
 // and exile (a timer; an exile found in a town zone past a warning is outlawed).
+// With RealmArena loaded (CombatInArena), a trial by combat is staged in its ring (StageTrial): to the first fall, with no
+// death and no loot, and the winner comes back through ArenaTrialResult. A peace law does not stop a sanctioned ring duel
+// (RealmArena.IsDuelBlow). Without RealmArena, or if the ring cannot take the trial, nothing changes.
 //
 // Abuse limits: active-law cap, proclamation cooldown and daily change cap; crown and per-accuser daily accusation
 // quotas, a per-target weekly cap, one open case per target, immunity after acquittal, and each acquittal costs the
@@ -73,6 +76,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin RealmHouses;
         [PluginReference] private Plugin CrownAndConsequences;
         [PluginReference] private Plugin RealmContracts;
+        [PluginReference] private Plugin RealmArena;          // trial by combat in the ring (optional)
 
         private const string PermAdmin = "realmlaws.admin";
         private const string DataName = "RealmLaws";
@@ -192,6 +196,7 @@ namespace Oxide.Plugins
             public int CombatWindowMinutes = 15;
             public string CombatTimeoutResult = "jury"; // jury | acquit | guilty
             public bool CombatFleeLoses = true;         // a duellist who disconnects in the window loses
+            public bool CombatInArena = true;           // with RealmArena loaded: fought in its ring, to the first fall
             // sentences
             public int MaxFineAmount = 200;
             public string FineDestination = "burn";     // burn | victim
@@ -1113,7 +1118,7 @@ namespace Oxide.Plugins
                 if (d == null || d.Amount <= 0f || d.DamageSource == null || !d.DamageSource.IsPlayer) return null;
                 Player victim = ve.Owner, attacker = d.DamageSource.Owner;
                 if (victim == null || attacker == null || victim.IsServer || attacker.IsServer || victim.Id == attacker.Id) return null;
-                if (InDuel(attacker.Id.ToString(), victim.Id.ToString())) return null;
+                if (InDuel(attacker.Id.ToString(), victim.Id.ToString()) || ArenaDuel(attacker.Id, victim.Id)) return null;
                 if (config.OutlawsAndExilesLosePeace && (IsPunished(data.Outlaws, victim.Id.ToString()) || IsPunished(data.Exiles, victim.Id.ToString()))) return null;
                 if (config.PeaceSuspendedDuringRebellion && RebellionActive()) return null;
                 Vector3 pos = ve.Position;
@@ -1762,6 +1767,8 @@ namespace Oxide.Plugins
             Broadcast("CombatOpened", c.Id, c.AccusedName, c.ChampionName, config.CombatWindowMinutes);
             Chronicle("trial_by_combat", c.AccusedName + " demands trial by combat", c.AccusedName + " answers the charge of breaking " + c.LawName
                 + " with steel. " + c.ChampionName + " stands for the crown.", new[] { c.AccusedName, c.ChampionName });
+            if (config.CombatInArena && RealmArena != null)
+                RealmArena.Call("StageTrial", c.Id.ToString(), c.AccusedId, c.AccusedName, c.ChampionId, c.ChampionName, config.CombatWindowMinutes);
         }
 
         private void NameChampion(Player player, string[] args)
@@ -2070,6 +2077,26 @@ namespace Oxide.Plugins
         #endregion
 
         #region API (plugin.Call) - non-public on purpose (see header)
+
+        // RealmArena: the outcome of a trial by combat fought in its ring (no one dies there, so the death hook never sees
+        // it). The champion's win is a guilty verdict, the accused's an acquittal. False when the case is not in combat.
+        private bool ArenaTrialResult(string caseId, string winnerId, string detail)
+        {
+            if (data == null || winnerId == null) return false;
+            Case c = FindCase(caseId);
+            if (c == null || c.Status != CCombat) return false;
+            string how = "by combat in the ring" + (string.IsNullOrEmpty(detail) ? "" : ": " + detail);
+            if (winnerId == c.ChampionId) { CloseGuilty(c, how); return true; }
+            if (winnerId == c.AccusedId) { CloseAcquitted(c, how); return true; }
+            return false;
+        }
+
+        private bool ArenaDuel(ulong attacker, ulong victim)
+        {
+            if (RealmArena == null) return false;
+            object r = RealmArena.Call("IsDuelBlow", attacker.ToString(), victim.ToString());
+            return r is bool && (bool)r;
+        }
 
         private bool IsCourtOutlaw(string playerId)
         {

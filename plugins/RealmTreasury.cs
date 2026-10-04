@@ -35,7 +35,9 @@
 //
 // Zero-sum proof (checked by /treasury audit, on load, and by the logic tests):
 //   for every item:  ItemsIn[item] - ItemsOut[item] == treasury + all vaults + open asks + owed
-//   for marks:       MarksMinted == treasury + all vaults + all purses + open bid escrow
+//   for marks:       MarksMinted == treasury + all vaults + all purses + open bid escrow + holds
+// Holds are marks other plugins keep in escrow for a player (RealmArena's duel and tavern stakes: HoldMarks, PayFromHold,
+// ReleaseHold); a hold left open past its time goes back to the player by itself.
 // ItemsIn only grows by measured takes from player inventories; ItemsOut only by measured gives to them.
 //
 // Language level: C# 3, .NET 3.5. Cross-plugin API methods are non-public instance methods (Oxide.CSharp registers
@@ -294,6 +296,16 @@ namespace Oxide.Plugins
             public string Note;
         }
 
+        private class Hold
+        {
+            public string PlayerId;        // whose marks they were
+            public string PlayerName;
+            public long Marks;
+            public string Source;          // the plugin that may pay it out or release it
+            public DateTime At;
+            public DateTime Expires;       // still open then: back to the player
+        }
+
         private class Spend
         {
             public DateTime At;
@@ -332,6 +344,7 @@ namespace Oxide.Plugins
             public DateTime LastLevy = DateTime.MinValue;
             public DateTime LastMint = DateTime.MinValue;
             public bool MarketFrozen;
+            public Dictionary<string, Hold> Holds = new Dictionary<string, Hold>();   // escrow for other plugins (RealmArena)
         }
 
         private void SaveData()
@@ -422,6 +435,10 @@ namespace Oxide.Plugins
             if (data.TithePercent > config.TitheMaxPercent) data.TithePercent = config.TitheMaxPercent;
             if (data.MarketFeePercent < 0) data.MarketFeePercent = config.MarketFeeDefaultPercent;
             if (data.MarketFeePercent > config.MarketFeeMaxPercent) data.MarketFeePercent = config.MarketFeeMaxPercent;
+            if (data.Holds == null) data.Holds = new Dictionary<string, Hold>();
+            var holds = new Dictionary<string, Hold>();
+            foreach (KeyValuePair<string, Hold> kv in data.Holds) if (kv.Key != null && kv.Value != null && kv.Value.PlayerId != null) holds[kv.Key] = kv.Value;
+            data.Holds = holds;
         }
 
         #endregion
@@ -718,6 +735,8 @@ namespace Oxide.Plugins
             foreach (string k in new List<string>(data.Cooldowns.Keys))
                 if (data.Cooldowns[k] <= now) { data.Cooldowns.Remove(k); dirty = true; }
             PruneClosedListings();
+            foreach (KeyValuePair<string, Hold> kv in new List<KeyValuePair<string, Hold>>(data.Holds))
+                if (now >= kv.Value.Expires) EndHold(kv.Key, kv.Value, "lapsed");
             if (dirty) SaveData();
             foreach (Player p in Server.ClientPlayers)
                 if (p != null && !p.IsServer && HasOwed(p.Id.ToString())) PayOwed(p);
@@ -1940,6 +1959,11 @@ namespace Oxide.Plugins
                 if (l.Status != SOpen && l.Side == SideSell && l.Remaining != 0) problems.Add("closed order #" + l.Id + " still holds " + l.Remaining + " " + l.Item);
                 if (l.Remaining < 0 || l.EscrowMarks < 0) problems.Add("order #" + l.Id + " is negative");
             }
+            foreach (KeyValuePair<string, Hold> kv in data.Holds)
+            {
+                marks += kv.Value.Marks;
+                if (kv.Value.Marks < 0) problems.Add("hold " + kv.Key + " is negative");
+            }
             if (marks != data.MarksMinted) problems.Add("marks: minted " + data.MarksMinted + " but " + marks + " are held");
             return problems;
         }
@@ -2149,6 +2173,76 @@ namespace Oxide.Plugins
             int open = 0;
             foreach (Listing l in data.Listings) if (l.Status == SOpen) open++;
             return data.Treasury.Marks + "|" + data.MarksMinted + "|" + data.MarketFeePercent + "|" + data.TithePercent + "|" + open;
+        }
+
+        // Escrow for another Realm plugin (RealmArena's duel stakes, tavern games and tournament fees). HoldMarks moves
+        // `amount` marks out of a purse into the hold `holdId`, all or nothing; only `source` may then pay it out
+        // (PayFromHold) or give it back (ReleaseHold), and a hold still open after `minutes` goes back to the player by
+        // itself. Holds are counted in the zero-sum audit and every move is in the journal. Returns the marks held, 0 when
+        // refused (unknown id, a hold of that id already open, a short purse, or too many holds open).
+        private const int MaxHolds = 2000;
+
+        private long HoldMarks(string holdId, string playerId, string playerName, long amount, string source, int minutes)
+        {
+            if (data == null || string.IsNullOrEmpty(holdId) || holdId.Length > 80 || string.IsNullOrEmpty(source) || amount <= 0) return 0;
+            ulong u;
+            if (playerId == null || playerId.Length < 17 || !ulong.TryParse(playerId, out u)) return 0;
+            if (data.Holds.ContainsKey(holdId) || data.Holds.Count >= MaxHolds) return 0;
+            Party p = PlayerParty(playerId, string.IsNullOrEmpty(playerName) ? NameOf(playerId) : playerName);
+            if (!DebitMarks(p, amount)) return 0;
+            DateTime now = DateTime.UtcNow;
+            data.Holds[holdId] = new Hold { PlayerId = playerId, PlayerName = p.Name, Marks = amount, Source = source, At = now,
+                Expires = now.AddMinutes(Math.Max(1, Math.Min(minutes, 10080))) };
+            Journal("hold", source, MarksAsset, amount, Label(p), "hold:" + holdId, "");
+            SaveData();
+            return amount;
+        }
+
+        // Pays up to `amount` marks out of a hold into a player's purse; the rest stays held. Returns the marks paid.
+        private long PayFromHold(string holdId, string toPlayerId, string toName, long amount, string source)
+        {
+            Hold h;
+            ulong u;
+            if (data == null || holdId == null || amount <= 0 || toPlayerId == null || toPlayerId.Length < 17 || !ulong.TryParse(toPlayerId, out u)) return 0;
+            if (!data.Holds.TryGetValue(holdId, out h) || h.Source != source) return 0;
+            long n = Math.Min(amount, h.Marks);
+            if (n <= 0) return 0;
+            h.Marks -= n;
+            if (h.Marks <= 0) data.Holds.Remove(holdId);
+            Party to = PlayerParty(toPlayerId, string.IsNullOrEmpty(toName) ? NameOf(toPlayerId) : toName);
+            CreditMarks(to, n);
+            Journal("hold-pay", source, MarksAsset, n, "hold:" + holdId, Label(to), "");
+            SaveData();
+            return n;
+        }
+
+        // Gives whatever is left in a hold back to the player it came from. Returns the marks returned (0 if none).
+        private long ReleaseHold(string holdId, string source)
+        {
+            Hold h;
+            if (data == null || holdId == null || !data.Holds.TryGetValue(holdId, out h) || h.Source != source) return 0;
+            return EndHold(holdId, h, source);
+        }
+
+        // Marks left in a hold (0 if none).
+        private long GetHold(string holdId)
+        {
+            Hold h;
+            return data != null && holdId != null && data.Holds.TryGetValue(holdId, out h) ? h.Marks : 0;
+        }
+
+        private long EndHold(string holdId, Hold h, string actor)
+        {
+            data.Holds.Remove(holdId);
+            long n = Math.Max(0, h.Marks);
+            if (n > 0)
+            {
+                Party p = PlayerParty(h.PlayerId, h.PlayerName);
+                CreditMarks(p, n);
+                Journal("hold-return", actor, MarksAsset, n, "hold:" + holdId, Label(p), "");
+            }
+            SaveData();
+            return n;
         }
 
         #endregion
