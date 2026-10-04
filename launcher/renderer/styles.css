@@ -305,6 +305,19 @@ body:not([data-view="home"]) .vignette,
 }
 .rail-btn.small svg { width: 20px; height: 20px; }
 .rail-spacer { flex: 1; }
+/* Eleven screens: the rail tightens on shorter windows and scrolls rather than hiding Setup (min window 720 px). */
+.rail { overflow-y: auto; scrollbar-width: none; }
+.rail::-webkit-scrollbar { display: none; }
+@media (max-height: 900px) {
+  .rail { gap: 2px; padding-top: var(--sp-3); }
+  .rail-btn { padding: 7px var(--sp-1) 6px; gap: 3px; }
+  .rail-btn svg { width: 22px; height: 22px; }
+  .rail-btn.small svg { width: 18px; height: 18px; }
+}
+@media (max-height: 780px) {
+  .rail-btn { padding: 5px var(--sp-1) 4px; gap: 2px; }
+  .rail-btn svg { width: 20px; height: 20px; }
+}
 .rail-version { text-align: center; font-size: var(--fs-2xs); color: var(--text-dim); letter-spacing: 0.08em; }
 
 /* =====================================================================================================

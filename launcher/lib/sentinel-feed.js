@@ -264,7 +264,9 @@ function registerSteward(deps) {
       out.feed = r.feed;
       out.unseen = unseenCount(r.feed, seenId);
       for (const s of r.feed.suspects) s.commands = commandsFor(s.playerName || s.playerId);
-      last.set(id, { mtime: r.mtime, unseen: out.unseen, newest: r.feed.alerts[0] || null });
+      // The background watch keeps its own copy (so it still sees the change and raises the toast).
+      const prev = last.get(id);
+      if (prev) prev.unseen = out.unseen;
     }
     return out;
   }

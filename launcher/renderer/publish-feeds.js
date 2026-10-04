@@ -340,7 +340,7 @@
     ui.nFacts.replaceChildren(
       factList([
         ['Next version', status ? String(status.news.nextSeq) : '-'],
-        ['Writes to', status ? `${status.outDir}\\news.json` : '-', true],
+        ['Writes to', status ? status.newsFile : '-', true],
         ['Host it at', status && status.newsUrl ? status.newsUrl : 'next to servers.json', true],
         ['Now', status ? publishedLine(status.news.published, 'news.json') : '-']
       ])
@@ -573,7 +573,7 @@
     ui.uFacts.replaceChildren(
       factList([
         ['Next version', status ? String(status.update.nextSeq) : '-'],
-        ['Writes to', status ? `${status.outDir}\\update.json` : '-', true],
+        ['Writes to', status ? status.updateFile : '-', true],
         ['Host it at', status && status.updateUrl ? status.updateUrl : 'next to servers.json', true],
         ['Now', status ? publishedLine(status.update.published, 'update.json') : '-']
       ])

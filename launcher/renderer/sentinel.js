@@ -298,7 +298,9 @@
       const row = el('button', `sn-alert ${respClass(a)}` + (a.id > status.seenId ? ' unseen' : '') + (selected && selected.playerId === a.playerId ? ' active' : ''));
       row.type = 'button';
       const top = el('span', 'sn-alert-top');
-      top.append(el('b', null, a.playerName || a.playerId || '?'), el('span', 'sn-kind', kindLabel(a.kind)), el('span', 'sn-score', a.score.toFixed(1)));
+      top.appendChild(el('b', null, a.playerName || a.playerId || '?'));
+      if (a.id > status.seenId) top.appendChild(el('span', 'sn-new', 'new'));
+      top.append(el('span', 'sn-kind', kindLabel(a.kind)), el('span', 'sn-score', a.score.toFixed(1)));
       const mid = el('span', 'sn-alert-detail', a.detail);
       const bot = el('span', 'sn-alert-meta');
       bot.append(el('span', 'sn-resp', a.response || 'alert'), el('span', null, `${clock(a.time)} · #${a.id}`));

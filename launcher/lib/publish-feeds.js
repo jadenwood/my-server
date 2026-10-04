@@ -271,6 +271,8 @@ function registerSteward(deps) {
       key: key ? { keyId: M.keyIdOf(key.publicKey) } : null,
       storeError: store.error,
       outDir,
+      newsFile: path.join(outDir, 'news.json'),
+      updateFile: path.join(outDir, 'update.json'),
       realm: deps.realmName(),
       newsUrl: N.siblingUrl(manifestUrl, 'news.json'),
       updateUrl: N.siblingUrl(manifestUrl, 'update.json'),
