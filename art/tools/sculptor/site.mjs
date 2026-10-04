@@ -156,6 +156,14 @@ export function validateSite(site, sculptures) {
       if (!groundOrSolid([c[0], c[1] - 1, c[2]])) P(`points.${name}: nothing to stand on under ${K(...c)}`);
     }
   }
+  // Sign spots: clear cells (the staff sign stands there) with a facing.
+  const built = draws.length ? pieceCells(site, sculptures, { draw: draws[0] }) : new Map();
+  const taken = new Set([...built.values()].flatMap((m) => [...m.keys()]));
+  for (const s of site.signs || []) {
+    if (!Array.isArray(s.cell) || s.cell.length !== 3 || !s.cell.every(Number.isInteger)) { P(`signs ${s.key}: cell must be three whole numbers`); continue; }
+    if (taken.has(K(...s.cell))) P(`signs ${s.key}: ${K(...s.cell)} is inside a piece`);
+    if (!['+x', '-x', '+z', '-z'].includes(s.faces)) P(`signs ${s.key}: faces must be +x, -x, +z or -z`);
+  }
   for (const [name, b] of Object.entries(site.boxes || {})) if (!b.min || !b.max || b.min.some((v, i) => v > b.max[i])) P(`boxes.${name}: min must be <= max`);
   for (const z of site.zones || []) {
     if (z.point && !(site.points || {})[z.point] && !String(z.point).startsWith('banner.')) P(`zones ${z.key}: no point ${z.point}`);
@@ -184,12 +192,13 @@ export function resolveSite(site, sculptures, anchor = [0, 0, 0], R = 0, draw) {
 }
 
 /** Every block of a site in site cells, for previews: built pieces, plugin cells in a chosen state, context pieces. */
-export function siteScene(site, sculptures, { gate = 'closed', band = 'rest', context = true, draw } = {}) {
+export function siteScene(site, sculptures, { gate = 'closed', band = 'rest', context = true, draw, pieces = null } = {}) {
   const blocks = [];
   const used = new Set();
   const add = (b) => { const k = K(b[0], b[1], b[2]); if (!used.has(k)) { used.add(k); blocks.push(b); } };
   for (const p of site.pieces) {
     if (p.by === 'context' && !context) continue;
+    if (pieces && !pieces.includes(p.key)) continue;
     if (p.key === (site.cells.gate || {}).piece && gate === 'open') continue;
     const s = sculptures.get(pieceSculpture(site, p, draw));
     for (const b of placeBlocks(s, p.turn, p.at)) add(b);
@@ -206,10 +215,10 @@ export function siteScene(site, sculptures, { gate = 'closed', band = 'rest', co
 export function terrainBlocks(t, used = new Set()) {
   const out = [];
   if (t.kind === 'fire') {
-    const [cx, cz] = t.centre;
-    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) out.push([cx + dx, 0, cz + dz, 5, 0, 0, t.ember]);
-    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) out.push([cx + dx, 1, cz + dz, 5, 0, 0, t.colour]);
-    out.push([cx, 2, cz, 5, 0, 0, t.colour]);
+    const [cx, cz] = t.centre, y = t.y || 0;
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) out.push([cx + dx, y, cz + dz, 5, 0, 0, t.ember]);
+    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) out.push([cx + dx, y + 1, cz + dz, 5, 0, 0, t.colour]);
+    out.push([cx, y + 2, cz, 5, 0, 0, t.colour]);
     return out.filter((b) => !used.has(K(b[0], b[1], b[2])));
   }
   if (t.kind !== 'mound') return out;

@@ -26,6 +26,7 @@ export const GH = {
   // Six arrival stones, all alike: [name, x, z]. A1-A3 are the row nearer the gate.
   stones: [['A1', -4, 9], ['A2', 0, 9], ['A3', 4, 9], ['A4', -4, 5], ['A5', 0, 5], ['A6', 4, 5]],
   court: { x0: -5, x1: 5, z0: 4, z1: 18 },             // the open court under the sky (11 x 15)
+  signBoards: [-4, 0, 4],                              // the Chronicle Wall's three boards (G2, G1, G3), centre x
   eave: 2,                                             // eaves run 2 cells in from the walls at the wall top
   // The Pilgrim's Stair in the left tower: a door from the court, two 1-cell steps, and a 2-cell-wide ledge (a sill
   // in the outer wall) 2 cells above the ground outside.
@@ -53,7 +54,7 @@ export const HEARTH = { x: 0, z: 107, half: 7, bandY: 2 };
 
 // The ember band: 24 cells round the fire at radius 5 (an octagon: |dx| or |dz| = 5 with the other at most 1, and the
 // diagonals |dx| + |dz| = 6). RealmArrival places and recolours them; the hearth ring leaves them empty and holds
-// them up on a 2-high kerb.
+// them up on its dais, so they stand one block proud of it at the height of the Hearth centre's feet cell (y 2).
 export function bandOffsets() {
   const out = [];
   for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) {
@@ -69,13 +70,14 @@ function ang([dx, dz]) { const a = Math.atan2(dx, -dz); return a < 0 ? a + 2 * M
 
 // The hearth ring's cells by distance from the fire's cell centre.
 export const ringR = (dx, dz) => Math.hypot(dx, dz);
-export const RING = { outer: 7.5, dais: 6.5, pit: 2.3 };
+export const RING = { outer: 7.5, dais: 6.5 };
 
-// Herald's Pillar (5 x 5) beside the ring on the throne side, off the axis so it never covers the throne in the view
-// from the gate; the wayboard (15 x 2) across the axis beyond it.
-export const PILLAR = { x0: -7, z0: 114 };
-export const WAYBOARD = { x0: -7, z0: 122 };
-export const THRONE = { x0: -7, z0: 205, lift: 10 };     // context only: the Old Throne on its hill, for previews
+// Herald's Pillar (5 x 5) beside the ring on its left, on the throne side, and the wayboard (2 x 15 once turned) on its
+// right, its boards facing the axis. Both stand clear of the axis: in the view from the gate they flank the Old Throne
+// instead of covering it (a wayboard across the axis at L 146 hid the throne's steps in the previews).
+export const PILLAR = { x0: -11, z0: 112 };
+export const WAYBOARD = { x0: 9, z0: 108, turn: 1 };
+export const THRONE = { x0: -7, z0: 178, lift: 10 };     // context only: the Old Throne on its hill, for previews
 
 export const HOUSE_SLOTS = ['p1-left', 'p1-right', 'p2-left', 'p2-right', 'p3-left', 'p3-right'];
 // The draw the previews show. The real order is drawn by lot in public at every build (docs/arrival-design.md 3.7).

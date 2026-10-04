@@ -24,12 +24,16 @@ const PREVIEWS = [
     cam: { kind: 'persp', eye: [0.5, EYE + 1, GH.goldLine.z + 0.5], yaw: 180, pitch: 12, fov: 74 } },
   { name: 'avenue', title: 'Between the second pair', state: { gate: 'open', band: 'flare' }, fog: 340,
     cam: { kind: 'persp', eye: [0.5, EYE, AVENUE.pairs[1] + 10.5], yaw: 0, pitch: -6, fov: 70 } },
-  { name: 'hearth', title: 'At the ring edge: the fire, the pillar, the wayboard and the throne beyond', state: { gate: 'open', band: 'flare' }, fog: 400,
-    cam: { kind: 'persp', eye: [3.5, EYE, HEARTH.z - HEARTH.half - 6], yaw: -4, pitch: -3, fov: 70 } },
-  { name: 'aerial', title: 'The site from above the Gatehouse', state: { gate: 'closed', band: 'rest' }, width: 1600, height: 900,
-    cam: { kind: 'ortho', yaw: 152, pitch: 30, centre: [0, 6, 104], scale: 5.2 } },
-  { name: 'aerial-gate', title: 'The Gatehouse of the Unwritten', state: { gate: 'closed', band: 'rest' },
-    cam: { kind: 'ortho', yaw: 205, pitch: 34, centre: [0, 4, 22], scale: 13 } },
+  { name: 'approach', title: 'Out of the last pair: the fire in its ember band, the pillar, the wayboard, the throne beyond', state: { gate: 'open', band: 'rest' }, fog: 400,
+    cam: { kind: 'persp', eye: [2.5, EYE, HEARTH.z - HEARTH.half - 17], yaw: -2, pitch: -4, fov: 64 } },
+  { name: 'hearth', title: 'On the outer step of the Hearth ring, the band flared', state: { gate: 'open', band: 'flare' }, fog: 400,
+    cam: { kind: 'persp', eye: [HEARTH.x + 7.5, EYE + 0.27, HEARTH.z - 9.5], yaw: -22, pitch: -1, fov: 72 } },
+  { name: 'look-back', title: 'From the Hearth back down the avenue to the Gatehouse', state: { gate: 'closed', band: 'rest' }, fog: 400,
+    cam: { kind: 'persp', eye: [0.5, EYE, AVENUE.b.z1 + 0.5], yaw: 180, pitch: -3, fov: 64 } },
+  { name: 'aerial', title: 'The site from behind the Gatehouse', state: { gate: 'closed', band: 'rest' }, width: 1600, height: 900,
+    cam: { kind: 'ortho', yaw: 24, pitch: 28, centre: [-6, 10, 96], scale: 7.4 } },
+  { name: 'aerial-gate', title: 'The court from above the gate: six stones, the aisle, the gold line, the Chronicle Wall', state: { gate: 'closed', band: 'rest', pieces: ['gatehouse', 'portcullis', 'processional-a'] },
+    cam: { kind: 'ortho', yaw: 200, pitch: 56, centre: [0, 2, 12], scale: 17 } },
   { name: 'side', title: 'Side elevation: gate, banners, fire, throne', state: { gate: 'open', band: 'rest' }, width: 1600, height: 500,
     cam: { kind: 'ortho', yaw: -90, pitch: 0, centre: [0, 12, 118], scale: 5.6 } },
 ];
@@ -84,11 +88,12 @@ export default {
     add({ key: 'processional-b', sculpture: 'processional-b', by: 'sculptor', order: ++order, turn: 2, at: [-AVENUE.half, 0, AVENUE.b.z0], optional: true });
     pair(2, AVENUE.pairs[1]);
     pair(3, AVENUE.pairs[2]);
-    add({ key: 'pillar', sculpture: 'heralds-pillar', by: 'sculptor', order: ++order, turn: 0, at: [PILLAR.x0, 0, PILLAR.z0],
-      note: 'Placed before the ring so its stand spot is on bare ground. Off the axis, so it never hides the throne from the gate. The waystone the-hearth is marked with it (/travel admin mark).' });
     add({ key: 'hearth-ring', sculpture: 'hearth-ring', by: 'sculptor', order: ++order, turn: 2, at: [HEARTH.x - HEARTH.half, 0, HEARTH.z - HEARTH.half],
-      note: 'Centred on the fire. The staff fire pit goes in the open middle; the ember band sits on the dais (cells.emberBand).' });
-    add({ key: 'wayboard', sculpture: 'wayboard', by: 'sculptor', order: ++order, turn: 0, at: [WAYBOARD.x0, 0, WAYBOARD.z0] });
+      note: 'Centred on the fire. The staff fire pit goes on the hearthstone in the middle of the dais; the ember band sits on the dais round it (cells.emberBand).' });
+    add({ key: 'pillar', sculpture: 'heralds-pillar', by: 'sculptor', order: ++order, turn: 0, at: [PILLAR.x0, 0, PILLAR.z0],
+      note: 'Left of the ring on the throne side, its notice toward the avenue. Off the axis, so it never hides the throne from the gate. The waystone the-hearth is marked with it (/travel admin mark).' });
+    add({ key: 'wayboard', sculpture: 'wayboard', by: 'sculptor', order: ++order, turn: WAYBOARD.turn, at: [WAYBOARD.x0, 0, WAYBOARD.z0],
+      note: 'Right of the ring, its five bays facing the axis (-x), so the throne stays in view from the gate.' });
     add({ key: 'old-throne', sculpture: 'old-throne', by: 'context', turn: 0, at: [THRONE.x0, THRONE.lift, THRONE.z0],
       note: 'Context for previews only: the Old Throne (L01) on its hill, wherever it really stands. The site is laid out so gate, fire and throne line up.' });
 
@@ -102,8 +107,8 @@ export default {
         note: 'Rows top first, each left to right as seen from the court. Opening removes one row every 0.4 s (material 0, collectPreviousCube false); closing puts them back bottom first.',
         rows },
       emberBand: { owner: 'RealmArrival', command: '/arrival admin beacon build 5', material: 'clay', rest: pal('Ember deep'), flare: pal('Ember hot'), restsOn: 'hearth-ring',
-        centre: [HEARTH.x, 0, HEARTH.z], radius: 5,
-        rule: 'hearth centre + (dx, 2, dz) for max(|dx|,|dz|) <= 5 and |dx|+|dz| <= 6, but not max <= 4 and |dx|+|dz| <= 5: an octagon of 24 cells',
+        centre: [HEARTH.x, HEARTH.bandY, HEARTH.z], radius: 5,
+        rule: 'hearth centre + (dx, 0, dz) for max(|dx|,|dz|) <= 5 and |dx|+|dz| <= 6, but not max <= 4 and |dx|+|dz| <= 5: an octagon of 24 cells',
         cells: BAND.map(([dx, dz]) => [HEARTH.x + dx, bandY, HEARTH.z + dz]) },
       goldLine: { piece: 'gatehouse', note: 'The 5 x 1 inlay in the floor (clay, Ember hot). Z1 is centred over it.', cells: range(GH.goldLine.x0, GH.goldLine.x1).map((x) => [x, 0, GH.goldLine.z]) },
       stoneFloors: { piece: 'gatehouse', note: 'The inlay under each arrival stone, A1 to A6. The self-check (GetCubeInfoAtLocal) closes the arrival if one is missing.',
@@ -120,11 +125,11 @@ export default {
       const slot = `p${n}-${side}`;
       points[`banner.${slot}`] = { kind: 'banner', slot, cell: [side === 'left' ? -AVENUE.pledgeX : AVENUE.pledgeX, 2, AVENUE.pairs[n - 1] + AVENUE.pledgeDz], note: slot === 'p1-left' ? 'On the raised centre of each pledge stone (/arrival admin banner set <house>, with the house drawn for that slot).' : undefined };
     }
-    points.hearth = { kind: 'fire', cell: [HEARTH.x, 0, HEARTH.z], note: 'The Hearth centre (/arrival admin hearth set), in the middle of the open pit before the fire pit is built. Must be within 3 m of the RealmQuests place the_hearth and the RealmLaws zone Hearth.' };
+    points.hearth = { kind: 'fire', cell: [HEARTH.x, HEARTH.bandY, HEARTH.z], note: 'The Hearth centre (/arrival admin hearth set): stand on the hearthstone in the middle of the dais before the fire pit is built. The band is this cell + (dx, 0, dz). Must be within 3 m of the RealmQuests place the_hearth and the RealmLaws zone Hearth.' };
     points.M1 = { kind: 'mercy', cell: [HEARTH.x - 6, 2, HEARTH.z], note: 'Mercy stones on the dais rim, outside the ember band (/arrival admin mercy add).' };
     points.M2 = { kind: 'mercy', cell: [HEARTH.x + 6, 2, HEARTH.z] };
     points.M3 = { kind: 'mercy', cell: [HEARTH.x, 2, HEARTH.z - 6] };
-    points.wayboard = { kind: 'trigger', cell: [0, 0, WAYBOARD.z0 - 2], note: 'In front of the wayboard (/arrival admin wayboard set).' };
+    points.wayboard = { kind: 'trigger', cell: [WAYBOARD.x0 - 2, 0, WAYBOARD.z0 + 7], note: 'In front of the wayboard\'s middle bay (/arrival admin wayboard set).' };
     points.pilgrimLedge = { kind: 'exit', cell: [GH.pilgrim.ledge.x, GH.pilgrim.ledge.y + 1, GH.pilgrim.ledge.z0], note: 'The Pilgrim\'s ledge: up the two steps in the left tower; the drop pad is below it outside.' };
     for (const k of Object.keys(points)) if (points[k].note === undefined) delete points[k].note;
 
@@ -143,11 +148,13 @@ export default {
       { key: 'Z3', name: 'Hearth stone', point: 'hearth', radiusM: 12 },
       { key: 'Z4', name: 'wayboard', point: 'wayboard', radiusM: 8 },
       { key: 'Z5', name: 'Hearth outer', point: 'hearth', radiusM: 70 },
-      { key: 'corridor', name: 'route corridor', axis: [[0, 0, GH.z0], [0, 0, WAYBOARD.z0 + 1]], halfWidthM: 20, note: 'Plus the hall box and Z5.' },
+      { key: 'corridor', name: 'route corridor', axis: [[0, 0, GH.z0], [0, 0, WAYBOARD.z0 + 14]], halfWidthM: 20, note: 'Plus the hall box and Z5.' },
     ];
 
     // Sign spots (4.3): the air cell the staff sign stands in, and which way its face looks.
-    const bay = (i) => WAYBOARD.x0 + Math.round((BAYS[i][0] + BAYS[i][1]) / 2);
+    // The wayboard is turned once: its own x runs along -z, so its bays (left to right for someone facing it) run
+    // from high z to low z, and its open front row is x = WAYBOARD.x0.
+    const bay = (i) => [WAYBOARD.x0, 1, WAYBOARD.z0 + 14 - Math.round((BAYS[i][0] + BAYS[i][1]) / 2)];
     const signs = [
       { key: 'G1', cell: [0, 2, GH.z0 + 2], faces: '+z', binding: 'art the-crossing', note: 'Back wall, behind the stones.' },
       { key: 'G2', cell: [-4, 2, GH.z0 + 2], faces: '+z', binding: 'board chronicle', note: 'Back wall: the Chronicle Wall.' },
@@ -157,11 +164,11 @@ export default {
         const n = Math.floor(i / 2), left = slot.endsWith('left');
         return { key: `P${i + 1}`, slot, cell: [left ? -AVENUE.pledgeX - 1 : AVENUE.pledgeX + 1, 0, AVENUE.pairs[n] + AVENUE.pledgeDz - 3], faces: left ? '+x' : '-x', binding: 'art crest-{house}', note: i === 0 ? 'A post beside each pledge stone, on its gate side.' : undefined };
       }),
-      { key: 'W1', cell: [bay(0), 1, WAYBOARD.z0], faces: '-z', binding: 'notice', text: 'Three Roads | Crown Market: coin and contracts. Listing Field: the Ring. The seats: the houses. /road shows the way.' },
-      { key: 'W2', cell: [bay(1), 1, WAYBOARD.z0], faces: '-z', binding: 'board proclamation' },
-      { key: 'W3', cell: [bay(2), 1, WAYBOARD.z0], faces: '-z', binding: 'board event' },
-      { key: 'W4', cell: [bay(3), 1, WAYBOARD.z0], faces: '-z', binding: 'board standings' },
-      { key: 'W5', cell: [bay(4), 1, WAYBOARD.z0], faces: '-z', binding: 'notice', text: 'Other Banners | Houses beyond the six recruit too. /house list names them; /raven <house> <letter> asks.' },
+      { key: 'W1', cell: bay(0), faces: '-x', binding: 'notice', text: 'Three Roads | Crown Market: coin and contracts. Listing Field: the Ring. The seats: the houses. /road shows the way.' },
+      { key: 'W2', cell: bay(1), faces: '-x', binding: 'board proclamation' },
+      { key: 'W3', cell: bay(2), faces: '-x', binding: 'board event' },
+      { key: 'W4', cell: bay(3), faces: '-x', binding: 'board standings' },
+      { key: 'W5', cell: bay(4), faces: '-x', binding: 'notice', text: 'Other Banners | Houses beyond the six recruit too. /house list names them; /raven <house> <letter> asks.' },
       { key: 'H1', cell: [4, 0, HEARTH.z - HEARTH.half - 2], faces: '-z', binding: 'notice', text: 'The Hearth | Raise a crest before you build. Log off behind walls. Nights are dark: carry a torch.', note: 'Facing the avenue end, beside the path.' },
     ].map((s) => { if (s.note === undefined) delete s.note; return s; });
 
@@ -193,7 +200,7 @@ export default {
       signs,
       terrain: [
         { kind: 'mound', previewOnly: true, centre: [0, THRONE.z0 + 8], radius: 34, top: 12, height: THRONE.lift, colour: house('merrin', 'fieldLight'), note: 'A stand-in for the throne hill in previews.' },
-        { kind: 'fire', previewOnly: true, centre: [HEARTH.x, HEARTH.z], colour: pal('Ember hot'), ember: pal('Afterglow'), note: 'A stand-in for the staff-built fire pit in previews.' },
+        { kind: 'fire', previewOnly: true, centre: [HEARTH.x, HEARTH.z], y: HEARTH.bandY, colour: pal('Ember hot'), ember: pal('Afterglow'), note: 'A stand-in for the staff-built fire pit in previews.' },
       ],
     };
   },

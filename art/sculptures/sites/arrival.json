@@ -262,55 +262,56 @@
       }
     },
     {
-      "key": "pillar",
-      "sculpture": "heralds-pillar",
-      "by": "sculptor",
-      "turn": 0,
-      "at": [-7, 0, 114],
-      "size": [5, 13, 5],
-      "order": 16,
-      "stand": {
-        "cell": [-5, 0, 111],
-        "facing": "+z",
-        "command": "/sculpt place heralds-pillar 0"
-      },
-      "note": "Placed before the ring so its stand spot is on bare ground. Off the axis, so it never hides the throne from the gate. The waystone the-hearth is marked with it (/travel admin mark)."
-    },
-    {
       "key": "hearth-ring",
       "sculpture": "hearth-ring",
       "by": "sculptor",
       "turn": 2,
       "at": [-7, 0, 100],
       "size": [15, 2, 15],
-      "order": 17,
+      "order": 16,
       "stand": {
         "cell": [0, 0, 117],
         "facing": "-z",
         "command": "/sculpt place hearth-ring 2"
       },
-      "note": "Centred on the fire. The staff fire pit goes in the open middle; the ember band sits on the dais (cells.emberBand)."
+      "note": "Centred on the fire. The staff fire pit goes on the hearthstone in the middle of the dais; the ember band sits on the dais round it (cells.emberBand)."
+    },
+    {
+      "key": "pillar",
+      "sculpture": "heralds-pillar",
+      "by": "sculptor",
+      "turn": 0,
+      "at": [-11, 0, 112],
+      "size": [5, 13, 5],
+      "order": 17,
+      "stand": {
+        "cell": [-9, 0, 109],
+        "facing": "+z",
+        "command": "/sculpt place heralds-pillar 0"
+      },
+      "note": "Left of the ring on the throne side, its notice toward the avenue. Off the axis, so it never hides the throne from the gate. The waystone the-hearth is marked with it (/travel admin mark)."
     },
     {
       "key": "wayboard",
       "sculpture": "wayboard",
       "by": "sculptor",
-      "turn": 0,
-      "at": [-7, 0, 122],
-      "size": [15, 5, 2],
+      "turn": 1,
+      "at": [9, 0, 108],
+      "size": [2, 5, 15],
       "order": 18,
       "stand": {
-        "cell": [0, 0, 119],
-        "facing": "+z",
-        "command": "/sculpt place wayboard 0"
-      }
+        "cell": [6, 0, 115],
+        "facing": "+x",
+        "command": "/sculpt place wayboard 1"
+      },
+      "note": "Right of the ring, its five bays facing the axis (-x), so the throne stays in view from the gate."
     },
     {
       "key": "old-throne",
       "sculpture": "old-throne",
       "by": "context",
       "turn": 0,
-      "at": [-7, 10, 205],
+      "at": [-7, 10, 178],
       "size": [15, 16, 13],
       "note": "Context for previews only: the Old Throne (L01) on its hill, wherever it really stands. The site is laid out so gate, fire and throne line up."
     }
@@ -339,9 +340,9 @@
       "rest": "#9c6a1e",
       "flare": "#f4c96d",
       "restsOn": "hearth-ring",
-      "centre": [0, 0, 107],
+      "centre": [0, 2, 107],
       "radius": 5,
-      "rule": "hearth centre + (dx, 2, dz) for max(|dx|,|dz|) <= 5 and |dx|+|dz| <= 6, but not max <= 4 and |dx|+|dz| <= 5: an octagon of 24 cells",
+      "rule": "hearth centre + (dx, 0, dz) for max(|dx|,|dz|) <= 5 and |dx|+|dz| <= 6, but not max <= 4 and |dx|+|dz| <= 5: an octagon of 24 cells",
       "cells": [[0, 2, 102], [1, 2, 102], [2, 2, 103], [3, 2, 104], [4, 2, 105], [5, 2, 106], [5, 2, 107], [5, 2, 108], [4, 2, 109], [3, 2, 110], [2, 2, 111], [1, 2, 112], [0, 2, 112], [-1, 2, 112], [-2, 2, 111], [-3, 2, 110], [-4, 2, 109], [-5, 2, 108], [-5, 2, 107], [-5, 2, 106], [-4, 2, 105], [-3, 2, 104], [-2, 2, 103], [-1, 2, 102]]
     },
     "goldLine": {
@@ -430,8 +431,8 @@
     },
     "hearth": {
       "kind": "fire",
-      "cell": [0, 0, 107],
-      "note": "The Hearth centre (/arrival admin hearth set), in the middle of the open pit before the fire pit is built. Must be within 3 m of the RealmQuests place the_hearth and the RealmLaws zone Hearth."
+      "cell": [0, 2, 107],
+      "note": "The Hearth centre (/arrival admin hearth set): stand on the hearthstone in the middle of the dais before the fire pit is built. The band is this cell + (dx, 0, dz). Must be within 3 m of the RealmQuests place the_hearth and the RealmLaws zone Hearth."
     },
     "M1": {
       "kind": "mercy",
@@ -448,8 +449,8 @@
     },
     "wayboard": {
       "kind": "trigger",
-      "cell": [0, 0, 120],
-      "note": "In front of the wayboard (/arrival admin wayboard set)."
+      "cell": [7, 0, 115],
+      "note": "In front of the wayboard's middle bay (/arrival admin wayboard set)."
     },
     "pilgrimLedge": {
       "kind": "exit",
@@ -533,7 +534,7 @@
     {
       "key": "corridor",
       "name": "route corridor",
-      "axis": [[0, 0, 0], [0, 0, 123]],
+      "axis": [[0, 0, 0], [0, 0, 122]],
       "halfWidthM": 20,
       "note": "Plus the hall box and Z5."
     }
@@ -612,33 +613,33 @@
     },
     {
       "key": "W1",
-      "cell": [-5, 1, 122],
-      "faces": "-z",
+      "cell": [9, 1, 120],
+      "faces": "-x",
       "binding": "notice",
       "text": "Three Roads | Crown Market: coin and contracts. Listing Field: the Ring. The seats: the houses. /road shows the way."
     },
     {
       "key": "W2",
-      "cell": [-2, 1, 122],
-      "faces": "-z",
+      "cell": [9, 1, 117],
+      "faces": "-x",
       "binding": "board proclamation"
     },
     {
       "key": "W3",
-      "cell": [0, 1, 122],
-      "faces": "-z",
+      "cell": [9, 1, 115],
+      "faces": "-x",
       "binding": "board event"
     },
     {
       "key": "W4",
-      "cell": [3, 1, 122],
-      "faces": "-z",
+      "cell": [9, 1, 112],
+      "faces": "-x",
       "binding": "board standings"
     },
     {
       "key": "W5",
-      "cell": [6, 1, 122],
-      "faces": "-z",
+      "cell": [9, 1, 109],
+      "faces": "-x",
       "binding": "notice",
       "text": "Other Banners | Houses beyond the six recruit too. /house list names them; /raven <house> <letter> asks."
     },
@@ -655,7 +656,7 @@
     {
       "kind": "mound",
       "previewOnly": true,
-      "centre": [0, 213],
+      "centre": [0, 186],
       "radius": 34,
       "top": 12,
       "height": 10,
@@ -666,6 +667,7 @@
       "kind": "fire",
       "previewOnly": true,
       "centre": [0, 107],
+      "y": 2,
       "colour": "#f4c96d",
       "ember": "#a8642c",
       "note": "A stand-in for the staff-built fire pit in previews."

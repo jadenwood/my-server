@@ -25,6 +25,8 @@ const S = {
   page: style('clay', pal('Parchment')),
   slit: style('stone', pal('Iron 900')),
   portcullis: style('reinforced', pal('Iron 900')),
+  aisle: style('cobblestone', pal('Iron 600')),
+  board: style('wood', pal('Ink soft')),
 };
 
 const inTower = (x, z) => z >= GH.towerZ0 && GH.towers.some((t) => x >= t.x0 && x <= t.x1);
@@ -43,6 +45,8 @@ function gatehouse() {
     g.set(sx, 0, sz, S.stone);
   }
   for (let x = GH.goldLine.x0; x <= GH.goldLine.x1; x++) g.set(x, 0, GH.goldLine.z, S.gold);
+  // A lighter aisle from the front row of stones to the gold line, so the floor itself points at the gate.
+  for (let x = -1; x <= 1; x++) for (let z = GH.stones[0][2] + 2; z < GH.goldLine.z; z++) g.set(x, 0, z, S.aisle);
 
   // Walls, towers and the raised gate front.
   const midGate = (x) => x > GH.towers[0].x1 && x < GH.towers[1].x0;
@@ -97,6 +101,14 @@ function gatehouse() {
     g.set(x, GH.wallTop, z, S.eave);
   }
 
+  // The Chronicle Wall: on the back wall's inner face, three dark boards in a pale frame for the signs G2, G1, G3 (the
+  // Chronicle board, the-crossing, the notice). The signs hang in front of the boards.
+  const zb = z0 + 1;
+  for (const c of GH.signBoards) for (let x = c - 1; x <= c + 1; x++) for (let y = 2; y <= 4; y++) g.set(x, y, zb, S.board);
+  const fx0 = GH.signBoards[0] - 2, fx1 = GH.signBoards[GH.signBoards.length - 1] + 2;
+  for (let x = fx0; x <= fx1; x++) { g.set(x, 1, zb, S.edge); g.set(x, 5, zb, S.edge); }
+  for (const c of GH.signBoards) for (const x of [c - 2, c + 2]) for (let y = 2; y <= 4; y++) g.set(x, y, zb, S.edge);
+
   // The Pilgrim's Stair: a door from the court into the left tower, two steps, and the sill out through the outer wall.
   const p = GH.pilgrim;
   for (let y = 1; y <= 2; y++) g.del(p.door[0], y, p.door[1]);
@@ -118,7 +130,7 @@ function wallStyle(x, y, z, tower, top) {
     || (x === x0 || x === x1) && z === z1 - 1 && y % 2 === 1 || (x === x0 + 1 || x === x1 - 1) && z === z1 && y % 2 === 0;
   if (corner || quoin) return S.edge;
   // Buttresses: pale-edged piers on the outer faces, and a stepped edge at the wall top.
-  const pierSide = (x === x0 || x === x1) && [6, 11, 16].includes(z);
+  const pierSide = (x <= x0 + 1 || x >= x1 - 1) && [6, 11, 16].includes(z);
   const pierBack = z === z0 && [-4, 4].includes(x);
   if (pierSide || pierBack) return S.edge;
   if (!tower && y === top) return S.edge;

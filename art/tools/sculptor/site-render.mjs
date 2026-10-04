@@ -102,7 +102,7 @@ export function viewSvg(blocks, cam, { width = 1280, height = 720, fog = 0, over
   } else {
     const all = proj.polys.flatMap((p) => p.pts);
     if (all.length) {
-      const g = [[-60, -60], [60, -60], [60, 260], [-60, 260]].map(([x, z]) => proj.toScreen(proj.toView([x, 0, z])));
+      const g = [[-900, -900], [900, -900], [900, 1100], [-900, 1100]].map(([x, z]) => proj.toScreen(proj.toView([x, 0, z])));
       ground = `<polygon points="${g.map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ')}" fill="${groundNear}"/>`;
     }
   }
@@ -131,13 +131,14 @@ export function planSvg(site, sculptures, { width = 1900, height = 560 } = {}) {
   const z0 = Math.min(...zs) - 6, z1 = Math.max(...zs) + 6, x0 = Math.min(...xs) - 8, x1 = Math.max(...xs) + 8;
   const k = Math.min((width - 40) / (z1 - z0 + 1), (height - 70) / (x1 - x0 + 1));
   const ox = 20, oy = 40;
-  // Screen: z to the right, x downward reversed so +x (the right of someone walking to the fire) is at the bottom.
-  const S = (x, z) => [ox + (z - z0) * k, oy + (x1 - x) * k];
+  // Screen: z to the right and +x downward, as the ground looks from above with the axis pointing right (the right hand
+  // of someone walking to the fire is toward the bottom of the page).
+  const S = (x, z) => [ox + (z - z0) * k, oy + (x - x0) * k];
   const top = new Map();
   for (const b of blocks) { const key = `${b[0]},${b[2]}`; const t = top.get(key); if (!t || b[1] >= t[1]) top.set(key, b); }
   const matColour = new Map(MATERIALS.map((m) => [m.id, m.previewColour]));
   const cellsSvg = [...top.values()].map((b) => {
-    const [sx, sy] = S(b[0] + 1, b[2]);
+    const [sx, sy] = S(b[0], b[2]);
     const fill = shade(b[6] || matColour.get(b[3]), 0.75 + Math.min(0.35, b[1] * 0.03));
     return `<rect x="${sx.toFixed(1)}" y="${sy.toFixed(1)}" width="${k.toFixed(2)}" height="${k.toFixed(2)}" fill="${fill}"/>`;
   }).join('');
@@ -153,12 +154,12 @@ export function planSvg(site, sculptures, { width = 1900, height = 560 } = {}) {
     for (const p of list) o += circle(p.cell, z.radiusM, z.key === 'Z2' ? pal('Ember deep') : pal('Blood'), z.key === 'Z2' ? '5 4' : '');
   }
   for (const [name, b] of Object.entries(site.boxes)) {
-    const [ax, ay] = S(b.max[0] + 1, b.min[2]), [bx, by] = S(b.min[0], b.max[2] + 1);
+    const [ax, ay] = S(b.min[0], b.min[2]), [bx, by] = S(b.max[0] + 1, b.max[2] + 1);
     o += `<rect x="${ax.toFixed(1)}" y="${ay.toFixed(1)}" width="${(bx - ax).toFixed(1)}" height="${(by - ay).toFixed(1)}" fill="none" stroke="${pal('Blood')}" stroke-width="2" stroke-dasharray="8 5"/>`;
     o += txt(ax + 4, ay - 5, `${name} ${b.name}`, { anchor: 'start', fill: pal('Blood') });
   }
-  for (const c of site.cells.emberBand.cells) { const [sx, sy] = S(c[0] + 1, c[2]); o += `<rect x="${sx.toFixed(1)}" y="${sy.toFixed(1)}" width="${k.toFixed(1)}" height="${k.toFixed(1)}" fill="${site.cells.emberBand.flare}" stroke="${pal('Ember deep')}"/>`; }
-  for (const row of site.cells.gate.rows) for (const c of row) { const [sx, sy] = S(c[0] + 1, c[2]); o += `<rect x="${sx.toFixed(1)}" y="${sy.toFixed(1)}" width="${k.toFixed(1)}" height="${k.toFixed(1)}" fill="${pal('Iron 900')}" stroke="${pal('Ember')}"/>`; }
+  for (const c of site.cells.emberBand.cells) { const [sx, sy] = S(c[0], c[2]); o += `<rect x="${sx.toFixed(1)}" y="${sy.toFixed(1)}" width="${k.toFixed(1)}" height="${k.toFixed(1)}" fill="${site.cells.emberBand.flare}" stroke="${pal('Ember deep')}"/>`; }
+  for (const row of site.cells.gate.rows) for (const c of row) { const [sx, sy] = S(c[0], c[2]); o += `<rect x="${sx.toFixed(1)}" y="${sy.toFixed(1)}" width="${k.toFixed(1)}" height="${k.toFixed(1)}" fill="${pal('Iron 900')}" stroke="${pal('Ember')}"/>`; }
   for (const [name, p] of Object.entries(pts)) {
     if (name === 'gateSet' || name === 'pilgrimLedge') continue;
     const [cx, cy] = C(p.cell);
@@ -175,7 +176,7 @@ export function planSvg(site, sculptures, { width = 1900, height = 560 } = {}) {
   o = `<line x1="${a0x}" y1="${a0y}" x2="${a1x}" y2="${a0y}" stroke="${pal('Ember deep')}" stroke-width="1" stroke-dasharray="2 4"/>` + o;
   const [s0x] = S(0, z0 + 2), [s1x] = S(0, z0 + 2 + 25);
   o += `<line x1="${s0x}" y1="${height - 14}" x2="${s1x}" y2="${height - 14}" stroke="${pal('Iron 950')}" stroke-width="3"/>` + txt((s0x + s1x) / 2, height - 20, '30 m', { size: 11 });
-  o += txt(width / 2, 22, `${site.name}: plan (site frame; the axis runs left to right toward the fire; +x is at the bottom)`, { size: 14, weight: 700 });
+  o += txt(width / 2, 22, `${site.name}: plan (site frame; the axis runs left to right toward the fire; +x, the right hand, is toward the bottom)`, { size: 14, weight: 700 });
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
 <rect width="${width}" height="${height}" fill="${mix(pal('Moss'), pal('Parchment 2'), 0.62)}"/>
 ${cellsSvg}
