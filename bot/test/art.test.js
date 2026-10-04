@@ -23,7 +23,7 @@ test('the art tables match the art pack (event map, great houses, renown titles)
   // Every type the Chronicle serves has a picture.
   const server = readFileSync(fileURLToPath(new URL('../../chronicle/server.js', import.meta.url)), 'utf8');
   const types = [...(server.match(/EVENT_TYPES = new Set\(\[([\s\S]*?)\]\)/)[1].replace(/\/\/.*$/gm, '').matchAll(/'([a-z_]+)'/g))].map((m) => m[1]);
-  assert.equal(types.length, 45);
+  assert.equal(types.length, 47);
   for (const t of types) assert.ok(EVENT_ICONS[t], `${t} has an icon`);
 });
 

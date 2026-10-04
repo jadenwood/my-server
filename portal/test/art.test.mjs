@@ -24,7 +24,7 @@ test('the art copies in portal, chronicle and streamkit match art/ (node portal/
 
 test('every Chronicle event type has its own icon, and the sprite has it', () => {
   const types = Object.keys(TYPE_META);
-  assert.equal(types.length, 45);
+  assert.equal(types.length, 47);
   const used = new Set();
   for (const t of types) {
     assert.ok(EVENT_ICONS[t], `${t} has an icon`);

@@ -257,7 +257,7 @@ static class T
             if (img != null && (int)F(img, "W") == (int)F(kv.Value, "Width") && (int)F(img, "H") == (int)F(kv.Value, "Height")) decoded++;
             if (kind != "mask" && img != null && ((string)kv.Key == "sigil-96-varrow" || (string)kv.Key == "tile-parchment")) File.WriteAllBytes(Path.Combine(Out, "bundle-" + kv.Key + ".rgba"), Px(img));
         }
-        Ok(decoded == total && total == 73, "every sprite in the bundle decodes at its stated size (" + decoded + "/" + total + ")");
+        Ok(decoded == total && total == 75, "every sprite in the bundle decodes at its stated size (" + decoded + "/" + total + ")");
 
         var small = NewPainter("{ \"MaxImageSide\": 256, \"MaxPngBytes\": 90000 }");
         var sp = (List<string>)F(F(small, "art"), "Paintings");
