@@ -45,7 +45,7 @@
 // Tavern games. Hearth Dice (two dice each, high total takes the pot) and Twenty-One (both play at once, closest to
 //   21 without going over). Both are player against player with equal stakes and symmetric rules: the house takes
 //   nothing (house edge zero). Strict limits: stake bounds, a daily stake cap, a daily loss cap, games per pair per
-//   day, a cooldown and a minimum time on the server. Dice and cards come from RNGCryptoServiceProvider.
+//   day, a cooldown and a minimum time on the server. Dice and cards come from System.Security.Cryptography.RandomNumberGenerator.
 // Anti-abuse. Win-trading with alts: per-pair ranked limits a day and a week, a rating factor that halves for each
 //   repeat in the week, housemates and allies unranked, minimum play time, no contest for a quick fall where the loser
 //   never struck, and an alert to RealmWarden for pairs that meet too often. Elo farming of new players: a newcomer's
@@ -865,6 +865,8 @@ namespace Oxide.Plugins
                 { "ChallengeCancelled", "{0} withdraws the challenge. Any stake goes back to its purse." },
                 { "ChallengeLapsed", "The challenge lapsed unanswered. Any stake goes back to its purse." },
                 { "ChallengeGone", "{0} is no longer here; the challenge is off and any stake goes back to its purse." },
+                { "ChallengeVoidBusy", "{0} is no longer free to play; the challenge is off and any stake goes back to its purse." },
+                { "TableBusy", "You already have a game waiting for an answer. [F4C96D]/dice cancel[FFFFFF] or [F4C96D]/cards cancel[FFFFFF] withdraws it." },
                 { "NothingToCancel", "You have no challenge waiting." },
                 { "ChallengesOn", "You take challenges again." },
                 { "ChallengesOff", "You refuse all challenges until you type [F4C96D]/duel on[FFFFFF]." },
@@ -1483,6 +1485,7 @@ namespace Oxide.Plugins
             if (IsProtected(p)) return self ? "YouProtected" : "TheyProtected";
             if (IsFrozen(p)) return self ? "YouFrozen" : "TheyFrozen";
             if (InCombat(id, now)) return self ? "YouInCombat" : "TheyInCombat";
+            if (InTourney(id)) return self ? "YouInTourney" : "TheyInTourney";
             return null;
         }
 
@@ -1698,6 +1701,14 @@ namespace Oxide.Plugins
             if (why != null) { if (tavern) RefuseTavern(player, why, null); else Refuse(player, why, null); return; }
             Player by = OnlineById(c.Members[0].Id);
             if (by == null) { DropChallenge(c, "ChallengeGone", c.Members[0].Name); return; }
+            // Everyone who already said yes must still be free to play: one of them may have taken another fight since.
+            foreach (Member m in c.Members)
+            {
+                if (m.Id == id || !m.Accepted) continue;
+                Player mp = OnlineById(m.Id);
+                string busy = mp == null ? "gone" : (tavern ? TavernStillOk(mp, c.Wager) : RingRefusal(mp, false));
+                if (busy != null) { DropChallenge(c, "ChallengeVoidBusy", m.Name); return; }
+            }
             if (c.Wager > 0 && !HoldStake(c.Id, me, c.Wager, HoldMinutesFor(c.Kind))) { ErrorFor(player, Family(c), "HoldFailed"); return; }
             me.Accepted = true;
             foreach (Member m in c.Members) if (!m.Accepted) { dirty = true; TellChallenge(c, "TeamAccepted", me.Name, PendingNames(c)); SaveData(); return; }
@@ -3271,6 +3282,18 @@ namespace Oxide.Plugins
 
         // Player against player, equal stakes, the same rules for both: the house takes nothing (house edge zero).
 
+        // A player who already staked at this table: still free to play, and still within today's limits?
+        private string TavernStillOk(Player p, long stake)
+        {
+            string id = p.Id.ToString();
+            if (DuelOf(id) != null || GameOf(id) != null || InTourney(id)) return "busy";
+            Fighter f = GetFighter(id, p.Name, true);
+            if (f == null) return "busy";
+            RollDay(f, Now());
+            if (f.TavernStaked + stake > config.Tavern.DailyStakeLimit || f.TavernLost - f.TavernWon + stake > config.Tavern.DailyLossLimit) return "limits";
+            return null;
+        }
+
         private string TavernRefusal(Player p, string kind, long stake, string otherId)
         {
             TavernSettings v = config.Tavern;
@@ -3318,7 +3341,10 @@ namespace Oxide.Plugins
             DateTime cd;
             if (cooldowns.TryGetValue("re:" + PairKey(id, tid), out cd) && cd > Now()) { TavernError(player, "RechallengeWait", CleanName(target.Name), Secs(cd - Now())); return; }
             foreach (Challenge open in data.Challenges)
+            {
                 if (Involves(open, id) && Involves(open, tid)) { TavernError(player, "AlreadyChallenged", CleanName(target.Name)); return; }
+                if ((open.Kind == KDice || open.Kind == KCards) && open.Members[0].Id == id) { TavernError(player, "TableBusy"); return; }   // one table at a time
+            }
             Challenge c = NewChallenge(kind, player, stake, config.Tavern.ChallengeSeconds);
             c.Members.Add(NewMember(target, 1));
             if (!HoldStake(c.Id, c.Members[0], stake, HoldMinutesFor(kind))) { TavernError(player, "HoldFailed"); return; }
@@ -4243,7 +4269,8 @@ namespace Oxide.Plugins
         {
             if (amount <= 0) return true;
             if (RealmTreasury == null) return false;
-            string holdId = "arena:" + refId + ":" + m.Id;
+            // Unique even if the arena's data were ever reset: the ids restart, the clock does not.
+            string holdId = "arena:" + refId + ":" + m.Id + ":" + Now().ToString("yyMMddHHmmss", CultureInfo.InvariantCulture);
             object r;
             try { r = RealmTreasury.Call("HoldMarks", holdId, m.Id, m.Name, amount, HoldSource, minutes); }
             catch (Exception ex) { PrintWarning("RealmTreasury HoldMarks failed: " + ex.Message); return false; }
@@ -4447,7 +4474,7 @@ namespace Oxide.Plugins
             return clock();
         }
 
-        private static readonly RNGCryptoServiceProvider Crypto = new RNGCryptoServiceProvider();
+        private static readonly RandomNumberGenerator Crypto = RandomNumberGenerator.Create();      // mscorlib, System.Security.Cryptography
 
         // Uniform 0..n-1 from the crypto generator, without modulo bias.
         private static int CryptoNext(int n)
