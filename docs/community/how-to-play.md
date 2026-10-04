@@ -1,16 +1,22 @@
 # How to play on Realm
 
-A one-page guide for players. Every command and limit below comes from the plugin source (`plugins/RealmHouses.cs`, `plugins/CrownAndConsequences.cs`, `plugins/RealmChronicle.cs`) at its **default config**. Server operators can change these limits in `oxide/config/*.json`. If what you see in game differs, the server config wins. The lore is in [`lore.md`](lore.md) and the rules are in [`rules.md`](rules.md).
+A guide for players. It opens with **What's in Realm**, every system in plain words. The numbered sections after it give the exact commands and limits for houses, the crown and the Chronicle, contracts, seasons and events, taken from the plugin source (`plugins/RealmHouses.cs`, `plugins/CrownAndConsequences.cs`, `plugins/RealmChronicle.cs`, `plugins/RealmContracts.cs`, `plugins/RealmSeasons.cs`, `plugins/RealmEvents.cs`) at its **default config**. Server operators can change these limits in `oxide/config/*.json`. If what you see in game differs, the server config wins. The lore is in [`lore.md`](lore.md) and the rules are in [`rules.md`](rules.md).
 
-**Getting in:** use your own Steam copy of Reign of Kings (app 344760). The Realm launcher only opens Steam and shows the address to type into direct connect. Nothing on your PC is modified.
+**Getting in:** use your own Steam copy of Reign of Kings (app 344760). The Realm app's **Play** button opens the game through your own Steam and joins the server; if the game stops at its menu, the app shows the address and port to type into direct connect. Nothing on your PC is modified.
 
-**Quick help in game:** type `/house` with no arguments for the house and treaty help line. `/decree`, `/council`, `/claim`, `/ransom`, `/crown` and `/chronicle` with no arguments each show their current state.
+**Quick help in game:** `/realm` lists every command by subject. Type `/house` with no arguments for the house and treaty help line. `/decree`, `/council`, `/claim`, `/ransom`, `/crown` and `/chronicle` with no arguments each show their current state.
 
 Arguments in `<angle brackets>` are required and arguments in `[square brackets]` are optional. To pass a name with spaces as **one** argument, wrap it in double quotes, for example `/house found "Grey Water" Heron`. The Oxide RoK chat parser supports this (`docs/oxide-rok-api.md`).
 
 ---
 
-## Your first hour
+## What's in Realm
+
+Realm is Reign of Kings with a realm around it: houses that swear and betray, one crown worth fighting for, laws and a court, coin, letters, seasons that end and a history that does not. Everything below is done by the server, so you need nothing but your own copy of the game. Type **`/realm`** in game for every command by subject; most commands explain themselves when typed alone.
+
+*Realm is still being tested. Not everything here has been seen working on the live server yet, and the numbers are first guesses that will be tuned. If something behaves differently from this page, tell the staff: the server's settings win.*
+
+### Your first hour
 
 **The arrival.** After you make your character on the ferryman's raft (the game's own character screen), you wake in the **Gatehouse of the Unwritten**, a stone court below the Hearth. Walk to the gold line before the gate and it opens. Six house banners line the road to the Hearth: each house tells you what it is as you pass, and standing still on a house's stone lets its members know you are interested (it is never an oath; only they can invite you). At the fire you are pointed to your starter bundle (`/kit starter`), the crown (`/crown`) and your first deed (`/quest`). It takes three to five minutes. `/arrival` says where you are and what is next, `/arrival skip` ends it at once, and `/arrival tour` tells you the banners and the fire again as you pass them. Returning players never see it. (RealmArrival, `plugins/docs/RealmArrival.md`. Not yet tried on a live server.)
 
@@ -22,7 +28,106 @@ Arguments in `<angle brackets>` are required and arguments in `[square brackets]
 - **Raise a crest before you build.** Blocks outside a crest's land decay. A crest marks your land and keeps what you build there.
 - **Place a bed.** Without one you wake at a random spot after a death. A newcomer who falls while still sheltered gets one return to the Hearth (Hearth's Mercy), once.
 - **Log off behind walls.** Your body sleeps where you stood when you leave. Anyone can find it, so leave it behind a locked door.
-- **Your first hour is sheltered.** RealmWarden protects new players for their first hour of play (and at most 48 hours). Strike, bind or raid a crest, and the shelter ends at once.
+
+**Realm's first steps.**
+
+- **The Herald** welcomes you (after the arrival, when it runs), shows the message of the day and three first steps: swear to a house, see who holds the crown, and take a contract (`/realm path` shows the way). `/realm` opens the hub; `/realm popups off` keeps everything in chat if you prefer.
+- **New-player protection** (the Warden) keeps other players from hurting you for your first hour of play (and at most 48 hours). Strike, bind or raid a crest, and the protection ends at once. You can give it up early with `/warden protection off confirm`.
+- **Kits.** Newcomers can take a starter pack once with `/kit starter`; members of a house draw daily provisions, and everyone gets a season's bounty once per season. `/kit` shows what you may take.
+- **Your journal.** `/quest` gives you three small tasks a day and two a week, plus the season's story. Finishing them pays marks (Realm's coin), renown and sometimes goods.
+
+### Houses, oaths and treaties
+
+A **house** is your faction: a name, a sigil, a leader, officers and members. Found one with `/house found`, or ask to be invited. Houses can **swear an oath** to a stronger house and become its vassals, and can sign **treaties** that last a set number of days. Nothing stops a vassal or an ally from turning on you, but the realm remembers: breaking an oath or a treaty marks you and your house as oathbreakers or treaty-breakers for everyone to see. Details in sections 1 to 3 below.
+
+**House colours.** If your house is bound to a game guild (`/house link`), the server keeps the guild's name and banner in your house's colours, so they show on your banner, your crest's flags, your armour and the little icon by your name. The six great houses have their own colours; other houses get an open pair, and the head of the house can choose another with `/heraldry colours` (the first choice is free, later changes cost marks and wait three days). `/heraldry` shows yours.
+
+### The crown
+
+Whoever sits on the **Old Throne** is the monarch. The monarch issues **decrees** (Royal Stores, the King's Peace, Open Roads, Tax Relief), appoints a **council** and can name outlaws. The throne cannot be taken by surprise: once someone holds it, only a house with a declared **claim** may take it, and only during a **rebellion window**. Captives can be held for a capped **ransom** for a limited time. Details in sections 4 to 8.
+
+**Elections and the realm's voice.** Each new season the realm **elects** two council seats, the Keeper of Coin and the Marshal, from heads of houses who stand with `/ballot stand` (with a deposit). You vote with `/vote <name or house>`; the count stays hidden until the close, and the winners serve 28 days that the monarch cannot cut short. The monarch can also **ask the realm** about a decree or a law (`/vote yes` or `/vote no`): a decree the realm approves costs the crown nothing next time, and one it refuses is blocked for three days. One vote per Steam account, and only for players who have played a while and been in their house a few days; `/ballot me` tells you if you can vote and why not.
+
+### Law and the court
+
+The crown proclaims **laws** (for example the King's Peace in the market or a bridge toll) and draws **zones** where they hold. Break a law and it goes on a public crime ledger; anyone can **accuse** you, and a **jury** of house heads tries the case. A verdict can mean a fine, outlawry or exile, and a case can be settled by **trial by combat** in the ring. The monarch can pardon. `/law`, `/court` and `/laws` explain it all.
+
+### Bloodlines, renown and titles
+
+Found a **dynasty**, name your heirs and pass your line's claim down when a monarch falls (`/dynasty`). Great deeds and dark ones earn **renown** and **infamy**: taking the throne, keeping a treaty, bringing down an outlaw, betraying an oath. Deeds earn **titles** such as Kingslayer, Kingmaker, Champion of the Ring or Guildmaster, which you can wear in chat with `/titles set`. `/renown top` shows the realm's most famous and most infamous.
+
+### Coin: marks, the market and the treasury
+
+Realm's coin is the **mark**, kept in your purse (`/purse`). You earn it from tasks, events, duels, crafting commissions, caravans and treasure, and you can pay other players. The **market** (`/market`) lets you sell and buy goods for marks with the goods held safely until the trade completes. Each house has a **vault** its heads and stewards manage (`/vault`). The **crown's treasury** collects tolls, fees and tribute; the monarch and the Keeper of Coin decide grants. Every mark is accounted for in a public audit, so nobody can print money.
+
+### Contracts and bounties
+
+Post a **bounty** on a public enemy of the crown, a **delivery** order for goods you need, or (in a rebellion) hire a **mercenary**. The reward is held in escrow and paid only when the work is done, or refunded. `/contract`.
+
+### Seasons and the Hall of Kings
+
+The realm is played in **seasons**. Every house earns points for holding the crown, winning or defending rebellions, keeping treaties, contracts, events, holdings, festivals and house goals. At the end the champion house is proclaimed, and every reign goes into the **Hall of Kings**, which survives server wipes (`/season`, `/season hall`). Season 1 is called *The Hollow Crown*.
+
+### Realm events
+
+Scheduled nights with countdowns: **Crown Night** (the throne is fought for), the **Royal Tournament** (a ranked fight with prizes, sometimes as a bracket in the ring), **the King's Hunt** (the monarch names quarry) and the **Truce of the Realm** (no blows land). `/events` shows what is next.
+
+### Holdings and the War Hours
+
+Seven named places of Ostreval (a crossroads, a keep, a mine, a harbour and three villages) can be **held** by a house. During the **War Hours** (by default Wednesday, Saturday and Sunday evenings, two hours each, in realm time) a house takes a holding by **standing in it with its own members** until its banner is raised; a rival's banner must come down first, and if two houses stand there at once nothing moves. A house that holds a place earns marks into its vault each day, season points, and a **garrison** that grows each day it keeps it and makes it harder to take. A house may hold at most three, and the War Hours pause during a truce or a rebellion. `/dominion` shows the map, `/dominion here` tells you whether you count where you stand, and `/dominion rules` explains the rest.
+
+### Tasks, the season's story and achievements
+
+`/quest` is your journal: **three daily tasks** (new each day at 04:00 UTC; one reroll a day) and **two weekly tasks** (new each Monday), such as crafting, hunting, building, visiting a place or delivering goods. Hand goods in with `/quest give`. The **season's story**, *The Hollow Crown*, opens act by act through the season (`/quest story`). Your **house** has a shared weekly goal (`/quest house`) that pays season points and every member who helped. **Achievements** (`/achievements`) record 68 deeds in five kinds (survival, war, politics, economy, exploration), most with bronze to gold tiers. Marks from tasks are paid once you have played about half an hour.
+
+### Duels, the ladder and the tavern
+
+Challenge anyone to a **duel to the first fall** with `/duel <player>`, with or without a stake in marks. A ring forms where you meet (or in the Proving Ring); nobody else can strike, rope or build inside it. The killing blow is **turned aside**: the loser is felled, not killed, so **nobody dies and nothing is dropped**, and both fighters are tended afterwards. Stakes are held by the treasury and paid to the winner. Ranked duels move your place on the **ladder** (`/arena top`), and each Sunday evening the best fighter of the week is crowned **Champion of the Ring**. There are 2v2 and 3v3 duels, bracket tournaments (`/arena tourney`) and trials by combat. Leaving the ring or logging off mid-fight forfeits.
+
+In the **tavern**, play **Hearth Dice** (`/dice`) or **Twenty-One** (`/cards`) against another player for a few marks. The house takes nothing, the dice are fair, and strict daily limits keep it a pastime; `/dice roll` throws for show.
+
+### Roads, waystones and home
+
+**Waystones** stand at the capital, the house seats, the holdings and landmarks. Walk up to one to learn it. Then `/travel <name>` carries you to any waystone you know: stand still for ten seconds and you are there. A journey costs a small **toll** to the crown's treasury (your first three are free, the Open Roads decree makes them free for a while, and houses sworn to the crown pay half). You cannot travel in a fight, with a captive, as an outlaw, while bearing the Ironbreaker, or towards the throne during a rebellion, and a house's seat is open only to that house and its allies. For a few seconds after you arrive, nobody can strike or rope you, so nobody can camp a waystone. `/home set` marks a home inside your own crest's land and `/home` takes you back. `/road <name>` gives you directions in chat as you walk.
+
+### Crafts and the guilds
+
+Everything you gather and make builds one of **eight professions**: woodcutting, mining, foraging, hunting, smithing, carpentry, tailoring and cooking (`/craft`). Rising through the ranks brings **perks**: a share of extra goods when you gather, a chance of an extra item when you craft, and a lower market fee on your own goods. Reaching mastery earns the **Guildmaster** title, and each week the realm's best crafter is crowned **Master Crafter**. A house's members pool their work into a **workshop** that gives them all a bonus. On the **commission board** (`/craft orders`) you can order goods with the marks held by the treasury, or fill others' orders for pay.
+
+### The living world
+
+Between the realm's events, the world stirs on its own (`/world` shows what is abroad and what comes next):
+
+- **Treasure hunts.** The Herald gives a riddle; find the place it describes and stand there for the next one (`/treasure`). The first to reach the last place wins marks and the hoard.
+- **The Blood Moon.** Every other Thursday night: fair kills earn renown and points for your house, and the beasts bite harder.
+- **The Merchant Caravan.** One player carries the goods on foot from one place to another while others escort them (`/caravan carry`, `/caravan escort`); raiders who bring the bearer down take a share, with a price on their head.
+- **Wandering Legends.** A named, tougher beast roams a region; its slayer and those who helped share the reward.
+- **The Harvest Fair** (late September) and **Midwinter** (late December): houses compete in offerings (`/festival give`), and the great houses' monuments rise for the festival.
+- **The Census.** Every Monday the Herald reads out the realm's numbers: how many walked the realm, the houses, the crown, the hoards and caravans. Counts only, never names.
+
+### The Ironbreaker
+
+There is exactly **one legendary blade** in the realm. It is won at the Royal Tournament, its bearer is known to all, and whoever slays the bearer takes it.
+
+### Monuments, signs and moods
+
+As the realm grows, you will see Realm's **monuments** built from the game's own blocks (the Herald's Pillar, the Old Throne, the Tournament Arch, the six houses' monuments), **painted signs** that show house crests, wanted posters, the Chronicle, the season standings and the holdings, and the realm's **moods**: the server changes the sky and light for seasons and events, such as a red Blood Moon or a snowy Midwinter.
+
+### Fair play
+
+The **Warden** protects newcomers, keeps raid hours, flags combat-logging and takes your reports (`/warden report <player> <reason>`). The **Sentinel** watches, on the server only, for movement, combat and item patterns that honest play does not produce, and passes the evidence to staff; it never touches your game or your PC. Staff who run a system do not compete in it. The server's statistics are pseudonymous, and you can opt out with `/stats optout`.
+
+### Letters and rumours
+
+Send a **raven** to a player or a whole house (`/raven`), sign it or send it anonymously. Spies may intercept letters. Share an anonymous **rumour** with `/rumour`; staff approve it before the realm hears it.
+
+### Following the realm outside the game
+
+Every public act goes into the **Chronicle**: `/chronicle` in game, and on the realm's web pages, stream overlays and Discord. The **Realm app** shows whether the server is up, who holds the throne and the realm's news, and its Play button joins through your own Steam.
+
+---
+
+The sections below give the exact commands and limits for houses, the crown, claims, ransom, the Chronicle, contracts, seasons and events. Every other system has a guide for staff in `plugins/docs/`.
 
 ## 1. Houses
 
@@ -89,7 +194,7 @@ The monarch is whoever holds the Old Throne (the game's ancient throne). `/crown
 
 | Id | Name | Cost | Cooldown | Effect |
 |---|---|---|---|---|
-| `stores` | Royal Stores | 40 | 240 min | Every 15 minutes while it is in force, each **online** member of the crown's house, or of a house sworn **directly** to the crown's house, receives 25 Wood. *UNVERIFIED in game: the item grant and how fast your inventory updates. Being added to the plugin right now. Check `/decree` on the live server.* |
+| `stores` | Royal Stores | 40 | 240 min | Every 15 minutes while it is in force, each **online** member of the crown's house, or of a house sworn **directly** to the crown's house, receives 25 Wood. *UNVERIFIED in game: the item grant and how fast your inventory updates. Check `/decree` on the live server.* |
 | `peace` | King's Peace | 20 | 180 min | A proclamation only. Nothing stops fighting. |
 | `roads` | Open Roads | 10 | 120 min | A proclamation only. |
 | `relief` | Tax Relief | 30 | 360 min | Sets the crown's tax to 0 for 60 minutes, then restores it (unless the monarch changes the tax by hand in the meantime). |
@@ -106,7 +211,7 @@ Older configs had a `tithe` (Harvest Tithe) decree. The plugin now replaces it w
 | `/council appoint <player> <seat>` | monarch | Appoints an online player. Seats: `Voice of the Crown`, `Keeper of Coin`, `Marshal`. The first letters of a seat name are enough, for example `/council appoint Bram voice`. |
 | `/council remove <player\|seat>` | monarch | Dismisses a council member, by player name or by seat. |
 
-Each player can hold one seat. The council can be changed once a minute, and it is **emptied when the crown changes hands**. Only the Voice of the Crown has a mechanical power, issuing proclamations. The Keeper of Coin and the Marshal are titles, and what they mean is up to the court.
+Each player can hold one seat. The council can be changed once a minute, and appointed seats are **emptied when the crown changes hands**. A seat the realm **elected** (the Keeper of Coin and the Marshal, with `/ballot` and `/vote`, see *Elections and the realm's voice* above) is held for its 28-day term: the monarch cannot dismiss that councillor, and the seat survives a change of monarch. Only the Voice of the Crown has a mechanical power, issuing proclamations. The Keeper of Coin and the Marshal are titles, and what they mean is up to the court.
 
 ## 7. Claims and rebellion windows
 
@@ -149,7 +254,7 @@ Every public act is written to the Chronicle. You can read it:
 - In game: `/chronicle [count]` shows the latest entries (default 5, max 15).
 - On the public page `/realm` and the stream overlay, served by the Chronicle service. These are currently local to the server PC; see [`streamer-kit.md`](streamer-kit.md).
 
-Event types: `coronation`, `abdication`, `claim_declared`, `rebellion_started`, `rebellion_ended`, `house_founded`, `oath_sworn`, `oath_broken`, `treaty_signed`, `treaty_broken`, `decree`, `ransom_set`, `ransom_paid`, `released`, `season_started`, `season_ended`, `event_started`, `event_ended`, `tournament_champion`, `hunt_kill`, `truce_broken`.
+Event types include the crown and war (`coronation`, `abdication`, `claim_declared`, `rebellion_started`, `rebellion_ended`), houses (`house_founded`, `oath_sworn`, `oath_broken`, `treaty_signed`, `treaty_broken`), the crown's acts (`decree`, `ransom_set`, `ransom_paid`, `released`), contracts, seasons and events (`season_started`, `season_ended`, `event_started`, `event_ended`, `tournament_champion`, `hunt_kill`, `truce_broken`), the court and dynasties, titles, the treasury, rumours, and newer ones: a holding taken (`holding_taken`), the weekly census (`census_taken`) and the realm's votes (`vote_held`).
 
 The Chronicle shows **only public player names**. It never shows locations or inventories. Reading it is never stream sniping.
 

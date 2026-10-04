@@ -99,6 +99,18 @@ const CATALOGUE = [
     { path: 'General.AvoidRealmEvents', label: 'Wait for Realm events to end' },
     { path: 'General.UsePopups', label: 'Popups' }
   ] },
+  { plugin: 'RealmArrival', group: 'Play', title: 'The Gate of the Unwritten', blurb: 'New characters wake in the Gatehouse, walk the avenue of the houses and reach the Hearth.', switches: [
+    { path: 'Enabled', label: 'Arrival', master: true },
+    { path: 'Open', label: 'Open to newcomers', help: 'Open it only after /arrival admin check passes on the built site.' },
+    { path: 'RoutingMode', label: 'How newcomers are brought', kind: 'enum', options: ['teleport', 'provider', 'road', 'off'], help: 'teleport is the default; provider and road only after their play-tests.' },
+    { path: 'GateMode', label: 'Gate', kind: 'enum', options: ['open', 'portcullis'], help: 'portcullis only after play-test 6 shows the rows sync.' },
+    { path: 'VeteranMode', label: 'Returning players', kind: 'enum', options: ['vanilla', 'short', 'full'] },
+    { path: 'Evict', label: 'Move loiterers out of the Gatehouse' },
+    { path: 'HealAtHearth', label: 'Heal at the Hearth' },
+    { path: 'HourOneTips', label: 'First-hour tips' },
+    { path: 'StaffToHearth', label: 'Staff arrive at the Hearth' },
+    { path: 'UsePopups', label: 'Popups' }
+  ] },
   { plugin: 'RealmLegendary', group: 'Play', title: 'The Ironbreaker', blurb: 'The one legendary blade, won at the tournament and taken by the bearer\'s slayer.', switches: [
     { path: 'PassToSlayer', label: 'Passes to the slayer' },
     { path: 'ChatTitleEnabled', label: 'Bearer title in chat' },
