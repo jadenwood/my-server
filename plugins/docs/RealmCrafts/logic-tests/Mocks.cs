@@ -299,6 +299,7 @@ namespace CodeHatch.ItemContainer
         public static bool AutoSplit(ItemCollection c, InvItemBlueprint bp, int q)
         {
             if (AutoCount(c, bp) < q) return false;
+            if (StealOnSplit != null) q = StealOnSplit(q);
             for (int i = c.Items.Count - 1; i >= 0 && q > 0; i--)
             {
                 var s = c.Items[i];
@@ -309,8 +310,11 @@ namespace CodeHatch.ItemContainer
             return true;
         }
         public static int Capacity = int.MaxValue;     // units a collection may hold in all (tests fill packs up)
+        public static Action OnMergeAdd;              // a test's look at the world just before a server give lands
+        public static Func<int, int> StealOnSplit;     // a test's hand in the packs: units AutoSplit really takes
         public static bool AutoMergeAdd(ItemCollection c, InvGameItemStack s)
         {
+            if (OnMergeAdd != null) OnMergeAdd();
             int room = Capacity - c.Items.Sum(x => x.StackAmount);
             if (room <= 0) return false;
             int n = Math.Min(room, s.StackAmount);

@@ -1648,7 +1648,7 @@ namespace Oxide.Plugins
 
         private bool Counting()
         {
-            return !loadFailed && data != null && config.General.Enabled && !giving;
+            return !loadFailed && data != null && config.General.Enabled && !giving && !popupsClosed;   // nothing counts after Unload
         }
 
         // The player whose own client sent this change, or null for anything the server did itself.

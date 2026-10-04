@@ -94,6 +94,8 @@ static class W
         NextRoll = 0.999; Seeded = 0;
         PlayerExtensions.PopupsFail = false;
         ItemCollection.Capacity = int.MaxValue;
+        ItemCollection.OnMergeAdd = null;
+        ItemCollection.StealOnSplit = null;
         EventManager.Subs.Clear();
         Clear();
         Clock = new DateTime(2026, 10, 5, 12, 0, 0, DateTimeKind.Utc);
