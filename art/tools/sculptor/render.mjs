@@ -47,7 +47,7 @@ function outward(prefab, rot, poly) {
 }
 
 // Axis direction (0..5 as DIRS order) of a face that fully covers one side of its cell, else -1.
-const AXES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+export const AXES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
 function fullSide(poly, n) {
   for (let d = 0; d < 6; d++) {
     const a = AXES[d];
@@ -66,7 +66,7 @@ function fullSide(poly, n) {
 }
 
 const shapeCache = new Map();
-function shapeFaces(prefab, rot) {
+export function shapeFaces(prefab, rot) {
   const k = `${prefab}/${rot}`;
   if (!shapeCache.has(k)) {
     shapeCache.set(k, blockFaces(prefab, rot).map((poly) => {
@@ -77,8 +77,8 @@ function shapeFaces(prefab, rot) {
   return shapeCache.get(k);
 }
 
-const shade = (hex, f) => rgbToHex(hexToRgb(hex).map((c) => c * f));
-const mix = (a, b, t) => rgbToHex(hexToRgb(a).map((c, i) => c + (hexToRgb(b)[i] - c) * t));
+export const shade = (hex, f) => rgbToHex(hexToRgb(hex).map((c) => c * f));
+export const mix = (a, b, t) => rgbToHex(hexToRgb(a).map((c, i) => c + (hexToRgb(b)[i] - c) * t));
 
 /** Polygons in screen space for one view; also the projected figure and ground. */
 export function projectScene(s, { yaw = 0, pitch = 20, mode = 'painted' } = {}) {
@@ -166,7 +166,7 @@ ${sc.polys.map((p) => `<polygon points="${P(p.pts)}" fill="${p.fill}" stroke="${
 </svg>`;
 }
 
-async function launch(chromium) {
+export async function launch(chromium) {
   const exe = process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
   return chromium.launch(exe ? { executablePath: exe } : {});
 }

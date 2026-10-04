@@ -2,6 +2,7 @@
 import { Grid, style } from '../../../tools/sculptor/voxel.mjs';
 import { pal, house, HOUSE_KEYS_ORDER } from '../../../tools/sculptor/palette.mjs';
 import { orient } from '../../../tools/sculptor/shapes.mjs';
+import { turnPos, turnIndex } from '../../../tools/sculptor/rotations.mjs';
 
 export { Grid, style, pal, house, orient, HOUSE_KEYS_ORDER as HOUSE_KEYS };
 
@@ -88,3 +89,19 @@ export const houseStyles = (key) => ({
   metalLight: style('stone', house(key, 'metalLight')),
   metalShadow: style('stone', house(key, 'metalShadow')),
 });
+
+/**
+ * A grid drawn in a site's frame, turned into the piece's own frame for a placement `turn` (quarter-turns, as
+ * /sculpt place and art/tools/sculptor/site.mjs use them): every cell and every block rotation is turned back by
+ * `turn`, so placing the piece with that turn puts each block where it was drawn. Lets a generator draw in the frame
+ * of the site plan (art/sculptures/src/lib/arrival-site.mjs) instead of mirroring coordinates by hand.
+ */
+export function fromSiteFrame(site, turn) {
+  const k = (4 - (((turn % 4) + 4) % 4)) % 4;
+  const g = new Grid();
+  for (const c of site) {
+    const [x, , z] = turnPos([c.x, 0, c.z], k);
+    g.set(x, c.y, z, { mat: c.mat, color: c.color }, c.prefab, c.prefab === 0 ? 0 : turnIndex(c.rot, k));
+  }
+  return g;
+}
