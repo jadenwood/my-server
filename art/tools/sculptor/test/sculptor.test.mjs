@@ -224,7 +224,9 @@ test('sculptures: every generator builds a valid sculpture that matches its comm
   const defs = await loadDefinitions();
   const ids = defs.map((d) => d.id).sort();
   for (const want of ['heralds-pillar', 'ironbreaker', 'old-throne', 'tournament-arch', 'shape-test',
-    'house-varrow', 'house-ashgrove', 'house-corvane', 'house-dunmere', 'house-halloran', 'house-merrin']) assert.ok(ids.includes(want), want);
+    'house-varrow', 'house-ashgrove', 'house-corvane', 'house-dunmere', 'house-halloran', 'house-merrin',
+    'gatehouse-unwritten', 'gatehouse-portcullis', 'processional-a', 'processional-b', 'hearth-ring', 'wayboard',
+    'pledge-stone-varrow', 'pledge-stone-ashgrove', 'pledge-stone-corvane', 'pledge-stone-dunmere', 'pledge-stone-halloran', 'pledge-stone-merrin']) assert.ok(ids.includes(want), want);
   assert.deepEqual(sculptureFiles().map((f) => f.replace(/\.json$/, '')).sort(), ids);
   for (const d of defs) {
     const s = buildOne(d);
