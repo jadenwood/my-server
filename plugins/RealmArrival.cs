@@ -1763,6 +1763,8 @@ namespace Oxide.Plugins
             DateTime t0 = rec != null && rec.T0 != DateTime.MinValue ? rec.T0 : now;
             double s = (now - t0).TotalSeconds;
             if (s < config.NarrationStartMinSeconds) return false;
+            // In the Gatehouse, narration waits until the player is really there (the arrival checks handle the rest).
+            if (rec != null && rec.Stage == SGatehouse && !run.Road && !rec.ToFire && HallSet() && !InHall(pos, 3f)) return false;
             if (s >= config.NarrationStartCapSeconds) return true;
             return run.HasPlaced && Dist(pos, run.Placed) > config.NarrationStartMoveMetres;
         }
@@ -1800,6 +1802,13 @@ namespace Oxide.Plugins
         {
             if (!run.Narrating) return;
             bool inHall = InHall(pos, 1f);
+            if (!inHall && BoxFlatDistance(pos) > 30f)
+            {
+                // Far from the hall: not a walk out. Leave it to the arrival checks; once they are over, road mode.
+                float last = config.ArrivalCheckSeconds[config.ArrivalCheckSeconds.Count - 1];
+                if ((now - rec.T0).TotalSeconds > last + 5) StartRoadMode(p, rec, run, true);
+                return;
+            }
             if (rec.TimedOut && !inHall) { GateMoment(p, rec, run, "timeout"); Handover(p, rec, true); return; }
             if (data.Site.Threshold != null && Dist(pos, PointV(data.Site.Threshold)) <= config.GoldLineRadius) { GateMoment(p, rec, run, "line"); return; }
             if (!inHall) { GateMoment(p, rec, run, "left"); return; }
@@ -1901,7 +1910,7 @@ namespace Oxide.Plugins
             float proj = AxisProj(PointV(data.Site.Banners[house]));
             string display = DisplayHouse(house);
             Line a = new Line();
-            a.Text = Styled(Msg("Speaker", p), ChatGold, Fmt("House." + house, p, HouseTint(display)));
+            a.Text = "[" + ChatGold + "]" + Msg("Speaker", p) + "[FFFFFF]: " + Fmt("House." + house, p, HouseTint(display));   // opens with the tint: style it here
             a.Beat = "banner"; a.House = house; a.Proj = proj; a.NotBefore = now; a.After = "heard";
             run.Queue.Add(a);
             Line b = new Line();
@@ -2062,8 +2071,7 @@ namespace Oxide.Plugins
             if (rec.Variant == VNew && !rec.Play && !rec.HeraldSent && (rec.RoadMode || rec.ToFire)) HeraldLine(p, rec);
             DateTime at = now.AddSeconds(config.QuietAfterHearthSeconds);
             run.Queue.RemoveAll(delegate(Line l) { return l.Beat == "gate"; });
-            string skipped = SkippedHouses(rec, run);
-            if (skipped != null) Queue(run, "Skipped", at, "fire", skipped);
+            Queue(run, "*Skipped", at, "fire");                  // decided when it is due: lines still queued may yet be heard
             if (!run.ExplainedPaths)
             {
                 run.ExplainedPaths = true;
@@ -2111,6 +2119,13 @@ namespace Oxide.Plugins
             Line head = run.Queue[0];
             if (head.NotBefore > now) return;
             run.Queue.RemoveAt(0);
+            if (head.Key == "*Skipped")
+            {
+                string skipped = SkippedHouses(rec, run);
+                if (skipped == null) { Pump(p, rec, run, now, pos); return; }   // nothing passed by: no line, no gap
+                head.Key = "Skipped";
+                head.Args = new object[] { skipped };
+            }
             run.NextLineAt = now.AddSeconds(config.LineGapSeconds);
             Send(p, rec, run, head);
         }
@@ -2160,7 +2175,7 @@ namespace Oxide.Plugins
             if (heard >= 1 && !run.ExplainedPledge && rec.Variant == VNew)
             {
                 run.ExplainedPledge = true;
-                QueueFront(run, "PledgeHint");
+                QueueAfterHouse(run, house, "PledgeHint");
             }
             if (heard >= 3 && !run.ExplainedPaths)
             {
@@ -2179,12 +2194,14 @@ namespace Oxide.Plugins
             return l;
         }
 
-        // A muted continuation that belongs right after the line just sent (it explains it).
-        private void QueueFront(Run run, string key)
+        // A muted continuation that belongs right after the banner just heard (after its live line, still queued).
+        private void QueueAfterHouse(Run run, string house, string key)
         {
             Line l = new Line();
             l.Key = key; l.Args = new object[0]; l.NotBefore = Now();
-            run.Queue.Insert(0, l);
+            int at = 0;
+            while (at < run.Queue.Count && run.Queue[at].House == house) at++;
+            run.Queue.Insert(at, l);
         }
 
         // Exactly one current next step; after NudgeAfterSeconds standing still with no progress it is repeated, at most
@@ -2320,7 +2337,7 @@ namespace Oxide.Plugins
                 UnityEngine.Vector3 pos;
                 if (!TryPos(p, out pos) || !InHall(pos, 0f)) { inHallSince.Remove(p.Id); continue; }
                 Rec rec = FindRec(p.Id.ToString());
-                if (rec != null && (rec.Stage == SGatehouse || rec.Stage == SCrossing)) { inHallSince.Remove(p.Id); continue; }
+                if (rec != null && (IsRunning(rec.Stage) || rec.Stage == SCrossing)) { inHallSince.Remove(p.Id); continue; }
                 if (staleWake.Contains(p.Id)) continue;          // let out by StaleWake, not evicted
                 if (!config.Evict || HasPerm(p, PermSkip) || data.Site.Eject == null) continue;
                 DateTime since;
