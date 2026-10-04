@@ -96,7 +96,10 @@ async function preparedFolder(overrides = {}) {
   return { dir, cfg, game, steam };
 }
 
-const FAST = { bootMs: 10, loadMs: 40, keepAliveMs: 100, cportWindowMs: 600, frameMs: 5, exitDelayMs: 10, stateRefreshMs: 60000 };
+// cportWindowMs: how long the console waits for its first client before it closes (the game's -cport rule).
+// 600 ms was too tight on a busy CI runner (the console closed before connectConsole got there); tests of the
+// window itself pass their own short value.
+const FAST = { bootMs: 10, loadMs: 40, keepAliveMs: 100, cportWindowMs: 5000, frameMs: 5, exitDelayMs: 10, stateRefreshMs: 60000 };
 
 function makeSim(dir, argv = [], sim = {}) {
   return new RokSim({ cwd: dir, argv: ['-batchmode', '-nographics', '-silentcrash', ...argv], sim: { ...FAST, ...sim }, stdout: devNull(), stderr: devNull() });
