@@ -1947,6 +1947,49 @@ if (!app.requestSingleInstanceLock()) {
       log: (level, msg) => LOG.write(level, msg)
     });
     // ----- end Discord herald -----
+    // ----- Publish news and updates (lib/publish-feeds.js): signed news.json / update.json next to servers.json -----
+    require('./lib/publish-feeds').registerSteward({
+      handle,
+      userData: app.getPath('userData'),
+      readSigningKey,
+      outDir: () => publishPrefs().outDir || defaultOutDir(),
+      manifestUrl: () => publishPrefs().manifestUrl || '',
+      realmName: () => publishPrefs().realm || config.realmName,
+      dialog,
+      win: () => win,
+      log: (level, msg) => LOG.write(level, msg)
+    });
+    // ----- end Publish news and updates -----
+    // ----- Sentinel screen (lib/sentinel-feed.js): RealmSentinel's feed and evidence, actions through the Court -----
+    require('./lib/sentinel-feed').registerSteward({
+      handle,
+      userData: app.getPath('userData'),
+      fleet,
+      instOf,
+      rootOf: (id) => {
+        const c = rootCheckFor(instOf(id), null);
+        return c.ok ? c.root : null;
+      },
+      oxideDir: (root) => R.getOxideDir(root),
+      court,
+      clipboard,
+      push,
+      log: (level, msg) => LOG.write(level, msg)
+    });
+    // ----- end Sentinel screen -----
+    // ----- Realm features (lib/features.js): plugin switches in oxide/config, reloaded over the console -----
+    require('./lib/features').registerSteward({
+      handle,
+      instOf,
+      rootOf: (id) => {
+        const c = rootCheckFor(instOf(id), null);
+        return c.ok ? c.root : null;
+      },
+      oxideDir: (root) => R.getOxideDir(root),
+      court,
+      mgr
+    });
+    // ----- end Realm features -----
     createWindow();
     startChronicle().catch((e) => console.error('[chronicle]', e));
   });

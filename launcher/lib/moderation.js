@@ -162,8 +162,50 @@ const PLUGIN_ADMIN = [
   { plugin: 'CrownAndConsequences', perm: null, template: '/crown', label: 'Show the crown', args: [] },
   { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin cancel {id}', label: 'Cancel a contract', args: ['id'] },
   { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin refund {id}', label: 'Refund a contract to its poster', args: ['id'] },
-  { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin pay {id}', label: 'Pay a contract to its fulfiller', args: ['id'] }
+  { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin pay {id}', label: 'Pay a contract to its fulfiller', args: ['id'] },
+  // RealmSentinel (plugins/docs/RealmSentinel.md, Commands). The Sentinel screen fills these per suspect.
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel status', label: 'Sentinel: mode, checks and the highest scores', args: [] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel report {player}', label: 'Sentinel: evidence for one player', args: ['player'] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel freeze {player} {minutes}', label: 'Sentinel: freeze a player (1-1440 minutes)', args: ['player', 'minutes'] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel unfreeze {player}', label: 'Sentinel: lift a freeze', args: ['player'] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel clear {player}', label: 'Sentinel: clear a score (evidence is kept)', args: ['player'] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel ban {player} confirm', label: 'Sentinel: ban with the evidence kept', args: ['player'] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel peaks', label: 'Sentinel: highest honest values (for tuning)', args: [] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel reload', label: 'Sentinel: re-read its config', args: [] },
+  // RealmSculptor, RealmPainter, RealmLegendary (their guides in plugins/docs/). ROADMAP STW-2.
+  { plugin: 'RealmSculptor', perm: 'realmsculptor.admin', template: '/sculpt status', label: 'Monuments: totals, running job, protection', args: [] },
+  { plugin: 'RealmSculptor', perm: 'realmsculptor.admin', template: '/sculpt placed', label: 'Monuments: the newest placements', args: [] },
+  { plugin: 'RealmSculptor', perm: 'realmsculptor.admin', template: '/sculpt list', label: 'Monuments: sculptures loaded and files refused', args: [] },
+  { plugin: 'RealmSculptor', perm: 'realmsculptor.admin', template: '/sculpt repair {n}', label: 'Monuments: put back missing blocks of placement #n', args: ['n'] },
+  { plugin: 'RealmSculptor', perm: 'realmsculptor.admin', template: '/sculpt reload', label: 'Monuments: read the sculpture files again', args: [] },
+  { plugin: 'RealmPainter', perm: 'realmpainter.admin', template: '/paint status', label: 'Signs: queue, art version, sources', args: [] },
+  { plugin: 'RealmPainter', perm: 'realmpainter.admin', template: '/paint signs', label: 'Signs: every bound sign', args: [] },
+  { plugin: 'RealmPainter', perm: 'realmpainter.admin', template: '/paint redraw all', label: 'Signs: draw every sign again', args: [] },
+  { plugin: 'RealmPainter', perm: 'realmpainter.admin', template: '/paint reload', label: 'Signs: read the art bundle again', args: [] },
+  { plugin: 'RealmLegendary', perm: 'realmlegendary.admin', template: '/ironbreaker status', label: 'Ironbreaker: who bears it and since when', args: [] },
+  { plugin: 'RealmLegendary', perm: 'realmlegendary.admin', template: '/ironbreaker revoke', label: 'Ironbreaker: back to the armoury', args: [] },
+  { plugin: 'RealmLegendary', perm: 'realmlegendary.admin', template: '/ironbreaker grant {player}', label: 'Ironbreaker: give it to an online player', args: ['player'] }
 ];
+
+// Placeholder rules: a player name is quoted when it has spaces (the plugins read "Old Tom" as one
+// argument); numbers are whole numbers in their command's range.
+const ARG_RULES = {
+  player: (v) => {
+    const n = v.replace(/["']/g, '');
+    if (!n) throw new Error('Fill in "player" first.');
+    return /\s/.test(n) ? `"${n}"` : n;
+  },
+  minutes: (v) => {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 1 || n > 1440) throw new Error('Minutes must be a whole number from 1 to 1440.');
+    return String(n);
+  },
+  n: (v) => {
+    const n = Number(String(v).replace(/^#/, ''));
+    if (!Number.isInteger(n) || n < 1 || n > 99999) throw new Error('Use the placement number from /sculpt placed.');
+    return String(n);
+  }
+};
 
 function pluginCommand(index, values = {}) {
   const def = PLUGIN_ADMIN[index];
@@ -171,8 +213,15 @@ function pluginCommand(index, values = {}) {
   return def.template.replace(/\{(\w+)\}/g, (_m, k) => {
     const v = clean(values[k], MAX_NAME, k);
     if (!v) throw new Error(`Fill in "${k}" first.`);
-    return v;
+    return ARG_RULES[k] ? ARG_RULES[k](v) : v;
   });
+}
+
+// The command for a template, by its text (the Sentinel screen fills /sentinel commands per player).
+function pluginCommandFor(template, values = {}) {
+  const i = PLUGIN_ADMIN.findIndex((d) => d.template === template);
+  if (i < 0) throw new Error('Unknown plugin command.');
+  return pluginCommand(i, values);
 }
 
 // ---------- reading command output ----------
@@ -325,6 +374,7 @@ module.exports = {
   PLUGIN_ADMIN,
   build,
   pluginCommand,
+  pluginCommandFor,
   parsePlayerList,
   parseRoster,
   parseBanList,

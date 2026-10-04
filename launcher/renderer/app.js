@@ -1240,6 +1240,8 @@
       } catch (e) {
         fail(e);
       }
+      // News and Player update tabs (renderer/publish-feeds.js) refresh themselves too.
+      if (window.RealmPublishFeeds && window.RealmPublishFeeds.tab() !== 'list') window.RealmPublishFeeds.refresh();
     }
   };
 
@@ -1690,6 +1692,14 @@
   // ================================================================ the court (renderer/court.js)
 
   views.court = { show: () => window.RealmCourt && window.RealmCourt.show() };
+
+  // ================================================================ the sentinel (renderer/sentinel.js)
+
+  views.sentinel = { show: () => window.RealmSentinel && window.RealmSentinel.show() };
+
+  // ================================================================ realm features (renderer/features.js)
+
+  views.features = { show: () => window.RealmFeatures && window.RealmFeatures.show() };
 
   // ================================================================ push events
 

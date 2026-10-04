@@ -5,7 +5,7 @@
 // none of the server, setup, firewall or publish calls below.)
 const { contextBridge, ipcRenderer } = require('electron');
 
-const PUSH_TYPES = new Set(['progress', 'busy', 'server-lines', 'server-status', 'overlay', 'window', 'closing', 'fleet']);
+const PUSH_TYPES = new Set(['progress', 'busy', 'server-lines', 'server-status', 'overlay', 'window', 'closing', 'fleet', 'sentinel']);
 
 // Calls resolve with the data, or reject with { message, details, cancelled }.
 async function call(channel, ...args) {
@@ -93,6 +93,31 @@ contextBridge.exposeInMainWorld('realm', {
     createKey: c1('publish:createKey'),
     write: c1('publish:write'),
     copyKey: c0('publish:copyKey')
+  },
+
+  // Publish news and player updates (lib/publish-feeds.js): signed with the same key as servers.json.
+  feeds: {
+    status: c0('feeds:status'),
+    saveNewsDraft: c2('feeds:saveNewsDraft'),
+    writeNews: c1('feeds:writeNews'),
+    pickInstaller: c0('feeds:pickInstaller'),
+    inspectInstaller: c1('feeds:inspectInstaller'),
+    writeUpdate: c1('feeds:writeUpdate')
+  },
+
+  // The Sentinel screen (lib/sentinel-feed.js): RealmSentinel's feed, evidence and actions. Server id first.
+  sentinel: {
+    status: c1('sentinel:status'),
+    evidence: c2('sentinel:evidence'),
+    markSeen: c2('sentinel:markSeen'),
+    act: (id, action, args) => call('sentinel:act', id, action, args),
+    copy: (id, name, command) => call('sentinel:copy', id, name, command)
+  },
+
+  // Realm features (lib/features.js): each plugin's main switches in oxide/config/<Plugin>.json.
+  features: {
+    list: c1('features:list'),
+    set: (id, plugin, pathName, value) => call('features:set', id, plugin, pathName, value)
   },
 
   // Connection Doctor (read-only checks and log reading; see lib/doctor.js).

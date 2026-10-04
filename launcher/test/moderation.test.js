@@ -66,15 +66,38 @@ test('builders refuse bad input', () => {
 });
 
 test('plugin admin commands come from the plugins and fill their placeholders', () => {
-  const src = ['RealmHouses', 'CrownAndConsequences', 'RealmContracts'].map((p) => fs.readFileSync(path.join(__dirname, '..', '..', 'plugins', `${p}.cs`), 'utf8'));
+  const plugins = [...new Set(MOD.PLUGIN_ADMIN.map((d) => d.plugin))];
+  assert.ok(['RealmSentinel', 'RealmSculptor', 'RealmPainter', 'RealmLegendary'].every((p) => plugins.includes(p)));
+  const src = Object.fromEntries(plugins.map((p) => [p, fs.readFileSync(path.join(__dirname, '..', '..', 'plugins', `${p}.cs`), 'utf8')]));
   for (const d of MOD.PLUGIN_ADMIN) {
-    if (d.perm) assert.ok(src.some((s) => s.includes(`"${d.perm}"`)), `permission ${d.perm} exists in a plugin`);
-    const verb = d.template.split(' ')[0].slice(1);
-    assert.ok(src.some((s) => s.includes(`[ChatCommand("${verb}")]`)), `chat command ${verb} exists`);
+    const s = src[d.plugin];
+    if (d.perm) assert.ok(s.includes(`"${d.perm}"`), `permission ${d.perm} exists in ${d.plugin}`);
+    const words = d.template.split(' ');
+    const verb = words[0].slice(1);
+    assert.ok(s.includes(`[ChatCommand("${verb}")]`), `chat command ${verb} exists in ${d.plugin}`);
+    // The subcommand word is one the plugin's command handler reads.
+    if (words[1] && !words[1].startsWith('{') && d.plugin !== 'CrownAndConsequences') assert.ok(s.includes(`"${words[1]}"`), `${d.template}: ${words[1]} is handled by ${d.plugin}`);
+    for (const a of d.args) assert.ok(d.template.includes(`{${a}}`), `${d.template} has {${a}}`);
   }
   const i = MOD.PLUGIN_ADMIN.findIndex((d) => d.template === '/house pardon {house}');
   assert.equal(MOD.pluginCommand(i, { house: 'Thornvale' }), '/house pardon Thornvale');
   assert.throws(() => MOD.pluginCommand(i, {}), /Fill in/);
+  // Names with spaces are quoted for the plugins; numbers are checked.
+  assert.equal(MOD.pluginCommandFor('/sentinel report {player}', { player: 'Old Tom' }), '/sentinel report "Old Tom"');
+  assert.equal(MOD.pluginCommandFor('/sentinel report {player}', { player: 'Wren' }), '/sentinel report Wren');
+  assert.equal(MOD.pluginCommandFor('/sentinel report {player}', { player: 'Odo "the" Tall' }), '/sentinel report "Odo the Tall"');
+  assert.equal(MOD.pluginCommandFor('/sentinel freeze {player} {minutes}', { player: 'Wren', minutes: 30 }), '/sentinel freeze Wren 30');
+  assert.throws(() => MOD.pluginCommandFor('/sentinel freeze {player} {minutes}', { player: 'Wren', minutes: 0 }), /1 to 1440/);
+  assert.throws(() => MOD.pluginCommandFor('/sentinel freeze {player} {minutes}', { player: 'Wren', minutes: 1441 }), /1 to 1440/);
+  assert.equal(MOD.pluginCommandFor('/sculpt repair {n}', { n: '#12' }), '/sculpt repair 12');
+  assert.throws(() => MOD.pluginCommandFor('/sculpt repair {n}', { n: 'x' }), /placement number/);
+  assert.equal(MOD.pluginCommandFor('/sentinel ban {player} confirm', { player: 'Grimsby' }), '/sentinel ban Grimsby confirm');
+  assert.throws(() => MOD.pluginCommandFor('/nope', {}), /Unknown plugin command/);
+});
+
+test('reload builds the Oxide console command and refuses anything but a plugin name', () => {
+  assert.deepEqual(MOD.build('reload', { plugin: 'RealmSentinel' }), { command: '/oxide.reload RealmSentinel', summary: 'Reload RealmSentinel' });
+  for (const bad of ['', 'realmsentinel', 'Realm Sentinel', 'RealmX; /shutdown', '*', '../x']) assert.throws(() => MOD.build('reload', { plugin: bad }), /Choose a plugin/);
 });
 
 test('parsers read the exact formats of /list, /banlist and the RealmCourt roster', () => {
