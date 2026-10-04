@@ -642,7 +642,7 @@ namespace Oxide.Plugins
                 { "PlayerNotFound", "No such person is known (or the name is ambiguous)." },
 
                 // /travel
-                { "TravelHelp1", "[F4C96D]/travel[FFFFFF] lists the waystones you know. [F4C96D]/travel[FFFFFF] <name> sets out: stand still {0} s, toll in marks." },
+                { "TravelHelp1", "Waystones: [F4C96D]/travel[FFFFFF] lists those you know; [F4C96D]/travel[FFFFFF] <name> sets out (stand still {0} s, toll in marks)." },
                 { "TravelHelp2", "  [F4C96D]/travel all[FFFFFF] | [F4C96D]/travel info[FFFFFF] <name> | [F4C96D]/travel cancel[FFFFFF] | [F4C96D]/road[FFFFFF] <name> shows the way on foot" },
                 { "TravelHelp3", "  Walk to a waystone to learn it. No journey in a fight, with a captive, as an outlaw, or with the Ironbreaker." },
                 { "TravelHelpAdmin", "  Admin: [F4C96D]/travel admin[FFFFFF] set | name | note | house | kind | toll | radius | hidden | enabled | mark | remove | list | unlock | lock | throne | tp | status" },
@@ -731,7 +731,7 @@ namespace Oxide.Plugins
                 { "Pathfinder", "  House {0} earns {1} season point(s) for it." },
 
                 // /home
-                { "HomeHelp", "[F4C96D]/home[FFFFFF] takes you home. [F4C96D]/home set[FFFFFF] (in your own crest zone) | [F4C96D]/home info[FFFFFF] | [F4C96D]/home clear[FFFFFF]" },
+                { "HomeHelp", "Home: [F4C96D]/home[FFFFFF] takes you home. [F4C96D]/home set[FFFFFF] (in your own crest zone) | [F4C96D]/home info[FFFFFF] | [F4C96D]/home clear[FFFFFF]" },
                 { "HomeSet", "Your home is here now. [F4C96D]/home[FFFFFF] brings you back ({0} s, toll {1})." },
                 { "HomeSetCrest", "A home must be inside your own crest zone. Raise a crest, or stand inside your house's." },
                 { "HomeSetCooldown", "You moved your home lately. Try again {0}." },
@@ -747,7 +747,7 @@ namespace Oxide.Plugins
                 { "HomeReady", "  Your next journey home: {0}." },
 
                 // /road
-                { "RoadHelp", "[F4C96D]/road[FFFFFF] <waystone> or [F4C96D]/road home[FFFFFF] calls the way as you walk. [F4C96D]/road stop[FFFFFF] ends it." },
+                { "RoadHelp", "Follow a road: [F4C96D]/road[FFFFFF] <waystone> or [F4C96D]/road home[FFFFFF] calls the way as you walk. [F4C96D]/road stop[FFFFFF] ends it." },
                 { "RoadStart", "The road to {0}: {1} to the {2}. The way is called every {3} s." },
                 { "RoadLine", "{0}: {1} to the {2}." },
                 { "RoadArrived", "You have reached {0}." },
@@ -764,7 +764,7 @@ namespace Oxide.Plugins
                 { "Hours", "{0} h" },
 
                 // /kit
-                { "KitHelp", "[F4C96D]/kit[FFFFFF] lists your kits. [F4C96D]/kit[FFFFFF] <name> takes one. [F4C96D]/kit collect[FFFFFF] takes what did not fit." },
+                { "KitHelp", "Kits: [F4C96D]/kit[FFFFFF] lists yours, [F4C96D]/kit[FFFFFF] <name> takes one, [F4C96D]/kit collect[FFFFFF] takes what did not fit." },
                 { "KitHelpAdmin", "  Admin: [F4C96D]/kit admin[FFFFFF] items <word> | check | reset <player> <kit|all>" },
                 { "KitHeader", "Your kits:" },
                 { "KitLine", "  {0} ({1}) - {2}" },
