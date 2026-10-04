@@ -192,6 +192,7 @@ namespace Oxide.Plugins
             d.Add("treaty_broken", D("tore up a treaty", 0, 40, 0));
             d.Add("outlawed", D("was declared outlaw", 0, 50, 720));
             d.Add("truce_broken", D("broke the Truce of the Realm", 0, 30, 0));
+            d.Add("holding_taken", D("took a holding for their house", 30, 0, 60));   // RealmDominion (AddDeed)
             return d;
         }
 

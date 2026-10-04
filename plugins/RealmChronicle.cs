@@ -74,7 +74,9 @@ namespace Oxide.Plugins
             "dynasty_founded", "heir_named", "succession", "blood_claim", "blood_restored", "title_bestowed",
             "title_earned",
             // RealmTreasury, RealmRavens
-            "treasury_mint", "treasury_grant", "tithe_levied", "great_trade", "rumour"
+            "treasury_mint", "treasury_grant", "tithe_levied", "great_trade", "rumour",
+            // RealmDominion
+            "holding_taken"
         };
 
         // [SRC] Oxide.CSharp src/CSharpPlugin.cs:91 (PluginReferenceAttribute; the field is filled with the plugin

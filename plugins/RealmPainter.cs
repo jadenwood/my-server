@@ -10,7 +10,8 @@
 //                      proclamation  the monarch, their house, the latest decree        (CrownAndConsequences, Chronicle)
 //                      event [kind]  the running or next event                          (RealmEvents)
 //                      ironbreaker   the Ironbreaker and its current bearer              (RealmLegendary)
-//                      notice        an admin's own title and text
+//                      dominion      the holdings, their houses and rising banners       (RealmDominion)
+//                      notice       an admin's own title and text
 //                      A live board is redrawn only when what it shows has changed, at most once per
 //                      MinSecondsBetweenRedraws per sign and MaxRedrawsPerMinute / MaxBytesPerMinute for the server.
 //   Text               composed here in C# from pre-rendered glyph atlases of the brand fonts (Cinzel, EB Garamond;
@@ -52,6 +53,7 @@
 //   CrownAndConsequences.GetKingName(), GetKingHouse(), GetKingSince() -> string; GetUtcOffsetHours() -> double
 //   RealmEvents.GetActiveEvents() -> string[] "kind|startIso|endIso", GetNextEvent() -> {title, at}
 //   RealmLegendary.GetBearerName() -> string or null (null, or the plugin missing, reads as "unclaimed")
+//   RealmDominion.GetDominionBoard() -> {title, kicker, footer, window, empty, rows: [{name, kind, owner, right}]}
 // No Chronicle entries: painting a sign is not realm history.
 //
 // Language level: C# 3 syntax only, .NET 3.5 API surface. Cross-plugin API methods MUST stay non-public.
@@ -87,6 +89,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin CrownAndConsequences;
         [PluginReference] private Plugin RealmEvents;
         [PluginReference] private Plugin RealmLegendary;
+        [PluginReference] private Plugin RealmDominion;
 
         private const string PermAdmin = "realmpainter.admin";
         private const string DataName = "RealmPainter";
@@ -94,7 +97,7 @@ namespace Oxide.Plugins
         private const float TexelWorldSize = 0.008f;     // PaintArea.TEXEL_WORLD_SIZE [CODE]
 
         // Live boards, in the order /paint list shows them.
-        private static readonly string[] Boards = { "chronicle", "wanted", "standings", "proclamation", "event", "ironbreaker", "notice" };
+        private static readonly string[] Boards = { "chronicle", "wanted", "standings", "proclamation", "event", "ironbreaker", "dominion", "notice" };
         private static readonly string[] EventKinds = { "crown_night", "tournament", "kings_hunt", "truce" };
         private static readonly string[] EventIcons = { "crown", "trophy", "hunt", "sheathed" };
         private static readonly string[] HouseIds = { "varrow", "ashgrove", "corvane", "dunmere", "halloran", "merrin" };
@@ -1638,6 +1641,7 @@ namespace Oxide.Plugins
                     case "proclamation": return ProclamationBoard();
                     case "event": return EventBoard(arg);
                     case "ironbreaker": return IronbreakerBoard();
+                    case "dominion": return DominionBoard();
                     case "notice": return NoticeBoard(arg);
                 }
             }
@@ -1941,6 +1945,40 @@ namespace Oxide.Plugins
             {
                 b.Headline = B("Ironbreaker.Bearer", Clean(bearer, 32));
                 b.Subtitle = B("Ironbreaker.BearerLine");
+            }
+            return b;
+        }
+
+        // RealmDominion's holdings: up to six rows (house sigil or a flag, the holding, its holder; right: the garrison or a
+        // rising banner). The words come from RealmDominion's lang, so the board reads like /dominion.
+        private Board DominionBoard()
+        {
+            var b = new Board { Kind = "dominion", Kicker = B("KickerRealm"), Hero = "icon-64-helm", HeroTint = "emberDeep", Title = B("Dominion.Title") };
+            Dictionary<string, object> d = null;
+            try { d = RealmDominion != null ? RealmDominion.Call("GetDominionBoard") as Dictionary<string, object> : null; }
+            catch (Exception) { d = null; }
+            if (d == null) { b.Body = B("Dominion.Missing"); return b; }
+            string title = Get(d, "title") as string, kicker = Get(d, "kicker") as string;
+            if (!string.IsNullOrEmpty(title)) b.Title = Clean(title, 40);
+            if (!string.IsNullOrEmpty(kicker)) b.Kicker = Clean(kicker, 40);
+            b.Footer = Get(d, "footer") as string;
+            b.Subtitle = Clean(Get(d, "window") as string, 90);
+            var rows = Get(d, "rows") as List<Dictionary<string, object>>;
+            if (rows == null || rows.Count == 0) { b.Body = Clean(Get(d, "empty") as string, 120); return b; }
+            b.Hero = null;
+            foreach (Dictionary<string, object> r in rows)
+            {
+                if (b.Rows.Count >= 6) break;
+                string name = Get(r, "name") as string, owner = Get(r, "owner") as string;
+                if (string.IsNullOrEmpty(name)) continue;
+                b.Rows.Add(new Row
+                {
+                    Icon = string.IsNullOrEmpty(owner) ? "icon-24-claim" : (SigilSprite(owner, 32) ?? "icon-24-house"),
+                    IconTint = "inkSoft",
+                    Text = Clean(name, 24),
+                    Right = Clean(Get(r, "right") as string, 16),
+                    Sub = string.IsNullOrEmpty(owner) ? null : B("Dominion.Holder", Clean(owner, 24))
+                });
             }
             return b;
         }
@@ -2629,6 +2667,9 @@ namespace Oxide.Plugins
                 { "Board.Wanted.Bounty1", "One bounty on this head." },
                 { "Board.Wanted.BountyN", "{0} bounties on this head." },
                 { "Board.Wanted.Until", "Outlaw until {0}." },
+                { "Board.Dominion.Title", "Dominion" },
+                { "Board.Dominion.Missing", "The holdings are not kept in this realm." },
+                { "Board.Dominion.Holder", "House {0}" },
                 { "Board.Standings.Title", "The Season" },
                 { "Board.Standings.Kicker", "Season {0} standings" },
                 { "Board.Standings.Footer", "See your house with [F4C96D]/season[FFFFFF]" },

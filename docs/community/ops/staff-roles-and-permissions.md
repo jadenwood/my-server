@@ -43,6 +43,7 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmsentinel.admin` | `RealmSentinel.cs` | `/sentinel status`, `report`, `clear`, `reload`, `freeze`, `unfreeze`, `ban <player> confirm`, `peaks`: suspicion scores, cheat evidence and responses. Holders also count as staff for the name-impersonation check | With `General.AdminsExempt: true` (the default): **skips every cheat check** | Yes | Yes | No | No |
 | `realmlegendary.admin` | `RealmLegendary.cs` | `/ironbreaker status`, `grant <player> [force]`, `revoke`, `reset confirm`, `items [word]`: who bears the Ironbreaker, and its audit | **Can put the legendary blade in anyone's hands**, including their own | Yes | Yes | No | No |
 | `realmsculptor.admin` | `RealmSculptor.cs` | `/sculpt list`, `preview`, `place`, `undo`, `remove`, `placed`, `status`, `protect`, `repair`, `materials`, `reload`: place, protect and take down the realm's block monuments | `place ... force` replaces players' blocks (put back on undo); a protected monument can block a road or a door | Yes | Yes | No | No |
+| `realmdominion.admin` | `RealmDominion.cs` | `/dominion admin status`, `create`, `move`, `radius`, `rename`, `remove`, `enable`, `disable`, `owner`, `reset`, `open`, `close`, `auto`, `payday`: mark the holdings on the land, open or close the War Hours, settle an owner | **Can hand a holding (and its daily marks) to any house** and open the field at will; holders never count in the field while `AdminsCount` is false (the default) | Yes | Yes | No | Yes |
 
 Things that are **not** Oxide permissions but are staff powers all the same:
 
@@ -76,12 +77,14 @@ oxide.grant group realm_admin realmlaws.admin
 oxide.grant group realm_admin realmsentinel.admin
 oxide.grant group realm_admin realmlegendary.admin
 oxide.grant group realm_admin realmsculptor.admin
+oxide.grant group realm_admin realmdominion.admin
 
 oxide.grant group realm_mod realmwarden.admin
 oxide.grant group realm_mod realmravens.admin
 
 oxide.grant group realm_host realmevents.admin
 oxide.grant group realm_host realmpainter.admin
+oxide.grant group realm_host realmdominion.admin
 
 oxide.usergroup add <SteamID64> realm_mod
 oxide.usergroup remove <SteamID64> realm_mod

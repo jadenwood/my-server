@@ -113,6 +113,7 @@ namespace Oxide.Plugins
             public long MintMaxPerDay = 2000;
             public long MintSupplyCap = 100000;                // total marks that may ever exist
             public int MintCooldownMinutes = 60;
+            public long PluginIncomeMaxPerDay = 3000;          // rolling 24 h per source: marks other plugins strike into house vaults (GrantHouseIncome)
 
             public int TitheMaxPercent = 10;                   // the Charter's ceiling on the tithe
             public int TitheDefaultPercent = 0;
@@ -182,6 +183,7 @@ namespace Oxide.Plugins
             if (c.MintSupplyCap < 0) c.MintSupplyCap = 0;
             if (c.MintSupplyCap > 1000000000L) c.MintSupplyCap = 1000000000L;  // keeps every sum far from overflow
             if (c.MintCooldownMinutes < 0) c.MintCooldownMinutes = 0;
+            if (c.PluginIncomeMaxPerDay < 0) c.PluginIncomeMaxPerDay = 0;
             if (c.TitheMaxPercent < 0) c.TitheMaxPercent = 0;
             if (c.TitheMaxPercent > 50) c.TitheMaxPercent = 50;
             if (c.TitheDefaultPercent < 0) c.TitheDefaultPercent = 0;
@@ -2140,6 +2142,28 @@ namespace Oxide.Plugins
         {
             PriceStat st;
             return data != null && item != null && data.Prices.TryGetValue(item, out st) ? st.Last : 0;
+        }
+
+        // Income for a house from another Realm plugin (RealmDominion's holdings). New marks are struck straight into the
+        // house vault and counted in MarksMinted, so the zero-sum audit holds. Limits: the supply cap and a rolling 24 h
+        // budget per source (PluginIncomeMaxPerDay). The house must exist in RealmHouses when that is loaded. Returns the
+        // marks credited (possibly fewer than asked), 0 when refused.
+        private long GrantHouseIncome(string house, long marks, string source, string note)
+        {
+            if (data == null || string.IsNullOrEmpty(house) || marks <= 0 || string.IsNullOrEmpty(source)) return 0;
+            if (RealmHouses != null && HouseFounded(house) == null) return 0;
+            string key = "income:" + source.ToLowerInvariant();
+            long n = Math.Min(marks, config.PluginIncomeMaxPerDay - SpentToday(key));
+            n = Math.Min(n, config.MintSupplyCap - data.MarksMinted);
+            if (n <= 0) return 0;
+            house = CanonicalHouse(house);
+            CheckLineage(house);
+            data.Spends.Add(new Spend { At = DateTime.UtcNow, Key = key, Amount = n });
+            data.MarksMinted += n;
+            CreditMarks(HouseParty(house), n);
+            Journal("income", source, MarksAsset, n, "mint", "house:" + house, note ?? "");
+            SaveData();
+            return n;
         }
 
         // Summary for the chronicle/state page: "marks|minted|fee|tithe|openOrders".

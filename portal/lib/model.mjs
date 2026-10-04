@@ -50,6 +50,7 @@ export const TYPE_META = {
   tithe_levied:        { label: 'The Tithe Gathered',     icon: 'scroll',  tone: 'iron',  group: 'treasury' },
   great_trade:         { label: 'A Great Sale',           icon: 'seal',    tone: 'gold',  group: 'treasury' },
   rumour:              { label: 'A Rumour Spreads',       icon: 'scroll',  tone: 'iron',  group: 'treasury' },
+  holding_taken:       { label: 'A Holding Taken',        icon: 'flag',    tone: 'blood', group: 'war' },
 };
 
 export const GROUPS = [

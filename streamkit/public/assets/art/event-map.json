@@ -42,6 +42,7 @@
     "treasury_grant": "grant",
     "tithe_levied": "tithe",
     "great_trade": "purse",
-    "rumour": "whisper"
+    "rumour": "whisper",
+    "holding_taken": "holding"
   }
 }
