@@ -1150,6 +1150,10 @@ namespace Oxide.Plugins
                 { "Category.exploration", "Exploration" },
                 { "NotYet", "not yet" },
                 { "Unmarked", "not yet marked by the stewards" },
+                { "FirstHint", "Tasks wait for you on the quest-board: [F4C96D]/quest[FFFFFF]. Your deeds are kept in [F4C96D]/achievements[FFFFFF]." },
+                { "NewDay", "A new day on the quest-board: {0} new tasks. [F4C96D]/quest[FFFFFF] to see them." },
+                { "TaleBegins", "The tale of the season begins. Act {0}: {1}. [F4C96D]/quest story[FFFFFF] to read it." },
+                { "ChapterOpens", "A new chapter of the tale opens. Act {0}: {1}. [F4C96D]/quest story[FFFFFF] to read on." },
                 { "PopupJournal", "Your Journal" },
                 { "PopupDone", "Task Done" },
                 { "PopupDeed", "Deed Recorded" },
@@ -1320,11 +1324,31 @@ namespace Oxide.Plugins
         {
             if (data == null || player == null || player.IsServer) return null;
             string id = player.Id.ToString();
+            bool known = FindPlayer(id) != null;
             PlayerQ p = GetPlayer(id, player.Name, true);
             if (p == null) return null;
             p.LastSeen = Now();
+            string before = p.DayKey;
             Roll(id, p);
+            if (!known && HasContent()) Reply(player, "FirstHint");
+            else if (before != null && before != p.DayKey && config.DailiesEnabled && dailies.Count > 0) Reply(player, "NewDay", p.Daily.Count);
             return p;
+        }
+
+        // A chapter of the tale that has opened since the player last looked: told once, with its intro.
+        private void ChapterNews(Player player, PlayerQ p)
+        {
+            if (story == null || !config.StoryEnabled) return;
+            ChapterDef ch;
+            string wait;
+            QuestDef step = CurrentStep(p, out ch, out wait);
+            if (step == null || ch == null || ch.Id == p.Story.IntroShown) return;
+            bool firstAct = p.Story.IntroShown == null && p.Story.Finished.Count == 0;
+            p.Story.IntroShown = ch.Id;
+            dirty = true;
+            Reply(player, firstAct ? "TaleBegins" : "ChapterOpens", ch.Act, ch.Title);
+            if (!firstAct && PopupsFor(player))
+                ShowInfoPopup(player, story.Title, Fmt("StoryChapter", player, ch.Act, ch.Title) + "\n\n" + (ch.Intro ?? "") + "\n\n" + step.Title + ": " + step.Text, Msg("PopupButton", player));
         }
 
         #endregion
@@ -2596,6 +2620,7 @@ namespace Oxide.Plugins
                     if (m is long && (long)m > 0) RecordState(id, TMarks, "", (long)m);
                 }
                 Sweep(id, p, pl);
+                ChapterNews(pl, p);
             }
         }
 

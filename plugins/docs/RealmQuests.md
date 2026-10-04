@@ -9,7 +9,7 @@
 
 Everything players do is read from real hooks and from what the other Realm plugins already keep. Rewards are marks (RealmTreasury), renown and titles (RealmRenown), house season points (RealmSeasons) and a few goods. All content is data: JSON in the realm's own voice in [`RealmQuests/content/`](RealmQuests/content/).
 
-Status: **compiles with 0 errors against the real 2.0.3867 DLLs, behaviour-tested against mocks (283 checks) and exploit-tested (45 checks, plus 13 for the treasury method that pays its marks). It has never run on a live server.** See [What is UNVERIFIED](#what-is-unverified-and-how-to-test-it-in-game).
+Status: **compiles with 0 errors against the real 2.0.3867 DLLs, behaviour-tested against mocks (293 checks) and exploit-tested (45 checks, plus 13 for the treasury method that pays its marks). It has never run on a live server.** See [What is UNVERIFIED](#what-is-unverified-and-how-to-test-it-in-game).
 
 Tags: **[CODE]** = read in the decompiled 2.0.3867 `Assembly-CSharp.dll` (type and member names only; no game code is kept in this repo). **[ASM]** = confirmed by compiling against that DLL's metadata. **[OPJ]** = the Oxide hook manifest ([`docs/oxide-rok-api.md`](../../docs/oxide-rok-api.md)). **UNVERIFIED** = not seen working in game.
 
@@ -39,7 +39,7 @@ Quests: Deed recorded: Wolfsbane (Bronze). Wolves slain. The shepherds keep coun
 Quests: The treasury pays you 25 marks for your deeds.
 ```
 
-Gold tiers, the end of the tale and a house's met goal are heralded to the realm (at most 6 an hour), and the end of the tale is written in the Chronicle (`title_earned`), so it reaches the overlay, the portal and Discord.
+A newcomer is pointed to the board once; an online player is told when the day turns (`A new day on the quest-board: 3 new tasks.`) and when a new act of the tale opens (with its intro in a window). Gold tiers, the end of the tale and a house's met goal are heralded to the realm (at most 6 an hour), and the end of the tale is written in the Chronicle (`title_earned`), so it reaches the overlay, the portal and Discord.
 
 ## Commands
 
@@ -80,10 +80,10 @@ Stewards with `realmquests.admin` (see [`staff-roles-and-permissions.md`](../../
 | `slay_creature` | A creature killed by a player | `OnEntityDeath(EntityDeathEvent)` [OPJ L188]; killer `KillingDamage.DamageSource.Owner` [ASM]. A creature has a `MonsterMotor` or `MonsterEntity` (the test the game's own `SalvageSupplier` uses [CODE]). Its kind comes from `Entity.ToString()` ("Wolf(Clone) (…Entity)" -> "wolf"); targets match part of the name |
 | `slay_player` | A fair kill (see [Anti-abuse](#anti-abuse)) | `OnEntityDeath` [OPJ L188] |
 | `build` | A block placed, once per cell per day | `OnCubePlacement(CubePlaceEvent)` [OPJ L266]: `Sender`, `GridID`, `Position`, `Material`, `CausedByDestruction` [ASM]; counted on the next tick so a placement another plugin cancelled is not. Materials map to roles with RealmSculptor's table (`MaterialIds`) |
-| `visit` | Standing within a marked place's radius (once per place per day) | `Player.Entity.Position` [ASM], sampled each tick |
+| `visit` | Standing within a marked place's radius (once per place per day) | `Player.Entity.Position` [ASM], checked every `VisitSeconds` (5 s), so a rider passing through is seen |
 | `playtime` | Active minutes: moved at least `ActiveMoveMeters` since the last tick, or did something counted in the last `ActionKeepsActiveSeconds` | the same sample |
 | `survive` | Active minutes in one life (a death starts a new one) | the sample, and `OnEntityDeath` |
-| `event` | Present and active for `EventAttendMinutes` while a realm event runs, once per kind per day | `RealmEvents.GetActiveEvents()` |
+| `event` | Present and active for `EventAttendMinutes` while a realm event runs, once per kind per day. Whoever the Chronicle names as breaking the Truce (`truce_broken`) is not credited with keeping it that day | `RealmEvents.GetActiveEvents()` |
 | `oath` | Your house swore (`sworn`) or accepted (`accepted`) an oath while you were in it | `RealmHouses.GetHouseSummaries()` polled: a liege that changes |
 | `treaty` | Your house sealed a treaty | `oxide/data/RealmChronicle.json` read-only: `treaty_signed`, house names in the title |
 | `contract` | A contract you finished (`bounty`, `delivery`, `merc`) | `oxide/data/RealmContracts.json` read-only (Status, FulfillerId, PosterId, Type), as RealmRenown reads it |
@@ -176,7 +176,7 @@ RealmRenown deeds added for quests (in `plugins/RealmRenown.cs` defaults, so exi
 | `Enabled`, `DailiesEnabled`, `WeekliesEnabled`, `StoryEnabled`, `AchievementsEnabled`, `HouseGoalsEnabled` | true | Switch the whole board, or one part, off |
 | `DailyCount`, `WeeklyCount`, `DailyRerolls` | 3, 2, 1 | Board size (0-6, 0-4) and free rerolls a day |
 | `ResetHourUtc` | 4 | The quest day turns at this hour (UTC); the week turns on Monday at it |
-| `StoryRequiresSeason`, `StoryTimeGates` | true | The tale runs only while RealmSeasons runs season 1; acts wait for their `UnlockDay` |
+| `StoryRequiresSeason`, `StoryTimeGates` | true | The tale runs only while RealmSeasons runs the season the tale is written for (`Season` in `Story.json`); acts wait for their `UnlockDay`. A new season's `Story.json` starts every player's tale afresh |
 | `UsePopups`, `PopupOnComplete` | true | The game's windows (chat is always sent too) |
 | `MarksRewards`, `ItemRewards`, `RenownRewards`, `SeasonPointRewards` | true | Each kind of reward |
 | `RewardScale` | 1 | Multiplies every marks reward (0-10) |
@@ -185,7 +185,7 @@ RealmRenown deeds added for quests (in `plugins/RealmRenown.cs` defaults, so exi
 | `Pvp*`, `CreatureCreditsPerDay`, `CraftCreditsPerDay`, `CraftIgnore`, `BuildCreditsPerDay`, `Contract*` | see above | Anti-abuse limits |
 | `EventAttendMinutes` | 10 | Active minutes at an event that count as taking part |
 | `HouseGoal*`, `HouseMemberMinHours` | 1, 2, 2, 50, 12 | House goals |
-| `TickSeconds`, `FeedPollSeconds` | 30, 60 | Presence sampling; polling other plugins and their files |
+| `TickSeconds`, `FeedPollSeconds`, `VisitSeconds` | 30, 60, 5 | Presence sampling; polling other plugins and their files; checking marked places |
 | `ActiveMoveMeters`, `ActionKeepsActiveSeconds` | 1.5, 120 | What counts as active |
 | `ProgressNoticeSeconds` | 15 | Progress lines per task at most this often |
 | `AnnounceAchievements`, `MaxAnnouncementsPerHour`, `ChronicleStory`, `MaxChroniclePerHour` | true, 6, true, 4 | Heralds and the Chronicle |

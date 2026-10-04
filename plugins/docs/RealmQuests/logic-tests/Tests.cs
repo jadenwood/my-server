@@ -170,6 +170,9 @@ static class T
         var a = Mk(76561198000000001, "Aldric");
         var b = Mk(76561198000000002, "Brannoc");
         Ok(Daily(a).Count == 3 && Weekly(a).Count == 2, "a player gets three dailies and two weeklies", string.Join(",", DailyIds(a)));
+        Ok(a.All().Contains("Tasks wait for you on the quest-board: [F4C96D]/quest[FFFFFF]"), "a newcomer is pointed to the board once", a.All());
+        Clear(); Offline(a); Online(a);
+        Ok(!a.All().Contains("Tasks wait for you"), "and only once");
         Ok(DailyIds(a).Distinct().Count() == 3, "the three dailies differ");
         var first = DailyIds(a);
         Reload();
@@ -181,8 +184,10 @@ static class T
         Ok(!DailyIds(a).Any(id => id == "d_market_day" || id == "d_pilgrim" || id == "d_long_patrol" || id == "d_toll_and_ford"), "tasks needing unmarked places are not drawn", string.Join(",", DailyIds(a)));
         Ok(!WeeklyIds(a).Contains("w_courtier"), "tasks needing a house are not drawn for the houseless");
         Clock = Clock.AddDays(1);
+        Clear();
         Tick();
         var second = DailyIds(a);
+        Ok(a.All().Contains("A new day on the quest-board: 3 new tasks."), "an online player is told when the day turns", a.All());
         Ok(second.Count == 3 && !second.Intersect(first).Any(), "the next day brings a new board, without yesterday's tasks", string.Join(",", first) + " / " + string.Join(",", second));
         Ok(WeeklyIds(a).Count == 2, "the weeklies stay for the week");
         Clock = Clock.AddDays(7);
@@ -663,6 +668,11 @@ static class T
         var a = Mk(76561198000000001, "Aldric");
         Season(0);
         Clear();
+        Poll();
+        Ok(a.All().Contains("The tale of the season begins. Act 1: The Empty Seat."), "the tale's beginning is told in chat", a.All());
+        Clear(); Poll();
+        Ok(!a.All().Contains("The tale of the season begins"), "once");
+        Clear();
         Cmd(a, "story");
         Ok(a.All().Contains("The Hollow Crown, the tale of Season 1.") && a.All().Contains("Act 1: The Empty Seat") && a.All().Contains("Now: Ash at the Hearth."),
             "/quest story tells the prologue, the act and the step", a.All());
@@ -687,8 +697,12 @@ static class T
         Ok(a.All().Contains("the next chapter opens on day 15"), "Act II waits for day 15 of the season", a.All());
         Season(14);
         Clear();
+        Poll();
+        Ok(a.All().Contains("A new chapter of the tale opens. Act 2: The Charter Tested.") && a.Popups.Any(x => x.Contains("A crown that only sits is still hollow")),
+            "when Act II opens the player is told, with its intro in a window", a.All());
+        Clear();
         Cmd(a);
-        Ok(a.All().Contains("Act 2: The Charter Tested - Coin at the Crown Market"), "on day 15 Act II opens", a.All());
+        Ok(a.All().Contains("Act 2: The Charter Tested - ") && Finished(a).Contains("s2_market"), "on day 15 Act II opens (a purse of 50 marks and an unmarked market: its first step is done at once)", a.All());
         SeasonNumber = 2;
         Clear(); Cmd(a);
         Ok(a.All().Contains("waits for the season to open"), "another season number pauses the Season 1 tale");
