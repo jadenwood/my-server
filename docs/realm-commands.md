@@ -2,9 +2,9 @@
 
 Every chat command the Realm plugins register, in one place. Type them in the game's chat. Most commands show their own help when typed with no arguments (or with `help`). In game, `/realm` lists them all by subject.
 
-This list is checked against the plugin source: `node tools/realm-integration/check.mjs --commands` prints the same commands from `plugins/*.cs` and fails if two plugins register the same one. **No command is registered twice.** All of this is compile-checked and mock-tested only. None of it has been run on a live server yet (UNVERIFIED in game).
+This list is checked against the plugin source: `node tools/realm-integration/check.mjs --commands` prints the same commands from `plugins/*.cs` (59 from 26 plugins on 2026-10-04: 55 for players, 4 staff-only) and fails if two plugins register the same one. **No command is registered twice.** All of this is compile-checked and mock-tested only. None of it has been run on a live server yet (UNVERIFIED in game).
 
-Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) for houses, crown, claims, ransom, contracts, seasons and events, and the plugin guides in [`../plugins/docs/`](../plugins/docs/) for the rest. How the systems fit together: [`realm-systems.md`](realm-systems.md).
+Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) (its "What's in Realm" section explains every system to players in plain words; the detailed sections cover houses, crown, claims, ransom, contracts, seasons and events), and the plugin guides in [`../plugins/docs/`](../plugins/docs/) for the rest. How the systems fit together: [`realm-systems.md`](realm-systems.md).
 
 ## For every player
 
@@ -65,7 +65,36 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 
 ## For admins
 
-Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`, `realmworld.admin`, `realmheraldry.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`, `/craft admin status`, `/world admin`, `/heraldry sync`, `/ballot admin open`). Each plugin guide in `plugins/docs/` lists them.
+Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>` (or by group; who gets which is in [`community/ops/staff-roles-and-permissions.md`](community/ops/staff-roles-and-permissions.md)): `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmsculptor.admin`, `realmpainter.admin`, `realmlegendary.admin`, `realmsentinel.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`, `realmworld.admin`, `realmheraldry.admin`. Staff who hold a plugin's admin permission do not compete in what it runs.
+
+The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`). Each plugin guide in `plugins/docs/` lists them in full. Realm Steward's Court lists the staff commands of every plugin, ready to copy, on `team/steward-integration`.
+
+### Staff-only commands
+
+These four commands serve only holders of their plugin's admin permission (anyone else gets one pointer line), so the `/realm` hub does not list them (`STAFF_COMMANDS` in `tools/realm-integration/check.mjs`).
+
+| Command | Plugin and permission | What staff do with it |
+|---|---|---|
+| `/sculpt` | RealmSculptor, `realmsculptor.admin` | Realm's block monuments: `list`, `preview`, `place`, `placed`, `protect`, `repair`, `remove`, `undo`, `materials`, `status`, `reload`. Guide: [`RealmSculptor.md`](../plugins/docs/RealmSculptor.md) |
+| `/paint` | RealmPainter, `realmpainter.admin` | Realm's art on painted signs and the live boards: `list`, `nearby`, `info`, `<painting>`, `crest`, `sigil`, `chronicle`, `wanted`, `standings`, `proclamation`, `event`, `ironbreaker`, `notice`, `dominion`, `world`, `face`, `fit`, `redraw`, `signs`, `unbind`, `forget`, `clear`, `status`, `reload`. Guide: [`RealmPainter.md`](../plugins/docs/RealmPainter.md) |
+| `/ironbreaker` | RealmLegendary, `realmlegendary.admin` | The one legendary blade: `status`, `items`, `grant`, `revoke`, `reset`. Guide: [`RealmLegendary.md`](../plugins/docs/RealmLegendary.md) |
+| `/sentinel` | RealmSentinel, `realmsentinel.admin` | The cheat watch: `status`, `report`, `peaks`, `freeze`, `unfreeze`, `clear`, `ban`, `reload`, `help`. Guide: [`RealmSentinel.md`](../plugins/docs/RealmSentinel.md) |
+
+### Staff commands of the wave-4 plugins
+
+Under the players' commands, for holders of the plugin's permission. Every one is UNVERIFIED in game; the ROADMAP play-test rows that use them are named.
+
+| Plugin and permission | Staff commands | First used in |
+|---|---|---|
+| RealmDominion, `realmdominion.admin` | `/dominion admin status`, `create <id> <kind> [radius] <name>`, `move <id> [radius]` (marks a holding where you stand), `radius`, `rename`, `remove <id> confirm`, `enable`, `disable`, `owner <id> <house\|none>`, `reset <id>`, `open [minutes]`, `close [minutes]`, `auto`, `payday` | PT0.14, PT1.22, PT1.24 |
+| RealmQuests, `realmquests.admin` | `/quest admin status`, `reload`, `places`, `place set <id> [radius]`, `place clear <id>`, `reset <player> [daily\|weekly\|story\|all]`, `complete <player> <quest>`, `creatures`, `items <word>` | PT0.14, PT1.22, PT1.26 |
+| RealmArena, `realmarena.admin` | `/arena admin status`, `zone set <name> [radius]`, `zone remove`, `tavern set`, `tavern remove`, `void <duel>`, `rating <player> <n>`, `reset <player> confirm`, `bar <player> <hours>`, `unbar`, `crown`, `pairs`, `settle`; `/arena tourney open [fee]`, `start`, `cancel` | PT1.22, PT4.9 |
+| RealmTravel, `realmtravel.admin` | `/travel admin set <id> <capital\|seat\|holding\|landmark> [name]`, `name`, `note`, `house`, `kind`, `toll`, `radius`, `hidden`, `enabled`, `mark <id> <sculpture>`, `remove <id> confirm`, `list`, `status`, `unlock`, `lock`, `throne`, `tp <id>`; `/kit admin items <word>`, `check`, `reset <player> <kit\|all>` | PT0.14, PT1.22, PT1.25 |
+| RealmCrafts, `realmcrafts.admin` | `/craft admin status`, `watch <player> [off]` (what the plugin sees, for the smoke test), `unmapped`, `items <word>`, `xp`, `level <player> <profession> <level>`, `reset <player> confirm`, `crown`, `cancel <id>` | PT0.14, PT1.27, PT1.28 |
+| RealmWorld, `realmworld.admin` | `/world admin status`, `start <treasure\|bloodmoon\|caravan\|legend\|census> [target] [minutes] [force]`, `stop`, `schedule`, `place set`, `place clear`, `places`, `hunt new\|step\|undo\|radius\|chest\|reward\|enable\|show\|remove\|list`, `route add\|remove`, `routes`, `deco add\|remove\|list`, `festival start\|stop\|cancel`, `census`, `creatures`, `legends`, `bounty` | PT0.14, PT1.29, PT2.18, PT4.10 |
+| RealmHeraldry, `realmheraldry.admin` | `/heraldry sync`, `preview [house]`, `set <house> <pair>`, `reset <house>`, `banner <house> <banner> <pattern>`, `status`; `/ballot admin open`, `advance <n>`, `cancel <n>`, `strike <n> <player>`, `audit <n>`, `voter <player>` | PT0.14, PT1.30, PT3.27 |
+
+### Console commands
 
 Oxide runs these chat commands only for a player in game, not from the server console (see [`admin-console.md`](admin-console.md)). Two console-only commands come from `RealmCourt.cs`, which writes them into the game's own command table with the permission `realm.court`: `/realm.save` (save the world now) and `/realm.players` (online players with Steam IDs). Realm Steward's Court screen uses them.
 
@@ -145,8 +174,14 @@ Some commands also open the game's own popup windows. They make the realm feel r
 | `/house found` alone, or with a name only (RealmHouses) | Input windows for the house's name, then its sigil. A bad name or sigil is refused in chat and asked again. | The full line: `/house found "<name>" <sigil>`. |
 | A challenge to a duel, a team duel or a tavern game (RealmArena) | Accept/Decline, with the stake shown. | `/duel accept <player> [marks]` (or `/dice`, `/cards`): with a stake, the stake must be typed. |
 | Crowned Champion of the Ring; a tournament match called (RealmArena) | A notice with an Ok button. | The same news in chat. |
+| `/dominion` (RealmDominion) | The map of the holdings, their houses and the War Hours. | The same map in chat. |
+| `/quest`, `/quest story`, `/achievements` (RealmQuests) | The journal, the season's tale, your deeds. | The same text in chat, always. |
+| A waystone found (RealmTravel) | "Waystone found", with its lore line. | The discovery line in chat. |
+| Mastery and Master Crafter (RealmCrafts) | "Master of ..." and the weekly crowning. | The Herald's line and the chat reply. |
+| A clue, a hoard, a Legend (RealmWorld) | "A Clue" with the next riddle; the hoard and the Legend's news. | `/treasure` repeats the clue; the Herald's lines. |
+| A ballot opens (RealmHeraldry) | "The realm votes", for each player who may vote. | The Herald's line and `/ballot`. |
 
-**Switches.** `UsePopups` in `oxide/config/RealmHerald.json` and `oxide/config/RealmHouses.json` switches each plugin's windows off for the server. With RealmHouses' popups off, `/swear <house>` offers the oath at once, as it did before popups. A player turns every Realm window off for themselves with `/realm popups off` (RealmHouses asks RealmHerald's `PopupsWanted` before each window).
+**Switches.** `UsePopups` in each plugin's config (`oxide/config/RealmHerald.json`, `RealmHouses.json` and every plugin listed above) switches that plugin's windows off for the server. With RealmHouses' popups off, `/swear <house>` offers the oath at once, as it did before popups. A player turns every Realm window off for themselves with `/realm popups off` (RealmHouses asks RealmHerald's `PopupsWanted` before each window).
 
 **The game's methods.** The windows come from the `Player` extension methods in `CodeHatch.Common.PlayerExtensions`. Their signatures were read from the `Assembly-CSharp.dll` metadata that `tools/plugin-compile-check/check.sh` downloads, and the plugins compile against it:
 
