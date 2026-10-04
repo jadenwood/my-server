@@ -51,6 +51,7 @@ static class Tests
             Teleport();
             ReloadAndData();
             Popups();
+            AdminAndExtras();
             ConfigClamp();
         }
         catch (Exception ex) { fail++; Console.WriteLine("FAIL unexpected exception: " + ex); }
@@ -1069,6 +1070,94 @@ static class Tests
         Clear();
         Cmd(ada, "cards");
         Ok(ada.All().Contains("Twenty-One") && ada.All().Contains("house edge zero"), "/cards alone is the help, with the limits", ada.All());
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    static void AdminAndExtras()
+    {
+        Reset();
+        var steward = P("Steward", 500, 500, 0); Admin(steward);
+        var ada = P("Ada", 0, 0); var bram = P("Bram", 4, 0); var cy = P("Cy", 8, 0);
+        // Heralds for a high-stakes duel.
+        Clear();
+        Fight(ada, bram, 100);
+        Ok(B().Contains("Ada and Bram meet in the ring, 100 marks a head on the outcome!"), "a duel for a high stake is heralded to the realm", B());
+        Clear();
+        Cmd(steward, "arena", "admin", "status");
+        Ok(steward.All().Contains("Duels 1, challenges 0, games 0, settlements waiting 0") && steward.All().Contains("Treasury running: yes"), "/arena admin status", steward.All());
+        int duelId = (int)F(Duel(ada), "Id");
+        Clear();
+        Cmd(steward, "arena", "admin", "void", duelId.ToString());
+        Ok(Duel(ada) == null && Purse(ada) == 1000 && ada.All().Contains("The staff (Steward) call the duel off"), "staff void a duel: every stake back", ada.All());
+        Cmd(steward, "arena", "admin", "void", "999");
+        Ok(steward.All().Contains("No such duel"), "a duel that does not exist");
+        Cmd(steward, "arena", "admin", "rating", "Ada", "1450");
+        Ok(Rating(ada) == 1450 && steward.All().Contains("Ada's rating is now 1450"), "staff set a rating");
+        Cmd(steward, "arena", "admin", "bar", "Bram", "2");
+        Ok((DateTime)F(Fighter(bram), "BarredUntil") > Clock.AddHours(1.9), "staff bar a player from the ring");
+        Clear(); Cmd(bram, "duel", "Cy");
+        Ok(bram.All().Contains("You are barred from the ring until"), "the barred player is told until when", bram.All());
+        Cmd(steward, "arena", "admin", "unbar", "Bram");
+        Ok((DateTime)F(Fighter(bram), "BarredUntil") < Clock, "and lift it");
+        Clear();
+        Cmd(steward, "arena", "admin", "reset", "Ada");
+        Ok(steward.All().Contains("Repeat with confirm") && Rating(ada) == 1450, "a reset asks for confirm first", steward.All());
+        Cmd(steward, "arena", "admin", "reset", "Ada", "confirm");
+        Ok(Rating(ada) == 1000 && FInt(ada, "Games") == 0 && (double)F(Fighter(ada), "PlayedMinutes") > 100, "and wipes the record (not the time in the realm)");
+        Tick(31);
+        Win(ada, bram);
+        Clear();
+        Cmd(steward, "arena", "admin", "pairs");
+        Ok(steward.All().Contains("Ada and Bram: 1 ranked"), "/arena admin pairs lists the pairs that meet most", steward.All());
+        Cmd(steward, "arena", "admin", "settle");
+        Ok(steward.All().Contains("Settlements still waiting: 0"), "/arena admin settle");
+        Clear();
+        Cmd(steward, "arena", "admin", "tavern", "set", "The", "Hearth", "Inn", "12");
+        Cmd(steward, "arena", "zones");
+        Ok(steward.All().Contains("Tavern The Hearth Inn at (500, 500), 12 m"), "staff set a tavern", steward.All());
+        Tune("Tavern", "RequireTavernZone", true);
+        Clear();
+        Cmd(ada, "dice", "Bram", "10");
+        Ok(ada.All().Contains("only in a tavern"), "tavern games only in a tavern when required", ada.All());
+        Move(ada, 501, 500); Move(bram, 502, 500);
+        Tick(31);
+        Cmd(ada, "dice", "Bram", "10");
+        Ok(L("Challenges").Count == 1, "inside the tavern the game is on");
+        Cmd(ada, "dice", "cancel");
+        Tune("Tavern", "RequireTavernZone", false);
+        Cmd(steward, "arena", "admin", "tavern", "remove", "The Hearth Inn");
+        Ok(((IList)F(F(A, "config"), "Taverns")).Count == 0, "and remove it");
+        // The team ladder.
+        foreach (var x in new[] { ada, bram }) { SetF(Fighter(x), "TeamGames", 10); }
+        SetF(Fighter(ada), "TeamRating", 1100);
+        Clear();
+        Cmd(cy, "arena", "top", "team");
+        Ok(cy.All().Contains("The team ladder") && cy.All().Contains("1. Ada - 1100"), "/arena top team", cy.All());
+
+        // A bracket fight that runs out of time is decided by the blows struck; a forfeit mid-bracket.
+        Reset();
+        steward = P("Steward", 500, 500, 0); Admin(steward);
+        var a = P("Ana", 0, 0); var b = P("Ben", 2, 0); var c = P("Cal", 4, 0); var d = P("Dov", 6, 0);
+        Cmd(steward, "arena", "tourney", "open");
+        foreach (var p in new[] { a, b, c, d }) Cmd(p, "arena", "tourney", "join");
+        Clear();
+        Cmd(a, "arena", "tourney");
+        Ok(a.All().Contains("Sign-up: 4 entered"), "/arena tourney shows the sign-up", a.All());
+        Cmd(steward, "arena", "tourney", "start");
+        Clear();
+        Cmd(a, "arena", "tourney");
+        Ok(a.All().Contains("semi-final") && a.All().Contains("Ana against Dov") && a.All().Contains("Ben against Cal"), "and the bracket once it runs", a.All());
+        Tick(6);
+        Hit(a, d, 10); Hit(d, a, 4);
+        Cmd(c, "arena", "tourney", "leave");
+        Ok(b.All().Contains("You beat Cal"), "Cal withdraws mid-match: Ben goes through", b.All());
+        Tick(301);
+        Ok(a.All().Contains("You beat Dov"), "time ran out: Ana struck harder and goes through", a.All());
+        Tick(2);
+        Ok(Duel(a) != null && Duel(a) == Duel(b), "the final is called");
+        Clear();
+        Cmd(b, "duel", "Cal");
+        Ok(b.All().Contains("You are in the running bracket") || b.All().Contains("already in a duel"), "an entrant cannot slip into other fights", b.All());
     }
 
     // ------------------------------------------------------------------------------------------------------------

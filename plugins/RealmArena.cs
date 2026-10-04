@@ -3908,8 +3908,12 @@ namespace Oxide.Plugins
                     Fighter f = GetFighter(fid, null, false);
                     if (!confirm) { Warn(player, "AdminResetAsk", f.Name); return; }
                     string name = f.Name;
+                    double played = f.PlayedMinutes;
+                    DateTime first = f.FirstSeen;
                     data.Fighters.Remove(fid);
-                    GetFighter(fid, name, true);
+                    Fighter fresh = GetFighter(fid, name, true);
+                    fresh.PlayedMinutes = played;                    // time in the realm is not part of the arena record
+                    fresh.FirstSeen = first;
                     Puts(player.Name + " reset the arena record of " + name);
                     Ok(player, "AdminReset", name);
                     SaveData();
