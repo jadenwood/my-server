@@ -21,7 +21,7 @@ export const EVENT_ICONS = {
   verdict: 'scales', pardon: 'pardon', dynasty_founded: 'lineage', heir_named: 'heir', succession: 'succession',
   blood_claim: 'blood-claim', blood_restored: 'sprout', title_bestowed: 'collar', title_earned: 'medal',
   treasury_mint: 'mint', treasury_grant: 'grant', tithe_levied: 'tithe', great_trade: 'purse', rumour: 'whisper',
-  holding_taken: 'holding',
+  holding_taken: 'holding', blade_claimed: 'blade', blade_lost: 'blade-lost',
 };
 
 // The six great houses have drawn sigils. A house a player founds has none (it keeps its banner colour).

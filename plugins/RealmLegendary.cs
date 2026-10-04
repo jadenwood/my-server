@@ -55,8 +55,8 @@
 //              RealmRenown.AddDeed(id, name, RenownDeed, note, key) is called on each claim; it counts only if a deed
 //              of that kind is configured in RealmRenown.
 //   Heralds    every claim and loss is told to the realm ("Herald:" voice, docs/realm-commands.md) and written to the
-//              Chronicle as title_earned (claimed) or event_ended (lost); the Chronicle feeds the overlay, the portal
-//              and Discord. No new Chronicle type is needed.
+//              Chronicle as blade_claimed or blade_lost (the Ironbreaker's own types, with their own icons); the
+//              Chronicle feeds the overlay, the portal and Discord. An older RealmChronicle without them gets a decree.
 //
 // Zero-sum: the plugin mints one BaseItem when the blade comes into a bearer's hand and takes that same stack back when
 // it leaves. Data is saved before a stack is minted and after one is taken, so a crash can lose the blade but never
@@ -105,8 +105,8 @@ namespace Oxide.Plugins
 
         private const string PermAdmin = "realmlegendary.admin";
         private const string DataName = "RealmLegendary";
-        private const string ClaimedChronicleType = "title_earned";
-        private const string LostChronicleType = "event_ended";
+        private const string ClaimedChronicleType = "blade_claimed";
+        private const string LostChronicleType = "blade_lost";
 
         private const string SKeeping = "keeping";     // in the crown's armoury: no bearer
         private const string SBorne = "borne";         // a bearer holds it (or will, as soon as they can)

@@ -46,7 +46,7 @@ static class T
         Ok(B().Contains("[D6A043]Herald[FFFFFF]: Aldric, champion of the Royal Tournament, takes up the Ironbreaker!"), "the herald announces the claim in the Realm voice", B());
         Ok(a.All().Contains("You bear the Ironbreaker") && a.All().Contains("[8FC97A]Ironbreaker[FFFFFF]:"), "the bearer is told what it does, in the done tone", a.All());
         Ok(a.All().Contains("stay away over 15 min"), "the bearer is told the logout grace");
-        Ok(ChronLog.Any(l => l.StartsWith("title_earned|Aldric takes up the Ironbreaker|Aldric of House Varrow won it as champion of the Royal Tournament.")), "chronicled as title_earned with the house", string.Join("\n", ChronLog));
+        Ok(ChronLog.Any(l => l.StartsWith("blade_claimed|Aldric takes up the Ironbreaker|Aldric of House Varrow won it as champion of the Royal Tournament.")), "chronicled as blade_claimed with the house", string.Join("\n", ChronLog));
         Ok(Deeds.Count == 1 && Deeds[0].StartsWith("1001|Aldric|ironbreaker|"), "RealmRenown.AddDeed is called with the configured deed", string.Join("\n", Deeds));
         Ok(AuditBalanced() && (int)D("Minted") == 1, "audit: one minted, one in the world", AuditText());
         Ok(!Award("tournament", Mk(1002, "Brannoc")), "a second award while it is borne is refused");
@@ -184,7 +184,7 @@ static class T
         Ok(corpse.Contents.GetItems().Count(s => s.Blueprint.Name == "Steel Greatsword") == 0, "the corpse holds no blade (taken before the corpse is filled)");
         Ok(AllBlades().Count == 1, "exactly one blade in the world after the pass");
         Ok(B().Contains("Brannoc has slain Aldric and takes the Ironbreaker from their hand!"), "the herald tells the pass", B());
-        Ok(ChronLog.Any(l => l.StartsWith("title_earned|Brannoc takes up the Ironbreaker|Brannoc of House Corvane slew Aldric") && l.EndsWith("|Brannoc;Aldric")), "chronicled with both names", string.Join("\n", ChronLog));
+        Ok(ChronLog.Any(l => l.StartsWith("blade_claimed|Brannoc takes up the Ironbreaker|Brannoc of House Corvane slew Aldric") && l.EndsWith("|Brannoc;Aldric")), "chronicled with both names", string.Join("\n", ChronLog));
         Ok(AuditBalanced(), "audit balanced after a pass", AuditText());
 
         // A housemate of the bearer cannot take it.
@@ -193,7 +193,7 @@ static class T
         Die(b, c);
         Ok(State == "keeping" && AllBlades().Count == 0, "slain by a housemate: back to the armoury, no blade left anywhere");
         Ok(B().Contains("Brannoc fell to their own side"), "the herald says why", B());
-        Ok(ChronLog.Any(l => l.StartsWith("event_ended|The Ironbreaker returns to the crown's armoury|Brannoc fell to their own side")), "the loss is chronicled as event_ended", string.Join("\n", ChronLog));
+        Ok(ChronLog.Any(l => l.StartsWith("blade_lost|The Ironbreaker returns to the crown's armoury|Brannoc fell to their own side")), "the loss is chronicled as blade_lost", string.Join("\n", ChronLog));
 
         // A death with no killer: the last foe within the window takes it; outside the window it is lost.
         Reset();

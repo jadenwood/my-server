@@ -435,6 +435,24 @@
       "sha256": "f31b06a6552e2f8301c9114c74a0f2e1ab5a92478a501762fd6b45365c524e7d"
     },
     {
+      "id": "icon-24-blade",
+      "kind": "mask",
+      "width": 24,
+      "height": 24,
+      "file": "art/paintings/sprites/icon-24-blade.png",
+      "bytes": 303,
+      "sha256": "eb73358f1ce64d2ee0195cd4d0a8afcede32beab97f4471ec88a4bd6dabad23e"
+    },
+    {
+      "id": "icon-24-blade-lost",
+      "kind": "mask",
+      "width": 24,
+      "height": 24,
+      "file": "art/paintings/sprites/icon-24-blade-lost.png",
+      "bytes": 284,
+      "sha256": "90af4f11e8cc326a8a58d3ef7212ff8518a475163ab7d455e71015fcbda91f31"
+    },
+    {
       "id": "icon-24-blood-claim",
       "kind": "mask",
       "width": 24,
@@ -1008,5 +1026,5 @@
       "sha256": "742167c3b8fe954a15b8918a667948d5212a78eb609e9edbccacb0810bcd2719"
     }
   ],
-  "version": "3204613439985fa3"
+  "version": "60e6973b1ec4d6f9"
 }

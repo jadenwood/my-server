@@ -43,6 +43,8 @@
     "tithe_levied": "tithe",
     "great_trade": "purse",
     "rumour": "whisper",
-    "holding_taken": "holding"
+    "holding_taken": "holding",
+    "blade_claimed": "blade",
+    "blade_lost": "blade-lost"
   }
 }

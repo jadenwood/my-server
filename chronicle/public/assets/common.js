@@ -48,6 +48,9 @@ export const TYPE_META = {
   rumour:              { label: 'A Rumour Spreads',        icon: 'scroll',  tone: 'iron',  group: 'treasury' },
   // RealmDominion
   holding_taken:       { label: 'A Holding Taken',         icon: 'flag',    tone: 'blood', group: 'war' },
+  // RealmLegendary (the Ironbreaker)
+  blade_claimed:       { label: 'The Ironbreaker Taken Up', icon: 'blade',  tone: 'gold',  group: 'war' },
+  blade_lost:          { label: 'The Ironbreaker Returns', icon: 'bladeX',  tone: 'iron',  group: 'war' },
 };
 
 export const metaFor = (type) => TYPE_META[type] || { label: 'Chronicle', icon: 'scroll', tone: 'iron', group: 'other' };
@@ -71,6 +74,8 @@ const ICON_PATHS = {
   trophy: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9 17h6',
   hourglass: 'M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9',
   horn: 'M4 10v4l3 1 11 5V4L7 9zM7 9v6M18 9a3 3 0 0 1 0 6',
+  blade: 'M12 2.5 13.6 5v9h-3.2V5zM7.5 14h9M12 14v4.2M12 18.5a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6M5.2 6.2l2 1.2M18.8 6.2l-2 1.2',
+  bladeX: 'M3 21h18M5 21v-9a7 7 0 0 1 14 0v9M12 9.7v1.6M9.5 11.3h5M10.9 11.3v5.6l1.1 2 1.1-2v-5.6',
 };
 
 export function icon(name, cls = 'icon') {

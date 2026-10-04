@@ -135,7 +135,7 @@ All staff-only, gated by `realmlegendary.admin` (see [`docs/community/ops/staff-
 
 ## Chronicle
 
-No new Chronicle type is needed. A claim is written as `title_earned` ("A Title Earned"), with the bearer (and the former bearer) as actors; a loss as `event_ended` ("Event Ends"), titled "The Ironbreaker returns to the crown's armoury". An older RealmChronicle that rejects a type gets a `decree` line instead. Both types reach the overlay, the portal and the bot today; the Discord herald posts them when the owner ticks those types in Steward (they are not in its default list). Dedicated `blade_claimed` / `blade_lost` types with their own icons are a follow-up (they need the art team's icons and the Discord herald's list).
+The Ironbreaker has its own two Chronicle types, each with its own icon in the art pack (`art/icons/blade.svg`, `art/icons/blade-lost.svg`). A claim is written as `blade_claimed` ("The Ironbreaker Taken Up"), with the bearer (and the former bearer) as actors; a loss as `blade_lost` ("The Ironbreaker Returns"), titled "The Ironbreaker returns to the crown's armoury". An older RealmChronicle that rejects a type gets a `decree` line instead. Both types reach the overlay, the portal, the bot and the stream scenes; the Discord herald posts them when the owner ticks them in Steward (Discord herald, "Claims & war"; they are not in its default list).
 
 ## Restarts
 

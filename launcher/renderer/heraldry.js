@@ -56,7 +56,9 @@
     tithe_levied: ['tithe', 'The Tithe Gathered', 'iron'],
     great_trade: ['purse', 'A Great Sale', 'gold'],
     rumour: ['whisper', 'A Rumour Spreads', 'iron'],
-    holding_taken: ['holding', 'A Holding Taken', 'blood']
+    holding_taken: ['holding', 'A Holding Taken', 'blood'],
+    blade_claimed: ['blade', 'The Ironbreaker Taken Up', 'gold'],
+    blade_lost: ['blade-lost', 'The Ironbreaker Returns', 'iron']
   };
 
   // The six great houses of Ostreval (docs/community/lore.md, art/palette.json).
