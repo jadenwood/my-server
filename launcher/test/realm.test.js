@@ -231,6 +231,71 @@ test('plugin deploy: new, changed (backed up) and unchanged; others left alone',
   assert.equal((await R.deployPlugins(root, src)).copied, 0);
 });
 
+test('data deploy: sculptures, painter bundle and quest content land in oxide\\data; damaged sources refused', async () => {
+  const base = await tmpdir();
+  const { root } = await makeTestCopy(base);
+  const res = path.join(base, 'res');
+  const sets = R.dataSets(res, true);
+  await write(path.join(res, 'realm-data', 'RealmSculptor', 'old-throne.json'), '{"format":"realm-sculpture/1","id":"old-throne"}');
+  await write(path.join(res, 'realm-data', 'RealmSculptor', 'broken.json'), '{"format":"realm-sculp');
+  await write(path.join(res, 'realm-data', 'RealmSculptor', 'notes.txt'), 'not data');
+  await write(path.join(res, 'realm-data', 'RealmPainterArt.json'), '{"Format":1,"Version":"abc123"}');
+  await write(path.join(res, 'realm-data', 'Other.json'), '{"not":"shipped"}');
+  await write(path.join(res, 'realm-data', 'RealmQuests', 'Dailies.json'), '{"Version":1,"Quests":[]}');
+  await write(path.join(res, 'realm-data', 'RealmQuests', 'Null.json'), 'null');
+
+  const first = await R.deployData(root, sets);
+  const data = path.join(root, 'oxide', 'data');
+  assert.equal(first.target, data);
+  assert.equal(first.copied, 3);
+  assert.equal(first.invalid, 2);
+  assert.deepEqual(first.reload, ['RealmPainter', 'RealmQuests', 'RealmSculptor']);
+  assert.ok(fs.existsSync(path.join(data, 'RealmSculptor', 'old-throne.json')));
+  assert.ok(!fs.existsSync(path.join(data, 'RealmSculptor', 'broken.json')), 'a damaged source is never copied');
+  assert.ok(!fs.existsSync(path.join(data, 'Other.json')), 'only the painter bundle comes from the realm-data root');
+  assert.ok(fs.existsSync(path.join(data, 'RealmPainterArt.json')));
+  assert.ok(fs.existsSync(path.join(data, 'RealmQuests', 'Dailies.json')));
+  assert.ok(!fs.existsSync(path.join(data, 'RealmQuests', 'Null.json')));
+  const painter = first.sets.find((s) => s.id === 'paintings');
+  assert.equal(painter.version, 'abc123');
+  assert.equal(first.items.find((i) => i.name === 'broken.json').state, 'invalid');
+  assert.match(first.items.find((i) => i.name === 'broken.json').reason, /damaged JSON/);
+  assert.equal(first.backupDir, null);
+
+  // A damaged source never replaces a good file already on the server.
+  await write(path.join(data, 'RealmSculptor', 'broken.json'), '{"id":"broken","good":true}');
+  // The owner's own sculpture is listed, never touched; a changed file is backed up first.
+  await write(path.join(data, 'RealmSculptor', 'my-own.json'), '{"id":"my-own"}');
+  await write(path.join(res, 'realm-data', 'RealmPainterArt.json'), '{"Format":1,"Version":"def456"}');
+  const second = await R.deployData(root, sets);
+  assert.equal(second.copied, 1);
+  assert.deepEqual(second.reload, ['RealmPainter']);
+  assert.equal(await fsp.readFile(path.join(data, 'RealmSculptor', 'broken.json'), 'utf8'), '{"id":"broken","good":true}');
+  assert.deepEqual(second.sets.find((s) => s.id === 'sculptures').others, ['my-own.json']);
+  assert.equal(await fsp.readFile(path.join(second.backupDir, 'RealmPainterArt.json'), 'utf8'), '{"Format":1,"Version":"abc123"}');
+  assert.equal(await fsp.readFile(path.join(data, 'RealmPainterArt.json'), 'utf8'), '{"Format":1,"Version":"def456"}');
+  assert.ok(!fs.readdirSync(data).some((n) => n.endsWith('.realm-part')));
+
+  const third = await R.deployData(root, sets);
+  assert.equal(third.copied, 0);
+  assert.deepEqual(third.reload, []);
+});
+
+test('data deploy: the development sources are the repository files', async () => {
+  const repo = path.join(__dirname, '..', '..');
+  const sets = R.dataSets(repo, false);
+  assert.deepEqual(sets.map((s) => s.plugin), ['RealmSculptor', 'RealmPainter', 'RealmQuests']);
+  const base = await tmpdir();
+  const { root } = await makeTestCopy(base);
+  const plan = await R.planData(root, sets);
+  for (const s of plan.sets) {
+    assert.ok(s.files >= 1, `${s.id} ships files`);
+    assert.equal(s.invalid, 0, `${s.id}: every shipped file parses`);
+  }
+  assert.ok(plan.sets.find((s) => s.id === 'sculptures').files >= 11);
+  assert.match(plan.sets.find((s) => s.id === 'paintings').version, /^[0-9a-f]{16}$/);
+});
+
 test('plugin deploy prefers an existing Saves\\oxide folder', async () => {
   const base = await tmpdir();
   const { root } = await makeTestCopy(base);

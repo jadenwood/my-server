@@ -37,6 +37,27 @@
       "filter": [
         "*.cs"
       ]
+    },
+    {
+      "from": "../art/sculptures",
+      "to": "realm-data/RealmSculptor",
+      "filter": [
+        "*.json"
+      ]
+    },
+    {
+      "from": "../art/paintings",
+      "to": "realm-data",
+      "filter": [
+        "RealmPainterArt.json"
+      ]
+    },
+    {
+      "from": "../plugins/docs/RealmQuests/content",
+      "to": "realm-data/RealmQuests",
+      "filter": [
+        "*.json"
+      ]
     }
   ],
   "extraFiles": [

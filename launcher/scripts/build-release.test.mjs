@@ -71,8 +71,26 @@ test('the player uninstaller removes only its own realm:// handler', () => {
 test('the Steward installer still carries the plugins and the Chronicle', () => {
   const st = loadEditionConfig('steward');
   const from = st.extraResources.map((r) => r.from).sort();
-  assert.deepEqual(from, ['../chronicle', '../plugins']);
+  assert.deepEqual(from, ['../art/paintings', '../art/sculptures', '../chronicle', '../plugins', '../plugins/docs/RealmQuests/content']);
   assert.ok(fs.readdirSync(path.join(REPO, 'plugins')).filter((f) => f.endsWith('.cs')).length >= 14);
+});
+
+test('the Steward installer carries the plugin data files where lib/realm.js dataSets looks for them', async () => {
+  const R = (await import('../lib/realm.js')).default;
+  const st = loadEditionConfig('steward');
+  const res = path.join(path.sep, 'res');
+  const packaged = R.dataSets(res, true);
+  const dev = R.dataSets(REPO, false);
+  for (let i = 0; i < packaged.length; i++) {
+    const rel = path.relative(res, packaged[i].src).split(path.sep).join('/');
+    const fromRel = path.relative(LAUNCHER, dev[i].src).split(path.sep).join('/');
+    const entry = st.extraResources.find((r) => r.to === rel && r.from === fromRel);
+    assert.ok(entry, `${packaged[i].id}: extraResources maps ${fromRel} to ${rel}`);
+    const wanted = dev[i].only ? dev[i].only : ['*.json'];
+    assert.deepEqual(entry.filter, wanted, `${packaged[i].id} filter`);
+    const files = fs.readdirSync(dev[i].src).filter((f) => f.endsWith('.json'));
+    assert.ok(files.length >= 1, `${dev[i].id} has files in the repository`);
+  }
 });
 
 test('collectRelease copies the installers and writes sha256sum-format checksums', () => {

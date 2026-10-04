@@ -323,7 +323,7 @@ function createCourt({ userData, settings, instOf, rootOf, clipboard, shell, pla
     }
     if (action === 'whitelist' && ok) s.whitelist = !!(args && args.on);
     if (['kick', 'ban'].includes(action) && ok) s.playersAt = null;
-    const target = args && (args.name || null);
+    const target = args && (args.name || args.plugin || null);
     const reason = args && (args.reason || args.message || null);
     if (!['list', 'banlist', 'roster'].includes(action)) {
       await courtLog.append({ server: id, action, target, reason, command: built.command, ok, result }).catch((e) => log('warn', `[court] log write failed: ${e.message}`));
@@ -375,8 +375,14 @@ function createCourt({ userData, settings, instOf, rootOf, clipboard, shell, pla
     });
   }
 
+  // True when commands for this server go straight to the game over the admin console.
+  function consoleReady(id) {
+    const s = state.get(id);
+    return !!(s && s.con && s.con.isConnected() && s.m && s.m.isRunning());
+  }
+
   // Window closing: nothing special. m.stop() (wrapped above) already sends /shutdown.
-  return { adopt, attachConsole, register, status, act, feed, refreshPlayers, prefs, courtLog, dir, _state: state, platform };
+  return { adopt, attachConsole, register, status, act, feed, refreshPlayers, consoleReady, prefs, courtLog, dir, _state: state, platform };
 }
 
 module.exports = { createCourt, STOP_CLOSE_AFTER_MS };

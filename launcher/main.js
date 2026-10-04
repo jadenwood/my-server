@@ -52,6 +52,8 @@ const DEV_STEAM_SERVER = DEV ? process.env.REALM_DEV_STEAM_SERVER || '' : '';
 const RESOURCE_BASE = app.isPackaged ? process.resourcesPath : path.join(__dirname, '..');
 const CHRONICLE_DIR = path.join(RESOURCE_BASE, 'chronicle');
 const PLUGINS_DIR = path.join(RESOURCE_BASE, 'plugins');
+// Data files some plugins read (sculptures, sign art, quest content): resources\realm-data when installed.
+const DATA_SETS = R.dataSets(RESOURCE_BASE, app.isPackaged);
 const PLAYER_CONFIG_IN_REPO = path.join(__dirname, 'player', 'player-config.json');
 
 // ---------- config.json / news.json (a copy next to Realm Steward.exe overrides the bundled one) ----------
@@ -913,11 +915,25 @@ async function runSetupStep(step, signal, id = 's1') {
   }
   if (step === 'plugins') {
     const root = await requireRootFor(inst);
+    // Data first: a plugin that loads before its data says "nothing to show" until it is reloaded.
+    const data = await R.deployData(root, DATA_SETS);
     const res = await R.deployPlugins(root, PLUGINS_DIR);
     if (id === 's1') await startChronicle();
-    return { copied: res.copied, target: res.target, items: res.items.map((i) => ({ name: i.name, state: i.state })), others: res.others };
+    return { copied: res.copied, target: res.target, items: res.items.map((i) => ({ name: i.name, state: i.state })), others: res.others, data: dataSummary(data) };
   }
   throw new Error('unknown step');
+}
+
+// What the Servers screen shows about the plugin data files (no absolute source paths).
+function dataSummary(d) {
+  if (!d) return null;
+  return {
+    target: d.target,
+    copied: d.copied || 0,
+    reload: d.reload || [],
+    sets: d.sets.map((s) => ({ id: s.id, label: s.label, plugin: s.plugin, files: s.files, changed: s.changed, invalid: s.invalid, version: s.version, others: s.others.slice(0, 20), missing: s.missing })),
+    invalid: d.items.filter((i) => i.state === 'invalid').map((i) => ({ file: i.rel, reason: i.reason }))
+  };
 }
 
 // ---------- signing key (publish) ----------
@@ -1379,21 +1395,57 @@ function registerIpc() {
     exclusive('Update plugins', async () => {
       const list = target === 'all' ? fleet() : [idArg(target)];
       let copied = 0;
+      let dataCopied = 0;
       const targets = [];
+      const reloaded = [];
       let last = null;
+      let lastData = null;
       for (const inst of list) {
         const c = rootCheckFor(inst, null);
         if (!c.ok || !(await R.isTestCopy(c.root))) continue;
+        // Data first (sculptures, sign art, quest content), then the plugins themselves.
+        const data = await R.deployData(c.root, DATA_SETS);
         const res = await R.deployPlugins(c.root, PLUGINS_DIR);
         copied += res.copied;
+        dataCopied += data.copied;
         targets.push(res.target);
         last = res;
-        if (res.copied) mgr(inst.id).log('sys', `Deployed ${res.copied} plugin file(s) to ${res.target}. Oxide reloads changed plugins while the server runs.`);
+        lastData = data;
+        const m = mgr(inst.id);
+        if (res.copied) m.log('sys', `Deployed ${res.copied} plugin file(s) to ${res.target}. Oxide reloads changed plugins while the server runs.`);
+        if (data.copied) m.log('sys', `Deployed ${data.copied} data file(s) to ${data.target} (${data.reload.join(', ')}).`);
+        for (const i of data.items.filter((x) => x.state === 'invalid')) m.log('err', `Not deployed: ${i.rel} (${i.reason}). The copy on the server was left as it was.`);
+        // A running plugin reads its data at load: reload the ones whose data changed (their .cs was
+        // not changed, or Oxide's own file watcher reloads them anyway).
+        const changedCs = new Set(res.items.filter((i) => i.state !== 'unchanged').map((i) => i.name.replace(/\.cs$/i, '')));
+        if (court && court.consoleReady(inst.id)) {
+          for (const plugin of data.reload) {
+            if (changedCs.has(plugin) || !res.items.some((i) => i.name === `${plugin}.cs`)) continue;
+            const r = await court.act(inst.id, 'reload', { plugin }).catch((e) => ({ ok: false, result: e.message }));
+            reloaded.push({ server: inst.id, plugin, ok: r.ok });
+          }
+        }
       }
       if (!last) throw friendly('No server copy is set up yet.');
-      return { copied, servers: targets.length, target: targets.join(', '), items: last.items.map((i) => ({ name: i.name, state: i.state })), others: last.others, backupDir: last.backupDir || null };
+      return {
+        copied,
+        dataCopied,
+        servers: targets.length,
+        target: targets.join(', '),
+        items: last.items.map((i) => ({ name: i.name, state: i.state })),
+        others: last.others,
+        backupDir: last.backupDir || null,
+        data: dataSummary(lastData),
+        reloaded
+      };
     })
   );
+  handle('server:dataStatus', async (id) => {
+    const inst = idArg(id);
+    const c = rootCheckFor(inst, null);
+    if (!c.ok) throw friendly('No server copy is set up yet.');
+    return dataSummary(await R.planData(c.root, DATA_SETS));
+  });
 
   handle('server:backup', (id, allowRunning) =>
     exclusive('Back up world', async (signal) => {

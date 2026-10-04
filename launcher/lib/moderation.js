@@ -122,8 +122,23 @@ const BUILD = {
 
   // [DEC] CoreCommandHandler.Shutdown: saves and stops; with the admin console attached the game
   // also sends a Disconnect packet (RestartAfterShutdown = false).
-  shutdown: () => ({ command: '/shutdown', summary: 'Save and shut down' })
+  shutdown: () => ({ command: '/shutdown', summary: 'Save and shut down' }),
+
+  // Oxide's own console command (docs/oxide-rok-api.md section 6.5, src/ReignOfKingsCore.cs:88-103):
+  // re-reads the plugin, its config (oxide/config/<Plugin>.json) and its data. Used after Steward
+  // changes a plugin's config or data files. UNVERIFIED over the admin console socket on the real
+  // server (docs/realm-features.md, test F1).
+  reload: ({ plugin }) => {
+    const p = pluginName(plugin);
+    return { command: `/oxide.reload ${p}`, summary: `Reload ${p}` };
+  }
 };
+
+function pluginName(name) {
+  const s = String(name == null ? '' : name).trim();
+  if (!/^[A-Z][A-Za-z0-9]{2,40}$/.test(s)) throw new Error('Choose a plugin first.');
+  return s;
+}
 
 const ACTIONS = Object.keys(BUILD);
 

@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('realm', {
     restart: c1('server:restart'),
     command: c2('server:command'),
     deployPlugins: c1('server:deployPlugins'),
+    dataStatus: c1('server:dataStatus'),
     backup: c2('server:backup'),
     listBackups: c1('server:listBackups'),
     restore: c2('server:restore'),
