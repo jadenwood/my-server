@@ -24,7 +24,8 @@ static class T
     static RealmHerald H;
 
     static readonly string[] AllPlugins = { "CrownAndConsequences", "RealmChronicle", "RealmContracts", "RealmDynasties", "RealmEvents",
-        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald" };
+        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald",
+        "RealmQuests" };
 
     static void Ok(bool cond, string name, string extra = "")
     {
@@ -274,7 +275,7 @@ static class T
         Ok(edda.All().Contains("ERR") && edda.All().Contains("/realm popups[FFFFFF] on|off"), "/realm popups alone shows the usage", edda.All());
         edda.Messages.Clear();
         Cmd(edda, "events");
-        Ok(edda.Messages.Count == 8 && edda.All().Contains("  [F4C96D]/tourney[FFFFFF] - join, leave or follow the Royal Tournament"), "/realm events lists each command with its line", edda.All());
+        Ok(edda.Messages.Count == 1 + catalogue.Count(e => (string)F(e, "Subject") == "events") && edda.All().Contains("  [F4C96D]/tourney[FFFFFF] - join, leave or follow the Royal Tournament"), "/realm events lists each command with its line", edda.All());
         edda.Messages.Clear();
         Cmd(edda, "contract");
         Ok(edda.All().Contains("[F4C96D]/contract[FFFFFF] - bounties, deliveries and swords for hire. Type it alone"), "/realm <command> describes one command", edda.All());

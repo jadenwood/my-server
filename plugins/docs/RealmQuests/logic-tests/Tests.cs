@@ -64,6 +64,13 @@ static class T
         }
         Inv(Q, "Unload");
         Ok(EventManager.Count<ItemCrafterItemEvent>() == 0, "Unload unsubscribes from crafting");
+        // The RealmRenown deeds the rewards use exist in its defaults, and the titles offered for its config are valid there.
+        string renown = File.ReadAllText(Path.Combine(Repo, "plugins", "RealmRenown.cs"));
+        var deeds = new[] { "quest_daily", "quest_weekly", "quest_story", "story_complete", "achievement", "achievement_gold", "house_goal" };
+        Ok(deeds.All(d => renown.Contains("d.Add(\"" + d + "\"")), "every deed kind RealmQuests reports is a RealmRenown default deed");
+        var titles = JsonDocument.Parse(File.ReadAllText(Path.Combine(Repo, "plugins", "docs", "RealmQuests", "renown-titles.json"))).RootElement;
+        Ok(titles.GetArrayLength() == 6 && titles.EnumerateArray().All(t => Regex.IsMatch(t.GetProperty("Name").GetString(), "^[A-Za-z0-9 '-]{3,24}$")
+            && t.GetProperty("Requires").EnumerateObject().All(r => deeds.Contains(r.Name))), "the six titles for RealmRenown's config are valid names on RealmRenown deeds");
     }
 
     static void WriteContent(string name, string json) { File.WriteAllText(Path.Combine(Dir, "RealmQuests", name + ".json"), json); }

@@ -1233,6 +1233,7 @@ namespace Oxide.Plugins
             try { config = Config.ReadObject<PluginConfig>(); }
             catch (Exception ex) { PrintWarning("Config unreadable (" + ex.Message + "); defaults used for this run."); config = null; }
             ClampConfig();
+            Config.WriteObject(config, true);                // writes newly added keys and clamped values
             permission.RegisterPermission(PermAdmin, this);
             LoadData();
             LoadContent();

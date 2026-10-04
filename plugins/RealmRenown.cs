@@ -231,13 +231,6 @@ namespace Oxide.Plugins
             t.Add(T("trucebreaker", "Trucebreaker", "Broke the Truce of the Realm.", true, "truce_broken", 1));
             t.Add(T("hunted", "The Hunted", "Was declared outlaw.", true, "outlawed", 1));
             t.Add(T("black_name", "Black Name", "Carried 300 infamy at once.", true, "infamy", 300));
-            // Earned through RealmQuests.
-            t.Add(T("diligent", "the Diligent", "Finished thirty daily tasks.", false, "quest_daily", 30));
-            t.Add(T("steadfast", "the Steadfast", "Finished ten weekly tasks.", false, "quest_weekly", 10));
-            t.Add(T("witness", "Witness of the Crown", "Saw the tale of a season to its end.", false, "story_complete", 1));
-            t.Add(T("accomplished", "the Accomplished", "Earned twenty-five deeds of note.", false, "achievement", 25));
-            t.Add(T("paragon", "Paragon of Ostreval", "Earned ten gold deeds.", false, "achievement_gold", 10));
-            t.Add(T("pillar", "Pillar of the House", "Met six weekly goals with their house.", false, "house_goal", 6));
             return t;
         }
 
