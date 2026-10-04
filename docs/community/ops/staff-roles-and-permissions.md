@@ -43,6 +43,7 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmsentinel.admin` | `RealmSentinel.cs` | `/sentinel status`, `report`, `clear`, `reload`, `freeze`, `unfreeze`, `ban <player> confirm`, `peaks`: suspicion scores, cheat evidence and responses. Holders also count as staff for the name-impersonation check | With `General.AdminsExempt: true` (the default): **skips every cheat check** | Yes | Yes | No | No |
 | `realmlegendary.admin` | `RealmLegendary.cs` | `/ironbreaker status`, `grant <player> [force]`, `revoke`, `reset confirm`, `items [word]`: who bears the Ironbreaker, and its audit | **Can put the legendary blade in anyone's hands**, including their own | Yes | Yes | No | No |
 | `realmsculptor.admin` | `RealmSculptor.cs` | `/sculpt list`, `preview`, `place`, `undo`, `remove`, `placed`, `status`, `protect`, `repair`, `materials`, `reload`: place, protect and take down the realm's block monuments | `place ... force` replaces players' blocks (put back on undo); a protected monument can block a road or a door | Yes | Yes | No | No |
+| `realmtravel.admin` | `RealmTravel.cs` | `/travel admin set`, `name`, `note`, `house`, `kind`, `toll`, `radius`, `hidden`, `enabled`, `mark`, `remove`, `list`, `unlock`, `lock`, `throne`, `tp`, `status`; `/kit admin items`, `check`, `reset`: raise and run the realm's waystones and kits | `/travel admin tp` moves them to any waystone; `unlock` and `/kit admin reset` can favour a player. With `General.AdminsExempt: true`: **no channel time, cooldowns or tolls** | Yes | Yes | No | No |
 
 Things that are **not** Oxide permissions but are staff powers all the same:
 
@@ -76,6 +77,7 @@ oxide.grant group realm_admin realmlaws.admin
 oxide.grant group realm_admin realmsentinel.admin
 oxide.grant group realm_admin realmlegendary.admin
 oxide.grant group realm_admin realmsculptor.admin
+oxide.grant group realm_admin realmtravel.admin
 
 oxide.grant group realm_mod realmwarden.admin
 oxide.grant group realm_mod realmravens.admin
