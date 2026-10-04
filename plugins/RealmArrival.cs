@@ -4244,7 +4244,7 @@ namespace Oxide.Plugins
                 floors = total == 0 ? Msg("StepToDo", player) : missing == 0 ? Msg("StepDone", player) + " (" + total + " stone floors)" : Msg("StepToDo", player) + " (" + missing + " of " + total + " stone floors missing)";
             }
             player.SendMessage(Fmt("Runsheet4", player, floors));
-            player.SendMessage(Fmt("Runsheet5", player, Msg("ByHand", player), site != null && site.signs != null ? site.signs.Count : 15));
+            player.SendMessage(Fmt("Runsheet5", player, Msg("ByHand", player), site != null && site.signs != null ? site.signs.Count : 16));
             bool gateOk = s.GateCells.Count > 0 || config.GateMode == "open";
             player.SendMessage(Fmt("Runsheet6", player, Mark(player, gateOk && s.BeaconCells.Count > 0) + " (gate " + (s.GateCells.Count > 0 ? s.GateCells.Count + " cells" : config.GateMode == "open" ? "open arch" : "not built")
                 + ", band " + s.BeaconCells.Count + " cells)"));

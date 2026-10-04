@@ -110,6 +110,7 @@ static class W
             Directory.CreateDirectory(CfgDir);
         }
         foreach (var f in Directory.GetFiles(Dir)) File.Delete(f);
+        if (Directory.Exists(Path.Combine(Dir, "RealmArrival"))) Directory.Delete(Path.Combine(Dir, "RealmArrival"), true);   // the site plan, if a test laid one
         foreach (var f in Directory.GetFiles(CfgDir)) File.Delete(f);
         Interface.Oxide.DataFileSystem.Dir = Dir;
         Interface.Oxide.ConfigDirectory = CfgDir;

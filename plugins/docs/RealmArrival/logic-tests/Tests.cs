@@ -26,6 +26,7 @@ static partial class Tests
 
     static int Main(string[] argv)
     {
+        if (argv.Length > 0) Repo = argv[0];
         Run("Setup", Setup); Run("Records", Records); Run("VariantB", VariantB); Run("Seeding", Seeding); Run("TheCut", TheCut);
         Run("ArrivalChecks", ArrivalChecks); Run("Narration", Narration); Run("GateTriggers", GateTriggers); Run("Reveal", Reveal);
         Run("Banners", Banners); Run("FastWalker", FastWalker); Run("Pledges", Pledges); Run("Fire", Fire); Run("Handover", Handover);
@@ -34,7 +35,8 @@ static partial class Tests
         Run("Flare", Flare); Run("CellGuard", CellGuard); Run("Sanctuary", Sanctuary); Run("Eviction", Eviction); Run("Shield", Shield);
         Run("ZoneGuard", ZoneGuard); Run("Popups", Popups); Run("Play", Play); Run("HeraldCap", HeraldCap); Run("SkipTour", SkipTour);
         Run("HourOne", HourOne); Run("Page", Page); Run("Admin", AdminCmds); Run("SiteCheck", SiteCheck); Run("SelfCheck", SelfCheck);
-        Run("RoadMode", RoadMode); Run("Wave", Wave); Run("Reload", ReloadRebuild); Run("DataSafety", DataSafety); Run("ChatStyle", ChatStyle);
+        Run("RoadMode", RoadMode); Run("Wave", Wave); Run("Reload", ReloadRebuild); Run("DataSafety", DataSafety);
+        Run("SitePlan", SitePlan); Run("PlanArrival", PlanArrival); Run("ReviewFixes", ReviewFixes); Run("ChatStyle", ChatStyle);
         Console.WriteLine(pass + " passed, " + fail + " failed");
         return fail == 0 ? 0 : 1;
     }
