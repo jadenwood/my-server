@@ -9,6 +9,10 @@
 //                          true [USE NoFriendlyFire.cs:116-117]. Binding: OnPlayerCapture (PlayerCaptureEvent) [OPJ L711].
 //                          A protected player who attacks, binds, breaks into a crest zone or takes the throne
 //                          (OnThroneCaptured [OPJ L607]) loses the protection at once, so it cannot be used to grief.
+//                          A new record's play time starts at the first OnPlayerSpawned (character made), not the
+//                          join; the wall clock still starts at the join. The join "Welcome" line is left to
+//                          RealmArrival while it owns the newcomer (OwnsArrival). GetProtectionMinutesLeft(ulong) is
+//                          offered for RealmArrival's ProtectionSoon tip.
 //   Combat-log detection   Every unblocked player-on-player hit tags both sides as "in combat" for WindowSeconds.
 //                          Leaving inside that window (OnPlayerDisconnected, core-dispatched [SRC]) is flagged,
 //                          logged as evidence and queued as an admin alert. A death (OnEntityDeath [OPJ L188]) clears
@@ -69,6 +73,7 @@ namespace Oxide.Plugins
     public class RealmWarden : ReignOfKingsPlugin
     {
         [PluginReference] private Plugin CrownAndConsequences;
+        [PluginReference] private Plugin RealmArrival;
 
         private const string PermAdmin = "realmwarden.admin";
         private const string DataName = "RealmWarden";
@@ -401,6 +406,7 @@ namespace Oxide.Plugins
             public long FirstSeen;
             public long LastSeen;
             public double Playtime;                          // seconds online
+            public bool AwaitingSpawn;                       // new record: play time counts from the first spawn, not the join
             public bool ProtectionEnded;
             public string ProtectionEndReason = "";
             public long ProtectedUntil;                      // admin grant, overrides the normal window
@@ -788,6 +794,7 @@ namespace Oxide.Plugins
             PlayerRec r = Rec(p.Id);
             if (r == null) return;
             double last;
+            if (r.AwaitingSpawn) { lastAccrual[p.Id] = now; r.LastSeen = (long)now; return; }   // still making a character
             if (lastAccrual.TryGetValue(p.Id, out last))
             {
                 double add = now - last;
@@ -817,6 +824,7 @@ namespace Oxide.Plugins
             {
                 r = new PlayerRec();
                 r.FirstSeen = now;
+                r.AwaitingSpawn = true;
                 data.Players[id] = r;
             }
             r.Name = Clean(p.Name, 64);
@@ -840,7 +848,8 @@ namespace Oxide.Plugins
                     int unread = UnreadCount();
                     if (config.Alerts.RemindOnAdminJoin && unread > 0) Reply(player, "AlertsUnread", unread);
                 }
-                if (isNew && IsProtectedRec(r, NowSec()))
+                // RealmArrival's Shelter line replaces this welcome while it owns the newcomer's first minutes.
+                if (isNew && IsProtectedRec(r, NowSec()) && !ArrivalOwns(player.Id))
                     Reply(player, "Welcome", Dur(config.NewPlayerProtection.PlaytimeMinutes * 60));
                 CheckName(player);
             }
@@ -848,6 +857,40 @@ namespace Oxide.Plugins
             {
                 PrintError("Connect check failed: " + ex.Message);
             }
+        }
+
+        // A new record's play time starts when the character is made (OnPlayerSpawned [OPJ L1244]), so character
+        // creation does not use up the protected hour; the 48 h wall clock still runs from the first join. A returning
+        // character (OnPlayerSpawn [OPJ L240] with AtFirstSpawn false [DEC]) starts it too.
+        private void OnPlayerSpawned(PlayerPreSpawnCompleteEvent e)
+        {
+            if (e == null || data == null) return;
+            try { StartPlaytime(e.Player); }
+            catch (Exception ex) { PrintError("Spawn check failed: " + ex.Message); }
+        }
+
+        private void OnPlayerSpawn(PlayerFirstSpawnEvent e)
+        {
+            if (e == null || data == null || e.AtFirstSpawn) return;
+            try { StartPlaytime(e.Player); }
+            catch (Exception ex) { PrintError("Spawn check failed: " + ex.Message); }
+        }
+
+        private void StartPlaytime(Player player)
+        {
+            if (player == null || player.IsServer) return;
+            PlayerRec r = Rec(player.Id);
+            if (r == null || !r.AwaitingSpawn) return;
+            r.AwaitingSpawn = false;
+            lastAccrual[player.Id] = NowSec();
+            dirty = true;
+        }
+
+        private bool ArrivalOwns(ulong id)
+        {
+            if (RealmArrival == null) return false;
+            try { object o = RealmArrival.Call("OwnsArrival", id.ToString()); return o is bool && (bool)o; }
+            catch (Exception) { return false; }
         }
 
         private void OnPlayerDisconnected(Player player)
@@ -1918,6 +1961,16 @@ namespace Oxide.Plugins
         private bool IsNewPlayerProtected(ulong playerId)
         {
             return data != null && IsProtectedId(playerId);
+        }
+
+        // Whole minutes of new-player protection left (0 when not protected). RealmArrival's ProtectionSoon tip uses it;
+        // the end of protection is never announced to others.
+        private int GetProtectionMinutesLeft(ulong playerId)
+        {
+            PlayerRec r = Rec(playerId);
+            if (data == null || r == null) return 0;
+            double left = ProtectionLeft(r, NowSec());
+            return left <= 0 ? 0 : (int)Math.Ceiling(left / 60.0);
         }
 
         private bool IsInCombat(ulong playerId)

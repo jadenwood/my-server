@@ -24,7 +24,7 @@ static class T
     static RealmHerald H;
 
     static readonly string[] AllPlugins = { "CrownAndConsequences", "RealmChronicle", "RealmContracts", "RealmDynasties", "RealmEvents",
-        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald", "RealmDominion", "RealmQuests", "RealmArena", "RealmTravel" };
+        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald", "RealmDominion", "RealmQuests", "RealmArena", "RealmTravel", "RealmArrival" };
 
     static void Ok(bool cond, string name, string extra = "")
     {
@@ -441,5 +441,58 @@ static class T
         Tick();
         Ok(players.Count == 100 && !players.Contains("9000") && players.Contains("9109"), "records beyond MaxPlayersKept are pruned oldest first", players.Count.ToString());
         Ok(players.Contains(hana.Id.ToString()), "online players are never pruned");
+
+        Arrival();
+    }
+
+    // RealmArrival (docs/arrival-design.md 7.3): the welcome waits while the arrival owns the newcomer; after it the MOTD
+    // alone and the reminders from then; none or no RealmArrival: as before. The connect-time herald line is left to it.
+    static void Arrival()
+    {
+        H = NewHerald();
+        var stages = new Dictionary<string, string>();
+        var arrival = new Plugin { Name = "RealmArrival", Handler = (m, a) => { string st; return m == "ArrivalStage" && stages.TryGetValue((string)a[0], out st) ? st : null; } };
+        SetF(H, "RealmArrival", arrival);
+        var cat = ((Array)typeof(RealmHerald).GetField("Catalogue", BF).GetValue(null)).Cast<object>().FirstOrDefault(e => (string)F(e, "Command") == "arrival");
+        Ok(cat != null && (string)F(cat, "Subject") == "roads" && (string)F(cat, "Plugin") == "RealmArrival", "arrival: /arrival is in the catalogue under roads");
+        Ok(H.lang.Msgs["Cmd.arrival"].Contains("skip or tour"), "arrival: Cmd.arrival describes it");
+
+        Server.Broadcasts.Clear();
+        var nia = Mk(76561190000000701, "Nia");
+        stages[nia.Id.ToString()] = "pending";
+        Join(nia);
+        Ok(!B().Contains("Nia arrives"), "arrival: no connect-time newcomer line while the stage is pending (RealmArrival sends HeraldGate)", B());
+        H.timer.RunPending();
+        Ok(nia.Messages.Count == 0 && nia.Popups.Count == 0, "arrival: the welcome waits while the arrival owns the newcomer", nia.All());
+        stages[nia.Id.ToString()] = "crossing";
+        Advance(TimeSpan.FromMinutes(3));
+        stages[nia.Id.ToString()] = "running";
+        Advance(TimeSpan.FromMinutes(20));
+        Ok(nia.Messages.Count == 0, "arrival: no welcome, first-step reminders or tips during the crossing and the arrival", nia.All());
+        stages[nia.Id.ToString()] = "done";
+        Advance(TimeSpan.FromSeconds(30));
+        string got = nia.All();
+        Ok(got.Contains("Hail, Nia.") && !got.Contains("well met") && nia.Popups.Count == 0, "arrival: once done, the MOTD alone (no welcome lines or popup)", got);
+        nia.Messages.Clear();
+        Advance(TimeSpan.FromSeconds(30));
+        Ok(!nia.All().Contains("Your next step"), "arrival: the first-step reminder is not sent at once", nia.All());
+        Advance(TimeSpan.FromSeconds(60));
+        Ok(nia.All().Contains("Your next step"), "arrival: reminders start FirstReminderSeconds after the arrival is done", nia.All());
+        nia.Messages.Clear();
+        Advance(TimeSpan.FromMinutes(1));
+        Ok(!nia.All().Contains("Hail, Nia."), "arrival: the MOTD is sent once", nia.All());
+
+        Server.Broadcasts.Clear();
+        var oto = Mk(76561190000000702, "Oto");
+        stages[oto.Id.ToString()] = "none";
+        Join(oto);
+        Ok(B().Contains("Oto arrives in Ostreval for the first time"), "arrival: stage none (closed or paused): the newcomer line as before", B());
+        H.timer.RunPending();
+        Ok(oto.All().Contains("well met"), "arrival: stage none: the welcome as before", oto.All());
+
+        var pia = Mk(76561190000000703, "Pia");
+        Join(pia);
+        H.timer.RunPending();
+        Ok(pia.All().Contains("well met"), "arrival: RealmArrival answering null (not loaded): the welcome as before", pia.All());
     }
 }
