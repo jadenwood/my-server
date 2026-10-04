@@ -243,11 +243,15 @@ namespace CodeHatch.ItemContainer
         public Dictionary<string, int> Counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public int Capacity = 100000;
         public int MergeCalls;
+        public Action OnMerge;                                        // runs inside AutoMergeAdd, before the stack lands
+        public bool Throws;                                           // the game refuses the change
         public int Total { get { return Counts.Values.Sum(); } }
         public static int AutoCount(ItemCollection c, InvItemBlueprint bp) { int n; return c.Counts.TryGetValue(bp.Name, out n) ? n : 0; }
         public static bool AutoMergeAdd(ItemCollection c, InvGameItemStack s)
         {
             c.MergeCalls++;
+            if (c.OnMerge != null) c.OnMerge();
+            if (c.Throws) throw new InvalidOperationException("container locked");
             int room = c.Capacity - c.Total;
             if (room <= 0) return false;
             int add = Math.Min(room, s.StackAmount);
