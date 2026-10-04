@@ -67,6 +67,7 @@ Built by `art/tools/painter` from the art pack. `/paint list` shows the ids.
 | House notices (sigil, name, words) | `crest-<house>` | 256 x 320 |
 | Event posters | `poster-crown-night`, `poster-royal-tournament`, `poster-kings-hunt`, `poster-truce` | 256 x 320 |
 | Welcome | `poster-welcome` | 320 x 256 |
+| The Crossing of the Grey Water (the Gatehouse's back wall, sign G1 in `docs/arrival-design.md`) | `the-crossing` | 320 x 256 |
 | Ironbreaker (static) | `poster-ironbreaker` (the live board names the bearer) | 256 x 320 |
 | Realm emblem | `realm-emblem` | 256 x 256 |
 
