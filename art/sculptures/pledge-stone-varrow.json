@@ -1,0 +1,30 @@
+{
+  "format": "realm-sculpture/1",
+  "id": "pledge-stone-varrow",
+  "name": "Pledge stone of House Varrow",
+  "description": "A 3 x 3 plinth in House Varrow's dark field with a raised centre in its metal, before its monument on the Gatehouse road.",
+  "size": [
+    3,
+    2,
+    3
+  ],
+  "front": "-z",
+  "materials": {
+    "2": "stone",
+    "3": "clay"
+  },
+  "license": "realm-original",
+  "source": "art/sculptures/src/pledge-stones.mjs",
+  "blocks": [
+    [0,0,0,2,0,0,"#2e162c"],
+    [1,0,0,2,0,0,"#2e162c"],
+    [2,0,0,2,0,0,"#2e162c"],
+    [0,0,1,2,0,0,"#2e162c"],
+    [1,0,1,2,0,0,"#2e162c"],
+    [2,0,1,2,0,0,"#2e162c"],
+    [0,0,2,2,0,0,"#2e162c"],
+    [1,0,2,2,0,0,"#2e162c"],
+    [2,0,2,2,0,0,"#2e162c"],
+    [1,1,1,3,0,0,"#9aa0a8"]
+  ]
+}

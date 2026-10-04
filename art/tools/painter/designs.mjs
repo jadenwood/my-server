@@ -131,6 +131,98 @@ function ironbreakerHtml() {
   <div class="w" style="color:${C.parchment2};width:210px">Whoever bears it is known to every house.</div></div>`);
 }
 
+// The Crossing of the Grey Water (sign G1 on the Gatehouse's back wall, docs/arrival-design.md 4.3): the ferrymen's
+// raft on grey water, the pale Gatehouse of the Unwritten on the far shore with the blank page over its gate, and the
+// Hearth's smoke rising beyond it. Original; flat shapes and vertical gradients only, so the PNG stays small.
+export function crossingSvg(W = 320, H = 256) {
+  const pal = palette.scene.reduce((o, c) => ({ ...o, [c.name]: c.hex }), {});
+  const night = pal.Night, dusk = pal.Dusk, ridge = pal['Far ridge'], haze = pal.Haze, glow = pal.Afterglow;
+  const hz = 150;                              // the far shore's waterline
+  // The Gatehouse on the far shore, centred a little right of the middle.
+  const gx = 176, gw = 74, wallTop = hz - 30, towerTop = hz - 44, gateW = 16, gateH = 20;
+  const gate = `
+    <rect x="${gx - gw / 2}" y="${wallTop}" width="${gw}" height="${hz - wallTop}" fill="${C.parchment2}"/>
+    <rect x="${gx - gw / 2}" y="${wallTop + 12}" width="${gw}" height="2" fill="${C.ember}"/>
+    <rect x="${gx - gw / 2 - 2}" y="${towerTop}" width="16" height="${hz - towerTop}" fill="${C.parchment2}"/>
+    <rect x="${gx + gw / 2 - 14}" y="${towerTop}" width="16" height="${hz - towerTop}" fill="${C.parchment2}"/>
+    <rect x="${gx - gw / 2 - 2}" y="${towerTop + 12}" width="16" height="2" fill="${C.ember}"/>
+    <rect x="${gx + gw / 2 - 14}" y="${towerTop + 12}" width="16" height="2" fill="${C.ember}"/>
+    <path d="M${gx - gw / 2 - 3} ${towerTop}h18v-4h-3v-3h-4v3h-4v-3h-4v3h-3z M${gx + gw / 2 - 15} ${towerTop}h18v-4h-3v-3h-4v3h-4v-3h-4v3h-3z" fill="${C.iron800}"/>
+    <rect x="${gx - gw / 2 - 2}" y="${towerTop}" width="16" height="4" fill="${C.iron800}"/>
+    <rect x="${gx + gw / 2 - 14}" y="${towerTop}" width="16" height="4" fill="${C.iron800}"/>
+    <rect x="${gx - gw / 2 + 5}" y="${towerTop + 18}" width="2" height="6" fill="${C.iron900}"/>
+    <rect x="${gx + gw / 2 - 7}" y="${towerTop + 18}" width="2" height="6" fill="${C.iron900}"/>
+    <path d="M${gx - gateW / 2 - 3} ${hz} V${hz - gateH} L${gx} ${hz - gateH - 13} L${gx + gateW / 2 + 3} ${hz - gateH} V${hz}z" fill="${C.iron600}"/>
+    <path d="M${gx - gateW / 2 + 2} ${hz - gateH - 1} L${gx} ${hz - gateH - 10} L${gx + gateW / 2 - 2} ${hz - gateH - 1}z" fill="${C.parchment}"/>
+    <rect x="${gx - gateW / 2}" y="${hz - gateH + 1}" width="${gateW}" height="${gateH - 1}" fill="${C.iron900}"/>
+    <path d="M${gx - gateW / 2 + 3} ${hz - gateH + 1}v${gateH - 1}M${gx} ${hz - gateH + 1}v${gateH - 1}M${gx + gateW / 2 - 3} ${hz - gateH + 1}v${gateH - 1}M${gx - gateW / 2} ${hz - 12}h${gateW}" stroke="${C.iron700}" stroke-width="1.2"/>
+    <rect x="${gx - 1}" y="${hz - gateH - 16}" width="2" height="3" fill="${C.emberHot}"/>
+    <path d="M${gx - gw / 2 + 14} ${wallTop}h${gw - 28}" stroke="${C.edge}" stroke-width="1.5"/>`;
+  // Its reflection: the same pale masses, broken into lines on the water.
+  const refl = [0, 4, 8, 12, 16, 20, 25, 30, 36].map((d, i) => {
+    const w = (gw + 4) * (1 - i * 0.07), y = hz + 3 + d;
+    return `<rect x="${(gx - w / 2 + (i % 2 ? 3 : -2)).toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="${i < 4 ? 2 : 1.5}" fill="${C.parchment2}" opacity="${(0.42 - i * 0.04).toFixed(2)}"/>`;
+  }).join('');
+  // The Hearth's smoke, rising from beyond the gate and leaning with the wind, lit from below.
+  const smoke = `
+    <path d="M188 ${wallTop + 2} C182 100 198 86 190 68 C182 52 200 38 224 28 C242 20 258 10 274 4 L300 4 C280 14 264 26 250 34 C226 48 214 60 218 76 C222 92 210 104 208 ${wallTop + 2}z" fill="${C.iron200}" opacity=".5"/>
+    <path d="M194 ${wallTop + 2} C190 104 204 90 196 72 C190 58 206 46 226 36 C238 30 248 24 258 18" fill="none" stroke="${C.parchment2}" stroke-width="3" opacity=".3"/>
+    <ellipse cx="198" cy="${wallTop - 3}" rx="30" ry="11" fill="${glow}" opacity=".35"/>
+    <ellipse cx="198" cy="${wallTop}" rx="16" ry="5" fill="${C.ember}" opacity=".6"/>`;
+  // Water: grey, darkening toward us, with long ripple lines.
+  const ripples = [];
+  for (let i = 0; i < 16; i++) {
+    const y = hz + 8 + i * i * 0.36 + i * 2.2;
+    if (y > H - 30) break;
+    const x = ((i * 53) % 140) + 10, w = 40 + ((i * 37) % 70);
+    ripples.push(`<path d="M${x} ${y.toFixed(1)}h${w}" stroke="${C.iron200}" stroke-width="${(0.8 + i * 0.08).toFixed(2)}" opacity="${(0.32 - i * 0.012).toFixed(2)}"/>`);
+    ripples.push(`<path d="M${x + w + 60} ${(y + 3).toFixed(1)}h${w * 0.7}" stroke="${C.iron200}" stroke-width="${(0.8 + i * 0.08).toFixed(2)}" opacity="${(0.26 - i * 0.01).toFixed(2)}"/>`);
+  }
+  // The raft: lashed logs, a ferryman poling at the stern, the newcomer hooded at the bow, a lantern on a post.
+  const rx = 40, ry = 200;
+  const logs = [0, 1, 2, 3, 4].map((i) => `<rect x="${rx + i * 1.5}" y="${ry + i * 4}" width="${92 - i * 3}" height="5" rx="2.5" fill="${i % 2 ? C.inkSoft : C.ink}"/>`).join('');
+  const raft = `
+    <ellipse cx="${rx + 46}" cy="${ry + 24}" rx="58" ry="5" fill="${C.iron950}" opacity=".45"/>
+    ${logs}
+    <path d="M${rx + 10} ${ry - 1}v22M${rx + 46} ${ry - 1}v22M${rx + 80} ${ry - 1}v22" stroke="${C.edge}" stroke-width="1.2" opacity=".6"/>
+    <path d="M${rx + 18} ${ry - 44} L${rx + 2} ${ry + 30}" stroke="${C.ink}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M${rx + 16} ${ry - 32} c-5 4 -7 14 -6 31 h13 c1 -14 0 -25 -3 -31z" fill="${C.iron950}"/>
+    <circle cx="${rx + 18}" cy="${ry - 36}" r="4.2" fill="${C.iron950}"/>
+    <path d="M${rx + 14} ${ry - 39} h9 l-2 -3 h-5z" fill="${C.iron950}"/>
+    <path d="M${rx + 20} ${ry - 26} L${rx + 15} ${ry - 18}" stroke="${C.iron950}" stroke-width="3" stroke-linecap="round"/>
+    <path d="M${rx + 66} ${ry - 1} c0 -8 2 -16 8 -19 c6 3 8 11 8 19z" fill="${C.iron900}"/>
+    <path d="M${rx + 70} ${ry - 15} c2 -4 6 -4 8 0" fill="none" stroke="${C.iron700}" stroke-width="1.5"/>
+    <path d="M${rx + 88} ${ry - 1} v-22" stroke="${C.ink}" stroke-width="1.6"/>
+    <rect x="${rx + 85.5}" y="${ry - 26}" width="5" height="6" rx="1" fill="${C.emberHot}"/>
+    <circle cx="${rx + 88}" cy="${ry - 23}" r="9" fill="${C.ember}" opacity=".18"/>
+    <path d="M${rx + 88} ${ry + 26} v14" stroke="${C.emberHot}" stroke-width="2" opacity=".35"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${night}"/><stop offset=".45" stop-color="${dusk}"/><stop offset=".8" stop-color="${ridge}"/><stop offset="1" stop-color="${haze}"/></linearGradient>
+    <linearGradient id="sea" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${C.iron600}"/><stop offset="1" stop-color="${C.iron800}"/></linearGradient>
+  </defs>
+  <rect width="${W}" height="${hz}" fill="url(#sky)"/>
+  <rect y="${hz - 4}" width="${W}" height="4" fill="${glow}" opacity=".55"/>
+  <path d="M0 ${hz - 18} C40 ${hz - 30} 70 ${hz - 22} 104 ${hz - 28} C130 ${hz - 33} 150 ${hz - 24} 170 ${hz - 26} L320 ${hz - 34} V${hz} H0z" fill="${ridge}"/>
+  <path d="M0 ${hz - 8} C30 ${hz - 14} 80 ${hz - 10} 120 ${hz - 13} C150 ${hz - 15} 230 ${hz - 9} 320 ${hz - 14} V${hz} H0z" fill="${dusk}"/>
+  ${smoke}
+  ${gate}
+  <rect y="${hz}" width="${W}" height="${H - hz}" fill="url(#sea)"/>
+  <rect y="${hz}" width="${W}" height="2" fill="${C.iron900}" opacity=".7"/>
+  ${refl}
+  ${ripples.join('')}
+  ${raft}
+</svg>`;
+}
+
+function crossingHtml() {
+  const W = 320, H = 256;
+  return page(W, H, `background:${C.iron900}`, `<div class="p">${crossingSvg(W, H)}
+  <div style="position:absolute;left:0;right:0;bottom:0;height:34px;background:${C.iron950};opacity:.82"></div>
+  <div class="k" style="position:absolute;bottom:12px;width:100%;text-align:center;color:${C.parchment2};font-size:10.5px;letter-spacing:.16em">The Crossing of the Grey Water</div>
+  ${frame(W, H, false)}</div>`);
+}
+
 const single = (rel, w, h, bg = 'transparent') => `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:${bg}}img{display:block;width:${w}px;height:${h}px}</style></head><body><img src="${svgUrl(rel)}"></body></html>`;
 const tile = (bgCss, s) => `<!doctype html><html><head><style>html,body{margin:0}div{width:${s}px;height:${s}px;${bgCss}}</style></head><body><div></div></body></html>`;
 const maskHtml = (inner, s) => `<!doctype html><html><head><style>html,body{margin:0;background:transparent}body>*{display:block}</style></head><body style="width:${s}px;height:${s}px">${inner}</body></html>`;
@@ -152,6 +244,7 @@ export function paintings() {
   }
   for (const e of EVENTS) list.push({ id: `poster-${e.id}`, title: `${e.title} poster`, group: 'posters', width: 256, height: 320, html: () => eventHtml(e) });
   list.push({ id: 'poster-welcome', title: 'Welcome to Ostreval', group: 'posters', width: 320, height: 256, html: welcomeHtml });
+  list.push({ id: 'the-crossing', title: 'The Crossing of the Grey Water: the raft, the Gatehouse of the Unwritten, the Hearth\'s smoke', group: 'posters', width: 320, height: 256, html: crossingHtml });
   list.push({ id: 'poster-ironbreaker', title: 'Ironbreaker (static; the live board names its bearer)', group: 'posters', width: 256, height: 320, html: ironbreakerHtml });
   list.push({ id: 'realm-emblem', title: 'The Realm emblem: the crown in the Old Throne', group: 'emblems', width: 256, height: 256, html: () => single('logo/realm-emblem.svg', 256, 256) });
   return list;

@@ -10,6 +10,11 @@
 //   node art/tools/sculptor/cli.mjs export <oxide/data folder>   copy every sculpture to <folder>/RealmSculptor/
 //   node art/tools/sculptor/cli.mjs info [id...]       block counts by material and shape
 //   node art/tools/sculptor/cli.mjs fixtures           rewrite the plugin tests' rotations.json from rotations.mjs
+//   node art/tools/sculptor/cli.mjs site <id> [--anchor x,y,z] [--turn 0-3] [--draw slot=house,...]
+//        a site's run-sheet on the ground: stand spots and /sculpt place commands (sites: art/sculptures/sites)
+//
+// build also writes art/sculptures/sites/<id>.json from art/sculptures/src/sites/<id>.mjs; preview [id] renders a
+// site's views too (--views a,b to pick some); check validates sites against the sculptures.
 //
 // Playwright comes from art/tools/node_modules or $ART_NODE_MODULES (see art/README.md).
 import fs from 'node:fs';
@@ -18,10 +23,13 @@ import { pathToFileURL } from 'node:url';
 import { ART } from '../lib.mjs';
 import { validate, stats, FORMAT } from './voxel.mjs';
 import { EULER, turnIndex } from './rotations.mjs';
+import { validateSite, formatSite, resolveSite, SITE_FORMAT } from './site.mjs';
 
 export const SCULPTURES = path.join(ART, 'sculptures');
 export const SRC = path.join(SCULPTURES, 'src');
 export const PREVIEW = path.join(SCULPTURES, 'preview');
+export const SITES = path.join(SCULPTURES, 'sites');
+export const SITE_SRC = path.join(SRC, 'sites');
 export const ROTATIONS_FIXTURE = path.join(ART, '..', 'plugins', 'docs', 'RealmSculptor', 'logic-tests', 'rotations.json');
 
 /** The rotation table both sides check: Euler angles and the index after k quarter-turns about the vertical axis. */
@@ -63,6 +71,23 @@ export function buildOne(def) {
 export const readSculpture = (id) => JSON.parse(fs.readFileSync(path.join(SCULPTURES, `${id}.json`), 'utf8'));
 export const sculptureFiles = () => fs.readdirSync(SCULPTURES).filter((f) => f.endsWith('.json')).sort();
 
+/** Every committed sculpture, by id. */
+export const sculptureMap = () => new Map(sculptureFiles().map((f) => { const s = JSON.parse(fs.readFileSync(path.join(SCULPTURES, f), 'utf8')); return [s.id, s]; }));
+
+/** Every site definition from art/sculptures/src/sites: [{ id, name, description, previews, build(sculptures), file }]. */
+export async function loadSiteDefinitions() {
+  if (!fs.existsSync(SITE_SRC)) return [];
+  const defs = [];
+  for (const f of fs.readdirSync(SITE_SRC).filter((x) => x.endsWith('.mjs')).sort()) {
+    const mod = await import(pathToFileURL(path.join(SITE_SRC, f)).href);
+    defs.push({ ...mod.default, file: `art/sculptures/src/sites/${f}` });
+  }
+  return defs;
+}
+export const siteFiles = () => (fs.existsSync(SITES) ? fs.readdirSync(SITES).filter((f) => f.endsWith('.json')).sort() : []);
+export const readSite = (id) => JSON.parse(fs.readFileSync(path.join(SITES, `${id}.json`), 'utf8'));
+export const buildSite = (def, sculptures = sculptureMap()) => def.build(sculptures);
+
 function args(argv) {
   const o = { _: [] };
   for (let i = 0; i < argv.length; i++) {
@@ -88,6 +113,17 @@ async function main() {
       const st = stats(s);
       console.log(`${d.id}: ${st.blocks} blocks, ${st.size.join(' x ')}, ${Object.entries(st.shapes).map(([k, v]) => `${v} ${k}`).join(', ')}`);
     }
+    // Sites are built from the sculptures just written, so they are always rebuilt last.
+    const sculptures = sculptureMap();
+    for (const d of await loadSiteDefinitions()) {
+      if (!want(d.id) && opt._.length && !opt._.some((id) => sculptures.has(id))) continue;
+      const site = buildSite(d, sculptures);
+      const errs = validateSite(site, sculptures);
+      if (errs.length) { for (const e of errs) console.error(`error: ${e}`); process.exitCode = 1; continue; }
+      fs.mkdirSync(SITES, { recursive: true });
+      fs.writeFileSync(path.join(SITES, `${d.id}.json`), formatSite(site));
+      console.log(`site ${d.id}: ${site.pieces.length} pieces, ${Object.keys(site.cells).length} cell groups, ${Object.keys(site.points).length} points, ${site.signs.length} signs`);
+    }
   } else if (cmd === 'check') {
     const defs = await loadDefinitions();
     const byId = new Map(defs.map((d) => [d.id, d]));
@@ -108,13 +144,54 @@ async function main() {
       errors += errs.length;
     }
     for (const d of defs) if (!files.includes(`${d.id}.json`)) { console.error(`error: ${d.id}.json is missing (run: node art/tools/sculptor/cli.mjs build ${d.id})`); errors++; }
+    // Sites: valid against the committed sculptures, up to date with their generators, previewed.
+    const sculptures = sculptureMap();
+    const siteDefs = await loadSiteDefinitions();
+    const { sitePreviewNames } = await import('./site-render.mjs');
+    for (const d of siteDefs) {
+      const f = path.join(SITES, `${d.id}.json`);
+      const errs = [];
+      if (!fs.existsSync(f)) errs.push(`sites/${d.id}.json is missing (run: node art/tools/sculptor/cli.mjs build)`);
+      else {
+        let site;
+        try { site = JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { errs.push(`sites/${d.id}.json: ${e.message}`); }
+        if (site) {
+          errs.push(...validateSite(site, sculptures));
+          if (formatSite(buildSite(d, sculptures)) !== fs.readFileSync(f, 'utf8')) errs.push(`sites/${d.id}.json is out of date with ${d.file} (run: node art/tools/sculptor/cli.mjs build)`);
+        }
+      }
+      for (const v of sitePreviewNames(d)) if (!fs.existsSync(path.join(PREVIEW, `site-${d.id}-${v}.png`))) errs.push(`preview/site-${d.id}-${v}.png is missing (run: node art/tools/sculptor/cli.mjs preview ${d.id})`);
+      for (const e of errs) console.error(`error: ${e}`);
+      errors += errs.length;
+    }
+    for (const f of siteFiles()) if (!siteDefs.some((d) => `${d.id}.json` === f)) { console.error(`error: sites/${f} has no generator in art/sculptures/src/sites`); errors++; }
     if (errors) { console.error(`sculptor check: ${errors} error(s)`); process.exitCode = 1; }
-    else console.log(`sculptor check: ${files.length} sculptures (${FORMAT}) valid, up to date, previewed`);
+    else console.log(`sculptor check: ${files.length} sculptures (${FORMAT}) and ${siteDefs.length} site(s) (${SITE_FORMAT}) valid, up to date, previewed`);
   } else if (cmd === 'preview') {
     const { renderPreviews } = await import('./render.mjs');
     const list = sculptureFiles().map((f) => readSculpture(f.replace(/\.json$/, ''))).filter((s) => want(s.id));
-    const files = await renderPreviews(list, PREVIEW, { contact: !opt._.length });
+    const files = list.length ? await renderPreviews(list, PREVIEW, { contact: !opt._.length }) : [];
+    const { renderSitePreviews } = await import('./site-render.mjs');
+    const sculptures = sculptureMap();
+    for (const d of await loadSiteDefinitions()) {
+      if (!want(d.id)) continue;
+      const only = opt.views ? String(opt.views).split(',') : null;
+      files.push(...await renderSitePreviews(readSite(d.id), sculptures, PREVIEW, d, only));
+    }
     console.log(`preview: ${files.length} PNGs in art/sculptures/preview`);
+  } else if (cmd === 'site') {
+    // The run-sheet for a site on the ground: where each piece goes and where to stand, for an anchor and a turn.
+    const id = opt._[0];
+    if (!id) throw new Error('usage: site <id> [--anchor x,y,z] [--turn 0-3] [--draw p1-left=varrow,...]');
+    const site = readSite(id);
+    const anchor = opt.anchor ? String(opt.anchor).split(',').map(Number) : [0, 0, 0];
+    const draw = { ...(site.lot ? site.lot.preview : {}) };
+    if (opt.draw) for (const kv of String(opt.draw).split(',')) { const [k, v] = kv.split('='); draw[k] = v; }
+    const r = resolveSite(site, sculptureMap(), anchor, Number(opt.turn || 0), draw);
+    console.log(`${site.name}: anchor ${anchor.join(',')} turn ${r.turn}`);
+    for (const p of r.pieces.filter((x) => x.by === 'sculptor').sort((a, b) => a.order - b.order)) console.log(`  ${String(p.order).padStart(2)}. ${p.key.padEnd(18)} stand ${p.stand.join(',')} facing ${p.facing}: ${p.command}   (corner ${p.corner.join(',')})`);
+    for (const p of r.pieces.filter((x) => x.by === 'plugin')) console.log(`  plugin  ${p.key}: corner ${p.corner.join(',')}`);
+    for (const [k, c] of Object.entries(r.points)) console.log(`  point ${k}: ${c.join(',')}`);
   } else if (cmd === 'masks') {
     const { buildMasks } = await import('./masks.mjs');
     const m = await buildMasks();
@@ -152,7 +229,7 @@ async function main() {
       console.log(`  materials: ${Object.entries(st.materials).map(([k, v]) => `${k} ${v}`).join(', ')}; shapes: ${Object.entries(st.shapes).map(([k, v]) => `${k} ${v}`).join(', ')}`);
     }
   } else {
-    console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(1, 13).map((l) => l.slice(3)).join('\n'));
+    console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(1, 19).map((l) => l.slice(3)).join('\n'));
     if (cmd) process.exitCode = 1;
   }
 }

@@ -244,7 +244,7 @@ static class T
         Ok(art != null, "the art bundle loads", (string)F(P, "artError") ?? "");
         var paintings = (List<string>)F(art, "Paintings");
         var fonts = (IDictionary)F(art, "Fonts");
-        Ok(paintings.Count == 25 && paintings.Contains("crest-varrow") && paintings.Contains("poster-ironbreaker"), "25 finished paintings are offered", string.Join(",", paintings));
+        Ok(paintings.Count == 26 && paintings.Contains("crest-varrow") && paintings.Contains("poster-ironbreaker") && paintings.Contains("the-crossing"), "26 finished paintings are offered", string.Join(",", paintings));
         Ok(fonts.Count == 7 && fonts.Contains("display"), "7 glyph atlases decode (dynamic-Huffman PNGs from Node's zlib)");
         var items = (IDictionary)F(art, "Items");
         int decoded = 0, total = 0;
