@@ -43,7 +43,8 @@ export const TITLES = [
   ['kingslayer', 'Kingslayer', false], ['usurper', 'Usurper', false], ['kingmaker', 'Kingmaker', false],
   ['unbowed', 'The Unbowed', false], ['shield_of_crown', 'Shield of the Crown', false], ['long_reign', 'The Long Reign', false],
   ['warden_of_roads', 'Warden of Roads', false], ['sellsword', 'Sellsword', false], ['headtaker', 'Headtaker', false],
-  ['champion', 'Champion of the Lists', false], ['huntsman', "Crown's Huntsman", false], ['renowned', 'the Renowned', false],
+  ['champion', 'Champion of the Lists', false], ['duelist', 'the Duelist', false], ['ring_champion', 'Champion of the Ring', false],
+  ['ring_master', 'Master of the Ring', false], ['ring_victor', 'Victor of the Ring', false], ['huntsman', "Crown's Huntsman", false], ['renowned', 'the Renowned', false],
   ['legend', 'Legend of Ostreval', false], ['oathbreaker', 'Oathbreaker', true], ['faithless', 'The Faithless', true],
   ['trucebreaker', 'Trucebreaker', true], ['hunted', 'The Hunted', true], ['black_name', 'Black Name', true],
 ].map(([id, name, infamous]) => ({ id, name, infamous, file: `badges/titles/${id.replace(/_/g, '-')}.svg` }));

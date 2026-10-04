@@ -561,6 +561,15 @@
       "sha256": "5d0a81ab2d00e0da34b82d8617b683b233a55a566afa3533f722a565f5cda9c7"
     },
     {
+      "id": "icon-24-holding",
+      "kind": "mask",
+      "width": 24,
+      "height": 24,
+      "file": "art/paintings/sprites/icon-24-holding.png",
+      "bytes": 213,
+      "sha256": "15ac48ee7fc7ba60fd7221dec22bc4a1f9078273a2ebfc820421d7992adad31e"
+    },
+    {
       "id": "icon-24-house",
       "kind": "mask",
       "width": 24,
@@ -999,5 +1008,5 @@
       "sha256": "742167c3b8fe954a15b8918a667948d5212a78eb609e9edbccacb0810bcd2719"
     }
   ],
-  "version": "117f2c08901009a0"
+  "version": "3204613439985fa3"
 }

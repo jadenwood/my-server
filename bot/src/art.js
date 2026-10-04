@@ -31,7 +31,8 @@ export const GREAT_HOUSES = ['varrow', 'ashgrove', 'corvane', 'dunmere', 'hallor
 export const TITLES = [
   ['kingslayer', 'Kingslayer'], ['usurper', 'Usurper'], ['kingmaker', 'Kingmaker'], ['unbowed', 'The Unbowed'],
   ['shield_of_crown', 'Shield of the Crown'], ['long_reign', 'The Long Reign'], ['warden_of_roads', 'Warden of Roads'],
-  ['sellsword', 'Sellsword'], ['headtaker', 'Headtaker'], ['champion', 'Champion of the Lists'], ['huntsman', "Crown's Huntsman"],
+  ['sellsword', 'Sellsword'], ['headtaker', 'Headtaker'], ['champion', 'Champion of the Lists'], ['duelist', 'the Duelist'],
+  ['ring_champion', 'Champion of the Ring'], ['ring_master', 'Master of the Ring'], ['ring_victor', 'Victor of the Ring'], ['huntsman', "Crown's Huntsman"],
   ['renowned', 'the Renowned'], ['legend', 'Legend of Ostreval'], ['oathbreaker', 'Oathbreaker'], ['faithless', 'The Faithless'],
   ['trucebreaker', 'Trucebreaker'], ['hunted', 'The Hunted'], ['black_name', 'Black Name'],
 ];
