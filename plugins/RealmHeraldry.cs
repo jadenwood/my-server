@@ -606,6 +606,12 @@ namespace Oxide.Plugins
             return "[" + HouseTintColours[i] + "]" + house + "[FFFFFF]";
         }
 
+        // A house name as player text: cleaned of brackets and control characters, then tinted.
+        private static string Tint(string house)
+        {
+            return HouseTint(Clean(house, 60));
+        }
+
         private static string Cmd(string text)
         {
             return "[F4C96D]" + text + "[FFFFFF]";
@@ -1117,8 +1123,11 @@ namespace Oxide.Plugins
             return a;
         }
 
+        // The guild name the house flies under: no brackets or control characters (the game wraps a guild's name in a
+        // colour tag of its own, Guild.DisplayName), at most the game's 28 characters.
         private string GameName(string house)
         {
+            house = Clean(house, 80);
             string n = house;
             try { n = string.Format(config.Heraldry.NameFormat, house); }
             catch (FormatException) { n = house; }
@@ -1194,7 +1203,7 @@ namespace Oxide.Plugins
                 if (w.Guild == null)
                 {
                     unbound++;
-                    if (report != null) report.Add(Fmt("PreviewUnbound", null, HouseTint(house), w.Unbound));
+                    if (report != null) report.Add(Fmt("PreviewUnbound", null, Tint(house), w.Unbound));
                     continue;
                 }
                 HouseArms a = ArmsRec(house, true);
@@ -1206,7 +1215,7 @@ namespace Oxide.Plugins
                     if (w.NameDiffers) parts.Add(Fmt("PreviewName", null, Clean(w.CurName, 40), w.Name));
                     if (w.ColoursDiffer) parts.Add(Fmt("PreviewColours", null, w.CurField, w.CurCharge, w.Field, w.Charge));
                     if (w.IndexDiffers) parts.Add(Fmt("PreviewIndex", null, w.CurBanner, w.CurPattern, w.Banner, w.Pattern));
-                    report.Add(Fmt("PreviewLine", null, HouseTint(house), Clean(w.CurName, 40), parts.Count == 0 ? Msg("PreviewInStep", null) : string.Join("; ", parts.ToArray())));
+                    report.Add(Fmt("PreviewLine", null, Tint(house), Clean(w.CurName, 40), parts.Count == 0 ? Msg("PreviewInStep", null) : string.Join("; ", parts.ToArray())));
                 }
                 if (!differs)
                 {
@@ -1439,7 +1448,7 @@ namespace Oxide.Plugins
             house = CanonicalHouse(house);
             bool chosen;
             ArmsPair p = PairOf(house, out chosen);
-            Reply(player, "ArmsLine", HouseTint(house), p.Name, p.ChargeName, p.FieldName,
+            Reply(player, "ArmsLine", Tint(house), p.Name, p.ChargeName, p.FieldName,
                 chosen || IsGreatHouse(house) ? "" : Msg("ArmsDefault", player));
             ReadHousesFile(housesFileAt == DateTime.MinValue || (Now() - housesFileAt).TotalSeconds > 60);
             Want w = Wanted(house, new Dictionary<ulong, string>());
@@ -1459,11 +1468,11 @@ namespace Oxide.Plugins
                 string note = "";
                 bool chosen;
                 if (mine != null && PairOf(mine, out chosen).Id == p.Id) note = Msg("PairYours", player);
-                else if (!string.IsNullOrEmpty(p.ReservedFor) && config.Heraldry.ReserveGreatHousePairs) note = Fmt("PairReserved", player, HouseTint(p.ReservedFor));
+                else if (!string.IsNullOrEmpty(p.ReservedFor) && config.Heraldry.ReserveGreatHousePairs) note = Fmt("PairReserved", player, Tint(p.ReservedFor));
                 else
                 {
                     string holder = config.Heraldry.UniqueChoices ? HolderOf(p, mine) : null;
-                    if (holder != null) note = Fmt("PairTaken", player, HouseTint(holder));
+                    if (holder != null) note = Fmt("PairTaken", player, Tint(holder));
                 }
                 Reply(player, "PairLine", p.Id, p.Name, p.ChargeName, p.FieldName, note);
             }
@@ -1483,18 +1492,18 @@ namespace Oxide.Plugins
             ArmsPair p = FindPair(text);
             if (p == null) { ReplyError(player, "PairUnknown", Clean(text, 40)); return; }
             string leader = RealmHouses.Call("GetHouseLeader", house) as string;
-            if (leader != id) { ReplyError(player, "NotLeader", HouseTint(house)); return; }
-            if (!MayBear(house, p)) { ReplyError(player, "PairIsReserved", HouseTint(p.ReservedFor)); return; }
+            if (leader != id) { ReplyError(player, "NotLeader", Tint(house)); return; }
+            if (!MayBear(house, p)) { ReplyError(player, "PairIsReserved", Tint(p.ReservedFor)); return; }
             string holder = config.Heraldry.UniqueChoices ? HolderOf(p, house) : null;
-            if (holder != null) { ReplyError(player, "PairIsTaken", HouseTint(holder)); return; }
+            if (holder != null) { ReplyError(player, "PairIsTaken", Tint(holder)); return; }
             bool chosen;
-            if (PairOf(house, out chosen).Id == p.Id && chosen) { ReplyError(player, "PairAlready", HouseTint(house), p.Name); return; }
+            if (PairOf(house, out chosen).Id == p.Id && chosen) { ReplyError(player, "PairAlready", Tint(house), p.Name); return; }
             HouseArms a = ArmsRec(house, true);
             bool first = a.ChosenAt == DateTime.MinValue;
             DateTime now = Now();
             if (!first && config.Heraldry.ChangeCooldownHours > 0 && now < a.ChosenAt.AddHours(config.Heraldry.ChangeCooldownHours))
             {
-                ReplyError(player, "PairCooldown", HouseTint(house), Span(a.ChosenAt.AddHours(config.Heraldry.ChangeCooldownHours) - now));
+                ReplyError(player, "PairCooldown", Tint(house), Span(a.ChosenAt.AddHours(config.Heraldry.ChangeCooldownHours) - now));
                 return;
             }
             long fee = first && config.Heraldry.FirstChoiceFree ? 0 : config.Heraldry.ChangeFeeMarks;
@@ -1508,8 +1517,8 @@ namespace Oxide.Plugins
             a.ChosenAt = now;
             a.ChosenBy = Clean(player.Name, 40);
             SaveData();
-            Reply(player, "PairChosen", HouseTint(house), p.Name, p.ChargeName, p.FieldName);
-            if (config.Heraldry.AnnounceNewColours && Throttle("colours:" + HouseKey(house), 3600)) Herald("HeraldNewColours", HouseTint(house), p.Name);
+            Reply(player, "PairChosen", Tint(house), p.Name, p.ChargeName, p.FieldName);
+            if (config.Heraldry.AnnounceNewColours && Throttle("colours:" + HouseKey(house), 3600)) Herald("HeraldNewColours", Tint(house), p.Name);
             int ap, st, ub, wt;
             SyncAll(false, house, null, out ap, out st, out ub, out wt);
         }
@@ -1558,7 +1567,7 @@ namespace Oxide.Plugins
                 a.Pair = p.Id;
                 a.ChosenBy = "staff";
                 SaveData();
-                Reply(player, "AdminSet", HouseTint(house), p.Name);
+                Reply(player, "AdminSet", Tint(house), p.Name);
             }
             else if (sub == "reset")
             {
@@ -1566,7 +1575,7 @@ namespace Oxide.Plugins
                 a.ChosenAt = DateTime.MinValue;
                 bool chosen;
                 SaveData();
-                Reply(player, "AdminReset", HouseTint(house), PairOf(house, out chosen).Name);
+                Reply(player, "AdminReset", Tint(house), PairOf(house, out chosen).Name);
             }
             else if (sub == "banner")
             {
@@ -1580,7 +1589,7 @@ namespace Oxide.Plugins
                 a.BannerIndex = bi;
                 a.PatternIndex = pi;
                 SaveData();
-                Reply(player, "AdminBannerSet", HouseTint(house), bi < 0 ? "keep" : bi.ToString(), pi < 0 ? "keep" : pi.ToString());
+                Reply(player, "AdminBannerSet", Tint(house), bi < 0 ? "keep" : bi.ToString(), pi < 0 ? "keep" : pi.ToString());
             }
             int ap2, st2, ub2, wt2;
             SyncAll(false, house, null, out ap2, out st2, out ub2, out wt2);
@@ -1724,7 +1733,7 @@ namespace Oxide.Plugins
             foreach (string seat in b.Seats)
             {
                 var names = new List<string>();
-                foreach (Candidate c in b.Candidates) if (c.Seat == seat) names.Add(c.Name + " (" + HouseTint(c.House) + ")");
+                foreach (Candidate c in b.Candidates) if (c.Seat == seat) names.Add(c.Name + " (" + Tint(c.House) + ")");
                 if (names.Count > 0) parts.Add(seat + ": " + string.Join(", ", names.ToArray()));
             }
             return string.Join("; ", parts.ToArray());
@@ -1785,8 +1794,8 @@ namespace Oxide.Plugins
                     {
                         int votes;
                         t.TryGetValue(winner.Id, out votes);
-                        if (unopposed) Announce(b, lines, "HeraldUnopposed", winner.Name, HouseTint(winner.House), seat);
-                        else Announce(b, lines, "HeraldElected", winner.Name, HouseTint(winner.House), seat, votes, total);
+                        if (unopposed) Announce(b, lines, "HeraldUnopposed", winner.Name, Tint(winner.House), seat);
+                        else Announce(b, lines, "HeraldElected", winner.Name, Tint(winner.House), seat, votes, total);
                         actors.Add(winner.Name);
                         if (RealmSeasons != null && config.Council.ElectedHousePoints > 0)
                             RealmSeasons.Call("AwardHouse", winner.House, config.Council.ElectedHousePoints, "elected to the council: " + seat);
@@ -2035,7 +2044,7 @@ namespace Oxide.Plugins
                 foreach (string seat in b.Seats)
                 {
                     var names = new List<string>();
-                    foreach (Candidate c in b.Candidates) if (c.Seat == seat) names.Add(Fmt("BallotCandidate", player, c.Name, HouseTint(c.House)));
+                    foreach (Candidate c in b.Candidates) if (c.Seat == seat) names.Add(Fmt("BallotCandidate", player, c.Name, Tint(c.House)));
                     Say(player, "BallotSeat", seat, names.Count > 0 ? string.Join(", ", names.ToArray()) : Msg("BallotSeatNone", player));
                 }
                 if (mine != null && mine.Count > 0)
@@ -2096,7 +2105,7 @@ namespace Oxide.Plugins
             string why = WhyNot(id, b, player);
             if (why == null) Say(player, "MeOk"); else Say(player, "MeNo", why);
             Say(player, "MePlay", r.PlaySeconds / 60, config.Voters.MinPlayMinutes, Span(Now() - r.FirstSeen));
-            if (r.House != null) Say(player, "MeHouse", HouseTint(r.House), Span(Now() - r.HouseSince));
+            if (r.House != null) Say(player, "MeHouse", Tint(r.House), Span(Now() - r.HouseSince));
         }
 
         private void Stand(Player player, string seatText)
@@ -2112,11 +2121,11 @@ namespace Oxide.Plugins
             string leader = house != null && RealmHouses != null ? RealmHouses.Call("GetHouseLeader", house) as string : null;
             if (house == null || leader != id) { SayError(player, "StandNotLeader"); return; }
             foreach (Candidate c in b.Candidates)
-                if (SameHouse(c.House, house)) { SayError(player, "StandHouseAlready", HouseTint(house), c.Name); return; }
+                if (SameHouse(c.House, house)) { SayError(player, "StandHouseAlready", Tint(house), c.Name); return; }
             if (!config.Council.MonarchMayStand && IsMonarch(player)) { SayError(player, "StandMonarch"); return; }
             List<string> members = RealmHouses.Call("GetMembers", house) as List<string>;
             int count = members != null ? members.Count : 0;
-            if (count < config.Council.CandidateMinHouseMembers) { SayError(player, "StandSmallHouse", HouseTint(house), count, config.Council.CandidateMinHouseMembers); return; }
+            if (count < config.Council.CandidateMinHouseMembers) { SayError(player, "StandSmallHouse", Tint(house), count, config.Council.CandidateMinHouseMembers); return; }
             if (config.Council.CandidateMinHouseAgeDays > 0)
             {
                 string f = RealmHouses.Call("GetHouseFounded", house) as string;
@@ -2124,7 +2133,7 @@ namespace Oxide.Plugins
                 if (f == null || !DateTime.TryParse(f, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out founded)
                     || (Now() - founded).TotalDays < config.Council.CandidateMinHouseAgeDays)
                 {
-                    SayError(player, "StandYoungHouse", HouseTint(house), config.Council.CandidateMinHouseAgeDays);
+                    SayError(player, "StandYoungHouse", Tint(house), config.Council.CandidateMinHouseAgeDays);
                     return;
                 }
             }
@@ -2147,7 +2156,7 @@ namespace Oxide.Plugins
             b.Candidates.Add(cand);
             SaveData();
             Say(player, "Stood", seat, deposit > 0 ? Fmt("StoodDeposit", player, deposit, config.Council.DepositReturnPercent) : "", Span(b.VotingAt - Now()));
-            Herald("HeraldStood", cand.Name, HouseTint(house), seat);
+            Herald("HeraldStood", cand.Name, Tint(house), seat);
         }
 
         private void Withdraw(Player player)
@@ -2379,7 +2388,7 @@ namespace Oxide.Plugins
                 string vid = FindVoterId(JoinFrom(args, 2));
                 if (vid == null) { SayError(player, "PlayerUnknown", Clean(JoinFrom(args, 2), 40)); return; }
                 VoterRec r = Voter(vid, null, false);
-                Say(player, "VoterHeader", r.Name, Span(now - r.FirstSeen), r.PlaySeconds / 60, r.House != null ? HouseTint(r.House) : "-",
+                Say(player, "VoterHeader", r.Name, Span(now - r.FirstSeen), r.PlaySeconds / 60, r.House != null ? Tint(r.House) : "-",
                     r.House != null ? Span(now - r.HouseSince) : "-");
                 string why = WhyNot(vid, OpenCouncil() ?? OpenReferendum(), player);
                 if (why == null) Say(player, "VoterOk"); else Say(player, "VoterNo", why);
@@ -2392,7 +2401,7 @@ namespace Oxide.Plugins
             if (t.Status != SNominating && t.Status != SVoting) { SayError(player, "AdminNotOpen", t.Id); return; }
             if (sub == "advance")
             {
-                if (t.Status == SNominating) { t.VotingAt = now; StartVoting(t, now); }
+                if (t.Status == SNominating) { t.VotingAt = now; t.ClosesAt = now.AddHours(config.Council.VotingHours); StartVoting(t, now); }
                 else CloseBallot(t, now);
                 Say(player, "AdminAdvanced", t.Id, Msg(t.Status == SVoting ? "StatusVoting" : "StatusClosed", player));
             }
@@ -2439,7 +2448,7 @@ namespace Oxide.Plugins
                 byHouse.TryGetValue(r.House, out n);
                 byHouse[r.House] = n + 1;
             }
-            foreach (KeyValuePair<string, int> kv in byHouse) Say(player, "AuditHouse", HouseTint(kv.Key), kv.Value);
+            foreach (KeyValuePair<string, int> kv in byHouse) Say(player, "AuditHouse", Tint(kv.Key), kv.Value);
             if (none > 0) Say(player, "AuditNoHouse", none);
             voters.Sort(delegate(KeyValuePair<string, VoterRec> x, KeyValuePair<string, VoterRec> y) { return x.Value.PlaySeconds.CompareTo(y.Value.PlaySeconds); });
             var young = new List<string>();

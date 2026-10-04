@@ -625,6 +625,7 @@ static class Tests
         Cmd(ada, "ballot", "stand", "Keeper"); Cmd(P(Dd), "ballot", "stand", "Marshal");
         r = Cmd(ada, "ballot", "admin", "advance", "1");
         Ok(Status(1) == "voting" && r.Contains("moves on: voting"), "advance: to the vote", r);
+        Ok(Math.Abs(((DateTime)F(Ballot(1), "ClosesAt") - Clock.AddHours(72)).TotalMinutes) < 1, "and the vote runs its full VotingHours from now");
         Cmd(P(B), "vote", "Ada"); Cmd(P(C), "vote", "Ada"); Cmd(P(E), "vote", "Wren");
         r = Cmd(ada, "ballot", "admin", "audit", "1");
         Ok(r.Contains("Ballot #1: 3 votes (0 struck)") && r.Contains("2 voters") && r.Contains("Least seen voters"), "audit shows votes by house and the least played", r);
