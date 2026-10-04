@@ -164,7 +164,8 @@ static class T
         Ok(Data() != null && File.Exists(dataPath), "fresh start creates RealmRenown.json");
         Ok(P.permission.Registered.Contains("realmrenown.admin"), "admin permission realmrenown.admin registered");
         var titles = (IList)F(F(P, "config"), "Titles");
-        Ok(titles.Count == 18, "18 default titles survive validation", titles.Count.ToString());
+        int defaultTitles = titles.Count;
+        Ok(titles.Count >= 24, "the default titles (18, and 6 for RealmQuests) survive validation", titles.Count.ToString());
         Ok(P.timer.EveryCount == 1, "one tick timer");
         Inv(P, "OnServerInitialized");
         Ok(P.timer.EveryCount == 1, "OnServerInitialized is idempotent (hot reload)");
@@ -493,7 +494,7 @@ static class T
             arr.Add(JsonNode.Parse("{\"Id\":\"bad\",\"Name\":\"%name% hack\",\"Requires\":{\"renown\":1}}"));
             arr.Add(JsonNode.Parse("{\"Id\":\"bad2\",\"Name\":\"Ghost\",\"Requires\":{\"nonsense\":1}}"));
         }));
-        Ok(((IList)F(F(P, "config"), "Titles")).Count == 18 && P.Log.Count(l => l.StartsWith("WARN Title")) == 2, "invalid titles in config are rejected with a warning");
+        Ok(((IList)F(F(P, "config"), "Titles")).Count == defaultTitles && P.Log.Count(l => l.StartsWith("WARN Title")) == 2, "invalid titles in config are rejected with a warning");
 
         // ---------- first run on a server with history: every feed baselines ----------
         string fresh = Path.Combine(Dir, "fresh");

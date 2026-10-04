@@ -147,6 +147,12 @@ namespace Oxide.Plugins
             public long PayMaxPerDay = 5000;                   // rolling 24 h per player, /purse pay
             public int PayCooldownSeconds = 10;
 
+            // Rewards for deeds (RealmQuests calls RewardMarks): new marks struck straight into a purse, under caps of their own.
+            public bool RewardsEnabled = true;
+            public long RewardMintPerDay = 3000;               // rolling 24 h, every player together
+            public long RewardMaxPerCall = 500;
+            public long RewardCrownReserve = 20000;            // rewards stop this far below MintSupplyCap, so the crown can still mint
+
             public int JournalMax = 1000;                      // in the data file; the full ledger goes to oxide/logs
             public bool LedgerToLogFile = true;
             public int MaxListLines = 12;
@@ -2121,6 +2127,27 @@ namespace Oxide.Plugins
         {
             long m;
             return data != null && playerId != null && data.Purses.TryGetValue(playerId, out m) ? m : 0;
+        }
+
+        // Rewards for deeds (RealmQuests): strikes up to `amount` new marks into a player's purse and returns how many it
+        // paid (0 when refused). Not the crown's mint: RewardMintPerDay (rolling 24 h, all players), RewardMaxPerCall,
+        // and never within RewardCrownReserve of MintSupplyCap, so rewards cannot use up what the crown may still strike.
+        // Counted in MarksMinted, so the zero-sum audit holds. The caller keeps any shortfall owed and asks again later.
+        private long RewardMarks(string playerId, string playerName, long amount, string source)
+        {
+            ulong u;
+            if (data == null || !config.RewardsEnabled || amount <= 0 || playerId == null || playerId.Length < 17 || !ulong.TryParse(playerId, out u)) return 0;
+            long n = Math.Min(amount, Math.Max(0, config.RewardMaxPerCall));
+            n = Math.Min(n, Math.Max(0, config.RewardMintPerDay) - SpentToday("reward"));
+            n = Math.Min(n, config.MintSupplyCap - Math.Max(0, config.RewardCrownReserve) - data.MarksMinted);
+            if (n <= 0) return 0;
+            string name = string.IsNullOrEmpty(playerName) ? NameOf(playerId) : playerName;
+            data.Spends.Add(new Spend { At = DateTime.UtcNow, Key = "reward", Amount = n });
+            data.MarksMinted += n;
+            CreditMarks(PlayerParty(playerId, name), n);
+            Journal("reward", source ?? "reward", MarksAsset, n, "reward", name, "supply " + data.MarksMinted);
+            SaveData();
+            return n;
         }
 
         // Marks held by the treasury.
