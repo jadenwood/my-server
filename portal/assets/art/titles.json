@@ -15,6 +15,8 @@
     { "id": "ring_champion", "name": "Champion of the Ring", "infamous": false, "emblem": "icons/laurel" },
     { "id": "ring_master", "name": "Master of the Ring", "infamous": false, "emblem": "icons/medal" },
     { "id": "ring_victor", "name": "Victor of the Ring", "infamous": false, "emblem": "icons/helm" },
+    { "id": "guildmaster", "name": "Guildmaster", "infamous": false, "emblem": "emblems/anvil" },
+    { "id": "master_crafter", "name": "Master Crafter", "infamous": false, "emblem": "emblems/tools" },
     { "id": "huntsman", "name": "Crown's Huntsman", "infamous": false, "emblem": "emblems/horn" },
     { "id": "renowned", "name": "the Renowned", "infamous": false, "emblem": "emblems/star" },
     { "id": "legend", "name": "Legend of Ostreval", "infamous": false, "emblem": "emblems/legend" },

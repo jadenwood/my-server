@@ -40,6 +40,7 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/market` | RealmTreasury | The realm market: `list`, `history`, `items`, `sell`, `bid`, `buy`, `fill`, `cancel`, `collect` |
 | `/vault` | RealmTreasury | A house vault: view, `deposit`, `give`; heads and stewards also `withdraw`, `take`, trade and name stewards |
 | `/treasury` | RealmTreasury | The crown's treasury, `tax`, `ledger` and `deposit` (tribute); the monarch also `mint` and `levy`, and the monarch or the Keeper of Coin `grant` |
+| `/craft` | RealmCrafts | Your professions and ranks (`/craft`, `/craft <profession>`), `perks`, `top [houses\|<profession>]` (the weekly Master Crafter), `house` (your workshop), and commissions: `orders`, `order <item> <qty> <marks each>`, `fill <id>`, `cancel <id>`, `collect`. Guide: [`RealmCrafts.md`](../plugins/docs/RealmCrafts.md) |
 | `/economy` | RealmTreasury | All the economy help, the market fee, the tithe and the game tax |
 | `/dice` | RealmArena | Hearth Dice for marks against another player (`<player> <marks>`, `accept`, `decline`, `cancel`), no house edge, strict daily limits; `roll [NdM]` throws for show |
 | `/cards` | RealmArena | Twenty-One for marks against another player (`<player> <marks>`, `accept`, `hit`, `stand`, `hand`, `decline`, `cancel`), both play at once, no house edge |
@@ -57,7 +58,7 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 
 ## For admins
 
-Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`). Each plugin guide in `plugins/docs/` lists them.
+Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`, `/craft admin status`). Each plugin guide in `plugins/docs/` lists them.
 
 Oxide runs these chat commands only for a player in game, not from the server console (see [`admin-console.md`](admin-console.md)). Two console-only commands come from `RealmCourt.cs`, which writes them into the game's own command table with the permission `realm.court`: `/realm.save` (save the world now) and `/realm.players` (online players with Steam IDs). Realm Steward's Court screen uses them.
 
@@ -83,6 +84,7 @@ Every Realm plugin answers in one style, so a player can tell at a glance who is
 | RealmQuests | Quests | | |
 | RealmArena | Arena (the tavern games: Tavern) | | |
 | RealmTravel | Roads | | |
+| RealmCrafts | Guilds | | |
 
 The name is the lang key `Speaker`, so a server can rename it.
 
