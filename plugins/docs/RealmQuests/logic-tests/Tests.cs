@@ -53,7 +53,7 @@ static class T
         Ok(Q.permission.Registered.Contains("realmquests.admin"), "registers realmquests.admin");
         Ok(EventManager.Count<ItemCrafterCraftEvent>() == 1 && EventManager.Count<ItemCrafterItemEvent>() == 1, "subscribes to the crafting events");
         Inv(Q, "OnServerInitialized");
-        Ok(EventManager.Count<ItemCrafterItemEvent>() == 1 && Q.timer.EveryCount == 1, "OnServerInitialized is idempotent (hot reload)");
+        Ok(EventManager.Count<ItemCrafterItemEvent>() == 1 && Q.timer.EveryCount == 2, "OnServerInitialized is idempotent (hot reload): one tick and one visit timer");
         // Every content text in the original voice: plain, bounded, no franchise-free check possible here, so at least no
         // colour tags, braces or over-long lines (the loader enforces it; re-read the raw files to be sure).
         foreach (var f in Directory.GetFiles(Path.Combine(Repo, "plugins", "docs", "RealmQuests", "content"), "*.json"))
@@ -348,8 +348,8 @@ static class T
         Clear();
         Goto(a, 520, 510); Tick(1, false);
         Ok(Prog(Daily(a), 0, 0) == 1 && a.All().Contains("You reach the Hearth."), "within the radius of a marked place: visited", a.All());
-        Goto(a, 905, 890); Tick(1, false);
-        Ok(Done(Daily(a), 0), "both places: the pilgrimage is done");
+        Goto(a, 905, 890); Inv(Q, "SafeVisits");
+        Ok(Done(Daily(a), 0), "both places: the pilgrimage is done (seen by the faster visit check, VisitSeconds)");
         var visited = (List<string>)F(P(a), "VisitedToday");
         Ok(visited.Contains("the_hearth") && visited.Contains("old_throne"), "visits are remembered for the day (no repeats)");
         long w = AchCount(a, "ex_wayfarer");
@@ -409,6 +409,14 @@ static class T
         ActiveEvents.Clear(); ActiveEvents.Add("tournament");
         Minutes(15, false);
         Ok(AchCount(a, "wa_into_the_lists") == 0, "standing idle at an event is not taking part");
+        // A truce breaker has not kept the truce.
+        Clock = Clock.AddDays(1); Tick();
+        var b = Mk(76561198000000002, "Brannoc");
+        WriteJson("RealmChronicle", "[]"); Poll();
+        WriteJson("RealmChronicle", "[{\"id\":1,\"type\":\"truce_broken\",\"title\":\"x\",\"actors\":[\"Aldric\"]}]"); Poll();
+        ActiveEvents.Clear(); ActiveEvents.Add("truce");
+        Minutes(12);
+        Ok(AchCount(a, "ex_under_truce") == 0 && AchCount(b, "ex_under_truce") == 1, "whoever broke the Truce today is not credited with keeping it");
     }
 
     static void Oaths()
@@ -704,6 +712,10 @@ static class T
         Clear();
         Cmd(a, "story");
         Ok(a.All().Contains("you saw it to its end") && a.All().Contains("pages of the lost winter"), "after the end, /quest story tells the epilogue", a.All());
+        SetF(Story(a), "Season", 7);
+        Clear();
+        Cmd(a, "story");
+        Ok(!(bool)F(Story(a), "Complete") && a.All().Contains("Now: Ash at the Hearth."), "a tale from another season's record starts afresh", a.All());
     }
 
     static void Achievements()

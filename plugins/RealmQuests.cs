@@ -150,6 +150,7 @@ namespace Oxide.Plugins
         private bool initialized;
         private bool dirty;
         private Timer tickTimer;
+        private Timer visitTimer;
         private DateTime lastFeedPoll = DateTime.MinValue;
         private DateTime lastSave = DateTime.MinValue;
         private int depth;                                       // guards achievement-of-achievement recursion
@@ -260,6 +261,7 @@ namespace Oxide.Plugins
             public int HouseMemberMinHours = 12;
             public float TickSeconds = 30f;
             public float FeedPollSeconds = 60f;
+            public float VisitSeconds = 5f;                 // how often positions are checked against marked places
             public float ActiveMoveMeters = 1.5f;
             public int ActionKeepsActiveSeconds = 120;
             public int ProgressNoticeSeconds = 15;
@@ -328,6 +330,8 @@ namespace Oxide.Plugins
             if (float.IsNaN(config.TickSeconds) || config.TickSeconds < 5f) config.TickSeconds = 5f;
             if (config.TickSeconds > 300f) config.TickSeconds = 300f;
             if (float.IsNaN(config.FeedPollSeconds) || config.FeedPollSeconds < 10f) config.FeedPollSeconds = 10f;
+            if (float.IsNaN(config.VisitSeconds) || config.VisitSeconds < 2f) config.VisitSeconds = 2f;
+            if (config.VisitSeconds > 300f) config.VisitSeconds = 300f;
             if (config.FeedPollSeconds > 3600f) config.FeedPollSeconds = 3600f;
             if (float.IsNaN(config.ActiveMoveMeters) || config.ActiveMoveMeters < 0f) config.ActiveMoveMeters = 1.5f;
             config.ActionKeepsActiveSeconds = Clamp(config.ActionKeepsActiveSeconds, 0, 3600);
@@ -764,6 +768,7 @@ namespace Oxide.Plugins
             public bool Complete;
             public DateTime CompletedAt;
             public string IntroShown;                       // the last chapter whose intro window was shown
+            public int Season;                              // the season whose tale this is
         }
 
         private class AchState
@@ -848,6 +853,7 @@ namespace Oxide.Plugins
             public List<int> CreditedContracts = new List<int>();
             public List<string> EventCredits = new List<string>();   // "kind|day|player"
             public string FirstStoryName;
+            public int FirstStorySeason;
         }
 
         private void LoadData()
@@ -1259,6 +1265,8 @@ namespace Oxide.Plugins
             CheckItems();
             if (tickTimer != null && !tickTimer.Destroyed) tickTimer.Destroy();
             tickTimer = timer.Every(config.TickSeconds, SafeTick);
+            if (visitTimer != null && !visitTimer.Destroyed) visitTimer.Destroy();
+            if (config.VisitSeconds < config.TickSeconds) visitTimer = timer.Every(config.VisitSeconds, SafeVisits);
             foreach (Player p in OnlinePlayers()) Seen(p);
         }
 
@@ -1326,14 +1334,14 @@ namespace Oxide.Plugins
         // The quest day turns at ResetHourUtc; the week turns on the Monday of that hour.
         private string DayKey(DateTime now)
         {
-            return now.AddHours(-config.ResetHourUtc).ToString("yyyy-MM-dd");
+            return now.AddHours(-config.ResetHourUtc).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private string WeekKey(DateTime now)
         {
             DateTime d = now.AddHours(-config.ResetHourUtc).Date;
             int back = ((int)d.DayOfWeek + 6) % 7;
-            return d.AddDays(-back).ToString("yyyy-MM-dd");
+            return d.AddDays(-back).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private TimeSpan UntilDayTurns(DateTime now)
@@ -1513,6 +1521,9 @@ namespace Oxide.Plugins
             chapter = null;
             wait = null;
             if (story == null) { wait = "off"; return null; }
+            // A new season's tale starts afresh; a record without a season is taken to be this one's.
+            if (p.Story.Season == 0) p.Story.Season = story.Season;
+            else if (p.Story.Season != story.Season) { p.Story = new StoryState { Season = story.Season }; dirty = true; }
             if (p.Story.Complete) { wait = "complete"; return null; }
             if (!StoryRunning()) { wait = "season"; return null; }
             int day = config.StoryTimeGates ? SeasonDay() : -1;
@@ -1820,8 +1831,8 @@ namespace Oxide.Plugins
             p.Story.Complete = true;
             p.Story.CompletedAt = Now();
             string reward = GiveReward(id, p, story.Reward, "story:complete:" + story.Season, story.Title, "story_complete");
-            bool first = string.IsNullOrEmpty(data.FirstStoryName);
-            if (first) data.FirstStoryName = p.Name;
+            bool first = string.IsNullOrEmpty(data.FirstStoryName) || data.FirstStorySeason != story.Season;
+            if (first) { data.FirstStoryName = p.Name; data.FirstStorySeason = story.Season; }
             if (online != null)
             {
                 Reply(online, "StoryDone", story.Title);
@@ -2414,6 +2425,21 @@ namespace Oxide.Plugins
 
         #region Tick: presence, places, events, state, feeds
 
+        // Places are checked more often than the tick, so a rider passing through a marked place is seen.
+        private void SafeVisits()
+        {
+            if (loadFailed || data == null || !config.Enabled || data.Places.Count == 0) return;
+            try
+            {
+                foreach (Player pl in OnlinePlayers())
+                {
+                    PlayerQ p = FindPlayer(pl.Id.ToString());
+                    if (p != null) Visits(pl, p);
+                }
+            }
+            catch (Exception ex) { PrintError("Visit check failed: " + ex.Message); }
+        }
+
         private void SafeTick()
         {
             try { Tick(); }
@@ -2703,6 +2729,16 @@ namespace Oxide.Plugins
                 dirty = true;
                 if (n >= 100) continue;
                 if (e.type == "treaty_signed" && e.title != null) { TreatyFromTitle(e.title); n++; continue; }
+                if (e.type == "truce_broken" && e.actors != null && e.actors.Length > 0 && e.actors[0] != null)
+                {
+                    // Whoever broke the Truce of the Realm today has not kept it: no attendance credit for it today.
+                    string breaker;
+                    if (byName.TryGetValue(e.actors[0].Trim().ToLowerInvariant(), out breaker) && breaker != null)
+                    {
+                        string key = "truce|" + DayKey(Now()) + "|" + breaker;
+                        if (!data.EventCredits.Contains(key)) data.EventCredits.Add(key);
+                    }
+                }
                 if (e.type == null || e.actors == null || e.actors.Length == 0 || string.IsNullOrEmpty(e.actors[0])) continue;
                 string id;
                 if (!byName.TryGetValue(e.actors[0].Trim().ToLowerInvariant(), out id) || id == null) continue;
