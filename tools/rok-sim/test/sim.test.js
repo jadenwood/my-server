@@ -337,7 +337,8 @@ test('simulator commands and scenario steps drive joins, chat, logs and crashes'
     await c.command('/sim.join Wren');
     const st = JSON.parse((await c.command('/sim.status')).lines.find((l) => l.startsWith('[I] SIMSTATUS ')).slice('[I] SIMSTATUS '.length));
     assert.deepEqual(st.players.map((p) => p.name).sort(), ['Petra Halloran', 'Wren']);
-    assert.deepEqual((await c.command('/sim.chat Wren Long live the Charter')).lines.slice(0, 1), ['[C] Wren: Long live the Charter']);
+    // The scenario's timed warning can stream into this reply on a slow runner, so pick out the chat line.
+    assert.deepEqual((await c.command('/sim.chat Wren Long live the Charter')).lines.filter((l) => l.startsWith('[C] ')), ['[C] Wren: Long live the Charter']);
     await c.command('/sim.log error injected failure');
     await H.until(() => /scenario warning/.test(H.readGameLog(dir)), 2000, 'scenario log');
     assert.match(H.readGameLog(dir), /\[Error\]  injected failure/);
