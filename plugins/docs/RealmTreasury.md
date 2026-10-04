@@ -202,6 +202,7 @@ Until they are registered, RealmChronicle rejects them (`Log` returns 0). The pl
 | `GetPurse(string playerId)` | `long` marks |
 | `GetTreasuryMarks()` | `long` |
 | `GetTreasuryItem(string item)` | `int` units held |
+| `ChargeMarks(string playerId, string playerName, long amount, string source, string note)` | `bool`: a price another plugin charges (RealmTravel's road tolls). The marks move from the purse to the crown's treasury, all or nothing (1 to 1000000), journalled as `charge`; nothing is minted, so the audit holds |
 | `GetLastPrice(string item)` | `long` last price per unit, or 0 |
 | `GetTreasurySummary()` | `"marks\|minted\|feePct\|tithePct\|openOrders"` |
 

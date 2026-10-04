@@ -42,11 +42,15 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/rumour` (or `/rumor`) | RealmRavens | Submit an anonymous rumour for moderation, or see the approved ones (`list`) |
 | `/warden` | RealmWarden | `status`, `rules`, `report <player> <reason>`, and `protection off confirm` to give up new-player protection |
 | `/stats` | RealmStats | What the server's statistics record about you (`privacy`, `me`) and `optout` / `optin` |
+| `/travel` | RealmTravel | The waystones you know; `/travel <name>` sets out (stand still, toll in marks to the crown's treasury), `all`, `info <name>`, `cancel`. Guide: [`RealmTravel.md`](../plugins/docs/RealmTravel.md) |
+| `/home` | RealmTravel | `set` a home inside your own crest zone, then `/home` to travel back; `info`, `clear` |
+| `/road` | RealmTravel | `/road <waystone>` or `/road home` calls the way (distance and direction) as you walk; `stop` |
+| `/kit` | RealmTravel | Your kits (a newcomer's pack, daily house provisions, the season's bounty); `/kit <name>`, `collect` |
 | `/realm` | RealmHerald | Every command by subject, in a window (`/realm list` in chat), `/realm <subject>`, your first steps (`path`, `skip`, `crown`), `tips on/off`, `popups on/off`, `motd`. Guide: [`RealmHerald.md`](../plugins/docs/RealmHerald.md) |
 
 ## For admins
 
-Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`). Each plugin guide in `plugins/docs/` lists them.
+Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmtravel.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/travel admin set`, `/kit admin check`). Each plugin guide in `plugins/docs/` lists them.
 
 Oxide runs these chat commands only for a player in game, not from the server console (see [`admin-console.md`](admin-console.md)). Two console-only commands come from `RealmCourt.cs`, which writes them into the game's own command table with the permission `realm.court`: `/realm.save` (save the world now) and `/realm.players` (online players with Steam IDs). Realm Steward's Court screen uses them.
 
@@ -69,6 +73,7 @@ Every Realm plugin answers in one style, so a player can tell at a glance who is
 | RealmSeasons | Seasons | RealmWarden | Warden |
 | RealmEvents | Events | RealmStats | Stats |
 | RealmChronicle | Chronicle | RealmHerald | Realm |
+| RealmTravel | Roads | | |
 
 The name is the lang key `Speaker`, so a server can rename it.
 
