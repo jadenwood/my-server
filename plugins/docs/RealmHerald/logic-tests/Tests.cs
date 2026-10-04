@@ -24,7 +24,7 @@ static class T
     static RealmHerald H;
 
     static readonly string[] AllPlugins = { "CrownAndConsequences", "RealmChronicle", "RealmContracts", "RealmDynasties", "RealmEvents",
-        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald", "RealmDominion", "RealmQuests", "RealmArena", "RealmTravel" };
+        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald", "RealmDominion", "RealmQuests", "RealmArena", "RealmTravel", "RealmHeraldry" };
 
     static void Ok(bool cond, string name, string extra = "")
     {
