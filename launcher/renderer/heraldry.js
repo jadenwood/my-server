@@ -57,6 +57,8 @@
     great_trade: ['purse', 'A Great Sale', 'gold'],
     rumour: ['whisper', 'A Rumour Spreads', 'iron'],
     holding_taken: ['holding', 'A Holding Taken', 'blood'],
+    census_taken: ['census', 'The Census', 'iron'],
+    vote_held: ['ballot', 'The Realm Votes', 'gold'],
     blade_claimed: ['blade', 'The Ironbreaker Taken Up', 'gold'],
     blade_lost: ['blade-lost', 'The Ironbreaker Returns', 'iron']
   };

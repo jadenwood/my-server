@@ -15,11 +15,14 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/renounce` | RealmHouses | Break your house's oath (`/renounce`, then Yes in the window or `/renounce confirm`). Earns an oathbreaker mark |
 | `/treaty` | RealmHouses | `propose <house> [days]`, `accept <house>`, `break <house>`, `list` |
 | `/dominion` | RealmDominion | The holdings of the realm, their houses, garrisons and income, and the War Hours; `/dominion <holding>`, `here`, `rules`. Guide: [`RealmDominion.md`](../plugins/docs/RealmDominion.md) |
+| `/heraldry` | RealmHeraldry | Your house's colours on its game guild's banner, crest, armour and name tags; `house <house>`, `colours` (the pairs), and the head of a house chooses with `colours <pair>`. Guide: [`RealmHeraldry.md`](../plugins/docs/RealmHeraldry.md) |
 | `/crown` | CrownAndConsequences | Who reigns, since when, and the next rebellion window |
 | `/decree` | CrownAndConsequences | The decrees and their cooldowns; the monarch issues one with `/decree <id>` |
-| `/council` | CrownAndConsequences | The council seats; the monarch uses `appoint <player> <seat>` and `remove` |
+| `/council` | CrownAndConsequences | The council seats; the monarch uses `appoint <player> <seat>` and `remove` (not on a seat the realm elected with `/ballot`, during its term) |
 | `/claim` | CrownAndConsequences | Open claims (`list`); a house leader uses `declare` |
 | `/ransom` | CrownAndConsequences | Captives (`list`); a captor uses `set`, `paid` and `release`; a captive uses `free` |
+| `/ballot` | RealmHeraldry | What the realm votes on: `<n>`, `results`, `history`, `me` (can I vote?); heads of houses `stand <seat>` and `withdraw` in council elections; the monarch `propose decree <id>` or `propose law <id>` |
+| `/vote` | RealmHeraldry | `<candidate or house>` in a council election, `yes` or `no` on the crown's question (`<n> yes` when there are several). One vote per account |
 | `/chronicle` | RealmChronicle | The latest Chronicle entries (`/chronicle [count]`) |
 | `/contract` | RealmContracts | Bounties, deliveries and mercenary work: `list`, `info`, `post`, `accept`, `deliver`, `confirm`, `cancel`, `enemies`, `items`, `collect`. The monarch also has `outlaw` and `pardon` |
 | `/season` | RealmSeasons | The season, `standings`, `house [name]`, `hall` (the Hall of Kings) and `history` |
@@ -40,6 +43,7 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/market` | RealmTreasury | The realm market: `list`, `history`, `items`, `sell`, `bid`, `buy`, `fill`, `cancel`, `collect` |
 | `/vault` | RealmTreasury | A house vault: view, `deposit`, `give`; heads and stewards also `withdraw`, `take`, trade and name stewards |
 | `/treasury` | RealmTreasury | The crown's treasury, `tax`, `ledger` and `deposit` (tribute); the monarch also `mint` and `levy`, and the monarch or the Keeper of Coin `grant` |
+| `/craft` | RealmCrafts | Your professions and ranks (`/craft`, `/craft <profession>`), `perks`, `top [houses\|<profession>]` (the weekly Master Crafter), `house` (your workshop), and commissions: `orders`, `order <item> <qty> <marks each>`, `fill <id>`, `cancel <id>`, `collect`. Guide: [`RealmCrafts.md`](../plugins/docs/RealmCrafts.md) |
 | `/economy` | RealmTreasury | All the economy help, the market fee, the tithe and the game tax |
 | `/dice` | RealmArena | Hearth Dice for marks against another player (`<player> <marks>`, `accept`, `decline`, `cancel`), no house edge, strict daily limits; `roll [NdM]` throws for show |
 | `/cards` | RealmArena | Twenty-One for marks against another player (`<player> <marks>`, `accept`, `hit`, `stand`, `hand`, `decline`, `cancel`), both play at once, no house edge |
@@ -52,12 +56,16 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/travel` | RealmTravel | The waystones you know; `/travel <name>` sets out (stand still, toll in marks to the crown's treasury), `all`, `info <name>`, `cancel`. Guide: [`RealmTravel.md`](../plugins/docs/RealmTravel.md) |
 | `/home` | RealmTravel | `set` a home inside your own crest zone, then `/home` to travel back; `info`, `clear` |
 | `/road` | RealmTravel | `/road <waystone>` or `/road home` calls the way (distance and direction) as you walk; `stop` |
+| `/world` | RealmWorld | The living world: what is abroad now and next (`schedule`), `history`, `bloodmoon`, `legend`, `census`, and `collect` for rewards still owed. Guide: [`RealmWorld.md`](../plugins/docs/RealmWorld.md) |
+| `/treasure` | RealmWorld | Your clue in a treasure hunt and how far along you are; `hint` names a direction once per clue |
+| `/caravan` | RealmWorld | The merchant caravan: `carry` (bear it from the start), `escort` (guard it), `leave`; and any raider's price |
+| `/festival` | RealmWorld | The Harvest Fair and Midwinter: the house standings and your part; `give [item\|all]` hands in goods for your house |
 | `/kit` | RealmTravel | Your kits (a newcomer's pack, daily house provisions, the season's bounty); `/kit <name>`, `collect` |
 | `/realm` | RealmHerald | Every command by subject, in a window (`/realm list` in chat), `/realm <subject>`, your first steps (`path`, `skip`, `crown`), `tips on/off`, `popups on/off`, `motd`. Guide: [`RealmHerald.md`](../plugins/docs/RealmHerald.md) |
 
 ## For admins
 
-Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`). Each plugin guide in `plugins/docs/` lists them.
+Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`, `realmworld.admin`, `realmheraldry.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`, `/craft admin status`, `/world admin`, `/heraldry sync`, `/ballot admin open`). Each plugin guide in `plugins/docs/` lists them.
 
 Oxide runs these chat commands only for a player in game, not from the server console (see [`admin-console.md`](admin-console.md)). Two console-only commands come from `RealmCourt.cs`, which writes them into the game's own command table with the permission `realm.court`: `/realm.save` (save the world now) and `/realm.players` (online players with Steam IDs). Realm Steward's Court screen uses them.
 
@@ -83,6 +91,9 @@ Every Realm plugin answers in one style, so a player can tell at a glance who is
 | RealmQuests | Quests | | |
 | RealmArena | Arena (the tavern games: Tavern) | | |
 | RealmTravel | Roads | | |
+| RealmCrafts | Guilds | | |
+| RealmWorld | World | | |
+| RealmHeraldry | Heraldry (votes: Council) | | |
 
 The name is the lang key `Speaker`, so a server can rename it.
 

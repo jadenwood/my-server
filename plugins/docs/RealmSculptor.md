@@ -173,6 +173,15 @@ The plugin never trusts these blindly: a sculpture file names each material by r
 | `SaveIntervalSeconds` | 20 | How often a running job saves its progress. |
 | `MaterialIds` | `cobblestone` 1 ... `reinforced` 9 | Role → the server's material id. |
 
+## For other plugins
+
+Two non-public methods (`Plugin.Call`), used by RealmWorld for its festival decorations ([`RealmWorld.md`](RealmWorld.md)):
+
+- `int PlaceSculptureAt(string sculpture, float x, float y, float z, int turn, string by)` places a sculpture as `/sculpt place` would for someone standing at (x, y, z) facing quarter-turn `turn` (0 = +z, 1 = +x, 2 = -z, 3 = -x). It is never forced: occupied ground, unclaimed land (even with `AllowUnclaimedLand`), a missing material, another sculpture in the way or the placement limit refuse it. Returns the placement number, or 0.
+- `bool RemoveSculpture(int placement)` takes a placement down, the same way as `/sculpt remove`. False when it is unknown or already gone.
+
+Both are mock-tested (`api:` checks in the logic tests). A placement made this way shows in `/sculpt placed` with the calling plugin as its maker and can be removed by staff as usual.
+
 ## Data files
 
 - `oxide/data/RealmSculptor/<id>.json`: the sculptures (format in [`art/sculptures/README.md`](../../art/sculptures/README.md)). A file whose `id` is not its name, has a wrong format, a block outside its size, a shape that is not a single block, a bad colour, a repeated cell or too many blocks is refused and listed in `/sculpt list`.

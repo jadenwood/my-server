@@ -197,6 +197,17 @@ namespace Oxide.Plugins
             d.Add("outlawed", D("was declared outlaw", 0, 50, 720));
             d.Add("truce_broken", D("broke the Truce of the Realm", 0, 30, 0));
             d.Add("holding_taken", D("took a holding for their house", 30, 0, 60));   // RealmDominion (AddDeed)
+            d.Add("craft_rank", D("rose to a new rank in a guild", 10, 0, 0));             // RealmCrafts (AddDeed, once per rank)
+            d.Add("craft_master", D("was named a master of a guild", 50, 0, 0));           // RealmCrafts (AddDeed, once per profession)
+            d.Add("master_crafter", D("was named Master Crafter of the week", 60, 0, 0));  // RealmCrafts (AddDeed), weekly
+            d.Add("commission_filled", D("filled a commission", 3, 0, 30));               // RealmCrafts (AddDeed)
+            // Reported by RealmWorld through AddDeed (one dedupe key per event, kill or share).
+            d.Add("treasure_found", D("found a hidden hoard", 30, 0, 0));
+            d.Add("blood_moon_kill", D("slew a foe under the Blood Moon", 4, 0, 0));
+            d.Add("caravan_escort", D("brought the merchant caravan home", 20, 0, 0));
+            d.Add("caravan_raid", D("plundered the merchant caravan", 0, 25, 0));
+            d.Add("legend_slain", D("slew a Wandering Legend", 40, 0, 0));
+            d.Add("festival_champion", D("led their house at a festival", 25, 0, 0));
             // Reported by RealmQuests through AddDeed (one dedupe key per task, step or tier).
             d.Add("quest_daily", D("finished a daily task", 5, 0, 0));
             d.Add("quest_weekly", D("finished a weekly task", 15, 0, 0));
@@ -232,7 +243,12 @@ namespace Oxide.Plugins
             t.Add(T("ring_champion", "Champion of the Ring", "Was crowned the Proving Ring's champion of the week.", false, "arena_champion", 1));
             t.Add(T("ring_master", "Master of the Ring", "Was crowned champion of the week three times.", false, "arena_champion", 3));
             t.Add(T("ring_victor", "Victor of the Ring", "Won the Lists of the Ring.", false, "arena_tourney", 1));
+            t.Add(T("guildmaster", "Guildmaster", "Reached the rank of Master in a profession.", false, "craft_master", 1));
+            t.Add(T("master_crafter", "Master Crafter", "Was named the realm's Master Crafter of the week.", false, "master_crafter", 1));
             t.Add(T("huntsman", "Crown's Huntsman", "Took the King's quarry three times.", false, "quarry_taken", 3));
+            t.Add(T("hoardfinder", "Hoardfinder", "Found three hidden hoards.", false, "treasure_found", 3));
+            t.Add(T("caravan_warden", "Caravan Warden", "Brought the merchant caravan home three times.", false, "caravan_escort", 3));
+            t.Add(T("bane_of_legends", "Bane of Legends", "Slew a Wandering Legend.", false, "legend_slain", 1));
             t.Add(T("renowned", "the Renowned", "Gathered 500 renown.", false, "renown", 500));
             t.Add(T("legend", "Legend of Ostreval", "Gathered 2000 renown.", false, "renown", 2000));
             t.Add(T("oathbreaker", "Oathbreaker", "Broke a sworn oath.", true, "oath_broken", 1));

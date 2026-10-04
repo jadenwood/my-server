@@ -107,6 +107,8 @@ const EVENT_TYPES = [
   { type: 'great_trade', label: 'A Great Sale', group: 'Treasury & rumours', tone: 'gold' },
   { type: 'rumour', label: 'A Rumour Spreads', group: 'Treasury & rumours', tone: 'iron' },
   { type: 'holding_taken', label: 'A Holding Taken', group: 'Claims & war', tone: 'blood' },
+  { type: 'census_taken', label: 'The Census', group: 'Seasons & events', tone: 'iron' },
+  { type: 'vote_held', label: 'The Realm Votes', group: 'Crown', tone: 'gold' },
   { type: 'blade_claimed', label: 'The Ironbreaker Taken Up', group: 'Claims & war', tone: 'gold' },
   { type: 'blade_lost', label: 'The Ironbreaker Returns', group: 'Claims & war', tone: 'iron' }
 ];

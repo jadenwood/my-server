@@ -11,7 +11,9 @@
     "blood-moon":        { "name": "Blood Moon",        "kind": "overlay", "summary": "Red moon nights under clear skies. A season finale overlay, not a season." },
     "crown-night":       { "name": "Crown Night",       "kind": "overlay", "summary": "A gold moon over a violet haze, clear skies. The weekly Crown Night overlay." },
     "truce":             { "name": "Truce",             "kind": "overlay", "summary": "Soft pale light, thin air, no rain. For a scheduled Truce of the Realm." },
-    "ashfall":           { "name": "Ashfall",           "kind": "overlay", "summary": "Brown-grey ash haze, orange sun, dry overcast. A short war-arc overlay." }
+    "ashfall":           { "name": "Ashfall",           "kind": "overlay", "summary": "Brown-grey ash haze, orange sun, dry overcast. A short war-arc overlay." },
+    "harvest-festival":  { "name": "Harvest Fair",      "kind": "overlay", "summary": "A low amber sun, an orange harvest moon, golden haze, dry skies. RealmWorld's Harvest Fair week." },
+    "midwinter":         { "name": "Midwinter",         "kind": "overlay", "summary": "A bright silver-blue moon, a pale cold sun, frost haze, still skies. RealmWorld's Midwinter week." }
   },
   "seasonCycle": ["golden-summer", "storm-season", "long-winter", "grim-but-readable"],
   "seasonLooks": {
@@ -25,6 +27,9 @@
     "season_finale":     "blood-moon",
     "war_arc":           "ashfall",
     "royal_tournament":  "golden-summer",
-    "truce":             "truce"
+    "truce":             "truce",
+    "blood_moon":        "blood-moon",
+    "harvest_festival":  "harvest-festival",
+    "midwinter":         "midwinter"
   }
 }

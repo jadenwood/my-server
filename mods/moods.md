@@ -2,7 +2,7 @@
 
 A **world mood** is a named preset for the game's built-in Mods system. It changes fog, sun and moon colour, weather odds and, in one case, the speed of the day. Ostreval looks and plays differently from one season to the next, but nothing on the player's side changes. The server sends the values to each player when they join, and the player's own unmodified Steam copy applies them (see [README.md](README.md) and [docs/mods-keys-from-dll.md](../docs/mods-keys-from-dll.md)).
 
-There are eleven moods. Seven are **season moods**, which last a whole season: four take turns in the season cycle and three are **season looks**, alternatives an owner may pick instead. Four are **overlays**, which run for an event, a weekend or a short story arc and then hand back to the season mood.
+There are thirteen moods. Seven are **season moods**, which last a whole season: four take turns in the season cycle and three are **season looks**, alternatives an owner may pick instead. Six are **overlays**, which run for an event, a weekend, a festival week or a short story arc and then hand back to the season mood.
 
 | Mood | Kind | In one line | Folder |
 |---|---|---|---|
@@ -17,6 +17,8 @@ There are eleven moods. Seven are **season moods**, which last a whole season: f
 | Crown Night | overlay | A gold moon over a violet haze, clear skies. The weekly Crown Night. | `presets/crown-night/` |
 | Truce | overlay | Soft pale light, thin air, no rain. A scheduled Truce of the Realm. | `presets/truce/` |
 | Ashfall | overlay | Brown-grey ash haze, an orange sun, dry and overcast. | `presets/ashfall/` |
+| Harvest Fair | overlay | A low amber sun, an orange harvest moon, golden haze, dry skies. RealmWorld's Harvest Fair week. | `presets/harvest-festival/` |
+| Midwinter | overlay | A bright silver-blue moon, a pale cold sun, frost haze, still skies. RealmWorld's Midwinter week. | `presets/midwinter/` |
 
 ## The keys moods may use
 
@@ -52,6 +54,8 @@ At each weather change, `Weather.ChangeTheWeather` multiplies each weight by a r
 | Spring Rains | 4 / 4 / 6 / 2 / 0 | 21.3% | 21.3% | 54.5% | 2.1% | never | 0.7% |
 | Hunter's Moon | 5 / 5 / 3 / 1 / 0 | 43.4% | 43.4% | 11.9% | 0.3% | never | 0.8% |
 | First Frost | 6 / 4 / 1 / 1 / 0 | 65.3% | 32.2% | 1.1% | 1.1% | never | 0.3% |
+| Harvest Fair | 7 / 4 / 1 / 0 / 0 | 70.5% | 28.1% | 1.3% | never | never | 0.2% |
+| Midwinter | 6 / 4 / 2 / 0 / 0 | 63.5% | 30.5% | 5.6% | never | never | 0.4% |
 
 **UNVERIFIED: how often the weather changes.** The interval is `_WeatherChangeRate`, a Unity-serialized field. Its C# initializer is `2`, but the scene value is not in the DLL. Cloud cover moves towards its target at `_CloudCoverDelta`, which is 0.0006 per second in the code, so a full clear-to-overcast change takes about 28 minutes. If the change interval is short, the weights act as a mix of targets that the sky drifts between, and the table gives the share of time each target is picked.
 
@@ -238,6 +242,43 @@ Every mood can be installed with `server\Set-Mood.ps1 -Mood <id>` or, without a 
 
 ---
 
+## The living world's moods: Blood Moon nights, the Harvest Fair and Midwinter
+
+`plugins/RealmWorld.cs` runs three things that have a look of their own (see [`plugins/docs/RealmWorld.md`](../plugins/docs/RealmWorld.md)). The plugin cannot change the sky itself: the Mods system is read at start-up only, so each look is a mood the owner applies at the planned restart before it, exactly like Crown Night. RealmWorld writes a reminder in the server log when each one begins. **Nothing here has been seen in game (UNVERIFIED).**
+
+- **A Blood Moon night** (every other Thursday 20:00 UTC by default) uses the existing **Blood Moon** mood: `-Event blood_moon`. It is a night, not a weekend, so use it only when a restart falls before it anyway; the event works without it.
+- **The Harvest Fair** (a week from 22 September) and **Midwinter** (a week from 20 December) have their own overlays, below: `-Event harvest_festival` and `-Event midwinter`. A festival lasts a week, which fits the restart plan well.
+
+### Harvest Fair
+
+*The week the houses bring in the harvest.* The overlay for RealmWorld's Harvest Fair (`-Event harvest_festival`). Golden Summer stays the season look; the fair is warmer and lower in the sky, and it has its own moon.
+
+| Key | Value | Effect |
+|---|---|---|
+| `Atmosphere.MoonColor` | `rgba(1,0.84,0.62,1)` | A great orange harvest moon, light and disc (luminance 0.86). |
+| `Atmosphere.SunColor` | `rgba(1,0.9,0.72,1)` | A low amber sun, warmer than Golden Summer's (luminance 0.91). |
+| `Atmosphere.FogColor` | `rgba(1,0.94,0.84,1)` | A warm golden haze over the fields (luminance 0.95). |
+| `Atmosphere.FogDensity` | `1.05` | Sight in fog is about 5% shorter: chaff and dust in the air, not a wall. |
+| Weather | 7 / 4 / 1 / 0 / 0 | Clear 70% of changes. Never medium or heavy rain. |
+
+**What it should look like (UNVERIFIED):** amber afternoons and an orange moon over a fairground. **Rationale:** a fair is held under open skies, and the houses' monuments raised for it (RealmSculptor) should catch warm light. **Readability note:** the moon is the darkest part (0.86) and well above the floor; red is kept full so banners read at night.
+
+### Midwinter
+
+*The longest nights of the year, kept with fires and feasting.* The overlay for RealmWorld's Midwinter (`-Event midwinter`). Long Winter and First Frost stay the winter season moods; Midwinter is a festival look laid over either.
+
+| Key | Value | Effect |
+|---|---|---|
+| `Atmosphere.MoonColor` | `rgba(0.85,0.92,1,1)` | A silver-blue moon bright enough to walk by (luminance 0.91). |
+| `Atmosphere.SunColor` | `rgba(0.9,0.94,1,1)` | A pale, cold sun (luminance 0.94). |
+| `Atmosphere.FogColor` | `rgba(0.92,0.95,1,1)` | A clean frost haze (luminance 0.95). |
+| `Atmosphere.FogDensity` | `1.15` | Sight in fog is about 13% shorter: cold air, breath and hearth smoke. |
+| Weather | 6 / 4 / 2 / 0 / 0 | Mostly clear and still, some light falls, never a storm. |
+
+**What it should look like (UNVERIFIED):** blue-white nights under a bright moon, short grey days. **Rationale:** Midwinter is a hunt (wolves and bears count for the houses) and a feast; the nights must stay walkable. **Readability note:** no Mods key exists for snow, so what falls looks like the game's rain. If the haze feels closed in over a Long Winter season, lower `FogDensity` to `1.05`.
+
+---
+
 ## Rotation plan
 
 The plan ties moods to the two schedule systems that already exist. It is kept in [`presets/rotation.json`](presets/rotation.json), and `Set-Mood.ps1 -Season` and `-Event` read it from there.
@@ -275,6 +316,9 @@ The plan ties moods to the two schedule systems that already exist. It is kept i
 | `war_arc` | Ashfall | Admin call after a forced change of crown (a rebellion won). At most once per season, at most 7 days, never in week 1. | `-Return`. |
 | `royal_tournament` | Golden Summer | Tournament day, so PvP ranking is not decided by weather. Skip it during a Golden Summer season, where it already applies. | `-Return`. |
 | `truce` | Truce | A Truce of the Realm scheduled long enough to plan a restart around (a truce day, peace talks). | `-Return`. |
+| `blood_moon` | Blood Moon | A RealmWorld Blood Moon night (`/world schedule`), when a restart falls before it anyway. | `-Return` at the next restart. |
+| `harvest_festival` | Harvest Fair | RealmWorld's Harvest Fair: restart the morning it opens (default 22 September 12:00 UTC). | `-Return` at the first restart after it closes. |
+| `midwinter` | Midwinter | RealmWorld's Midwinter: restart the morning it opens (default 20 December 12:00 UTC). | `-Return` at the first restart after it closes. |
 
 - The King's Hunt has no mood, and neither does a short truce: they need no restart. Hunter's Moon suits a hunt week if the owner wants one (`-Mood hunters-moon`).
 - **Season looks** are not in the cycle. To use one, run `-Mood spring-rains` (or `hunters-moon`, `first-frost`) at the season's first restart instead of `-Season <n>`. `seasonLooks` in `rotation.json` records which cycle mood each one stands in for.

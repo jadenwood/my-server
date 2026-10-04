@@ -21,7 +21,10 @@ export const EVENT_ICONS = {
   verdict: 'scales', pardon: 'pardon', dynasty_founded: 'lineage', heir_named: 'heir', succession: 'succession',
   blood_claim: 'blood-claim', blood_restored: 'sprout', title_bestowed: 'collar', title_earned: 'medal',
   treasury_mint: 'mint', treasury_grant: 'grant', tithe_levied: 'tithe', great_trade: 'purse', rumour: 'whisper',
-  holding_taken: 'holding', blade_claimed: 'blade', blade_lost: 'blade-lost',
+  holding_taken: 'holding',
+  census_taken: 'census',
+  vote_held: 'ballot',
+  blade_claimed: 'blade', blade_lost: 'blade-lost',
 };
 
 // The six great houses have drawn sigils. A house a player founds has none (it keeps its banner colour).
@@ -30,9 +33,10 @@ export const GREAT_HOUSES = ['varrow', 'ashgrove', 'corvane', 'dunmere', 'hallor
 // Renown titles with a badge (art/src/titles.json): [id, name].
 export const TITLES = [
   ['kingslayer', 'Kingslayer'], ['usurper', 'Usurper'], ['kingmaker', 'Kingmaker'], ['unbowed', 'The Unbowed'],
-  ['shield_of_crown', 'Shield of the Crown'], ['long_reign', 'The Long Reign'], ['warden_of_roads', 'Warden of Roads'],
-  ['sellsword', 'Sellsword'], ['headtaker', 'Headtaker'], ['champion', 'Champion of the Lists'], ['duelist', 'the Duelist'],
-  ['ring_champion', 'Champion of the Ring'], ['ring_master', 'Master of the Ring'], ['ring_victor', 'Victor of the Ring'], ['huntsman', "Crown's Huntsman"],
+  ['shield_of_crown', 'Shield of the Crown'], ['long_reign', 'The Long Reign'], ['warden_of_roads', 'Warden of Roads'], ['sellsword', 'Sellsword'],
+  ['headtaker', 'Headtaker'], ['champion', 'Champion of the Lists'], ['duelist', 'the Duelist'], ['ring_champion', 'Champion of the Ring'],
+  ['ring_master', 'Master of the Ring'], ['ring_victor', 'Victor of the Ring'], ['guildmaster', 'Guildmaster'], ['master_crafter', 'Master Crafter'],
+  ['huntsman', "Crown's Huntsman"], ['hoardfinder', 'Hoardfinder'], ['caravan_warden', 'Caravan Warden'], ['bane_of_legends', 'Bane of Legends'],
   ['renowned', 'the Renowned'], ['legend', 'Legend of Ostreval'], ['oathbreaker', 'Oathbreaker'], ['faithless', 'The Faithless'],
   ['trucebreaker', 'Trucebreaker'], ['hunted', 'The Hunted'], ['black_name', 'Black Name'],
 ];

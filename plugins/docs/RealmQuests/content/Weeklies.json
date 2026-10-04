@@ -135,6 +135,16 @@
         { "Type": "deliver", "Targets": ["Fat"], "Count": 30, "Text": "Hand in fat" }
       ],
       "Reward": { "Marks": 60 }
+    },
+    {
+      "Id": "w_guild_book", "Title": "The Guild's Book", "Weight": 6, "AnyOne": true,
+      "Text": "The guilds keep a book of honest work. Fill two commissions from the board, or make forty goods at the benches.",
+      "Done": "The guild's clerk writes your name in a fair hand, which is more than most of the guild manages.",
+      "Objectives": [
+        { "Type": "custom", "Targets": ["commission"], "Count": 2, "Text": "Fill commissions (/craft orders)" },
+        { "Type": "craft", "Count": 40, "Text": "Or craft goods" }
+      ],
+      "Reward": { "Marks": 60 }
     }
   ]
 }

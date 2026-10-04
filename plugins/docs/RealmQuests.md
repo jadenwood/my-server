@@ -2,7 +2,7 @@
 
 `plugins/RealmQuests.cs` (Oxide 2.0.3867, C# 3) gives every player of Ostreval something to do each day and something to chase all season:
 
-- **Daily tasks** (three a day) and **weekly tasks** (two a week), drawn for each player from a pool of 31 and 16;
+- **Daily tasks** (three a day) and **weekly tasks** (two a week), drawn for each player from a pool of 31 and 17;
 - **The Hollow Crown**, the Season 1 story in four acts and 17 steps, following [`docs/saga/season-1-the-hollow-crown.md`](../../docs/saga/season-1-the-hollow-crown.md);
 - **68 deeds** (achievements) in five kinds (survival, war, politics, economy, exploration), most with three or four tiers;
 - **House goals**: one shared goal a week for every house, paid in house season points.
@@ -101,7 +101,7 @@ The content lives in [`RealmQuests/content/`](RealmQuests/content/) and is read 
 |---|---|---|
 | `Places.json` | The twelve notable places of [`docs/saga/locations.md`](../../docs/saga/locations.md), with a default radius | 12 |
 | `Dailies.json` | The daily pool | 31 |
-| `Weeklies.json` | The weekly pool | 16 |
+| `Weeklies.json` | The weekly pool (`w_guild_book` counts RealmCrafts commissions, reported as `custom` `commission`) | 17 |
 | `Story.json` | The Season 1 tale: prologue, four acts (`UnlockDay` 0, 14, 28, 42: weeks 1, 3, 5, 7), 17 steps, epilogue, rewards | 1 |
 | `Achievements.json` | The deeds | 68 |
 | `HouseGoals.json` | The weekly house goal pool | 12 |
