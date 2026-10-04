@@ -1272,7 +1272,9 @@ namespace Oxide.Plugins
             WriteMap();
         }
 
-        // No rewards for flips: the same two houses trading a holding, a house retaking what it lately held, or past the daily cap.
+        // No rewards for flips. Within PairCooldownHours: a house retaking a holding it lost, or two houses that already
+        // traded a holding with a reward trading again (either way round). And at most MaxRewardedCapturesPerDay per house.
+        // So two colluding houses earn one reward each per pair per window, however often they trade.
         private bool Rewardable(Holding h, string house, string from, DateTime now)
         {
             int today = 0;
@@ -1281,9 +1283,11 @@ namespace Oxide.Plugins
                 double hours = (now - c.At).TotalHours;
                 if (c.Rewarded && hours < 24 && string.Equals(c.House, house, StringComparison.OrdinalIgnoreCase)) today++;
                 if (hours >= config.PairCooldownHours) continue;
-                if (from != null && string.Equals(c.House, from, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(c.From, house, StringComparison.OrdinalIgnoreCase)) return false;      // they took one from us lately
-                if (c.Holding == h.Id && string.Equals(c.From, house, StringComparison.OrdinalIgnoreCase)) return false;  // we lost this one lately
+                if (c.Holding == h.Id && string.Equals(c.From, house, StringComparison.OrdinalIgnoreCase)) return false;   // we lost this one lately
+                if (from != null && c.Rewarded && c.From != null
+                    && ((string.Equals(c.House, house, StringComparison.OrdinalIgnoreCase) && string.Equals(c.From, from, StringComparison.OrdinalIgnoreCase))
+                        || (string.Equals(c.House, from, StringComparison.OrdinalIgnoreCase) && string.Equals(c.From, house, StringComparison.OrdinalIgnoreCase))))
+                    return false;                                                                                         // this pair traded lately
             }
             return today < config.MaxRewardedCapturesPerDay;
         }
@@ -1373,7 +1377,8 @@ namespace Oxide.Plugins
         {
             DateTime local = RealmTime(now);
             string today = local.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            if (data.LastIncomeDay == today) return -1;
+            // Only a later day pays: a server clock set back never pays a day twice.
+            if (data.LastIncomeDay != null && string.CompareOrdinal(today, data.LastIncomeDay) <= 0) return -1;
             int at;
             ParseClock(config.IncomeTime, out at);
             if (!force && local.TimeOfDay.TotalMinutes < at) return -1;

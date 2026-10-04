@@ -2146,12 +2146,12 @@ namespace Oxide.Plugins
 
         // Income for a house from another Realm plugin (RealmDominion's holdings). New marks are struck straight into the
         // house vault and counted in MarksMinted, so the zero-sum audit holds. Limits: the supply cap and a rolling 24 h
-        // budget per source (PluginIncomeMaxPerDay). The house must exist in RealmHouses when that is loaded. Returns the
-        // marks credited (possibly fewer than asked), 0 when refused.
+        // budget per source (PluginIncomeMaxPerDay). The house must exist in RealmHouses (refused while it is not loaded).
+        // Returns the marks credited (possibly fewer than asked), 0 when refused.
         private long GrantHouseIncome(string house, long marks, string source, string note)
         {
             if (data == null || string.IsNullOrEmpty(house) || marks <= 0 || string.IsNullOrEmpty(source)) return 0;
-            if (RealmHouses != null && HouseFounded(house) == null) return 0;
+            if (HouseFounded(house) == null) return 0;
             string key = "income:" + source.ToLowerInvariant();
             long n = Math.Min(marks, config.PluginIncomeMaxPerDay - SpentToday(key));
             n = Math.Min(n, config.MintSupplyCap - data.MarksMinted);
