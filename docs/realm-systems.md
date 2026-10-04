@@ -65,6 +65,7 @@ All are Oxide C# plugins, C# 3 syntax, deployed together by Realm Steward or `se
 | `RealmPainter.cs` | Staff-only `/paint`: writes Realm's art into painted signs and keeps live boards (Chronicle, wanted, standings, proclamation, event, Ironbreaker, notice). | `RealmPainter.json`, reads `RealmPainterArt.json` | **On a branch** (`team/sign-painter`, ff5dc1e). Compile-checked, mock-tested (122, plus 4 PNG decode checks). Whether a server-set picture reaches clients is UNVERIFIED (PT2.2 to PT2.9, PT3.2). |
 | `RealmLegendary.cs` | The Ironbreaker: exactly one legendary blade, won at the Royal Tournament, taken by the bearer's slayer; staff `/ironbreaker`. | `RealmLegendary.json` | **On a branch** (`team/ironbreaker`, 93b8cfd). Compile-checked, mock-tested (142), exploit suite (legendary 48). Item identity and damage scaling in game are UNVERIFIED (PT2.16, PT3.12, PT4.3). |
 | `RealmSentinel.cs` | Server-side cheat watch: movement, combat, items, floods and staff-name impersonation scored with evidence; alert, freeze, kick, ban on confirm; staff `/sentinel`. Never touches the game's own anti-cheat. Ships in watch mode. | `RealmSentinel.json`, `RealmSentinelFeed.json`, logs | **On a branch** (`team/anti-cheat`, 8ac7c18). Compile-checked, mock-tested (173), exploit runner (24). Every limit is UNVERIFIED until tuned in game (PT1.16, PT3.13 to PT3.15, PT7.10). |
+| `RealmDominion.cs` | Territorial war: named holdings (villages, keep, mine, harbour, crossroads) that houses take by holding the field in the War Hours (paused in truces, rebellions and shut raid hours); garrisons, daily marks into house vaults (`RealmTreasury.GrantHouseIncome`) and season points, `holding_taken` Chronicle entries, the `/paint dominion` board; `/dominion`. | `RealmDominion.json`, `RealmDominionMap.json` (for the portal and Chronicle; schema in the guide) | **On a branch** (`team/dominion`). Compile-checked, mock-tested (196), exploit suite (dominion 37 + 13). Everything in game is UNVERIFIED (guide steps D1 to D12). Guide: [`plugins/docs/RealmDominion.md`](../plugins/docs/RealmDominion.md). |
 
 Guides for the newer plugins are in [`plugins/docs/`](../plugins/docs/) (the four on branches bring their own guides); the original four are described in [`community/how-to-play.md`](community/how-to-play.md) and [`oxide-rok-api.md`](oxide-rok-api.md). Staff-only commands (`/sculpt`, `/paint`, `/ironbreaker`, `/sentinel`) are listed in `STAFF_COMMANDS` in `tools/realm-integration/check.mjs` and stay out of the `/realm` hub.
 
@@ -82,6 +83,16 @@ Oxide only lets one plugin call **non-public instance methods** of another, by n
 | RealmContracts | CrownAndConsequences | `GetOpenClaims`, `IsSwornToCrown` |
 | RealmContracts | RealmChronicle | `Log` |
 | RealmContracts | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetLiege`, `HasTreaty` |
+| RealmDominion | CrownAndConsequences | `GetUtcOffsetHours`, `IsRebellionActive` (on a branch: `team/dominion`) |
+| RealmDominion | RealmChronicle | `Log` (type `holding_taken`) (on a branch: `team/dominion`) |
+| RealmDominion | RealmEvents | `IsTruceActive` (on a branch: `team/dominion`) |
+| RealmDominion | RealmHerald | `PopupsWanted` (on a branch: `team/dominion`) |
+| RealmDominion | RealmHouses | `GetHouse`, `GetHouseFounded`, `GetHouseSummaries`, `GetLiege`, `GetMembers`, `HasTreaty` (on a branch: `team/dominion`) |
+| RealmDominion | RealmPainter | `RefreshBoards` (on a branch: `team/dominion`) |
+| RealmDominion | RealmRenown | `AddDeed` (on a branch: `team/dominion`) |
+| RealmDominion | RealmSeasons | `AwardHouse` (on a branch: `team/dominion`) |
+| RealmDominion | RealmTreasury | `GrantHouseIncome` (new; on a branch: `team/dominion`) |
+| RealmDominion | RealmWarden | `IsNewPlayerProtected`, `IsRaidHourNow` (on a branch: `team/dominion`) |
 | RealmDynasties | CrownAndConsequences | `CmdClaim` (a chat-command method, not a documented API), `GetKingHouse`, `GetOpenClaims` |
 | RealmDynasties | RealmChronicle | `Log` |
 | RealmDynasties | RealmHouses | `GetHouse`, `GetHouseLeader`, `GetLiege`, `GetMembers`, `GetReputation`, `GetVassals` |
@@ -105,6 +116,7 @@ Oxide only lets one plugin call **non-public instance methods** of another, by n
 | RealmLegendary | RealmHerald | `PopupsWanted` (on a branch: `team/ironbreaker`) |
 | RealmLegendary | RealmHouses | `GetHouse`, `GetLiege`, `HasTreaty` (on a branch: `team/ironbreaker`) |
 | RealmLegendary | RealmRenown | `AddDeed` (on a branch: `team/ironbreaker`) |
+| RealmPainter | RealmDominion | `GetDominionBoard` (on a branch: `team/dominion`) |
 | RealmPainter | CrownAndConsequences | `GetKingHouse`, `GetKingName`, `GetKingSince`, `GetUtcOffsetHours` (on a branch: `team/sign-painter`) |
 | RealmPainter | RealmChronicle | `GetLastEventId` (on a branch: `team/sign-painter`) |
 | RealmPainter | RealmContracts | `GetBountyCount` (on a branch: `team/sign-painter`) |

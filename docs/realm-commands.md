@@ -14,6 +14,7 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/swear` | RealmHouses | Offer your house's oath to a liege (`/swear <house>`; with popups on it asks Yes/No first, and `/swear confirm` is the chat answer), or accept or deny one (`accept`/`deny <house>`) |
 | `/renounce` | RealmHouses | Break your house's oath (`/renounce`, then Yes in the window or `/renounce confirm`). Earns an oathbreaker mark |
 | `/treaty` | RealmHouses | `propose <house> [days]`, `accept <house>`, `break <house>`, `list` |
+| `/dominion` | RealmDominion | The holdings of the realm, their houses, garrisons and income, and the War Hours; `/dominion <holding>`, `here`, `rules`. Guide: [`RealmDominion.md`](../plugins/docs/RealmDominion.md) |
 | `/crown` | CrownAndConsequences | Who reigns, since when, and the next rebellion window |
 | `/decree` | CrownAndConsequences | The decrees and their cooldowns; the monarch issues one with `/decree <id>` |
 | `/council` | CrownAndConsequences | The council seats; the monarch uses `appoint <player> <seat>` and `remove` |
@@ -46,7 +47,7 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 
 ## For admins
 
-Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`). Each plugin guide in `plugins/docs/` lists them.
+Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`). Each plugin guide in `plugins/docs/` lists them.
 
 Oxide runs these chat commands only for a player in game, not from the server console (see [`admin-console.md`](admin-console.md)). Two console-only commands come from `RealmCourt.cs`, which writes them into the game's own command table with the permission `realm.court`: `/realm.save` (save the world now) and `/realm.players` (online players with Steam IDs). Realm Steward's Court screen uses them.
 

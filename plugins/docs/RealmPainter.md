@@ -39,6 +39,7 @@ All need `realmpainter.admin`. "The sign" is the one you look at (within `MaxRea
 | `/paint proclamation` | The monarch, their house and the latest decree. |
 | `/paint event [kind]` | The running or next event; with a kind (`crown_night`, `tournament`, `kings_hunt`, `truce`) always that event. |
 | `/paint ironbreaker` | The Ironbreaker and who bears it. |
+| `/paint dominion` | RealmDominion's holdings: each holding, its house's sigil and garrison, or a rising banner. |
 | `/paint notice <title> \| <text>` | An admin's own sign: directions, rules, a welcome. |
 | `/paint list` | Every artwork id and live board. |
 | `/paint info` | What the sign shows, its face, when it was last drawn and the last error. |
@@ -81,6 +82,7 @@ A finished painting goes into the sign exactly as built, so it looks the same on
 | `proclamation` | The monarch, their house, "reigning since" and the latest decree of this reign. | `CrownAndConsequences.GetKingName()`, `GetKingHouse()`, `GetKingSince()`; decrees from the Chronicle. | "The Old Throne Stands Empty". |
 | `event [kind]` | A running event and when it ends, or the next one and when it starts, with its icon and line. | `RealmEvents.GetActiveEvents()`, `GetNextEvent()`. | "No Event Is Called". |
 | `ironbreaker` | The hammer, IRONBREAKER, "Borne by <name>" or "Unclaimed". | `RealmLegendary.GetBearerName()`: a string or null. Null, a missing plugin or a failing call all read as unclaimed. | "Unclaimed". |
+| `dominion` | DOMINION, the War Hours line, up to six holdings (sigil or a flag, name, "House <holder>", garrison or "<house> 45%"). | `RealmDominion.GetDominionBoard()`; RealmDominion asks `RefreshBoards("dominion")` when a holder or banner changes. Board code in RealmPainter, UNVERIFIED like every board (no preview rendered yet). | "The holdings are not kept in this realm." |
 | `notice` | The admin's title and text under the Realm emblem. | `/paint notice`. | |
 
 Times are in realm time (`CrownAndConsequences` `UtcOffsetHours`, the same clock as the rebellion windows). Every board text is a lang key (`Board.*` in `oxide/lang/en/RealmPainter.json`), so a server can reword them; colour tags in them (`[F4C96D]/crown[FFFFFF]`) draw in the board's accent colour. A board whose plugin is not loaded says so instead of failing. Other plugins may call `RefreshBoards(string kind)` (non-public) to have boards looked at on the next tick, for example right after an outlaw is proclaimed.
