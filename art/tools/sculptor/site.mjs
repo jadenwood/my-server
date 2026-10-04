@@ -9,11 +9,13 @@
 // and works out where an admin stands for /sculpt place so each piece lands on its cells.
 import { turnPos, turnIndex } from './rotations.mjs';
 import { validate as validateSculpture } from './voxel.mjs';
+import { pal } from './palette.mjs';
 
 export const SITE_FORMAT = 'realm-site/1';
 export const CELL_M = 1.2;
 export const DISTANCE_AHEAD = 2;            // RealmSculptor config DistanceAhead default: empty cells between admin and piece
 export const BY = ['sculptor', 'plugin', 'context'];
+export const LIGHT_KINDS = ['bowl', 'brazier'];
 
 const q4 = (k) => ((k % 4) + 4) % 4;
 const K = (x, y, z) => `${x},${y},${z}`;
@@ -164,6 +166,25 @@ export function validateSite(site, sculptures) {
     if (taken.has(K(...s.cell))) P(`signs ${s.key}: ${K(...s.cell)} is inside a piece`);
     if (!['+x', '-x', '+z', '-z'].includes(s.faces)) P(`signs ${s.key}: faces must be +x, -x, +z or -z`);
   }
+  // Light spots (staff-built fire bowls and braziers): clear cells with a floor, on no point, sign or other light.
+  const pointCells = new Set(Object.values(site.points || {}).flatMap((p) => (Array.isArray(p.cell) ? [K(...p.cell), K(p.cell[0], p.cell[1] + 1, p.cell[2])] : [])));
+  const signCells = new Set((site.signs || []).filter((s) => Array.isArray(s.cell)).map((s) => K(...s.cell)));
+  const groupCells = new Set(Object.values(site.cells || {}).flatMap((g) => (g.rows ? g.rows.flat() : g.cells || []).map((c) => K(...c))));
+  const lightKeys = new Set(), lightCells = new Set();
+  for (const l of site.lights || []) {
+    if (lightKeys.has(l.key)) P(`lights ${l.key}: key repeats`);
+    lightKeys.add(l.key);
+    if (!LIGHT_KINDS.includes(l.kind)) P(`lights ${l.key}: kind must be one of ${LIGHT_KINDS.join(', ')}`);
+    if (!Array.isArray(l.cell) || l.cell.length !== 3 || !l.cell.every(Number.isInteger)) { P(`lights ${l.key}: cell must be three whole numbers`); continue; }
+    const k = K(...l.cell);
+    if (taken.has(k)) P(`lights ${l.key}: ${k} is inside a piece`);
+    if (l.cell[1] > 0 && !taken.has(K(l.cell[0], l.cell[1] - 1, l.cell[2]))) P(`lights ${l.key}: nothing to stand on under ${k}`);
+    if (pointCells.has(k)) P(`lights ${l.key}: ${k} is where a player stands (a point)`);
+    if (signCells.has(k)) P(`lights ${l.key}: ${k} is a sign spot`);
+    if (groupCells.has(k)) P(`lights ${l.key}: ${k} is a plugin cell`);
+    if (lightCells.has(k)) P(`lights ${l.key}: ${k} repeats`);
+    lightCells.add(k);
+  }
   for (const [name, b] of Object.entries(site.boxes || {})) if (!b.min || !b.max || b.min.some((v, i) => v > b.max[i])) P(`boxes.${name}: min must be <= max`);
   for (const z of site.zones || []) {
     if (z.point && !(site.points || {})[z.point] && !String(z.point).startsWith('banner.')) P(`zones ${z.key}: no point ${z.point}`);
@@ -188,10 +209,13 @@ export function resolveSite(site, sculptures, anchor = [0, 0, 0], R = 0, draw) {
   const cells = {};
   for (const [name, g] of Object.entries(site.cells || {})) cells[name] = g.rows ? g.rows.map((r) => r.map(w)) : g.cells.map(w);
   const points = Object.fromEntries(Object.entries(site.points || {}).map(([k, p]) => [k, w(p.cell)]));
-  return { anchor, turn: q4(R), pieces, cells, points };
+  const lights = Object.fromEntries((site.lights || []).map((l) => [l.key, w(l.cell)]));
+  return { anchor, turn: q4(R), pieces, cells, points, lights };
 }
 
-/** Every block of a site in site cells, for previews: built pieces, plugin cells in a chosen state, context pieces. */
+/** Every block of a site in site cells, for previews: built pieces, plugin cells in a chosen state, context pieces,
+ * and (with context) stand-ins for the staff-built fire pit and lights. A block may carry an eighth element, 'glow',
+ * for a fire that gives light in a night view (art/tools/sculptor/site-render.mjs). */
 export function siteScene(site, sculptures, { gate = 'closed', band = 'rest', context = true, draw, pieces = null } = {}) {
   const blocks = [];
   const used = new Set();
@@ -208,7 +232,19 @@ export function siteScene(site, sculptures, { gate = 'closed', band = 'rest', co
     for (const c of g.cells) add([...c, 3, 0, 0, band === 'flare' ? g.flare : g.rest]);
   }
   if (context) for (const t of site.terrain || []) for (const b of terrainBlocks(t, used)) add(b);
+  if (context) for (const b of lightBlocks(site.lights || [])) if (!used.has(K(b[0], b[1], b[2]))) add(b);
   return blocks;
+}
+
+/** Preview stand-ins for staff-built lights: an iron stand with a burning top (a bowl is one low block of fire). */
+export function lightBlocks(lights) {
+  const out = [];
+  for (const l of lights) {
+    const [x, y, z] = l.cell;
+    if (l.kind === 'brazier') { out.push([x, y, z, 2, 0, 0, pal('Iron 800')]); out.push([x, y + 1, z, 5, 0, 0, pal('Ember hot'), 'glow']); }
+    else out.push([x, y, z, 5, 0, 0, pal('Ember hot'), 'glow']);
+  }
+  return out;
 }
 
 /** Preview-only ground shapes (never built): a mound of sod, stepped one cell at a time, under what stands on it. */
@@ -217,8 +253,8 @@ export function terrainBlocks(t, used = new Set()) {
   if (t.kind === 'fire') {
     const [cx, cz] = t.centre, y = t.y || 0;
     for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) out.push([cx + dx, y, cz + dz, 5, 0, 0, t.ember]);
-    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) out.push([cx + dx, y + 1, cz + dz, 5, 0, 0, t.colour]);
-    out.push([cx, y + 2, cz, 5, 0, 0, t.colour]);
+    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) out.push([cx + dx, y + 1, cz + dz, 5, 0, 0, t.colour, 'glow']);
+    out.push([cx, y + 2, cz, 5, 0, 0, t.colour, 'glow']);
     return out.filter((b) => !used.has(K(b[0], b[1], b[2])));
   }
   if (t.kind !== 'mound') return out;

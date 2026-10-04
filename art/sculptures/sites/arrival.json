@@ -652,6 +652,100 @@
       "note": "Facing the avenue end, beside the path."
     }
   ],
+  "lights": [
+    {
+      "key": "C1",
+      "kind": "bowl",
+      "cell": [-7, 1, 2],
+      "note": "Fire bowls in the four corners of the court, on its floor."
+    },
+    {
+      "key": "C2",
+      "kind": "bowl",
+      "cell": [7, 1, 2]
+    },
+    {
+      "key": "C3",
+      "kind": "bowl",
+      "cell": [-7, 1, 16]
+    },
+    {
+      "key": "C4",
+      "kind": "bowl",
+      "cell": [7, 1, 16]
+    },
+    {
+      "key": "K1",
+      "kind": "brazier",
+      "cell": [-4, 0, 24],
+      "note": "Braziers on the ground one cell outside each kerb: a pair either side of the gate, then every 14.4 m (odd keys on the left)."
+    },
+    {
+      "key": "K2",
+      "kind": "brazier",
+      "cell": [4, 0, 24]
+    },
+    {
+      "key": "K3",
+      "kind": "brazier",
+      "cell": [-4, 0, 33]
+    },
+    {
+      "key": "K4",
+      "kind": "brazier",
+      "cell": [4, 0, 33]
+    },
+    {
+      "key": "K5",
+      "kind": "brazier",
+      "cell": [-4, 0, 45]
+    },
+    {
+      "key": "K6",
+      "kind": "brazier",
+      "cell": [4, 0, 45]
+    },
+    {
+      "key": "K7",
+      "kind": "brazier",
+      "cell": [-4, 0, 57]
+    },
+    {
+      "key": "K8",
+      "kind": "brazier",
+      "cell": [4, 0, 57]
+    },
+    {
+      "key": "K9",
+      "kind": "brazier",
+      "cell": [-4, 0, 69]
+    },
+    {
+      "key": "K10",
+      "kind": "brazier",
+      "cell": [4, 0, 69]
+    },
+    {
+      "key": "K11",
+      "kind": "brazier",
+      "cell": [-4, 0, 81]
+    },
+    {
+      "key": "K12",
+      "kind": "brazier",
+      "cell": [4, 0, 81]
+    },
+    {
+      "key": "K13",
+      "kind": "brazier",
+      "cell": [-4, 0, 93]
+    },
+    {
+      "key": "K14",
+      "kind": "brazier",
+      "cell": [4, 0, 93]
+    }
+  ],
   "terrain": [
     {
       "kind": "mound",

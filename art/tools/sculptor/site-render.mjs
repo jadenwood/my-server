@@ -38,7 +38,7 @@ function clipNear(pts, near) {
 }
 
 /** Projects site blocks ([x, y, z, mat, prefab, rot, colour]) for a camera into screen polygons, far to near. */
-export function projectView(blocks, cam, { width, height, haze = pal('Parchment 2'), fog = 0 } = {}) {
+export function projectView(blocks, cam, { width, height, haze = pal('Parchment 2'), fog = 0, night = false } = {}) {
   const { f, r, u } = cameraBasis(cam);
   const persp = cam.kind === 'persp';
   const F = persp ? width / 2 / Math.tan(rad(cam.fov || 60) / 2) : cam.scale;
@@ -53,6 +53,21 @@ export function projectView(blocks, cam, { width, height, haze = pal('Parchment 
     return sidesCache.get(k);
   };
   const light = norm([-0.5, 0.85, -0.6]);
+  // Night: a faint moon from the same side, and warm light from every 'glow' block (the staff fires): falling off over
+  // a few cells, only on faces turned toward the fire. Glowing blocks keep their own colour and get a halo.
+  const fires = night ? blocks.filter((b) => b[7] === 'glow').map((b) => [b[0] + 0.5, b[1] + 0.7, b[2] + 0.5]) : [];
+  const FIRE_R = 4.5;
+  const warmAt = (p, n) => {
+    let w = 0;
+    for (const L of fires) {
+      const d = subv(L, p), dd = dot(d, d);
+      if (dd > 400) continue;
+      const facing = Math.max(0, dot(n, norm(d)));
+      w += (0.25 + 0.75 * facing) / (1 + dd / (FIRE_R * FIRE_R));
+    }
+    return Math.min(1, w * 0.9);
+  };
+  const ember = pal('Ember hot');
   const toView = (p) => { const d = subv(p, eye); return [dot(d, r), dot(d, u), dot(d, f)]; };
   const toScreen = (v) => (persp ? [width / 2 + (F * v[0]) / v[2], height / 2 - (F * v[1]) / v[2]] : [width / 2 + F * v[0], height / 2 - F * v[1]]);
   const polys = [];
@@ -77,8 +92,27 @@ export function projectView(blocks, cam, { width, height, haze = pal('Parchment 
       const lit = 0.5 + 0.5 * Math.max(0, dot(face.n, light)) + (face.n[1] > 0.5 ? 0.06 : 0);
       let fill = shade(base, Math.min(1.12, lit));
       let stroke = shade(base, lit * 0.62);
-      if (fog > 0) { const t = 1 - Math.exp(-dist / fog); fill = mix(fill, haze, t); stroke = mix(stroke, haze, t); }
+      if (night) {
+        if (b[7] === 'glow') { fill = shade(base, face.n[1] > 0.5 ? 1.12 : 1.02); stroke = shade(base, 0.85); }
+        else {
+          const moon = shade(mix(base, pal('Dusk'), 0.55), 0.17 + 0.13 * Math.max(0, dot(face.n, light)));
+          const w = warmAt(cen, face.n);
+          const warm = mix(shade(base, 0.95), ember, 0.28);
+          fill = mix(moon, warm, w);
+          stroke = shade(fill, 0.7);
+        }
+      }
+      if (fog > 0) { const t = (1 - Math.exp(-dist / fog)) * (night && b[7] === 'glow' ? 0.3 : 1); fill = mix(fill, haze, t); stroke = mix(stroke, haze, t); }
       polys.push({ pts, depth: dist, fill, stroke });
+    }
+    // A halo round a fire, drawn at the fire's depth so nearer walls still hide it.
+    if (night && b[7] === 'glow') {
+      const v = toView([c0[0], c0[1] + 0.3, c0[2]]);
+      if (persp && v[2] <= near) continue;
+      const [hx, hy] = toScreen(v);
+      const hr = persp ? Math.max(4, (F * 2.4) / v[2]) : F * 2.4;
+      const dist = persp ? Math.hypot(...subv(c0, eye)) : dot(subv(c0, eye), f);
+      polys.push({ halo: true, cx: hx, cy: hy, r: hr, depth: dist - 0.6 });
     }
   }
   polys.sort((a, b) => b.depth - a.depth);
@@ -86,12 +120,12 @@ export function projectView(blocks, cam, { width, height, haze = pal('Parchment 
 }
 
 /** An SVG of a site view. `overlay(proj)` may return extra SVG drawn on top. */
-export function viewSvg(blocks, cam, { width = 1280, height = 720, fog = 0, overlay = null, title = '' } = {}) {
-  const haze = mix(pal('Parchment 2'), pal('Iron 200'), 0.35);
-  const proj = projectView(blocks, cam, { width, height, haze, fog });
+export function viewSvg(blocks, cam, { width = 1280, height = 720, fog = 0, overlay = null, title = '', night = false } = {}) {
+  const haze = night ? mix(pal('Night'), pal('Dusk'), 0.6) : mix(pal('Parchment 2'), pal('Iron 200'), 0.35);
+  const proj = projectView(blocks, cam, { width, height, haze, fog, night });
   const persp = cam.kind === 'persp';
-  const sky0 = mix(pal('Iron 200'), pal('Lapis'), 0.45), sky1 = mix(pal('Iron 200'), pal('Parchment'), 0.5);
-  const groundNear = mix(pal('Moss'), pal('Haze'), 0.4), groundFar = mix(groundNear, haze, 0.75);
+  const sky0 = night ? pal('Night') : mix(pal('Iron 200'), pal('Lapis'), 0.45), sky1 = night ? mix(pal('Dusk'), pal('Far ridge'), 0.35) : mix(pal('Iron 200'), pal('Parchment'), 0.5);
+  const groundNear = night ? mix(pal('Moss'), pal('Night'), 0.82) : mix(pal('Moss'), pal('Haze'), 0.4), groundFar = mix(groundNear, haze, 0.75);
   let ground = '';
   if (persp) {
     // The horizon: a far point straight ahead at eye height.
@@ -107,10 +141,13 @@ export function viewSvg(blocks, cam, { width = 1280, height = 720, fog = 0, over
     }
   }
   const sw = persp ? 0.6 : Math.max(0.3, Math.min(1, cam.scale / 14)).toFixed(2);
-  const body = proj.polys.map((p) => `<polygon points="${p.pts.map((q) => `${q[0].toFixed(1)},${q[1].toFixed(1)}`).join(' ')}" fill="${p.fill}" stroke="${p.stroke}" stroke-width="${sw}" stroke-linejoin="round"/>`).join('\n');
-  const label = title ? `<text x="16" y="${height - 16}" font-family="Georgia, serif" font-size="18" fill="${pal('Iron 950')}" opacity=".75">${title}</text>` : '';
+  const body = proj.polys.map((p) => p.halo
+    ? `<circle cx="${p.cx.toFixed(1)}" cy="${p.cy.toFixed(1)}" r="${p.r.toFixed(1)}" fill="url(#halo)"/>`
+    : `<polygon points="${p.pts.map((q) => `${q[0].toFixed(1)},${q[1].toFixed(1)}`).join(' ')}" fill="${p.fill}" stroke="${p.stroke}" stroke-width="${sw}" stroke-linejoin="round"/>`).join('\n');
+  const label = title ? `<text x="16" y="${height - 16}" font-family="Georgia, serif" font-size="18" fill="${night ? pal('Parchment 2') : pal('Iron 950')}" opacity=".75">${title}</text>` : '';
+  const halo = `<radialGradient id="halo"><stop offset="0" stop-color="${pal('Ember hot')}" stop-opacity=".7"/><stop offset=".3" stop-color="${pal('Ember')}" stop-opacity=".3"/><stop offset="1" stop-color="${pal('Ember deep')}" stop-opacity="0"/></radialGradient>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-<defs><linearGradient id="sk" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${sky0}"/><stop offset="1" stop-color="${sky1}"/></linearGradient></defs>
+<defs><linearGradient id="sk" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${sky0}"/><stop offset="1" stop-color="${sky1}"/></linearGradient>${halo}</defs>
 <rect width="${width}" height="${height}" fill="url(#sk)"/>
 ${ground}
 ${body}
@@ -124,7 +161,7 @@ export function siteViews(def) {
   return (def && def.previews) || [{ name: 'aerial', cam: { kind: 'ortho', yaw: 150, pitch: 32, centre: [0, 0, 60], scale: 5 } }];
 }
 
-/** A top-down plan, the axis left to right, with every point, box, plugin cell and sign labelled. */
+/** A top-down plan, the axis left to right, with every point, box, plugin cell and sign labelled, and the lights. */
 export function planSvg(site, sculptures, { width = 1900, height = 560 } = {}) {
   const blocks = siteScene(site, sculptures, { gate: 'closed', band: 'rest', context: false });
   const zs = blocks.map((b) => b[2]), xs = blocks.map((b) => b[0]);
@@ -167,6 +204,7 @@ export function planSvg(site, sculptures, { width = 1900, height = 560 } = {}) {
     const lbl = name.startsWith('banner.') ? name.slice(7) : name;
     o += txt(cx, cy - 7, lbl, { size: 10 });
   }
+  for (const l of site.lights || []) { const [cx, cy] = C(l.cell); o += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${l.kind === 'bowl' ? 4.5 : 3.5}" fill="${pal('Ember hot')}" stroke="${pal('Ember deep')}" stroke-width="1.5"/>`; }
   for (const s of site.signs) { const [cx, cy] = C(s.cell); o += `<rect x="${(cx - 3).toFixed(1)}" y="${(cy - 3).toFixed(1)}" width="6" height="6" fill="${pal('Lapis')}"/>` + txt(cx, cy + 15, s.key, { size: 9, fill: pal('Lapis') }); }
   // Piece names.
   const pieceLabel = (p, s) => { const [cx, cy] = S(p.at[0] + p.size[0] / 2, p.at[2] + p.size[2] / 2); return txt(cx, cy + 4, s, { size: 10, fill: pal('Iron 950'), weight: 400 }); };
@@ -202,7 +240,7 @@ export async function renderSitePreviews(site, sculptures, outDir, def, only = n
       if (only && !only.includes(v.name)) continue;
       const blocks = siteScene(site, sculptures, v.state || {});
       const w = v.width || 1280, h = v.height || 720;
-      await shot(viewSvg(blocks, v.cam, { width: w, height: h, fog: v.fog || 0, title: v.title || '' }), path.join(outDir, `site-${site.id}-${v.name}.png`), w, h);
+      await shot(viewSvg(blocks, v.cam, { width: w, height: h, fog: v.fog || 0, title: v.title || '', night: !!v.night }), path.join(outDir, `site-${site.id}-${v.name}.png`), w, h);
     }
     if (!only || only.includes('plan')) await shot(planSvg(site, sculptures), path.join(outDir, `site-${site.id}-plan.png`), 1900, 560);
   } finally {

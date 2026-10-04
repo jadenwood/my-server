@@ -192,6 +192,7 @@ async function main() {
     for (const p of r.pieces.filter((x) => x.by === 'sculptor').sort((a, b) => a.order - b.order)) console.log(`  ${String(p.order).padStart(2)}. ${p.key.padEnd(18)} stand ${p.stand.join(',')} facing ${p.facing}: ${p.command}   (corner ${p.corner.join(',')})`);
     for (const p of r.pieces.filter((x) => x.by === 'plugin')) console.log(`  plugin  ${p.key}: corner ${p.corner.join(',')}`);
     for (const [k, c] of Object.entries(r.points)) console.log(`  point ${k}: ${c.join(',')}`);
+    for (const l of site.lights || []) console.log(`  light ${l.key} (${l.kind}, staff-built): ${r.lights[l.key].join(',')}`);
   } else if (cmd === 'masks') {
     const { buildMasks } = await import('./masks.mjs');
     const m = await buildMasks();

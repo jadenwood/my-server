@@ -81,6 +81,17 @@ export const PILLAR = { x0: -11, z0: 112 };
 export const WAYBOARD = { x0: 9, z0: 108, turn: 1 };
 export const THRONE = { x0: -7, z0: 178, lift: 10 };     // context only: the Old Throne on its hill, for previews
 
-export const HOUSE_SLOTS = ['p1-left', 'p1-right', 'p2-left', 'p2-right', 'p3-left', 'p3-right'];
+// Staff-built lights (docs/arrival-design.md 3.4 and 4.2: "fire bowls in the corners", "braziers on both kerbs about
+// every 12 m", so the court and the avenue read at night). Ordinary building, never Sculptor or plugin cells: the site
+// only says where they go. Court bowls stand in the four corners of the floor inside the walls, clear of the stones
+// and the Pilgrim's door (the eaves are 7 cells above them); braziers stand on the ground one cell outside each kerb, a pair either side
+// of the gate and then every 12 cells (14.4 m), each clear of the pledge stones and their crest posts.
+export const LIGHTS = {
+  bowls: [[-7, 2], [7, 2], [-7, 16], [7, 16]],          // [x, z], on the court floor (feet cell y 1)
+  kerbX: 4,                                             // braziers at x = -4 and 4, on the ground (y 0)
+  kerbZ: [24, 33, 45, 57, 69, 81, 93],
+};
+
+export const HOUSE_SLOTS =['p1-left', 'p1-right', 'p2-left', 'p2-right', 'p3-left', 'p3-right'];
 // The draw the previews show. The real order is drawn by lot in public at every build (docs/arrival-design.md 3.7).
 export const PREVIEW_DRAW = { 'p1-left': 'varrow', 'p1-right': 'dunmere', 'p2-left': 'ashgrove', 'p2-right': 'corvane', 'p3-left': 'halloran', 'p3-right': 'merrin' };
