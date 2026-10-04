@@ -24,6 +24,7 @@ export const EVENT_ICONS = {
   blood_claim: 'blood-claim', blood_restored: 'sprout', title_bestowed: 'collar', title_earned: 'medal',
   treasury_mint: 'mint', treasury_grant: 'grant', tithe_levied: 'tithe', great_trade: 'purse', rumour: 'whisper',
   holding_taken: 'holding',
+  vote_held: 'ballot',
 };
 
 // The six great houses of Ostreval (art/palette.json). Only these have drawn arms. A house a player
