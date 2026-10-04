@@ -94,6 +94,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin RealmSeasons;
         [PluginReference] private Plugin RealmChronicle;
         [PluginReference] private Plugin RealmHerald;
+        [PluginReference] private Plugin RealmArrival;
         [PluginReference] private Plugin RealmEvents;
         [PluginReference] private Plugin RealmWarden;
         [PluginReference] private Plugin RealmSentinel;
@@ -1331,15 +1332,38 @@ namespace Oxide.Plugins
             p.LastSeen = Now();
             string before = p.DayKey;
             Roll(id, p);
-            if (!known && HasContent()) Reply(player, "FirstHint");
+            // RealmArrival's Next line replaces the first hint while it owns the newcomer and once their arrival is done.
+            if (!known && HasContent() && !ArrivalHandles(id)) Reply(player, "FirstHint");
             else if (before != null && before != p.DayKey && config.DailiesEnabled && dailies.Count > 0) Reply(player, "NewDay", p.Daily.Count);
             return p;
+        }
+
+        // RealmArrival (docs/arrival-design.md 7.3): ArrivalStage is pending|crossing|running while it owns a newcomer's
+        // first minutes, done afterwards, none (or null, not loaded) when it does not handle them.
+        private string ArrivalStageOf(string id)
+        {
+            if (RealmArrival == null) return null;
+            try { return RealmArrival.Call("ArrivalStage", id) as string; }
+            catch (Exception) { return null; }
+        }
+
+        private bool ArrivalOwns(string id)
+        {
+            string s = ArrivalStageOf(id);
+            return s == "pending" || s == "crossing" || s == "running";
+        }
+
+        private bool ArrivalHandles(string id)
+        {
+            string s = ArrivalStageOf(id);
+            return s == "pending" || s == "crossing" || s == "running" || s == "done";
         }
 
         // A chapter of the tale that has opened since the player last looked: told once, with its intro.
         private void ChapterNews(Player player, PlayerQ p)
         {
             if (story == null || !config.StoryEnabled) return;
+            if (player != null && ArrivalOwns(player.Id.ToString())) return;   // told after RealmArrival's narration ends
             ChapterDef ch;
             string wait;
             QuestDef step = CurrentStep(p, out ch, out wait);

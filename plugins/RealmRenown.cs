@@ -197,6 +197,7 @@ namespace Oxide.Plugins
             d.Add("outlawed", D("was declared outlaw", 0, 50, 720));
             d.Add("truce_broken", D("broke the Truce of the Realm", 0, 30, 0));
             d.Add("holding_taken", D("took a holding for their house", 30, 0, 60));   // RealmDominion (AddDeed)
+            d.Add("written", D("walked out of the Gatehouse of the Unwritten", 5, 0, 0));   // RealmArrival and RealmQuests ex_written (once)
             // Reported by RealmQuests through AddDeed (one dedupe key per task, step or tier).
             d.Add("quest_daily", D("finished a daily task", 5, 0, 0));
             d.Add("quest_weekly", D("finished a weekly task", 15, 0, 0));

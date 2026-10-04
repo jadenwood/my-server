@@ -1811,6 +1811,34 @@
       ]
     },
     {
+      "Id": "ex_written",
+      "Name": "Written",
+      "Category": "exploration",
+      "Text": "The first steps of the Unwritten: the gate, the banners, the fire, the crown and the first road.",
+      "Objective": {
+        "Type": "custom",
+        "Count": 1,
+        "Text": "Arrival steps",
+        "Distinct": true,
+        "Targets": [
+          "arrival_gate",
+          "arrival_banners",
+          "arrival_pledge",
+          "arrival_hearth",
+          "arrival_crown",
+          "arrival_road"
+        ]
+      },
+      "Tiers": [
+        {
+          "Count": 5,
+          "Reward": {
+            "Renown": "written"
+          }
+        }
+      ]
+    },
+    {
       "Id": "ex_hearth",
       "Name": "Keeper of the Flame",
       "Category": "exploration",

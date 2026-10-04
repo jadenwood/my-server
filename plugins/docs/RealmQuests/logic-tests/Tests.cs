@@ -21,7 +21,7 @@ static class T
         Repo = argv.Length > 0 ? argv[0] : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
         Content(); ContentRules(); ContentFiles(); DataSafety(); Assignment(); Rerolls(); Abandoning();
         Creatures(); Crafting(); Building(); Places(); Presence(); Events(); Oaths(); Chronicle(); Contracts(); Delivery(); AnyOne();
-        Rewards(); Goods(); StoryLine(); Achievements(); HouseGoals(); PvP(); Journal(); AchievementsCommand(); AdminCommands(); Api(); Config();
+        Rewards(); Goods(); StoryLine(); Achievements(); HouseGoals(); PvP(); Journal(); AchievementsCommand(); AdminCommands(); Api(); Config(); Arrival();
         Console.WriteLine(pass + " passed, " + fail + " failed");
         return fail == 0 ? 0 : 1;
     }
@@ -1031,6 +1031,64 @@ static class T
         Ok((string)Inv(Q, "GetStoryProgress", a.Id.ToString()) == "Act 1: The Empty Seat - Ash at the Hearth", "GetStoryProgress", (string)Inv(Q, "GetStoryProgress", a.Id.ToString()));
         HouseOf[a.Id] = "Varrow"; HouseOf[76561198000000002] = "Varrow";
         Ok(Inv(Q, "GetHouseGoalText", "Varrow") is string, "GetHouseGoalText draws a goal for any house it is asked about");
+    }
+
+    // RealmArrival (docs/arrival-design.md 5.4, 7.3): the ex_written achievement (renown only), FirstHint left to the
+    // arrival's Next line, and the tale's first news held until the arrival is done.
+    static void Arrival()
+    {
+        Reset();
+        NewQuests();
+        var ach = ((IList)F(Q, "achievements")).Cast<object>().FirstOrDefault(x => (string)F(x, "Id") == "ex_written");
+        Ok(ach != null, "arrival: ex_written is loaded from Achievements.json");
+        if (ach != null)
+        {
+            var obj = F(ach, "Objective");
+            var targets = (List<string>)F(obj, "Targets");
+            Ok((string)F(obj, "Type") == "custom" && (bool)F(obj, "Distinct") && targets.Count == 6 && targets.Contains("arrival_road"),
+                "arrival: ex_written counts six distinct custom arrival subjects");
+            var tiers = ((IList)F(ach, "Tiers")).Cast<object>().ToList();
+            var reward = F(tiers[0], "Reward");
+            Ok(tiers.Count == 1 && Convert.ToInt64(F(tiers[0], "Count")) == 5 && (string)F(reward, "Renown") == "written" && Convert.ToInt64(F(reward, "Marks")) == 0,
+                "arrival: one tier at five steps, renown 'written', no marks");
+        }
+        var a = Mk(76561198000000101, "Ysolde");
+        Clear();
+        foreach (var subj in new[] { "arrival_gate", "arrival_gate", "arrival_banners", "arrival_hearth", "arrival_crown" })
+            Inv(Q, "ReportQuestEvent", a.Id.ToString(), "custom", subj, 1);
+        Ok(AchTier(a, "ex_written") == 0, "arrival: a repeated subject counts once (four distinct steps: no tier yet)", AchCount(a, "ex_written").ToString());
+        Inv(Q, "ReportQuestEvent", a.Id.ToString(), "custom", "arrival_road", 1);
+        Ok(AchTier(a, "ex_written") == 1, "arrival: the fifth distinct step earns Written");
+        Ok(Deeds.Any(d => d.Contains("|written|")) && RewardCalls.Count == 0, "arrival: Written pays the renown deed, never marks", string.Join("\n", Deeds));
+
+        // FirstHint and the tale's first news.
+        Reset();
+        NewQuests();
+        var stages = new Dictionary<string, string>();
+        var arrival = new Oxide.Core.Plugins.Plugin { Name = "RealmArrival", Handler = (h, x) => { string st; return h == "ArrivalStage" && stages.TryGetValue((string)x[0], out st) ? st : null; } };
+        SetF(Q, "RealmArrival", arrival);
+        Season(0);
+        var n = new Player(76561198000000102, "Wren", 24);
+        stages[n.Id.ToString()] = "pending";
+        Server.ClientPlayers.Add(n); Everyone.Add(n);
+        Inv(Q, "OnPlayerConnected", n);
+        Ok(!n.All().Contains("Tasks wait for you on the quest-board"), "arrival: no FirstHint while RealmArrival owns the newcomer", n.All());
+        stages[n.Id.ToString()] = "running";
+        Poll();
+        Ok(!n.All().Contains("The tale of the season begins"), "arrival: the tale's first news waits during the arrival", n.All());
+        stages[n.Id.ToString()] = "done";
+        Poll();
+        Ok(n.All().Contains("The tale of the season begins"), "arrival: told once the arrival is done", n.All());
+        var o = new Player(76561198000000103, "Osric", 24);
+        stages[o.Id.ToString()] = "done";
+        Server.ClientPlayers.Add(o); Everyone.Add(o);
+        Inv(Q, "OnPlayerConnected", o);
+        Ok(!o.All().Contains("Tasks wait for you on the quest-board"), "arrival: no FirstHint for a newcomer whose arrival is done (Next replaced it)", o.All());
+        var m = new Player(76561198000000104, "Merle", 24);
+        stages[m.Id.ToString()] = "none";
+        Server.ClientPlayers.Add(m); Everyone.Add(m);
+        Inv(Q, "OnPlayerConnected", m);
+        Ok(m.All().Contains("Tasks wait for you on the quest-board"), "arrival: stage none (closed or paused): FirstHint as before", m.All());
     }
 
     static void Config()

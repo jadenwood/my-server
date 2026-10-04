@@ -713,6 +713,20 @@ static class Tests
         var v = Mk(Dd, "Vera");
         T.timer.RunPending();
         Ok(!v.All().Contains("traveller's pack waits"), "a veteran is not told");
+        // RealmArrival's Kit line at the fire replaces the hint while it owns the newcomer and once the arrival is done;
+        // stage none (closed or paused) keeps the hint. Who may claim is unchanged.
+        foreach (var st in new[] { "pending", "crossing", "running", "done", "none" })
+        {
+            Reset();
+            NewTravel();
+            SetF(T, "RealmArrival", new Oxide.Core.Plugins.Plugin { Name = "RealmArrival", Handler = (h, a) => h == "ArrivalStage" ? st : null });
+            Protected.Add(C);
+            var w = Mk(C, "Wynn");
+            T.timer.RunPending();
+            bool told = w.All().Contains("traveller's pack waits");
+            Ok(st == "none" ? told : !told, "arrival stage " + st + ": the 45 s kit hint is " + (st == "none" ? "sent" : "left to RealmArrival"), w.All());
+            if (st == "done") Ok(Cmd(w, "kit", "starter").Contains("You take the Traveller's Pack"), "arrival: the starter kit is still claimable without the hint");
+        }
     }
 
     static void HouseKit()
