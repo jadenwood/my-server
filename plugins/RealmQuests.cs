@@ -153,6 +153,7 @@ namespace Oxide.Plugins
         private DateTime lastFeedPoll = DateTime.MinValue;
         private DateTime lastSave = DateTime.MinValue;
         private int depth;                                       // guards achievement-of-achievement recursion
+        private int storyChain;                                  // guards story steps closing one another
 
         // Content (read-only, reloaded with /quest admin reload).
         private readonly Dictionary<string, QuestDef> dailies = new Dictionary<string, QuestDef>(StringComparer.OrdinalIgnoreCase);
@@ -255,7 +256,7 @@ namespace Oxide.Plugins
             public int HouseGoalCount = 1;
             public int HouseGoalMinMembers = 2;
             public int HouseGoalMinContributors = 2;
-            public int HouseGoalMemberCapPercent = 40;
+            public int HouseGoalMemberCapPercent = 50;
             public int HouseMemberMinHours = 12;
             public float TickSeconds = 30f;
             public float FeedPollSeconds = 60f;
@@ -470,7 +471,7 @@ namespace Oxide.Plugins
             public List<PlaceDef> Places;
         }
 
-        private T ReadContent<T>(string name) where T : class
+        private T ReadContent<T>(string name) where T : class, new()
         {
             string path = ContentDir + name;
             if (!Interface.Oxide.DataFileSystem.ExistsDatafile(path)) { contentStatus[name] = "missing"; return null; }
@@ -1784,17 +1785,25 @@ namespace Oxide.Plugins
             }
             bool allDone = true;
             foreach (ChapterDef c in story.Chapters) if (!p.Story.Finished.Contains("chapter:" + c.Id)) { allDone = false; break; }
+            ChapterDef next = null;
+            QuestDef n = null;
             if (allDone) FinishStory(id, p, online, popup);
-            else if (online != null)
+            else
             {
-                ChapterDef next;
                 string wait;
-                QuestDef n = CurrentStep(p, out next, out wait);
-                if (n != null) Reply(online, "StoryNext", n.Title);
-                else if (wait == "day" && next != null) Reply(online, "LogText", Fmt("StoryWaitDay", online, next.UnlockDay + 1));
+                n = CurrentStep(p, out next, out wait);
+                if (online != null && n != null) Reply(online, "StoryNext", n.Title);
+                else if (online != null && wait == "day" && next != null) Reply(online, "LogText", Fmt("StoryWaitDay", online, next.UnlockDay + 1));
             }
             if (online != null && config.PopupOnComplete && PopupsFor(online)) ShowInfoPopup(online, story.Title, popup.ToString(), Msg("PopupButton", online));
             Record(id, null, TQuests, KStory, 1, null);
+            // The next step may already be done (a waived visit, an AnyOne step): close it too, a few at most.
+            if (n != null && storyChain < 5 && p.Story.StepId == n.Id && AllDone(n, p.Story.Progress))
+            {
+                storyChain++;
+                try { CompleteStep(id, p, online, next, n); }
+                finally { storyChain--; }
+            }
         }
 
         private void FinishStory(string id, PlayerQ p, Player online, StringBuilder popup)
@@ -2533,13 +2542,7 @@ namespace Oxide.Plugins
                 string id = pl.Id.ToString();
                 PlayerQ p = FindPlayer(id);
                 if (p == null) continue;
-                string house = HouseOf(id);
-                if (!SameName(house, p.House))
-                {
-                    p.House = house;
-                    p.HouseSince = Now();
-                    dirty = true;
-                }
+                string house = RefreshHouse(id, p);
                 if (house != null)
                 {
                     RecordState(id, THouse, "member", 1);
@@ -2584,6 +2587,20 @@ namespace Oxide.Plugins
                 if (step == null || !AllDone(step, p.Story.Progress)) break;
                 CompleteStep(id, p, online, ch, step);
             }
+        }
+
+        // The player's house as RealmHouses has it now; a change restarts HouseSince (house hopping gains nothing).
+        private string RefreshHouse(string id, PlayerQ p)
+        {
+            if (RealmHouses == null) return p.House;
+            string house = HouseOf(id);
+            if (!SameName(house, p.House))
+            {
+                p.House = house;
+                p.HouseSince = Now();
+                dirty = true;
+            }
+            return house;
         }
 
         // Oaths: a house whose liege changed has sworn; the liege accepted. Credited to members of a real house.
@@ -2642,7 +2659,7 @@ namespace Oxide.Plugins
             public string[] actors;
         }
 
-        private T ReadForeign<T>(string name, string feed) where T : class
+        private T ReadForeign<T>(string name, string feed) where T : class, new()
         {
             if (!Interface.Oxide.DataFileSystem.ExistsDatafile(name)) { feedStatus[feed] = "no oxide/data/" + name + ".json"; return null; }
             T obj = null;
@@ -2806,6 +2823,7 @@ namespace Oxide.Plugins
             if (!config.Enabled) { ReplyError(player, "Disabled"); return; }
             PlayerQ p = Seen(player);
             if (p == null) return;
+            RefreshHouse(player.Id.ToString(), p);
             switch (sub)
             {
                 case "":
