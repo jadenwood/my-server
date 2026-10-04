@@ -24,7 +24,7 @@ test('realm-art.js is the same file as the Chronicle pages use (portal/scripts/s
   const mine = readFileSync(new URL('../public/assets/realm-art.js', import.meta.url), 'utf8');
   const theirs = readFileSync(new URL('../../chronicle/public/assets/realm-art.js', import.meta.url), 'utf8');
   assert.equal(mine, theirs);
-  assert.equal(Object.keys(EVENT_ICONS).length, 43);
+  assert.equal(Object.keys(EVENT_ICONS).length, 44);
 });
 
 test('every scene loads only local fonts and art, under a CSP without third parties', async () => {

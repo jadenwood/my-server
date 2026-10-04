@@ -29,6 +29,8 @@ export const EVENT_TYPES = new Set([
   'treasury_mint', 'treasury_grant', 'tithe_levied', 'great_trade', 'rumour',
   // RealmDominion
   'holding_taken',
+  // RealmWorld
+  'census_taken',
 ]);
 
 const MIME = {

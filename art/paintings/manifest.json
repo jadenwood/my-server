@@ -444,6 +444,15 @@
       "sha256": "20f428a7d3f9cec05e40e7172611bcd0f606f7bb70235dffcb95a8d85180d3b2"
     },
     {
+      "id": "icon-24-census",
+      "kind": "mask",
+      "width": 24,
+      "height": 24,
+      "file": "art/paintings/sprites/icon-24-census.png",
+      "bytes": 313,
+      "sha256": "c29df38db31db537428c0f27bbf564712a9f7f2a66cb098f4e7709cb5b70ceea"
+    },
+    {
       "id": "icon-24-claim",
       "kind": "mask",
       "width": 24,
@@ -1008,5 +1017,5 @@
       "sha256": "742167c3b8fe954a15b8918a667948d5212a78eb609e9edbccacb0810bcd2719"
     }
   ],
-  "version": "3204613439985fa3"
+  "version": "d0c68e72ed629549"
 }

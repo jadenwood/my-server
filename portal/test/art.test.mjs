@@ -24,7 +24,7 @@ test('the art copies in portal, chronicle and streamkit match art/ (node portal/
 
 test('every Chronicle event type has its own icon, and the sprite has it', () => {
   const types = Object.keys(TYPE_META);
-  assert.equal(types.length, 43);
+  assert.equal(types.length, 44);
   const used = new Set();
   for (const t of types) {
     assert.ok(EVENT_ICONS[t], `${t} has an icon`);
@@ -52,7 +52,7 @@ test('season medals cycle I to IV; titles are found in Chronicle text', () => {
   assert.match(seasonBadge(1), /season-1\.svg/);
   assert.match(seasonBadge(6), /season-2\.svg/);
   assert.equal(seasonBadge(0), '');
-  assert.equal(TITLES.length, 22);
+  assert.equal(TITLES.length, 25);
   assert.equal(titleOf('Wren is named Champion of the Lists').id, 'champion');
   assert.equal(titleOf('Hale is named the Renowned').id, 'renowned');
   assert.equal(titleOf('Hale is named Lord of Ashes'), null);

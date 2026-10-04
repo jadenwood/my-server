@@ -24,6 +24,7 @@ export const EVENT_ICONS = {
   blood_claim: 'blood-claim', blood_restored: 'sprout', title_bestowed: 'collar', title_earned: 'medal',
   treasury_mint: 'mint', treasury_grant: 'grant', tithe_levied: 'tithe', great_trade: 'purse', rumour: 'whisper',
   holding_taken: 'holding',
+  census_taken: 'census',
 };
 
 // The six great houses of Ostreval (art/palette.json). Only these have drawn arms. A house a player
@@ -44,7 +45,8 @@ export const TITLES = [
   ['unbowed', 'The Unbowed', false], ['shield_of_crown', 'Shield of the Crown', false], ['long_reign', 'The Long Reign', false],
   ['warden_of_roads', 'Warden of Roads', false], ['sellsword', 'Sellsword', false], ['headtaker', 'Headtaker', false],
   ['champion', 'Champion of the Lists', false], ['duelist', 'the Duelist', false], ['ring_champion', 'Champion of the Ring', false],
-  ['ring_master', 'Master of the Ring', false], ['ring_victor', 'Victor of the Ring', false], ['huntsman', "Crown's Huntsman", false], ['renowned', 'the Renowned', false],
+  ['ring_master', 'Master of the Ring', false], ['ring_victor', 'Victor of the Ring', false], ['huntsman', "Crown's Huntsman", false],
+  ['hoardfinder', 'Hoardfinder', false], ['caravan_warden', 'Caravan Warden', false], ['bane_of_legends', 'Bane of Legends', false], ['renowned', 'the Renowned', false],
   ['legend', 'Legend of Ostreval', false], ['oathbreaker', 'Oathbreaker', true], ['faithless', 'The Faithless', true],
   ['trucebreaker', 'Trucebreaker', true], ['hunted', 'The Hunted', true], ['black_name', 'Black Name', true],
 ].map(([id, name, infamous]) => ({ id, name, infamous, file: `badges/titles/${id.replace(/_/g, '-')}.svg` }));
