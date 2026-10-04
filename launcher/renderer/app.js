@@ -833,8 +833,8 @@
       (r) => {
         const parts = [];
         parts.push(r.copied ? `Deployed ${plural(r.copied, 'plugin file')} to ${plural(r.servers, 'server')}. Oxide reloads them while the server runs.` : `All plugins are already up to date on ${plural(r.servers, 'server')}.`);
-        if (r.dataCopied) parts.push(`${plural(r.dataCopied, 'data file')} (monuments, sign art, quests) copied too${r.reloaded && r.reloaded.length ? `; reloaded ${r.reloaded.filter((x) => x.ok).map((x) => x.plugin).join(', ') || 'none'}` : ''}.`);
-        if (r.data && r.data.invalid.length) parts.push(`Not copied (damaged): ${r.data.invalid.map((x) => x.file).join(', ')}.`);
+        if (r.dataCopied) parts.push(`${plural(r.dataCopied, 'data file')} (monuments, sign art, quests, arrival site) copied too${r.reloaded && r.reloaded.length ? `; reloaded ${r.reloaded.filter((x) => x.ok).map((x) => x.plugin).join(', ') || 'none'}` : ''}.`);
+        if (r.data && r.data.invalid.length) parts.push(`Not copied (damaged): ${r.data.invalid.map((x) => (x.source ? `${x.file} (from ${x.source})` : x.file)).join(', ')}.`);
         return parts.join(' ');
       }
     )

@@ -58,6 +58,13 @@
       "filter": [
         "*.json"
       ]
+    },
+    {
+      "from": "../art/sculptures/sites",
+      "to": "realm-data/RealmArrival",
+      "filter": [
+        "arrival.json"
+      ]
     }
   ],
   "extraFiles": [

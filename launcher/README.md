@@ -31,7 +31,7 @@ On first start the **setup wizard** opens by itself. You can reopen it later wit
 | First start | Runs only if `Configuration\ServerSettings.cfg` is missing. Starts the server once until the settings file exists. On its very first run the game writes the file and exits by itself ("This is the first time you have run this server.", [DEC] `CoreServer`); Realm counts that as success. | `Realm.ps1` step 2 |
 | Download Oxide | Downloads `Oxide.ReignOfKings.zip` 2.0.3867 through Windows' network settings, saves it as `.part`, checks SHA-256 `6c35c623…c6c8`, then renames it. One download serves every server. | `Realm.ps1` step 3 |
 | Install Oxide | Refuses while that server runs. Every zip entry must be under `ROK_Data/`. Each file it overwrites is copied to `_realm-backups\oxide-<time>\` first, and a failed extraction puts the originals back. | `Install-Oxide.ps1` |
-| Raise the banners | Copies the bundled `plugins\*.cs` into `oxide\plugins`. | `Deploy-Plugins.ps1` |
+| Raise the banners | Copies the plugins' data files into `oxide\data` (see Plugin data files), then the bundled `plugins\*.cs` into `oxide\plugins`. | `Deploy-Plugins.ps1` |
 
 The **folder rules** are the same as `RealmCommon.ps1`. A folder must be a full path on a local drive, not on `C:`, and not inside `steamapps`, `Steam` or `SteamLibrary`. It must not overlap the Steam server, the Steam install or **another Realm server's folder**, and it must not be the top of a drive. Every write needs the `.realm-test-copy` marker.
 
@@ -187,8 +187,9 @@ Some plugins read files Realm ships rather than files they write. **Update plugi
 | `art/sculptures/*.json` | `oxide\data\RealmSculptor\` | RealmSculptor (monuments) |
 | `art/paintings/RealmPainterArt.json` | `oxide\data\` | RealmPainter (sign art; the Features screen shows its version) |
 | `plugins/docs/RealmQuests/content/*.json` | `oxide\data\RealmQuests\` | RealmQuests (tasks, story, deeds, places) |
+| `art/sculptures/sites/arrival.json` | `oxide\data\RealmArrival\site.json` (renamed) | RealmArrival (the Gatehouse site plan) |
 
-Every source file must parse as a JSON object first; a damaged or truncated one is not copied and the server's copy is left as it is. A changed file on the server is saved to `_realm-backups\data-<time>\` before it is replaced. Files you added yourself (your own sculpture) are listed but never touched. Each copy is written to `<name>.realm-part` and renamed into place. A running server reloads the plugins whose data changed over the admin console. In the installer the files are under `resources\realm-data` (`build/steward.json` `extraResources`). The Features screen shows each set and whether it still needs deploying.
+Every source file must parse as a JSON object first; a damaged or truncated one is not copied and the server's copy is left as it is. A changed file on the server is saved to `_realm-backups\data-<time>\` before it is replaced. Files you added yourself (your own sculpture) are listed but never touched. Each copy is written to `<name>.realm-part` and renamed into place. A file the plugin reads under another name (RealmArrival's `site.json`) is compared, backed up and written under that name. A running server reloads the plugins whose data changed over the admin console. In the installer the files are under `resources\realm-data` (`build/steward.json` `extraResources`). The Features screen shows each set and whether it still needs deploying.
 
 ---
 

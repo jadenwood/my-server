@@ -284,7 +284,7 @@ test('data deploy: sculptures, painter bundle and quest content land in oxide\\d
 test('data deploy: the development sources are the repository files', async () => {
   const repo = path.join(__dirname, '..', '..');
   const sets = R.dataSets(repo, false);
-  assert.deepEqual(sets.map((s) => s.plugin), ['RealmSculptor', 'RealmPainter', 'RealmQuests']);
+  assert.deepEqual(sets.map((s) => s.plugin), ['RealmSculptor', 'RealmPainter', 'RealmQuests', 'RealmArrival']);
   const base = await tmpdir();
   const { root } = await makeTestCopy(base);
   const plan = await R.planData(root, sets);
@@ -294,6 +294,77 @@ test('data deploy: the development sources are the repository files', async () =
   }
   assert.ok(plan.sets.find((s) => s.id === 'sculptures').files >= 11);
   assert.match(plan.sets.find((s) => s.id === 'paintings').version, /^[0-9a-f]{16}$/);
+  // RealmArrival reads the site plan art/sculptures/sites/arrival.json as oxide/data/RealmArrival/site.json.
+  const arrival = plan.items.filter((i) => i.set === 'arrival');
+  assert.deepEqual(arrival.map((i) => [i.name, i.rel]), [['arrival.json', 'RealmArrival/site.json']]);
+  assert.equal(arrival[0].dest, path.join(root, 'oxide', 'data', 'RealmArrival', 'site.json'));
+  assert.equal(JSON.parse(fs.readFileSync(arrival[0].src, 'utf8')).format, 'realm-site/1');
+  // The sites folder is not a sculpture: the sculptures set never picks it up.
+  assert.ok(!plan.items.some((i) => i.set === 'sculptures' && /arrival/.test(i.name)));
+});
+
+test('data deploy: the arrival site plan is written as RealmArrival/site.json with backups and the usual rules', async () => {
+  const base = await tmpdir();
+  const { root } = await makeTestCopy(base);
+  const res = path.join(base, 'res');
+  const sets = R.dataSets(res, true).filter((s) => s.id === 'arrival');
+  assert.equal(sets.length, 1);
+  assert.equal(sets[0].src, path.join(res, 'realm-data', 'RealmArrival'));
+  const srcDir = sets[0].src;
+  const dir = path.join(root, 'oxide', 'data', 'RealmArrival');
+  await write(path.join(srcDir, 'arrival.json'), '{"format":"realm-site/1","id":"arrival","v":1}');
+  await write(path.join(srcDir, 'other-site.json'), '{"format":"realm-site/1","id":"other"}');
+  await write(path.join(srcDir, 'site.json'), '{"not":"shipped"}');
+
+  const first = await R.deployData(root, sets);
+  assert.equal(first.copied, 1);
+  assert.deepEqual(first.reload, ['RealmArrival']);
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['site.json'], 'only arrival.json is shipped, and only under its destination name');
+  assert.equal(await fsp.readFile(path.join(dir, 'site.json'), 'utf8'), '{"format":"realm-site/1","id":"arrival","v":1}');
+  const summary = first.sets[0];
+  assert.deepEqual(summary.renamed, [{ from: 'arrival.json', to: 'site.json' }]);
+  assert.deepEqual(summary.others, [], 'the deployed site.json is not listed as an owner file');
+  assert.equal(first.items[0].name, 'arrival.json');
+  assert.equal(first.items[0].destName, 'site.json');
+  assert.equal(first.items[0].rel, 'RealmArrival/site.json');
+
+  // Unchanged: nothing to do. The owner's own file in the folder is listed, never touched.
+  await write(path.join(dir, 'my-notes.json'), '{"mine":true}');
+  const second = await R.deployData(root, sets);
+  assert.equal(second.copied, 0);
+  assert.equal(second.items[0].state, 'unchanged');
+  assert.deepEqual(second.sets[0].others, ['my-notes.json']);
+
+  // Changed: the server's site.json is backed up under its own name before it is replaced.
+  await write(path.join(srcDir, 'arrival.json'), '{"format":"realm-site/1","id":"arrival","v":2}');
+  const third = await R.deployData(root, sets);
+  assert.equal(third.copied, 1);
+  assert.equal(await fsp.readFile(path.join(third.backupDir, 'RealmArrival', 'site.json'), 'utf8'), '{"format":"realm-site/1","id":"arrival","v":1}');
+  assert.equal(await fsp.readFile(path.join(dir, 'site.json'), 'utf8'), '{"format":"realm-site/1","id":"arrival","v":2}');
+  assert.ok(!fs.readdirSync(dir).some((n) => n.endsWith('.realm-part')));
+  assert.equal(await fsp.readFile(path.join(dir, 'my-notes.json'), 'utf8'), '{"mine":true}');
+
+  // A damaged or non-object source is refused; the good site.json on the server stays.
+  for (const bad of ['{"format":"realm-si', '[1,2]']) {
+    await write(path.join(srcDir, 'arrival.json'), bad);
+    const r = await R.deployData(root, sets);
+    assert.equal(r.copied, 0);
+    assert.equal(r.invalid, 1);
+    assert.equal(r.items[0].state, 'invalid');
+    assert.equal(r.items[0].rel, 'RealmArrival/site.json');
+    assert.equal(await fsp.readFile(path.join(dir, 'site.json'), 'utf8'), '{"format":"realm-site/1","id":"arrival","v":2}');
+  }
+});
+
+test('data deploy: an `as` rename to an unsafe name is ignored (the file keeps its own name)', async () => {
+  const base = await tmpdir();
+  const { root } = await makeTestCopy(base);
+  const src = path.join(base, 'src');
+  await write(path.join(src, 'a.json'), '{"a":1}');
+  const sets = [{ id: 't', label: 'T', plugin: 'RealmTest', src, dest: 'RealmTest', only: null, as: { 'a.json': '../escape.json' }, versionKey: null }];
+  const plan = await R.planData(root, sets);
+  assert.equal(plan.items[0].rel, 'RealmTest/a.json');
+  assert.deepEqual(plan.sets[0].renamed, []);
 });
 
 test('plugin deploy prefers an existing Saves\\oxide folder', async () => {

@@ -52,7 +52,7 @@ const DEV_STEAM_SERVER = DEV ? process.env.REALM_DEV_STEAM_SERVER || '' : '';
 const RESOURCE_BASE = app.isPackaged ? process.resourcesPath : path.join(__dirname, '..');
 const CHRONICLE_DIR = path.join(RESOURCE_BASE, 'chronicle');
 const PLUGINS_DIR = path.join(RESOURCE_BASE, 'plugins');
-// Data files some plugins read (sculptures, sign art, quest content): resources\realm-data when installed.
+// Data files some plugins read (sculptures, sign art, quest content, the arrival site plan): resources\realm-data when installed.
 const DATA_SETS = R.dataSets(RESOURCE_BASE, app.isPackaged);
 const PLAYER_CONFIG_IN_REPO = path.join(__dirname, 'player', 'player-config.json');
 
@@ -931,8 +931,9 @@ function dataSummary(d) {
     target: d.target,
     copied: d.copied || 0,
     reload: d.reload || [],
-    sets: d.sets.map((s) => ({ id: s.id, label: s.label, plugin: s.plugin, files: s.files, changed: s.changed, invalid: s.invalid, version: s.version, others: s.others.slice(0, 20), missing: s.missing })),
-    invalid: d.items.filter((i) => i.state === 'invalid').map((i) => ({ file: i.rel, reason: i.reason }))
+    sets: d.sets.map((s) => ({ id: s.id, label: s.label, plugin: s.plugin, files: s.files, changed: s.changed, invalid: s.invalid, version: s.version, others: s.others.slice(0, 20), renamed: (s.renamed || []).slice(0, 20), missing: s.missing })),
+    // file is the name on the server; source is the shipped name when the set writes it under another one.
+    invalid: d.items.filter((i) => i.state === 'invalid').map((i) => ({ file: i.rel, source: i.destName && i.destName !== i.name ? i.name : null, reason: i.reason }))
   };
 }
 
@@ -1403,7 +1404,7 @@ function registerIpc() {
       for (const inst of list) {
         const c = rootCheckFor(inst, null);
         if (!c.ok || !(await R.isTestCopy(c.root))) continue;
-        // Data first (sculptures, sign art, quest content), then the plugins themselves.
+        // Data first (sculptures, sign art, quest content, the arrival site plan), then the plugins themselves.
         const data = await R.deployData(c.root, DATA_SETS);
         const res = await R.deployPlugins(c.root, PLUGINS_DIR);
         copied += res.copied;

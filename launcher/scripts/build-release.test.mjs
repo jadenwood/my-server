@@ -71,7 +71,7 @@ test('the player uninstaller removes only its own realm:// handler', () => {
 test('the Steward installer still carries the plugins and the Chronicle', () => {
   const st = loadEditionConfig('steward');
   const from = st.extraResources.map((r) => r.from).sort();
-  assert.deepEqual(from, ['../art/paintings', '../art/sculptures', '../chronicle', '../plugins', '../plugins/docs/RealmQuests/content']);
+  assert.deepEqual(from, ['../art/paintings', '../art/sculptures', '../art/sculptures/sites', '../chronicle', '../plugins', '../plugins/docs/RealmQuests/content']);
   assert.ok(fs.readdirSync(path.join(REPO, 'plugins')).filter((f) => f.endsWith('.cs')).length >= 14);
 });
 
@@ -90,7 +90,13 @@ test('the Steward installer carries the plugin data files where lib/realm.js dat
     assert.deepEqual(entry.filter, wanted, `${packaged[i].id} filter`);
     const files = fs.readdirSync(dev[i].src).filter((f) => f.endsWith('.json'));
     assert.ok(files.length >= 1, `${dev[i].id} has files in the repository`);
+    for (const f of dev[i].only || []) assert.ok(files.includes(f), `${dev[i].id}: ${f} is in the repository`);
   }
+  // RealmArrival's site plan is packed under its repository name and written to the server as site.json.
+  const arrival = packaged.find((s) => s.id === 'arrival');
+  assert.equal(path.relative(res, arrival.src).split(path.sep).join('/'), 'realm-data/RealmArrival');
+  assert.deepEqual(arrival.only, ['arrival.json']);
+  assert.deepEqual(arrival.as, { 'arrival.json': 'site.json' });
 });
 
 test('collectRelease copies the installers and writes sha256sum-format checksums', () => {

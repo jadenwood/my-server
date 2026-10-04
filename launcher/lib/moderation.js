@@ -218,7 +218,30 @@ const PLUGIN_ADMIN = [
   { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/heraldry preview', label: 'Heraldry: what a sync would change', args: [] },
   { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/heraldry sync', label: 'Heraldry: bring every guild in step now', args: [] },
   { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/ballot admin audit {ballot}', label: 'Council: votes by house, to look for alts', args: ['ballot'] },
-  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/ballot admin cancel {ballot}', label: 'Council: call a ballot off, deposits back', args: ['ballot'] }
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/ballot admin cancel {ballot}', label: 'Council: call a ballot off, deposits back', args: ['ballot'] },
+  // RealmArrival (plugins/docs/RealmArrival.md, Commands). The commands that store a point where the
+  // admin stands (site anchor, stone, hall, banner, gate set ...) are left out: they are typed on the spot.
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin status', label: 'Arrival: open or closed, mode, gate, live arrivals, counters', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin check', label: 'Arrival: every problem that keeps the Gatehouse shut', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin site', label: 'Arrival: site file, anchor, pair lot, then the check', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin site plan', label: 'Arrival: every point the plan names and whether it is stored', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin site pieces', label: 'Arrival: the sculptures to place, in route order', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin site signs', label: 'Arrival: the sign spots and their /paint binding', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin site reload', label: 'Arrival: read the site file (site.json) again', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin runsheet', label: 'Arrival: the after-wipe list', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin lot', label: 'Arrival: the pair lot (which house stands where)', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin lot draw', label: 'Arrival: draw the pair lot (the Herald tells the realm)', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin open', label: 'Arrival: open the Gatehouse (once the check passes)', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin close', label: 'Arrival: close it (vanilla spawns for new players)', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin pause', label: 'Arrival: instant off (vanilla spawns, gate open)', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin resume', label: 'Arrival: lift the pause', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin mode {mode}', label: 'Arrival: routing (teleport, provider, road or off)', args: ['mode'] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin gate test', label: 'Arrival: open the portcullis and close it again', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin beacon test', label: 'Arrival: flare the ember band', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin skip {player}', label: 'Arrival: end a player\'s arrival', args: ['player'] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin pass {player}', label: 'Arrival: open the gate for a stuck player', args: ['player'] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin reset {player} {stage}', label: 'Arrival: reset a record (pending or done)', args: ['player', 'stage'] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin veteran {player}', label: 'Arrival: mark a known veteran', args: ['player'] }
 ];
 
 // Placeholder rules: a player name is quoted when it has spaces (the plugins read "Old Tom" as one
@@ -246,7 +269,10 @@ const ARG_RULES = {
   ballot: numbered('ballot'),
   // RealmLaws treats anything but "guilty" as an acquittal, so the word is checked here.
   ruling: oneOf('ruling', ['guilty', 'innocent']),
-  board: oneOf('board', ['daily', 'weekly', 'story', 'all'])
+  board: oneOf('board', ['daily', 'weekly', 'story', 'all']),
+  // RealmArrival: /arrival admin mode and the stage /arrival admin reset sets.
+  mode: oneOf('mode', ['teleport', 'provider', 'road', 'off']),
+  stage: oneOf('stage', ['pending', 'done'])
 };
 
 function numbered(what) {

@@ -104,6 +104,18 @@ test('plugin admin commands come from the plugins and fill their placeholders', 
   assert.throws(() => MOD.pluginCommandFor('/quest admin reset {player} {board}', { player: 'Wren', board: 'everything' }), /daily, weekly, story, all/);
   assert.equal(MOD.pluginCommandFor('/dominion admin open {minutes}', { minutes: '90' }), '/dominion admin open 90');
   assert.equal(MOD.pluginCommandFor('/craft admin cancel {commission}', { commission: '#41' }), '/craft admin cancel 41');
+  // RealmArrival: its staff commands are listed and their words checked.
+  assert.ok(plugins.includes('RealmArrival'));
+  assert.equal(MOD.pluginCommandFor('/arrival admin mode {mode}', { mode: 'Road' }), '/arrival admin mode road');
+  assert.throws(() => MOD.pluginCommandFor('/arrival admin mode {mode}', { mode: 'walk' }), /teleport, provider, road, off/);
+  assert.equal(MOD.pluginCommandFor('/arrival admin reset {player} {stage}', { player: 'Old Tom', stage: 'done' }), '/arrival admin reset "Old Tom" done');
+  assert.throws(() => MOD.pluginCommandFor('/arrival admin reset {player} {stage}', { player: 'Wren', stage: 'gatehouse' }), /pending, done/);
+  // Every third word of an /arrival admin command is one its sub-handler reads (site plan, lot draw, gate test ...).
+  const arrival = src.RealmArrival;
+  for (const d of MOD.PLUGIN_ADMIN.filter((x) => x.plugin === 'RealmArrival')) {
+    const w = d.template.split(' ')[3];
+    if (w && !w.startsWith('{')) assert.ok(arrival.includes(`case "${w}"`), `${d.template}: ${w} is handled by RealmArrival`);
+  }
 });
 
 test('reload builds the Oxide console command and refuses anything but a plugin name', () => {
