@@ -3,7 +3,7 @@
 // with the cells, points, boxes, zones and sign spots RealmArrival and the run-sheet use. Written to
 // art/sculptures/sites/arrival.json by: node art/tools/sculptor/cli.mjs build. Geometry lives in ../lib/arrival-site.mjs.
 import { standFor, turnedSize, CELL_M, FACING_WORD } from '../../../tools/sculptor/site.mjs';
-import { GH, AVENUE, HEARTH, BAND, PILLAR, WAYBOARD, THRONE, HOUSE_SLOTS, PREVIEW_DRAW } from '../lib/arrival-site.mjs';
+import { GH, AVENUE, HEARTH, BAND, PILLAR, WAYBOARD, THRONE, LIGHTS, HOUSE_SLOTS, PREVIEW_DRAW } from '../lib/arrival-site.mjs';
 import { HOUSE_KEYS, pal, house } from '../lib/kit.mjs';
 import { BAYS } from '../wayboard.mjs';
 
@@ -18,11 +18,15 @@ const PREVIEWS = [
     cam: { kind: 'persp', eye: [A2[1] + 0.5, EYE, A2[2] + 0.5], yaw: 0, pitch: -6, fov: 68 } },
   { name: 'reveal-open', title: 'From arrival stone A2: the gate down, the ember band flared', state: { gate: 'open', band: 'flare' }, fog: 340,
     cam: { kind: 'persp', eye: [A2[1] + 0.5, EYE, A2[2] + 0.5], yaw: 0, pitch: -6, fov: 68 } },
+  { name: 'reveal-night', title: 'From A2 at night: the gate down, the band flared in the firelight (a guess: only fires give light)', state: { gate: 'open', band: 'flare' }, fog: 260, night: true,
+    cam: { kind: 'persp', eye: [A2[1] + 0.5, EYE, A2[2] + 0.5], yaw: 0, pitch: -6, fov: 68 } },
   { name: 'threshold', title: 'On the gold line, the gate open', state: { gate: 'open', band: 'flare' }, fog: 340,
     cam: { kind: 'persp', eye: [0.5, EYE, GH.goldLine.z + 0.5], yaw: 0, pitch: -4, fov: 64 } },
   { name: 'court', title: 'The court from the gate: the six stones, the back wall for the signs', state: { gate: 'closed', band: 'rest' }, fog: 0,
     cam: { kind: 'persp', eye: [0.5, EYE + 1, GH.goldLine.z + 0.5], yaw: 180, pitch: 12, fov: 74 } },
   { name: 'avenue', title: 'Between the second pair', state: { gate: 'open', band: 'flare' }, fog: 340,
+    cam: { kind: 'persp', eye: [0.5, EYE, AVENUE.pairs[1] + 10.5], yaw: 0, pitch: -6, fov: 70 } },
+  { name: 'avenue-night', title: 'Between the second pair at night: the kerb braziers lead to the fire', state: { gate: 'open', band: 'rest' }, fog: 260, night: true,
     cam: { kind: 'persp', eye: [0.5, EYE, AVENUE.pairs[1] + 10.5], yaw: 0, pitch: -6, fov: 70 } },
   { name: 'approach', title: 'Out of the last pair: the fire in its ember band, the pillar, the wayboard, the throne beyond', state: { gate: 'open', band: 'rest' }, fog: 400,
     cam: { kind: 'persp', eye: [2.5, EYE, HEARTH.z - HEARTH.half - 17], yaw: -2, pitch: -4, fov: 64 } },
@@ -30,6 +34,8 @@ const PREVIEWS = [
     cam: { kind: 'persp', eye: [HEARTH.x + 7.5, EYE + 0.27, HEARTH.z - 9.5], yaw: -22, pitch: -1, fov: 72 } },
   { name: 'look-back', title: 'From the Hearth back down the avenue to the Gatehouse', state: { gate: 'closed', band: 'rest' }, fog: 400,
     cam: { kind: 'persp', eye: [0.5, EYE, AVENUE.b.z1 + 0.5], yaw: 180, pitch: -3, fov: 64 } },
+  { name: 'pilgrim', title: 'Outside the left wall: the Pilgrim\'s ledge, 2 cells above the drop pad (play-test 6b)', state: { gate: 'closed', band: 'rest', pieces: ['gatehouse', 'portcullis', 'processional-a'] }, fog: 0,
+    cam: { kind: 'persp', eye: [GH.x0 - 24.5, 1.6 / 1.2, GH.z1 + 16.5], yaw: 124, pitch: -12, fov: 58 } },
   { name: 'aerial', title: 'The site from behind the Gatehouse', state: { gate: 'closed', band: 'rest' }, width: 1600, height: 900,
     cam: { kind: 'ortho', yaw: 24, pitch: 28, centre: [-6, 10, 96], scale: 7.4 } },
   { name: 'aerial-gate', title: 'The court from above the gate: six stones, the aisle, the gold line, the Chronicle Wall', state: { gate: 'closed', band: 'rest', pieces: ['gatehouse', 'portcullis', 'processional-a'] },
@@ -130,7 +136,7 @@ export default {
     points.M2 = { kind: 'mercy', cell: [HEARTH.x + 6, 2, HEARTH.z] };
     points.M3 = { kind: 'mercy', cell: [HEARTH.x, 2, HEARTH.z - 6] };
     points.wayboard = { kind: 'trigger', cell: [WAYBOARD.x0 - 2, 0, WAYBOARD.z0 + 7], note: 'In front of the wayboard\'s middle bay (/arrival admin wayboard set).' };
-    points.pilgrimLedge = { kind: 'exit', cell: [GH.pilgrim.ledge.x, GH.pilgrim.ledge.y + 1, GH.pilgrim.ledge.z0], note: 'The Pilgrim\'s ledge: up the two steps in the left tower; the drop pad is below it outside.' };
+    points.pilgrimLedge = { kind: 'exit', cell: [GH.pilgrim.ledge.x, GH.pilgrim.ledge.y + 1, GH.pilgrim.ledge.z0], note: 'The Pilgrim\'s ledge: through the door in the left tower and up one step; the drop pad is 2.4 m below it outside.' };
     for (const k of Object.keys(points)) if (points[k].note === undefined) delete points[k].note;
 
     const boxes = {
@@ -172,6 +178,13 @@ export default {
       { key: 'H1', cell: [4, 0, HEARTH.z - HEARTH.half - 2], faces: '-z', binding: 'notice', text: 'The Hearth | Raise a crest before you build. Log off behind walls. Nights are dark: carry a torch.', note: 'Facing the avenue end, beside the path.' },
     ].map((s) => { if (s.note === undefined) delete s.note; return s; });
 
+    // Staff-built lights: where the fire bowls and kerb braziers go (ordinary building; see LIGHTS).
+    const lights = [
+      ...LIGHTS.bowls.map(([x, z], i) => ({ key: `C${i + 1}`, kind: 'bowl', cell: [x, 1, z], note: i === 0 ? 'Fire bowls in the four corners of the court, on its floor.' : undefined })),
+      ...LIGHTS.kerbZ.flatMap((z, i) => [-1, 1].map((s, j) => ({ key: `K${2 * i + j + 1}`, kind: 'brazier', cell: [s * LIGHTS.kerbX, 0, z],
+        note: i === 0 && j === 0 ? 'Braziers on the ground one cell outside each kerb: a pair either side of the gate, then every 14.4 m (odd keys on the left).' : undefined }))),
+    ].map((l) => { if (l.note === undefined) delete l.note; return l; });
+
     return {
       format: 'realm-site/1',
       id: 'arrival',
@@ -198,6 +211,7 @@ export default {
       boxes,
       zones,
       signs,
+      lights,
       terrain: [
         { kind: 'mound', previewOnly: true, centre: [0, THRONE.z0 + 8], radius: 34, top: 12, height: THRONE.lift, colour: house('merrin', 'fieldLight'), note: 'A stand-in for the throne hill in previews.' },
         { kind: 'fire', previewOnly: true, centre: [HEARTH.x, HEARTH.z], y: HEARTH.bandY, colour: pal('Ember hot'), ember: pal('Afterglow'), note: 'A stand-in for the staff-built fire pit in previews.' },

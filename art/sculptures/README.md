@@ -13,7 +13,7 @@ server plugin `plugins/RealmSculptor.cs` places, paints, protects and removes th
 | `house-varrow` ... `house-merrin` | **The six house monuments.** The house's heater shield in its field colour with the charge from `art/sigils/<house>.svg` standing out one block in the house metal, held in a stone cradle, with a crest of its own on top: antlers, an oak crown, a perched raven, a hung bell, an ember brazier, a leaping eel. | 1044-1118 | 20 x 24-28 x 7 | 29-34 m |
 | `tournament-arch` | **The Tournament Arch.** Two crenellated towers and a beam hung with the six house banners, riders passing under them, the tournament's gold-rimmed red shield on top. | 674 | 21 x 15 x 6 | 18.0 m |
 | `shape-test` | **Shape test** (not a monument): every single-block shape in six rotations, to compare the game's real shapes with what the tools assume. | 336 | 13 x 4 x 21 | |
-| `gatehouse-unwritten` | **The Gatehouse of the Unwritten** ([arrival site](#the-arrival-site)). A walled court of pale stone: Parchment 2 walls two thick and nine high with an Ember string course and pale-edged piers, two corner towers with Iron 800 caps and arrow slits, wooden eaves two cells in from the wall tops, a dark cobbled floor with six identical Parchment arrival stones in Iron 900 borders, a lighter aisle and an Ember hot gold line before the gate, the Chronicle Wall (three dark boards for signs) on the back wall, and over the gate, inside and out, a pointed tympanum of blank parchment with a gold keystone. The Pilgrim's Stair in the left tower climbs to a sill in the outer wall. The 5 x 6 gate gap is left empty. | 1890 | 19 x 13 x 23 | 15.6 m |
+| `gatehouse-unwritten` | **The Gatehouse of the Unwritten** ([arrival site](#the-arrival-site)). A walled court of pale stone: Parchment 2 walls two thick and nine high with an Ember string course and pale-edged piers, two corner towers with Iron 800 caps and arrow slits, wooden eaves two cells in from the wall tops, a dark cobbled floor with six identical Parchment arrival stones in Iron 900 borders, a lighter aisle and an Ember hot gold line before the gate, the Chronicle Wall (three dark boards for signs) on the back wall, and over the gate, inside and out, a pointed tympanum of blank parchment with a gold keystone. The Pilgrim's Stair in the left tower climbs to a sill in the outer wall. The 5 x 6 gate gap is left empty. | 1888 | 19 x 13 x 23 | 15.6 m |
 | `gatehouse-portcullis` | **The portcullis**: 30 reinforced cells in Iron 900. Never placed with `/sculpt`: RealmArrival builds it and takes it down row by row. | 30 | 5 x 6 x 1 | 7.2 m |
 | `processional-a`, `processional-b` | **The Processional**: the 7-wide road from the gate to the Hearth ring, unpainted cobbles between Iron 600 kerbs. Optional (flat ground only). | 273, 266 | 7 x 1 x 39, 7 x 1 x 38 | |
 | `pledge-stone-<house>` | **Pledge stones**: a 3 x 3 plinth in the house's dark field with a raised centre in its metal. | 10 | 3 x 2 x 3 | |
@@ -82,14 +82,25 @@ generators share, so the pieces and the layout cannot disagree.
 | Reveal from arrival stone A2, gate closed | The gate down, the band flared |
 |---|---|
 | ![](preview/site-arrival-reveal-closed.png) | ![](preview/site-arrival-reveal-open.png) |
+| **The same at night** (a guess: only the fires give light) | **The avenue at night, between the kerb braziers** |
+| ![](preview/site-arrival-reveal-night.png) | ![](preview/site-arrival-avenue-night.png) |
 | **Out of the last pair** | **Back down the avenue** |
 | ![](preview/site-arrival-approach.png) | ![](preview/site-arrival-look-back.png) |
 
 ![Plan](preview/site-arrival-plan.png)
 
-The other views are `site-arrival-threshold`, `-court`, `-avenue`, `-hearth`, `-aerial`, `-aerial-gate` and `-side`.
-The Old Throne on its hill and the fire in the pit are stand-ins in the previews only (`context` pieces and
-`terrain`); nothing places them.
+The other views are `site-arrival-threshold`, `-court`, `-avenue`, `-hearth`, `-aerial`, `-aerial-gate`, `-side` and
+`-pilgrim` (the Pilgrim's ledge from outside the left wall, for play-test 6b).
+The Old Throne on its hill, the fire in the pit and the staff lights are stand-ins in the previews only (`context`
+pieces, `terrain` and `lights`); nothing places them. The night views (`night: true` on a preview) darken every block
+by a faint moon and light it warmly from each fire nearby; they are a guess at the night the design's `RevealNight`
+line describes, not the game's lighting.
+
+**Staff lights.** The design has staff build fire bowls in the court and braziers on both kerbs "so the court is
+readable at night" (sections 3.4 and 4.2). The site says where: `C1`-`C4` in the corners of the court floor (more than
+3 m from every arrival stone, clear of the Pilgrim's door), `K1`-`K14` on the ground one cell outside each kerb, a pair
+either side of the gate and then every 14.4 m, clear of the pledge stones and their crest posts (odd keys on the left).
+They are ordinary building, done after the pieces (run-sheet step 4); no plugin owns them.
 
 Choices the design left open, and why:
 
@@ -102,7 +113,8 @@ Choices the design left open, and why:
   gate. Now the pillar stands left of the ring on the throne side and the wayboard right of it, its five bays facing
   the axis, and the two frame the throne.
 - **The Gatehouse's front towers are its corners**, so the Pilgrim's Stair can go up inside the left one to a sill in
-  the left wall (two 1-cell steps; the sill is 2 cells above the ground outside, over the drop pad).
+  the left wall (a 1-cell step up onto a landing; the top of the sill is 2 cells, 2.4 m, above the ground outside, over
+  the drop pad, as the design asks).
 - Two small additions inside the court, both in palette colours already on the piece: a lighter Iron 600 aisle in the
   floor from the front stones to the gold line, and the Chronicle Wall: three Ink soft boards in a Parchment edge
   frame where signs G1-G3 hang.
@@ -111,7 +123,7 @@ All of it is UNVERIFIED in game, like every sculpture: the materials, the colour
 the game's block collapsing (fallback: remove them), whether the sill can be climbed from outside (play-test 6b) and
 whether the band shows from 100 m (play-test 6). `node art/tools/sculptor/cli.mjs site arrival --anchor x,y,z
 --turn 0-3` prints the run-sheet for a real anchor: every stand spot, facing and `/sculpt place` command in route order,
-and every point in world cells.
+and every point and light in world cells.
 
 ## Site layouts (`realm-site/1`)
 
@@ -146,9 +158,18 @@ stands at (the middle of the cell's floor). A piece's world turn is `(turn + R) 
 | `boxes` | `Z0` (hall box) and `Z0b` (drop pad): `min` and `max` cells, inclusive. |
 | `zones[]` | The design's zones by `key` (`Z0` ... `Z5`, `corridor`): a `box`, or a `point` (`banner.*` means each banner point) with `radiusM` in metres, `dwellSeconds`, or an `axis` (two cells) with `halfWidthM`. |
 | `signs[]` | Sign spots for staff: `key` (G1-G4, P1-P6, W1-W5, H1), the clear `cell` the sign stands in, `faces` (`+x`, `-x`, `+z`, `-z`), the `/paint` `binding`, the notice `text` (under 180 characters), `slot` for house signs, `note`. |
+| `lights[]` | Staff-built lights: `key`, `kind` (`bowl`: a fire bowl on a floor; `brazier`: a fire on a stand), the `cell` the fire stands in (a clear cell with a floor or the ground under it, never on a point or the cell above one, a sign spot, a plugin cell or another light), `note`. Ordinary building; no plugin reads them. |
 | `terrain[]` | Preview-only ground: `mound` (the throne hill stand-in) and `fire` (the fire pit stand-in). Never built. |
 
 For RealmArrival: the points and boxes are what `/arrival admin ...` stores where staff stand, so the file says where
 those spots are and lets a test compare the stored points with the plan; `cells.gate.rows` and `cells.emberBand.cells`
 are the exact cells `gate build` and `beacon build 5` should write, relative to the stored gate cell and Hearth
 centre (`gate.rows[5][0]` is the gate-set cell; the band is the Hearth centre plus the offsets in `rule`).
+
+**The ember band's shape.** The 24 offsets are the octagon in `cells.emberBand.rule`: per quadrant `(5, 0)`, `(5, 1)`,
+`(4, 2)`, `(3, 3)`, `(2, 4)`, `(1, 5)` and their quarter-turns, each cell touching the next, so the band reads as one
+unbroken ring. The set is the same under every quarter-turn, so the offsets apply unchanged in world cells whatever
+turn the site is placed at. Note for `beacon build`: 24 cells at 15-degree steps rounded to the grid
+(`round(5 cos 15k), round(5 sin 15k)`) is a different set, with `(4, 3)`, `(4, 4)`, `(3, 4)` in place of `(4, 2)`,
+`(3, 3)`, `(2, 4)` and two one-cell gaps in every quadrant; RealmArrival should write the rule's cells so the band in
+game is the one in the previews.

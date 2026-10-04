@@ -12,7 +12,7 @@ import { Grid, style, roleId, validate } from '../voxel.mjs';
 import { turnIndex } from '../rotations.mjs';
 import { orient } from '../shapes.mjs';
 import { fromSiteFrame } from '../../../sculptures/src/lib/kit.mjs';
-import { GH, BAND, HEARTH } from '../../../sculptures/src/lib/arrival-site.mjs';
+import { GH, BAND, HEARTH, AVENUE, LIGHTS } from '../../../sculptures/src/lib/arrival-site.mjs';
 import { sculptureMap, loadSiteDefinitions, readSite, buildSite, SITES, PREVIEW } from '../cli.mjs';
 
 const K = (x, y, z) => `${x},${y},${z}`;
@@ -191,7 +191,10 @@ test('arrival site: the Pilgrim\'s Stair climbs from the court to a ledge two ce
     assert.ok(!solid(x, top + 1, z) && !solid(x, top + 2, z), `${x},${z}: two cells of headroom`);
     prev = top;
   }
-  assert.equal(floorTop(-9, 21), 2, 'the ledge is the top of a sill at y 2: two cells above the ground outside');
+  // A piece's bottom layer stands on the ground, so the ground outside is at height 0 and a block at y n has its top at
+  // height n + 1. The design: the ledge is 2 cells above the drop pad.
+  assert.equal(floorTop(-9, 21) + 1, 2, 'the ledge (the sill block at y 1) has its top two cells above the ground outside');
+  assert.equal(floorTop(-10, 21), -1, 'nothing is built outside the wall under the ledge');
   const pad = site.boxes.Z0b;
   assert.ok(pad.max[0] < GH.x0 && pad.min[2] <= 21 && pad.max[2] >= 21, 'the drop pad is outside the left wall under the ledge');
 });
@@ -248,6 +251,55 @@ test('site: validation catches overlaps, a band cell inside a piece, a blocked s
   assert.match(validateSite(s, S).join('\n'), /signs G1: .* inside a piece/);
   s = clone(); s.format = 'nope';
   assert.match(validateSite(s, S).join('\n'), /format/);
+});
+
+test('arrival site: staff lights, bowls in the court corners and braziers along both kerbs, clear of everything', () => {
+  const bowls = site.lights.filter((l) => l.kind === 'bowl'), braziers = site.lights.filter((l) => l.kind === 'brazier');
+  assert.equal(bowls.length, 4, 'a fire bowl in each corner of the court');
+  assert.equal(braziers.length, 2 * LIGHTS.kerbZ.length);
+  assert.deepEqual(site.lights.map((l) => l.key), [...bowls.map((_, i) => `C${i + 1}`), ...braziers.map((_, i) => `K${i + 1}`)]);
+  const inCourt = (c) => c[0] > GH.x0 + 1 && c[0] < GH.x1 - 1 && c[2] > GH.z0 + 1 && c[2] < GH.z1 - 1;
+  for (const b of bowls) {
+    assert.ok(inCourt(b.cell) && b.cell[1] === 1, `${b.key} stands on the court floor inside the walls`);
+    for (const [, sx, sz] of GH.stones) assert.ok(Math.hypot(b.cell[0] - sx, b.cell[2] - sz) * 1.2 > 3, `${b.key} is more than 3 m from every arrival stone`);
+    assert.ok(Math.hypot(b.cell[0] - GH.pilgrim.door[0], b.cell[2] - GH.pilgrim.door[1]) >= 2, `${b.key} leaves the Pilgrim's door clear`);
+  }
+  const zs = braziers.filter((b) => b.cell[0] < 0).map((b) => b.cell[2]);
+  for (let i = 1; i < zs.length; i++) assert.ok((zs[i] - zs[i - 1]) * 1.2 <= 15, 'braziers at most 15 m apart along the kerb');
+  assert.ok(zs[0] <= GH.z1 + 2, 'the first pair flanks the gate');
+  for (const b of braziers) {
+    assert.equal(Math.abs(b.cell[0]), AVENUE.half + 1, `${b.key} is one cell outside the kerb`);
+    assert.equal(b.cell[1], 0, `${b.key} stands on the ground`);
+    for (const p of Object.values(site.points).filter((q) => q.kind === 'banner')) assert.ok(Math.hypot(b.cell[0] - p.cell[0], b.cell[2] - p.cell[2]) >= 2, `${b.key} is clear of the pledge stone`);
+    assert.ok(b.cell[2] < HEARTH.z - HEARTH.half - 1, `${b.key} is on the avenue, before the ring`);
+  }
+  assert.deepEqual(validateSite(site, S), []);
+  const clone = () => JSON.parse(JSON.stringify(site));
+  let s = clone(); s.lights[0].cell = [-9, 1, 2];
+  assert.match(validateSite(s, S).join('\n'), /lights C1: .* inside a piece/);
+  s = clone(); s.lights[4].cell = [0, 1, 26];
+  assert.match(validateSite(s, S).join('\n'), /lights K1: .* where a player stands/);
+  s = clone(); s.lights[0].cell = [-7, 2, 2];
+  assert.match(validateSite(s, S).join('\n'), /lights C1: nothing to stand on/);
+  s = clone(); s.lights[1].kind = 'torch';
+  assert.match(validateSite(s, S).join('\n'), /lights C2: kind/);
+  const r = resolveSite(site, S, [10, 5, 20], 1);
+  assert.deepEqual(r.lights.K1, [10 + site.lights[4].cell[2], 5, 20 - site.lights[4].cell[0]], 'lights turn with the site');
+});
+
+test('site render: a night view darkens what no fire lights and keeps the fires bright, with halos behind nearer walls', () => {
+  const cam = { kind: 'persp', eye: [0.5, 1 + 1.6 / 1.2, AVENUE.pairs[1] + 10.5], yaw: 0, pitch: -6, fov: 70 };
+  const blocks = siteScene(site, S, { gate: 'open', band: 'rest' });
+  assert.ok(blocks.some((b) => b[7] === 'glow'), 'the lights and the fire stand-in glow');
+  const day = projectView(blocks, cam, { width: 320, height: 180 });
+  const night = projectView(blocks, cam, { width: 320, height: 180, night: true });
+  assert.ok(night.polys.some((p) => p.halo), 'fires get halos at night');
+  assert.ok(!day.polys.some((p) => p.halo), 'no halos by day');
+  const lum = (hex) => { const v = parseInt(hex.slice(1), 16); return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255); };
+  const mean = (pr) => { const f = pr.polys.filter((p) => !p.halo); return f.reduce((a, p) => a + lum(p.fill), 0) / f.length; };
+  assert.ok(mean(night) < mean(day) * 0.6, 'the night is darker');
+  const sorted = night.polys.map((p, i) => [p.depth, i]);
+  for (let i = 1; i < sorted.length; i++) assert.ok(sorted[i][0] <= sorted[i - 1][0], 'halos are sorted with the faces, far to near');
 });
 
 test('site render: the reveal sees the throne through the open gate and not through the closed one', () => {

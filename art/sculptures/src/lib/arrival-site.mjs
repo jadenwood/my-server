@@ -28,13 +28,15 @@ export const GH = {
   court: { x0: -5, x1: 5, z0: 4, z1: 18 },             // the open court under the sky (11 x 15)
   signBoards: [-4, 0, 4],                              // the Chronicle Wall's three boards (G2, G1, G3), centre x
   eave: 2,                                             // eaves run 2 cells in from the walls at the wall top
-  // The Pilgrim's Stair in the left tower: a door from the court, two 1-cell steps, and a 2-cell-wide ledge (a sill
-  // in the outer wall) 2 cells above the ground outside.
+  // The Pilgrim's Stair in the left tower: a door from the court, a 1-cell step up onto a landing, and a 2-cell-wide
+  // ledge (a sill in the outer wall) whose top is 2 cells above the ground outside (docs/arrival-design.md 4.2). The
+  // court floor is the piece's bottom layer, so the court stands 1 cell above the ground; the landing and the sill
+  // stand 1 more cell up (their tops at height 2): a player stepping off the sill drops 2.4 m onto the drop pad.
   pilgrim: {
-    shaft: [[-8, 20], [-7, 20], [-8, 21], [-7, 21]],   // the hollow inside the tower, y 1..10
+    shaft: [[-8, 20], [-7, 20], [-8, 21], [-7, 21]],   // the hollow inside the tower, y 1..9
     door: [-7, 19],                                      // y 1..2, opening onto the court
-    steps: [[-7, 21, 1], [-8, 21, 2], [-8, 20, 2]],      // [x, z, top y] of each step column
-    ledge: { x: -9, z0: 20, z1: 21, y: 2, open: [3, 4] },// sill blocks up to y 2; the opening above is y 3..4
+    steps: [[-7, 21, 1], [-8, 21, 1], [-8, 20, 1]],      // [x, z, top y] of each step column: the step and the landing
+    ledge: { x: -9, z0: 20, z1: 21, y: 1, open: [2, 3] },// the sill block is y 1 (top at height 2); the opening is y 2..3
   },
 };
 
@@ -79,6 +81,17 @@ export const PILLAR = { x0: -11, z0: 112 };
 export const WAYBOARD = { x0: 9, z0: 108, turn: 1 };
 export const THRONE = { x0: -7, z0: 178, lift: 10 };     // context only: the Old Throne on its hill, for previews
 
-export const HOUSE_SLOTS = ['p1-left', 'p1-right', 'p2-left', 'p2-right', 'p3-left', 'p3-right'];
+// Staff-built lights (docs/arrival-design.md 3.4 and 4.2: "fire bowls in the corners", "braziers on both kerbs about
+// every 12 m", so the court and the avenue read at night). Ordinary building, never Sculptor or plugin cells: the site
+// only says where they go. Court bowls stand in the four corners of the floor inside the walls, clear of the stones
+// and the Pilgrim's door (the eaves are 7 cells above them); braziers stand on the ground one cell outside each kerb, a pair either side
+// of the gate and then every 12 cells (14.4 m), each clear of the pledge stones and their crest posts.
+export const LIGHTS = {
+  bowls: [[-7, 2], [7, 2], [-7, 16], [7, 16]],          // [x, z], on the court floor (feet cell y 1)
+  kerbX: 4,                                             // braziers at x = -4 and 4, on the ground (y 0)
+  kerbZ: [24, 33, 45, 57, 69, 81, 93],
+};
+
+export const HOUSE_SLOTS =['p1-left', 'p1-right', 'p2-left', 'p2-right', 'p3-left', 'p3-right'];
 // The draw the previews show. The real order is drawn by lot in public at every build (docs/arrival-design.md 3.7).
 export const PREVIEW_DRAW = { 'p1-left': 'varrow', 'p1-right': 'dunmere', 'p2-left': 'ashgrove', 'p2-right': 'corvane', 'p3-left': 'halloran', 'p3-right': 'merrin' };
