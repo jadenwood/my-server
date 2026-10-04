@@ -259,7 +259,7 @@ namespace Oxide.Plugins
                 P("lapis-silver", "Lapis and Silver", "#2c4a7a", "#c9ced4", "lapis blue", "silver", ""),
                 P("ink-parchment", "Ink and Parchment", "#2a1c0f", "#e0cfa4", "ink brown", "old parchment", ""),
                 P("lapis-gold", "Lapis and Gold", "#2c4a7a", "#d6a043", "lapis blue", "gold", ""),
-                P("moss-gold", "Moss and Gold", "#4d6b3a", "#d6a043", "moss green", "gold", ""),
+                P("moss-gold", "Moss and Gold", "#4d6b3a", "#f4c96d", "moss green", "bright gold", ""),
             };
         }
 
@@ -627,7 +627,7 @@ namespace Oxide.Plugins
                 { "Off", "The heralds are not at work on this server." },
 
                 // Heraldry
-                { "HelpArms1", "[F4C96D]/heraldry[FFFFFF] your house's colours | [F4C96D]/heraldry house[FFFFFF] <house> | [F4C96D]/heraldry colours[FFFFFF] the pairs a house may bear" },
+                { "HelpArms1", "Arms: [F4C96D]/heraldry[FFFFFF] your house's colours | [F4C96D]/heraldry house[FFFFFF] <house> | [F4C96D]/heraldry colours[FFFFFF] the pairs a house may bear" },
                 { "HelpArms2", "  The head of a house chooses with [F4C96D]/heraldry colours[FFFFFF] <pair>. The colours show on your guild's banner, crest, armour and name tags." },
                 { "HelpArmsAdmin", "  Staff: [F4C96D]/heraldry sync[FFFFFF] | preview [house] | set <house> <pair> | reset <house> | banner <house> <banner|keep> <pattern|keep> | status" },
                 { "NoHouse", "You belong to no house. Found or join one with [F4C96D]/house[FFFFFF]." },
@@ -684,10 +684,10 @@ namespace Oxide.Plugins
                 { "Ok", "ok" },
 
                 // Ballots
-                { "HelpBallot1", "[F4C96D]/ballot[FFFFFF] what the realm votes on | [F4C96D]/ballot[FFFFFF] <number> | results | history | me (can I vote?)" },
+                { "HelpBallot1", "Votes: [F4C96D]/ballot[FFFFFF] what the realm votes on | [F4C96D]/ballot[FFFFFF] <number> | results | history | me (can I vote?)" },
                 { "HelpBallot2", "  Heads of houses: [F4C96D]/ballot stand[FFFFFF] <seat> | withdraw. The monarch: [F4C96D]/ballot propose[FFFFFF] decree <id> | law <id>" },
                 { "HelpBallotAdmin", "  Staff: [F4C96D]/ballot admin[FFFFFF] open | advance <n> | cancel <n> | strike <n> <player> | audit <n> | voter <player>" },
-                { "HelpVote", "[F4C96D]/vote[FFFFFF] <candidate or house> in a council election, or [F4C96D]/vote[FFFFFF] yes | no on the open question ([F4C96D]/vote[FFFFFF] <number> yes | no if there are more)." },
+                { "HelpVote", "Vote with [F4C96D]/vote[FFFFFF] <candidate or house> in a council election, or [F4C96D]/vote[FFFFFF] yes | no on the open question ([F4C96D]/vote[FFFFFF] <number> yes | no if there are more)." },
                 { "NoBallots", "Nothing is put to the realm's vote now." },
                 { "NextElection", "  The council is elected at the start of each season ({0})." },
                 { "BallotsHeader", "Put to the realm's vote:" },
@@ -716,7 +716,7 @@ namespace Oxide.Plugins
                 { "HistoryLine", "  #{0} {1}, {2}: {3}" },
 
                 // Standing
-                { "StandUsage", "[F4C96D]/ballot stand[FFFFFF] <seat>. Seats elected now: {0}" },
+                { "StandUsage", "Stand with [F4C96D]/ballot stand[FFFFFF] <seat>. Seats elected now: {0}" },
                 { "NoElection", "No council election is taking candidates now." },
                 { "SeatNotElected", "{0} is not a seat the realm elects. Seats: {1}" },
                 { "StandNotLeader", "Only the head of a house may stand for the council." },
@@ -737,7 +737,7 @@ namespace Oxide.Plugins
                 { "HeraldWithdrawn", "{0} withdraws from the election for {1}." },
 
                 // Proposing
-                { "ProposeUsage", "[F4C96D]/ballot propose[FFFFFF] decree <id> (see [F4C96D]/decree[FFFFFF]) or law <id> (see [F4C96D]/law[FFFFFF] catalogue)" },
+                { "ProposeUsage", "Ask the realm with [F4C96D]/ballot propose[FFFFFF] decree <id> (see [F4C96D]/decree[FFFFFF]) or law <id> (see [F4C96D]/law[FFFFFF] catalogue)" },
                 { "ProposeNotMonarch", "Only the monarch may put a question to the realm." },
                 { "ProposeOff", "Referendums on {0} are switched off on this server." },
                 { "ProposeOpen", "The realm is already voting on a question (#{0}). One at a time." },
@@ -1215,11 +1215,13 @@ namespace Oxide.Plugins
                     continue;
                 }
                 if (dryRun) continue;
-                // Enforce off: apply only what the realm changed (a new choice, a renamed house), never undo a player's edit.
+                // Enforce off: apply only when the realm changed the arms (a new choice, a renamed house); a player's edit in
+                // the game's guild menu stands until then.
                 if (!config.Heraldry.Enforce && a.AppliedSig == w.Sig) { inStep++; continue; }
                 DateTime last;
-                if (applied >= config.Heraldry.MaxAppliesPerSync
-                    || (guildApplied.TryGetValue(w.Guild.BaseID, out last) && (now - last).TotalSeconds < config.Heraldry.GuildCooldownSeconds))
+                // The per-guild cooldown paces the routine sync; a house's own new colours (onlyHouse) go up at once.
+                if (applied >= config.Heraldry.MaxAppliesPerSync || (onlyHouse == null
+                    && guildApplied.TryGetValue(w.Guild.BaseID, out last) && (now - last).TotalSeconds < config.Heraldry.GuildCooldownSeconds))
                 {
                     waiting++;
                     continue;
@@ -1324,6 +1326,15 @@ namespace Oxide.Plugins
             joined = DateTime.MinValue;
             if (!config.Voters.SeedFromHousesFile) return false;
             HousesFileLite f = ReadHousesFile(housesFileAt == DateTime.MinValue || (Now() - housesFileAt).TotalSeconds > 300);
+            if (FindJoined(f, house, id, out joined)) return true;
+            // A member the cached copy does not know yet (a new join): read the file again, at most every 10 seconds.
+            if ((Now() - housesFileAt).TotalSeconds < 10) return false;
+            return FindJoined(ReadHousesFile(true), house, id, out joined);
+        }
+
+        private static bool FindJoined(HousesFileLite f, string house, string id, out DateTime joined)
+        {
+            joined = DateTime.MinValue;
             if (f == null || f.Houses == null) return false;
             foreach (HouseLite h in f.Houses)
             {
@@ -1765,6 +1776,7 @@ namespace Oxide.Plugins
                     foreach (Candidate c in cands)
                         if (winner == null || Better(c, winner, t)) winner = c;
                 }
+                Candidate top = winner;                         // keeps the deposit even if the crown cannot seat them
                 if (winner != null)
                 {
                     object ok = CrownAndConsequences != null ? CrownAndConsequences.Call("SeatElectedCouncillor", seat, winner.Id, winner.Name, until) : null;
@@ -1787,7 +1799,7 @@ namespace Oxide.Plugins
                 {
                     int votes;
                     t.TryGetValue(c.Id, out votes);
-                    bool back = c == winner || unopposed || total < config.Council.MinTurnout
+                    bool back = c == top || unopposed || total < config.Council.MinTurnout
                         || (long)votes * 100 >= (long)config.Council.DepositReturnPercent * total;
                     SettleDeposit(c, back, true);
                 }
@@ -1831,6 +1843,7 @@ namespace Oxide.Plugins
 
         private void CountReferendum(Ballot b, DateTime now)
         {
+            data.LastReferendumAt = now;                       // the cooldown runs from the answer
             Dictionary<string, int> t = Tally(b, QKey);
             int yes, no;
             t.TryGetValue("yes", out yes);
