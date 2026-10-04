@@ -197,6 +197,7 @@ namespace Oxide.Plugins
             d.Add("outlawed", D("was declared outlaw", 0, 50, 720));
             d.Add("truce_broken", D("broke the Truce of the Realm", 0, 30, 0));
             d.Add("holding_taken", D("took a holding for their house", 30, 0, 60));   // RealmDominion (AddDeed)
+            d.Add("written", D("walked out of the Gatehouse of the Unwritten", 5, 0, 0));   // RealmArrival and RealmQuests ex_written (once)
             d.Add("craft_rank", D("rose to a new rank in a guild", 10, 0, 0));             // RealmCrafts (AddDeed, once per rank)
             d.Add("craft_master", D("was named a master of a guild", 50, 0, 0));           // RealmCrafts (AddDeed, once per profession)
             d.Add("master_crafter", D("was named Master Crafter of the week", 60, 0, 0));  // RealmCrafts (AddDeed), weekly

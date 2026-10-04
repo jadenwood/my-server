@@ -94,6 +94,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin RealmSeasons;
         [PluginReference] private Plugin RealmChronicle;
         [PluginReference] private Plugin RealmHerald;
+        [PluginReference] private Plugin RealmArrival;
         [PluginReference] private Plugin RealmEvents;
         [PluginReference] private Plugin RealmWarden;
         [PluginReference] private Plugin RealmSentinel;
@@ -163,6 +164,7 @@ namespace Oxide.Plugins
         private readonly List<string> dailyOrder = new List<string>();
         private readonly List<string> weeklyOrder = new List<string>();
         private StoryFile story;
+        private ArrivalFile arrival;                        // the Unwritten chain (Arrival.json), or null
         private readonly List<AchievementDef> achievements = new List<AchievementDef>();
         private readonly Dictionary<string, AchievementDef> achievementById = new Dictionary<string, AchievementDef>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, HouseGoalDef> houseGoals = new Dictionary<string, HouseGoalDef>(StringComparer.OrdinalIgnoreCase);
@@ -272,6 +274,7 @@ namespace Oxide.Plugins
             public int MaxChroniclePerHour = 4;
             public int MaxPlayers = 5000;
             public int JournalPopupMaxLines = 18;
+            public int ArrivalOpenDays = 7;                 // the Unwritten chain (Arrival.json) stays in /quest this long
             public Dictionary<string, int> MaterialIds;     // build roles -> the game's material ids (RealmSculptor's table)
             public List<string> TierNames;
         }
@@ -328,6 +331,7 @@ namespace Oxide.Plugins
             config.HouseGoalMinContributors = Clamp(config.HouseGoalMinContributors, 1, 50);
             config.HouseGoalMemberCapPercent = Clamp(config.HouseGoalMemberCapPercent, 1, 100);
             config.HouseMemberMinHours = Clamp(config.HouseMemberMinHours, 0, 720);
+            config.ArrivalOpenDays = Clamp(config.ArrivalOpenDays, 1, 60);
             if (float.IsNaN(config.TickSeconds) || config.TickSeconds < 5f) config.TickSeconds = 5f;
             if (config.TickSeconds > 300f) config.TickSeconds = 300f;
             if (float.IsNaN(config.FeedPollSeconds) || config.FeedPollSeconds < 10f) config.FeedPollSeconds = 10f;
@@ -421,6 +425,18 @@ namespace Oxide.Plugins
             public RewardDef Reward;
         }
 
+        // Arrival.json: RealmArrival's first steps for a newcomer, in order (docs/arrival-design.md 5.4, v2). Per player,
+        // with no season, unlock day or time gate; opened only for a player RealmQuests has never seen while RealmArrival
+        // owns their first minutes, and shown in /quest until done or ArrivalOpenDays have passed. Every step's progress
+        // is kept as events come, in any order (a /crown typed early still counts), and the steps finish in order.
+        private class ArrivalFile
+        {
+            public int Version;
+            public string Title;
+            public List<QuestDef> Steps;
+            public RewardDef Reward;
+        }
+
         private class TierDef
         {
             public int Count;
@@ -495,6 +511,7 @@ namespace Oxide.Plugins
             achievements.Clear(); achievementById.Clear(); houseGoals.Clear(); houseGoalOrder.Clear();
             places.Clear(); placeOrder.Clear(); contentStatus.Clear(); contentProblems.Clear();
             story = null;
+            arrival = null;
 
             PlaceFile pf = ReadContent<PlaceFile>("Places");
             if (pf != null && pf.Places != null)
@@ -515,6 +532,7 @@ namespace Oxide.Plugins
             StoryFile sf = ReadContent<StoryFile>("Story");
             AchievementFile af = ReadContent<AchievementFile>("Achievements");
             HouseGoalFile hf = ReadContent<HouseGoalFile>("HouseGoals");
+            ArrivalFile arf = ReadContent<ArrivalFile>("Arrival");
 
             // Every item any reward can give, so no delivery can be fed from a reward (an item loop).
             if (df != null && df.Quests != null) foreach (QuestDef q in df.Quests) CollectRewardItems(q != null ? q.Reward : null, rewardItems);
@@ -581,6 +599,40 @@ namespace Oxide.Plugins
                     achievementById[a.Id] = a;
                 }
 
+            if (arf != null)
+            {
+                // Only custom subjects (RealmArrival reports them for newcomers) and place visits; the chain pays renown at
+                // most (no marks, items or season points: no new spending), and its steps pay nothing on their own.
+                var steps = new List<QuestDef>();
+                if (arf.Steps != null)
+                    foreach (QuestDef q in arf.Steps)
+                    {
+                        if (!CheckQuest("Arrival", q, allIds, rewardItems, false)) continue;
+                        string why = null;
+                        foreach (ObjectiveDef o in q.Objectives) if (o.Type != TCustom && o.Type != TVisit) { why = "objective type " + o.Type + " cannot be an arrival step (custom or visit)"; break; }
+                        if (why != null) { Problem("Arrival: " + q.Id + ": " + why); continue; }
+                        if (q.Reward.Marks > 0 || (q.Reward.Items != null && q.Reward.Items.Count > 0) || q.Reward.SeasonPoints > 0 || !string.IsNullOrEmpty(q.Reward.Renown))
+                        {
+                            Problem("Arrival: " + q.Id + ": a step pays nothing on its own (reward dropped)");
+                            q.Reward = new RewardDef { Renown = "" };
+                        }
+                        steps.Add(q);
+                    }
+                if (steps.Count == 0) Problem("Arrival: no valid step");
+                else
+                {
+                    arf.Steps = steps;
+                    if (!ValidText(arf.Title, 60)) arf.Title = "The Unwritten";
+                    if (arf.Reward != null && CheckReward("Arrival", arf.Reward) == null
+                        && (arf.Reward.Marks > 0 || (arf.Reward.Items != null && arf.Reward.Items.Count > 0) || arf.Reward.SeasonPoints > 0))
+                    {
+                        Problem("Arrival: the chain pays renown at most (marks, items and season points dropped)");
+                        arf.Reward = new RewardDef { Renown = arf.Reward.Renown ?? "" };
+                    }
+                    arrival = arf;
+                }
+            }
+
             if (hf != null && hf.Goals != null)
                 foreach (HouseGoalDef g in hf.Goals)
                 {
@@ -598,7 +650,7 @@ namespace Oxide.Plugins
                 }
 
             Puts("Content: " + dailies.Count + " daily, " + weeklies.Count + " weekly, " + (story != null ? story.Chapters.Count : 0)
-                + " story chapters, " + achievements.Count + " achievements, " + houseGoals.Count + " house goals, " + places.Count
+                + " story chapters, " + (arrival != null ? arrival.Steps.Count : 0) + " arrival steps, " + achievements.Count + " achievements, " + houseGoals.Count + " house goals, " + places.Count
                 + " places" + (contentProblems.Count > 0 ? "; " + contentProblems.Count + " problem(s), see /quest admin status" : ""));
         }
 
@@ -772,6 +824,16 @@ namespace Oxide.Plugins
             public int Season;                              // the season whose tale this is
         }
 
+        private class ArrivalQ
+        {
+            public DateTime OpenedAt;
+            public Dictionary<string, List<int>> Progress = new Dictionary<string, List<int>>();   // step id -> objective progress
+            public Dictionary<string, List<string>> Seen = new Dictionary<string, List<string>>();
+            public List<string> Finished = new List<string>();
+            public bool Complete;
+            public DateTime CompletedAt;
+        }
+
         private class AchState
         {
             public long Count;
@@ -801,6 +863,7 @@ namespace Oxide.Plugins
             public string WeekKey;
             public List<Slot> Weekly = new List<Slot>();
             public StoryState Story = new StoryState();
+            public ArrivalQ Arrival;                        // the Unwritten chain, while it is open (Arrival.json)
             public Dictionary<string, AchState> Ach = new Dictionary<string, AchState>();
             public List<OwedItem> Owed = new List<OwedItem>();
             public long PendingMarks;
@@ -1057,6 +1120,10 @@ namespace Oxide.Plugins
                 { "JournalDaily", "  Daily {0}: {1}" },
                 { "JournalWeekly", "  Weekly {0}: {1}" },
                 { "JournalStory", "  Story: {0}" },
+                { "JournalArrival", "  {0}: {1}" },
+                { "ArrivalStep", "step {0} of {1}, {2} - {3}" },
+                { "ArrivalStepDone", "{0}: {1} is done." },
+                { "ArrivalDone", "{0}: every first step is walked." },
                 { "JournalHouse", "  House {0}: {1}" },
                 { "JournalEmpty", "  The quest-board holds nothing for you yet." },
                 { "JournalFoot", "  [F4C96D]/quest log[FFFFFF] the full text, [F4C96D]/quest give[FFFFFF] to hand in goods, [F4C96D]/achievements[FFFFFF] your deeds." },
@@ -1204,7 +1271,7 @@ namespace Oxide.Plugins
         private static readonly HashSet<string> OkKeys = new HashSet<string>
         {
             "Completed", "StepDone", "ChapterDone", "StoryDone", "AchUnlocked", "HouseGoalYou", "Rerolled", "GiveTaken", "CollectGot",
-            "MarksPaid", "AdminReloaded", "AdminPlaceSet", "AdminReset", "AdminCompleted", "Visited"
+            "ArrivalStepDone", "ArrivalDone", "MarksPaid", "AdminReloaded", "AdminPlaceSet", "AdminReset", "AdminCompleted", "Visited"
         };
         private static readonly HashSet<string> WarnKeys = new HashSet<string>
         {
@@ -1331,15 +1398,40 @@ namespace Oxide.Plugins
             p.LastSeen = Now();
             string before = p.DayKey;
             Roll(id, p);
-            if (!known && HasContent()) Reply(player, "FirstHint");
+            // RealmArrival's Next line replaces the first hint while it owns the newcomer and once their arrival is done.
+            if (!known && HasContent() && !ArrivalHandles(id)) Reply(player, "FirstHint");
+            // A player never seen before, whose first minutes RealmArrival owns: the Unwritten chain opens for them.
+            if (!known && arrival != null && p.Arrival == null && ArrivalOwns(id)) { p.Arrival = new ArrivalQ { OpenedAt = Now() }; dirty = true; }
             else if (before != null && before != p.DayKey && config.DailiesEnabled && dailies.Count > 0) Reply(player, "NewDay", p.Daily.Count);
             return p;
+        }
+
+        // RealmArrival (docs/arrival-design.md 7.3): ArrivalStage is pending|crossing|running while it owns a newcomer's
+        // first minutes, done afterwards, none (or null, not loaded) when it does not handle them.
+        private string ArrivalStageOf(string id)
+        {
+            if (RealmArrival == null) return null;
+            try { return RealmArrival.Call("ArrivalStage", id) as string; }
+            catch (Exception) { return null; }
+        }
+
+        private bool ArrivalOwns(string id)
+        {
+            string s = ArrivalStageOf(id);
+            return s == "pending" || s == "crossing" || s == "running";
+        }
+
+        private bool ArrivalHandles(string id)
+        {
+            string s = ArrivalStageOf(id);
+            return s == "pending" || s == "crossing" || s == "running" || s == "done";
         }
 
         // A chapter of the tale that has opened since the player last looked: told once, with its intro.
         private void ChapterNews(Player player, PlayerQ p)
         {
             if (story == null || !config.StoryEnabled) return;
+            if (player != null && ArrivalOwns(player.Id.ToString())) return;   // told after RealmArrival's narration ends
             ChapterDef ch;
             string wait;
             QuestDef step = CurrentStep(p, out ch, out wait);
@@ -1647,6 +1739,7 @@ namespace Oxide.Plugins
                 if (config.WeekliesEnabled)
                     foreach (Slot s in new List<Slot>(p.Weekly)) moved |= AdvanceSlot(id, p, online, s, weeklies, KWeekly, type, subject, amount, distinct, state);
                 moved |= AdvanceStory(id, p, online, type, subject, amount, distinct, state);
+                moved |= AdvanceArrival(id, p, online, type, subject, amount, distinct, state);
                 if (config.AchievementsEnabled) moved |= AdvanceAchievements(id, p, online, type, subject, amount, distinct, state);
                 if (config.HouseGoalsEnabled && !state && type != TVisit) moved |= AdvanceHouse(id, p, online, type, subject, (int)Math.Min(amount, int.MaxValue));
                 if (moved) dirty = true;
@@ -1789,6 +1882,79 @@ namespace Oxide.Plugins
                 }
             if (moved && AllDone(q, p.Story.Progress, true)) CompleteStep(id, p, online, ch, q);
             return moved;
+        }
+
+        private bool ArrivalOpen(PlayerQ p)
+        {
+            return arrival != null && p != null && p.Arrival != null && !p.Arrival.Complete
+                && (Now() - p.Arrival.OpenedAt).TotalDays < config.ArrivalOpenDays;
+        }
+
+        // The Unwritten chain: every open step keeps what it is told, in any order; then the steps finish in order.
+        private bool AdvanceArrival(string id, PlayerQ p, Player online, string type, string subject, long amount, string distinct, bool state)
+        {
+            if (!ArrivalOpen(p)) return false;
+            ArrivalQ a = p.Arrival;
+            bool moved = false;
+            foreach (QuestDef q in arrival.Steps)
+            {
+                if (a.Finished.Contains(q.Id)) continue;
+                List<int> prog;
+                List<string> seen;
+                if (!a.Progress.TryGetValue(q.Id, out prog)) { prog = new List<int>(); a.Progress[q.Id] = prog; }
+                if (!a.Seen.TryGetValue(q.Id, out seen)) { seen = new List<string>(); a.Seen[q.Id] = seen; }
+                for (int i = 0; i < q.Objectives.Count; i++)
+                    if (Step(q.Objectives[i], i, prog, seen, type, subject, amount, distinct, state)) moved = true;
+            }
+            if (moved) FinishArrivalSteps(id, p, online);
+            return moved;
+        }
+
+        // Steps finish in order; a later step whose deed is already done waits for the one before it. While RealmArrival
+        // still narrates (it owns the player) the steps finish quietly and the journal shows them.
+        private void FinishArrivalSteps(string id, PlayerQ p, Player online)
+        {
+            ArrivalQ a = p.Arrival;
+            bool quiet = ArrivalOwns(id);
+            foreach (QuestDef q in arrival.Steps)
+            {
+                if (a.Finished.Contains(q.Id)) continue;
+                List<int> prog;
+                if (!a.Progress.TryGetValue(q.Id, out prog) || !AllDone(q, prog, true)) break;
+                a.Finished.Add(q.Id);
+                a.Progress.Remove(q.Id);
+                a.Seen.Remove(q.Id);
+                dirty = true;
+                Puts(p.Name + " (" + id + ") finished arrival step " + q.Id);
+                if (online != null && !quiet)
+                {
+                    Reply(online, "ArrivalStepDone", arrival.Title, q.Title);
+                    if (!string.IsNullOrEmpty(q.Done)) Reply(online, "LogText", q.Done);
+                }
+            }
+            if (a.Finished.Count < arrival.Steps.Count) return;
+            a.Complete = true;
+            a.CompletedAt = Now();
+            string reward = arrival.Reward != null ? GiveReward(id, p, arrival.Reward, "arrival:complete", arrival.Title, "none") : null;
+            Puts(p.Name + " (" + id + ") finished " + arrival.Title);
+            if (online != null)
+            {
+                Reply(online, "ArrivalDone", arrival.Title);
+                if (reward != null && reward != Msg("RewardNothing", null)) Reply(online, "CompletedReward", reward);
+            }
+        }
+
+        // The line /quest shows for the open chain: the step the player is on and its objectives.
+        private string ArrivalLine(Player player, PlayerQ p)
+        {
+            foreach (QuestDef q in arrival.Steps)
+            {
+                if (p.Arrival.Finished.Contains(q.Id)) continue;
+                List<int> prog;
+                if (!p.Arrival.Progress.TryGetValue(q.Id, out prog)) prog = new List<int>();
+                return Fmt("ArrivalStep", player, p.Arrival.Finished.Count + 1, arrival.Steps.Count, q.Title, ObjectiveSummary(q.Objectives, prog));
+            }
+            return Ok(Fmt("ArrivalDone", player, arrival.Title));
         }
 
         private void CompleteStep(string id, PlayerQ p, Player online, ChapterDef ch, QuestDef q)
@@ -2945,7 +3111,7 @@ namespace Oxide.Plugins
 
         private bool HasContent()
         {
-            return dailies.Count + weeklies.Count + achievements.Count + houseGoals.Count > 0 || story != null;
+            return dailies.Count + weeklies.Count + achievements.Count + houseGoals.Count > 0 || story != null || arrival != null;
         }
 
         private string ObjectiveSummary(List<ObjectiveDef> objectives, List<int> progress)
@@ -3021,6 +3187,13 @@ namespace Oxide.Plugins
                     popup.Add(line.Trim());
                     any = true;
                 }
+            if (ArrivalOpen(p))
+            {
+                string line = Fmt("JournalArrival", player, arrival.Title, ArrivalLine(player, p));
+                player.SendMessage(line);
+                popup.Add(line.Trim());
+                any = true;
+            }
             if (story != null && config.StoryEnabled)
             {
                 QuestDef step;

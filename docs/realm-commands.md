@@ -60,12 +60,13 @@ Full rules and examples: [`community/how-to-play.md`](community/how-to-play.md) 
 | `/treasure` | RealmWorld | Your clue in a treasure hunt and how far along you are; `hint` names a direction once per clue |
 | `/caravan` | RealmWorld | The merchant caravan: `carry` (bear it from the start), `escort` (guard it), `leave`; and any raider's price |
 | `/festival` | RealmWorld | The Harvest Fair and Midwinter: the house standings and your part; `give [item\|all]` hands in goods for your house |
+| `/arrival` | RealmArrival | Where you are in your arrival (the walk from the Gatehouse of the Unwritten to the Hearth) and what is next; after it, your page so far. `skip` ends it at once, `tour` tells you the banners, the fire and the roads again as you pass them. Guide: [`RealmArrival.md`](../plugins/docs/RealmArrival.md) |
 | `/kit` | RealmTravel | Your kits (a newcomer's pack, daily house provisions, the season's bounty); `/kit <name>`, `collect` |
 | `/realm` | RealmHerald | Every command by subject, in a window (`/realm list` in chat), `/realm <subject>`, your first steps (`path`, `skip`, `crown`), `tips on/off`, `popups on/off`, `motd`. Guide: [`RealmHerald.md`](../plugins/docs/RealmHerald.md) |
 
 ## For admins
 
-Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`, `realmworld.admin`, `realmheraldry.admin`. The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`, `/craft admin status`, `/world admin`, `/heraldry sync`, `/ballot admin open`). Each plugin guide in `plugins/docs/` lists them.
+Each plugin has its own Oxide permission, granted with `oxide.grant user <name> <permission>`: `realmhouses.admin`, `crownandconsequences.admin`, `realmcontracts.admin`, `realmseasons.admin`, `realmevents.admin`, `realmlaws.admin`, `realmdynasties.admin`, `realmrenown.admin`, `realmtreasury.admin`, `realmravens.admin`, `realmwarden.admin`, `realmstats.admin`, `realmherald.admin`, `realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`, `realmworld.admin`, `realmheraldry.admin`, `realmarrival.admin` (and `realmarrival.skip`, which lets staff and testers skip the arrival). The admin subcommands live under the same commands as above (for example `/law zone set`, `/court admin`, `/dynasty admin`, `/renown admin`, `/raven admin queue`, `/warden alerts`, `/stats status`, `/season start`, `/event start`, `/realm admin motd`, `/dominion admin`, `/quest admin`, `/arena admin`, `/arena tourney open`, `/travel admin set`, `/kit admin check`, `/craft admin status`, `/world admin`, `/heraldry sync`, `/ballot admin open`, `/arrival admin check`). Each plugin guide in `plugins/docs/` lists them.
 
 Oxide runs these chat commands only for a player in game, not from the server console (see [`admin-console.md`](admin-console.md)). Two console-only commands come from `RealmCourt.cs`, which writes them into the game's own command table with the permission `realm.court`: `/realm.save` (save the world now) and `/realm.players` (online players with Steam IDs). Realm Steward's Court screen uses them.
 
@@ -94,6 +95,7 @@ Every Realm plugin answers in one style, so a player can tell at a glance who is
 | RealmCrafts | Guilds | | |
 | RealmWorld | World | | |
 | RealmHeraldry | Heraldry (votes: Council) | | |
+| RealmArrival | Hearth | | |
 
 The name is the lang key `Speaker`, so a server can rename it.
 
@@ -145,6 +147,8 @@ Some commands also open the game's own popup windows. They make the realm feel r
 | `/house found` alone, or with a name only (RealmHouses) | Input windows for the house's name, then its sigil. A bad name or sigil is refused in chat and asked again. | The full line: `/house found "<name>" <sigil>`. |
 | A challenge to a duel, a team duel or a tavern game (RealmArena) | Accept/Decline, with the stake shown. | `/duel accept <player> [marks]` (or `/dice`, `/cards`): with a stake, the stake must be typed. |
 | Crowned Champion of the Ring; a tournament match called (RealmArena) | A notice with an Ok button. | The same news in chat. |
+| A newcomer wakes in the Gatehouse (RealmArrival) | "The Gatehouse of the Unwritten", with the button "Open the Gate" ("Step through" while the arch is open). The button opens the gate. | The call to walk to the gold line before the gate; walking there opens it. |
+| A newcomer stands on a house's pledge stone (RealmArrival) | Yes/No: "Look to House X?", with "Look to X" / "Walk on". Yes tells that house's members awake in the realm. | The dwell line: standing 3 more seconds on the stone looks to the house; stepping off cancels. |
 
 **Switches.** `UsePopups` in `oxide/config/RealmHerald.json` and `oxide/config/RealmHouses.json` switches each plugin's windows off for the server. With RealmHouses' popups off, `/swear <house>` offers the oath at once, as it did before popups. A player turns every Realm window off for themselves with `/realm popups off` (RealmHouses asks RealmHerald's `PopupsWanted` before each window).
 

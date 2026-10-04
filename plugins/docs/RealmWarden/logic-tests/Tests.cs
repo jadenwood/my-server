@@ -66,6 +66,7 @@ static class T
         var p = new Player(id, name);
         Server.ClientPlayers.Add(p);
         if (connect) Inv(P, "OnPlayerConnected", p);
+        if (connect) Inv(P, "OnPlayerSpawned", new PlayerPreSpawnCompleteEvent { Player = p });   // the character is made
         return p;
     }
     static void Leave(Player p) { Inv(P, "OnPlayerDisconnected", p); Server.ClientPlayers.Remove(p); }
@@ -583,5 +584,54 @@ static class T
         int before = P.timer.Repeating.Count;
         Inv(P, "OnServerInitialized");
         Ok(P.timer.Repeating.Count == before, "OnServerInitialized idempotent");
+
+        ArrivalHooks();
+    }
+
+    // RealmArrival (docs/arrival-design.md 7.3): play time from the first spawn, the welcome left to the arrival while it
+    // owns the newcomer, and GetProtectionMinutesLeft.
+    static void ArrivalHooks()
+    {
+        Reset();
+        bool owns = true;
+        var arrival = new Plugin { Name = "RealmArrival", Handler = (h, a) => h == "OwnsArrival" ? (object)owns : null };
+        SetF(P, "RealmArrival", arrival);
+        var n = new Player(76561190000000901, "Raftborn");
+        Server.ClientPlayers.Add(n);
+        Inv(P, "OnPlayerConnected", n);
+        Ok(!n.All().Contains("new-player protection"), "arrival: the join welcome is left to RealmArrival while it owns the newcomer");
+        Ok((bool)F(Rec(n), "AwaitingSpawn"), "arrival: a new record waits for its first spawn");
+        Tick(4 * 20);   // 20 minutes in character creation
+        Ok((double)F(Rec(n), "Playtime") == 0.0, "arrival: character creation does not use up protected play time");
+        Ok((int)Inv(P, "GetProtectionMinutesLeft", n.Id) == 60, "arrival: GetProtectionMinutesLeft is the full hour before the first spawn",
+            Inv(P, "GetProtectionMinutesLeft", n.Id).ToString());
+        Inv(P, "OnPlayerSpawned", new PlayerPreSpawnCompleteEvent { Player = n });
+        Ok(!(bool)F(Rec(n), "AwaitingSpawn"), "arrival: OnPlayerSpawned starts the play time");
+        Tick(4 * 10);
+        double played = (double)F(Rec(n), "Playtime");
+        Ok(played >= 590 && played <= 610, "arrival: play time accrues after the spawn", played.ToString());
+        int left = (int)Inv(P, "GetProtectionMinutesLeft", n.Id);
+        Ok(left == 50, "arrival: GetProtectionMinutesLeft counts down (50)", left.ToString());
+        Ok((int)Inv(P, "GetProtectionMinutesLeft", (ulong)76561190000000999) == 0, "arrival: unknown player has 0 minutes left");
+        Inv(P, "CmdWarden", n, "warden", new[] { "protection", "off", "confirm" });
+        Ok((int)Inv(P, "GetProtectionMinutesLeft", n.Id) == 0, "arrival: 0 minutes once protection is given up");
+
+        Reset();
+        owns = false;
+        SetF(P, "RealmArrival", arrival);
+        var m = new Player(76561190000000902, "Ferryborn");
+        Server.ClientPlayers.Add(m);
+        Inv(P, "OnPlayerConnected", m);
+        Ok(m.All().Contains("new-player protection"), "arrival: the welcome is sent when RealmArrival does not own the newcomer (closed)");
+        Inv(P, "OnPlayerSpawn", new PlayerFirstSpawnEvent { Player = m, AtFirstSpawn = true });
+        Ok((bool)F(Rec(m), "AwaitingSpawn"), "arrival: a first spawn still in creation does not start the clock");
+        Inv(P, "OnPlayerSpawn", new PlayerFirstSpawnEvent { Player = m, AtFirstSpawn = false });
+        Ok(!(bool)F(Rec(m), "AwaitingSpawn"), "arrival: a returning character (AtFirstSpawn false) starts the clock too");
+
+        Reset();
+        var x = new Player(76561190000000903, "NoArrival");
+        Server.ClientPlayers.Add(x);
+        Inv(P, "OnPlayerConnected", x);
+        Ok(x.All().Contains("new-player protection"), "arrival: without RealmArrival the welcome is sent as before");
     }
 }

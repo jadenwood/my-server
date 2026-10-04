@@ -99,6 +99,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin RealmRenown;
         [PluginReference] private Plugin RealmSentinel;
         [PluginReference] private Plugin RealmEvents;
+        [PluginReference] private Plugin RealmArrival;
 
         private const string PermAdmin = "realmtravel.admin";
         private const string DataName = "RealmTravel";
@@ -2211,6 +2212,11 @@ namespace Oxide.Plugins
             KitDef starter = StarterKit();
             if (rec.HintSent || starter == null) return;
             if (KitBlocker(p, rec, starter) != null) return;
+            // RealmArrival's Kit line at the Hearth replaces this hint while it owns the newcomer and once the arrival is
+            // done (ArrivalStage pending|crossing|running|done). Who may claim is unchanged: WasNewcomer is set by the
+            // minute tick and at claim time, not here.
+            string stage = AskString(RealmArrival, "ArrivalStage", id.ToString());
+            if (stage == "pending" || stage == "crossing" || stage == "running" || stage == "done") return;
             rec.HintSent = true;
             dirty = true;
             Reply(p, "Hint", starter.Id);

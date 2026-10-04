@@ -10,6 +10,20 @@ Arguments in `<angle brackets>` are required and arguments in `[square brackets]
 
 ---
 
+## Your first hour
+
+**The arrival.** After you make your character on the ferryman's raft (the game's own character screen), you wake in the **Gatehouse of the Unwritten**, a stone court below the Hearth. Walk to the gold line before the gate and it opens. Six house banners line the road to the Hearth: each house tells you what it is as you pass, and standing still on a house's stone lets its members know you are interested (it is never an oath; only they can invite you). At the fire you are pointed to your starter bundle (`/kit starter`), the crown (`/crown`) and your first deed (`/quest`). It takes three to five minutes. `/arrival` says where you are and what is next, `/arrival skip` ends it at once, and `/arrival tour` tells you the banners and the fire again as you pass them. Returning players never see it. (RealmArrival, `plugins/docs/RealmArrival.md`. Not yet tried on a live server.)
+
+**Survival basics.**
+
+- **Tools first.** Your starter bundle has wood, stone and food. Make a stone tool before anything else; gathering by hand is slow.
+- **Carry a torch.** Ostreval's nights are dark. A torch, or staying by a fire, keeps you from walking into trouble.
+- **Eat and drink.** Hunger and thirst wear you down over time. Cook what you hunt; raw meat is a poor meal.
+- **Raise a crest before you build.** Blocks outside a crest's land decay. A crest marks your land and keeps what you build there.
+- **Place a bed.** Without one you wake at a random spot after a death. A newcomer who falls while still sheltered gets one return to the Hearth (Hearth's Mercy), once.
+- **Log off behind walls.** Your body sleeps where you stood when you leave. Anyone can find it, so leave it behind a locked door.
+- **Your first hour is sheltered.** RealmWarden protects new players for their first hour of play (and at most 48 hours). Strike, bind or raid a crest, and the shelter ends at once.
+
 ## 1. Houses
 
 A house is your faction. It has a name, a sigil, a leader, up to 3 officers and its members.

@@ -38,6 +38,8 @@
 //   CrownAndConsequences.GetKingName() / GetKingHouse()       /realm crown, {monarch}
 //   RealmContracts.HasContractHistory(string playerId) -> bool step 3
 //   RealmSeasons.GetSeasonName() -> string                    {season}
+//   RealmArrival.ArrivalStage(string playerId) -> string    the welcome waits while the arrival owns a newcomer;
+//                                                            after it, the MOTD alone and reminders from then
 // Offered to other plugins: PopupsWanted(string playerId) -> bool (false after /realm popups off).
 // No Chronicle entries: a welcome is not realm history.
 //
@@ -63,6 +65,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin CrownAndConsequences;
         [PluginReference] private Plugin RealmContracts;
         [PluginReference] private Plugin RealmSeasons;
+        [PluginReference] private Plugin RealmArrival;
 
         private const string PermAdmin = "realmherald.admin";
         private const string DataName = "RealmHerald";
@@ -159,6 +162,7 @@ namespace Oxide.Plugins
             new Entry("road", "roads", "RealmTravel"),
             new Entry("kit", "roads", "RealmTravel"),
             new Entry("caravan", "roads", "RealmWorld"),
+            new Entry("arrival", "roads", "RealmArrival"),
             new Entry("realm", "fair", "RealmHerald"),
             new Entry("warden", "fair", "RealmWarden"),
             new Entry("stats", "fair", "RealmStats")
@@ -276,6 +280,7 @@ namespace Oxide.Plugins
         {
             public DateTime NextReminder;
             public int Reminders;
+            public bool WelcomeDeferred;   // RealmArrival owns the newcomer's first minutes; decided again each Tick
         }
 
         private void SaveData()
@@ -426,6 +431,7 @@ namespace Oxide.Plugins
                 { "Cmd.treasure", "your clue in a treasure hunt, and a hint when you are stuck" },
                 { "Cmd.festival", "the Harvest Fair and Midwinter: house standings, and goods to give for your house" },
                 { "Cmd.caravan", "bear or guard the merchant caravan between two places, for a share of its purse" },
+                { "Cmd.arrival", "where you are in your arrival and what is next; skip or tour" },
                 { "Cmd.realm", "this help, your first steps, tips, popups and the message of the day" },
                 { "Cmd.warden", "your protection, the raid hours, the rules, and reports" },
                 { "Cmd.stats", "what the server's statistics record about you, and opting out" },
@@ -600,8 +606,9 @@ namespace Oxide.Plugins
             if (welcome)
             {
                 CountNewcomer(now);
-                timer.Once(Math.Max(0.1f, config.WelcomeDelaySeconds), delegate { Welcome(Online(id)); });
-                if (config.HeraldNewcomers && NewcomerHeraldAllowed(now))
+                timer.Once(Math.Max(0.1f, config.WelcomeDelaySeconds), delegate { WelcomeOrDefer(Online(id)); });
+                // RealmArrival names the newcomer to the realm itself (HeraldGate) once they walk out of the Gatehouse.
+                if (config.HeraldNewcomers && ArrivalStage(id) != "pending" && NewcomerHeraldAllowed(now))
                     Server.BroadcastMessage(Msg("Herald", null) + Msg("NewcomerHerald", null, Clean(player.Name)));
             }
             if (rec.PathOff || rec.PathDone) sessions[id].Reminders = int.MaxValue;
@@ -614,6 +621,39 @@ namespace Oxide.Plugins
             sessions.Remove(id);
             PlayerRec rec;
             if (data.Players.TryGetValue(id, out rec)) { rec.LastSeen = clock(); dirty = true; }
+        }
+
+        // RealmArrival (docs/arrival-design.md 7.3): while it owns the newcomer (pending, crossing or running) the welcome
+        // waits for the next Tick; once the arrival is done the welcome popup and lines are skipped (the arrival said it),
+        // the MOTD is sent alone and the first-step reminders start from now; none, or no RealmArrival: as before.
+        private string ArrivalStage(string id)
+        {
+            if (RealmArrival == null) return null;
+            try { return RealmArrival.Call("ArrivalStage", id) as string; }
+            catch (Exception) { return null; }
+        }
+
+        private static bool ArrivalOwns(string stage)
+        {
+            return stage == "pending" || stage == "crossing" || stage == "running";
+        }
+
+        private void WelcomeOrDefer(Player player)
+        {
+            if (player == null) return;
+            string id = player.Id.ToString();
+            string stage = ArrivalStage(id);
+            Session s;
+            if (!sessions.TryGetValue(id, out s)) { s = new Session { NextReminder = clock().AddSeconds(config.FirstReminderSeconds) }; sessions[id] = s; }
+            if (ArrivalOwns(stage)) { s.WelcomeDeferred = true; return; }
+            s.WelcomeDeferred = false;
+            if (stage == "done")
+            {
+                if (config.ShowMotdOnJoin) ShowMotd(player, false);
+                s.NextReminder = clock().AddSeconds(config.FirstReminderSeconds);
+                return;
+            }
+            Welcome(player);
         }
 
         private void Welcome(Player player)
@@ -814,6 +854,13 @@ namespace Oxide.Plugins
             {
                 string id = p.Id.ToString();
                 PlayerRec rec = Rec(id, p.Name, now);
+                Session ws;
+                if (sessions.TryGetValue(id, out ws) && ws.WelcomeDeferred)
+                {
+                    if (ArrivalOwns(ArrivalStage(id))) continue;           // still in the arrival: no reminders either
+                    WelcomeOrDefer(p);
+                    continue;
+                }
                 if (rec.PathDone || !config.FirstStepsPath) continue;
                 Announce(p, rec, Refresh(id, rec));
                 if (rec.PathDone || rec.PathOff) continue;
@@ -853,6 +900,7 @@ namespace Oxide.Plugins
                 {
                     PlayerRec rec;
                     if (data.Players.TryGetValue(p.Id.ToString(), out rec) && rec.TipsOff) continue;
+                    if (ArrivalOwns(ArrivalStage(p.Id.ToString()))) continue;    // no tips across RealmArrival's narration
                     p.SendMessage(Msg("Tip", p) + text);
                 }
                 return i + 1;

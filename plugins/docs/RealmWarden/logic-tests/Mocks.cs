@@ -95,6 +95,8 @@ namespace CodeHatch.Networking.Events.Players
 {
     using CodeHatch.Engine.Networking;
     public class PlayerMessageEvent : CodeHatch.Networking.Events.NetworkEvent { public Player Player; public string Message; }
+    public class PlayerFirstSpawnEvent : CodeHatch.Networking.Events.NetworkEvent { public Player Player; public bool AtFirstSpawn; }
+    public class PlayerPreSpawnCompleteEvent : CodeHatch.Networking.Events.NetworkEvent { public Player Player; }
 }
 
 namespace CodeHatch.Networking.Events.Entities

@@ -1,0 +1,42 @@
+{
+  "Version": 1,
+  "Title": "The Unwritten",
+  "Steps": [
+    {
+      "Id": "ar_gate",
+      "Title": "Through the Gate",
+      "Text": "The ferryman has left you at the Gatehouse. Walk out of it, and the Chronicle opens.",
+      "Done": "The gate is behind you. From here on, what you do is written.",
+      "Objectives": [
+        { "Type": "custom", "Targets": ["arrival_gate", "arrival_hearth"], "Count": 1, "Text": "Walk out of the Gatehouse" }
+      ]
+    },
+    {
+      "Id": "ar_hearth",
+      "Title": "Warm Hands",
+      "Text": "Walk the banners to the fire where the Charter was sworn.",
+      "Done": "The fire has not gone out in a hundred winters.",
+      "Objectives": [
+        { "Type": "visit", "Targets": ["the_hearth"], "Count": 1, "Text": "Reach the Hearth" }
+      ]
+    },
+    {
+      "Id": "ar_crown",
+      "Title": "Who Sits the Throne",
+      "Text": "Learn who holds the Old Throne, and how a crown is lost.",
+      "Done": "Now you know whose seat it is, for now.",
+      "Objectives": [
+        { "Type": "custom", "Targets": ["arrival_crown"], "Count": 1, "Text": "Ask after the crown" }
+      ]
+    },
+    {
+      "Id": "ar_road",
+      "Title": "The First Road",
+      "Text": "Leave the Hearth by one of its three roads and find a second waystone.",
+      "Done": "Two stones known. The realm is larger than one fire.",
+      "Objectives": [
+        { "Type": "custom", "Targets": ["arrival_road"], "Count": 1, "Text": "Find a second waystone" }
+      ]
+    }
+  ]
+}

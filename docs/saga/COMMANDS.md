@@ -7,6 +7,8 @@ act, because its syntax can still move.
 
 | Command | Defined by | Status | Used in |
 |---|---|---|---|
+| `/arrival` | RealmArrival | committed | locations.md |
+| `/arrival admin` | RealmArrival | committed | calendar-8-weeks.md |
 | `/chronicle` | RealmChronicle | committed | legends.md, proclamations.md, runsheets/act-1-the-empty-seat.md, runsheets/act-2-the-charter-tested.md, runsheets/act-3-the-lawful-hours.md, runsheets/act-4-the-reckoning.md, season-1-the-hollow-crown.md |
 | `/claim cancel` | CrownAndConsequences | committed | runsheets/act-1-the-empty-seat.md, season-1-the-hollow-crown.md |
 | `/claim declare` | CrownAndConsequences | committed | README.md, legends.md, runsheets/act-3-the-lawful-hours.md, season-1-the-hollow-crown.md |
@@ -44,6 +46,7 @@ act, because its syntax can still move.
 | `/dynasty list` | RealmDynasties | being built this run | proclamations.md, runsheets/act-1-the-empty-seat.md, runsheets/act-2-the-charter-tested.md, runsheets/act-3-the-lawful-hours.md |
 | `/event start` | RealmEvents | being built this run | README.md |
 | `/events` | RealmEvents | being built this run | runsheets/act-1-the-empty-seat.md, runsheets/act-2-the-charter-tested.md |
+| `/home` | RealmTravel | committed | locations.md |
 | `/house` | RealmHouses | committed | season-1-the-hollow-crown.md |
 | `/house disband` | RealmHouses | committed | runsheets/act-1-the-empty-seat.md |
 | `/house found` | RealmHouses | committed | season-1-the-hollow-crown.md |
