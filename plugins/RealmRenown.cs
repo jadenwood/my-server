@@ -183,6 +183,7 @@ namespace Oxide.Plugins
             d.Add("kingmaker", D("won the crown for their house", 60, 0, 0));
             d.Add("crown_defended", D("held the crown against a rebellion", 100, 0, 0));
             d.Add("rebellion_defended", D("stood for the crown against a rebellion", 40, 0, 0));
+            d.Add("wayfarer", D("reached every waystone of the realm", 40, 0, 0));   // RealmTravel (AddDeed, once)
             d.Add("contract_bounty", D("collected a bounty", 25, 0, 20));
             d.Add("contract_delivery", D("filled an order", 15, 0, 30));
             d.Add("contract_merc", D("fought as a hired sword", 30, 0, 0));

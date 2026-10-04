@@ -24,7 +24,7 @@ static class T
     static RealmHerald H;
 
     static readonly string[] AllPlugins = { "CrownAndConsequences", "RealmChronicle", "RealmContracts", "RealmDynasties", "RealmEvents",
-        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald", "RealmDominion", "RealmQuests", "RealmArena" };
+        "RealmHouses", "RealmLaws", "RealmRavens", "RealmRenown", "RealmSeasons", "RealmStats", "RealmTreasury", "RealmWarden", "RealmHerald", "RealmDominion", "RealmQuests", "RealmArena", "RealmTravel" };
 
     static void Ok(bool cond, string name, string extra = "")
     {
@@ -234,13 +234,13 @@ static class T
         Ok(edda.Popups.Count == 1 && hp.Kind == "basic" && hp.Title == "The Realm of Ostreval" && hp.Broadcast, "/realm opens the hub as a popup window", hp == null ? "none" : hp.Title);
         Ok(listed.All(c => Regex.IsMatch(hp.Message, @"(^|\s)/" + c + @"(\s|$)")) && hp.Message.Contains("Houses and oaths: /house  /swear  /renounce  /treaty"),
             "the window lists every command under its subject", hp.Message);
-        Ok(hp.Message.Split('\n').Length == 12 && !Regex.IsMatch(hp.Message, @"\[[0-9A-Fa-f]{6}\]"), "the window: intro, eight subject lines, footer; plain text", hp.Message);
+        Ok(hp.Message.Split('\n').Length == 4 + subjects.Length && !Regex.IsMatch(hp.Message, @"\[[0-9A-Fa-f]{6}\]"), "the window: intro, one line per subject, footer; plain text", hp.Message);
         Ok(edda.Messages.Count == 1 && edda.Messages[0] == "[D6A043]Realm[FFFFFF]: Every command is open in a window. [F4C96D]/realm list[FFFFFF] shows them here in chat.",
             "with the window comes one chat line: the chat fallback", edda.All());
         edda.Messages.Clear();
         Cmd(edda, "list");
         string hub = edda.All();
-        Ok(edda.Messages.Count == 9 && edda.Messages[0].StartsWith("[D6A043]Realm[FFFFFF]: Every command, by subject"), "/realm list is a header and one line per subject (9 lines)", hub);
+        Ok(edda.Messages.Count == 1 + subjects.Length && edda.Messages[0].StartsWith("[D6A043]Realm[FFFFFF]: Every command, by subject"), "/realm list is a header and one line per subject", hub);
         Ok(listed.All(c => Regex.IsMatch(hub, @"\[F4C96D\]/" + c + @"\[FFFFFF\]")), "every command appears in the chat hub, coloured", hub);
         Ok(edda.Popups.Count == 1, "/realm list opens no window");
 
@@ -252,13 +252,13 @@ static class T
         Ok((bool)Inv(H, "PopupsWanted", "123") && (bool)Inv(H, "PopupsWanted", (string)null), "PopupsWanted is true for an unknown or missing id");
         edda.Messages.Clear();
         Cmd(edda);
-        Ok(edda.Popups.Count == 1 && edda.Messages.Count == 9, "with popups off, /realm prints the hub in chat", edda.All());
+        Ok(edda.Popups.Count == 1 && edda.Messages.Count == 1 + subjects.Length, "with popups off, /realm prints the hub in chat", edda.All());
         Cmd(edda, "popups", "on");
         Ok(!RB(edda, "PopupsOff") && edda.All().Contains("Popup windows are on again"), "/realm popups on");
         SetF(Cfg(), "UsePopups", false);
         edda.Messages.Clear();
         Cmd(edda);
-        Ok(edda.Popups.Count == 1 && edda.Messages.Count == 9, "with UsePopups off for the server, /realm prints the hub in chat");
+        Ok(edda.Popups.Count == 1 && edda.Messages.Count == 1 + subjects.Length, "with UsePopups off for the server, /realm prints the hub in chat");
         edda.Messages.Clear();
         Cmd(edda, "popups", "on");
         Ok(edda.All().Contains("This server does not use popup windows"), "/realm popups on says when the server has them off", edda.All());
@@ -267,7 +267,7 @@ static class T
         CodeHatch.Common.PlayerExtensions.PopupsFail = true;
         edda.Messages.Clear();
         Cmd(edda);
-        Ok(edda.Messages.Count == 9 && H.Log.Any(l => l.StartsWith("WARN ShowPopup failed")), "a window the game cannot open falls back to the chat hub", edda.All());
+        Ok(edda.Messages.Count == 1 + subjects.Length && H.Log.Any(l => l.StartsWith("WARN ShowPopup failed")), "a window the game cannot open falls back to the chat hub", edda.All());
         CodeHatch.Common.PlayerExtensions.PopupsFail = false;
         edda.Messages.Clear();
         Cmd(edda, "popups");
@@ -283,7 +283,7 @@ static class T
         Ok(edda.Messages.Count == 1 && edda.Messages[0].StartsWith("ERR [E86A5C]Realm[FFFFFF]: There is no subject or command 'dragons'"), "an unknown subject is refused in the error tone", edda.All());
         edda.Messages.Clear();
         Cmd(edda, "help");
-        Ok(edda.Messages.Count == 9, "/realm help is the hub");
+        Ok(edda.Messages.Count == 1 + subjects.Length, "/realm help is the hub");
 
         // A server without some plugins: their commands are left out
         var lean = NewHerald(null, new[] { "RealmHouses", "CrownAndConsequences", "RealmHerald" });

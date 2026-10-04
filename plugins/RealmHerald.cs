@@ -105,7 +105,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private static readonly string[] Subjects = { "houses", "crown", "law", "blood", "coin", "events", "letters", "fair" };
+        private static readonly string[] Subjects = { "houses", "crown", "law", "blood", "coin", "events", "roads", "letters", "fair" };
 
         private static readonly Entry[] Catalogue =
         {
@@ -147,6 +147,10 @@ namespace Oxide.Plugins
             new Entry("raven", "letters", "RealmRavens"),
             new Entry("rumour", "letters", "RealmRavens"),
             new Entry("rumor", "letters", "RealmRavens"),
+            new Entry("travel", "roads", "RealmTravel"),
+            new Entry("home", "roads", "RealmTravel"),
+            new Entry("road", "roads", "RealmTravel"),
+            new Entry("kit", "roads", "RealmTravel"),
             new Entry("realm", "fair", "RealmHerald"),
             new Entry("warden", "fair", "RealmWarden"),
             new Entry("stats", "fair", "RealmStats")
@@ -361,6 +365,7 @@ namespace Oxide.Plugins
                 { "Subject.blood", "Bloodlines and renown" },
                 { "Subject.coin", "Coin, trade and contracts" },
                 { "Subject.events", "Seasons and realm events" },
+                { "Subject.roads", "Roads, waystones and kits" },
                 { "Subject.letters", "Letters and rumours" },
                 { "Subject.fair", "Help and fair play" },
                 { "Cmd.house", "found, join and run a house; see any house with info" },
@@ -401,6 +406,10 @@ namespace Oxide.Plugins
                 { "Cmd.raven", "letters to players and houses, your inbox, and intrigue" },
                 { "Cmd.rumour", "whisper an anonymous rumour, or hear the latest" },
                 { "Cmd.rumor", "the same as [F4C96D]/rumour[FFFFFF]" },
+                { "Cmd.travel", "the waystones you know, and fast travel between them for a toll" },
+                { "Cmd.home", "set a home in your own crest zone, and travel back to it" },
+                { "Cmd.road", "the way to a waystone or your home, called in chat as you walk" },
+                { "Cmd.kit", "a newcomer's pack, daily house provisions and the season's bounty" },
                 { "Cmd.realm", "this help, your first steps, tips, popups and the message of the day" },
                 { "Cmd.warden", "your protection, the raid hours, the rules, and reports" },
                 { "Cmd.stats", "what the server's statistics record about you, and opting out" },
