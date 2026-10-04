@@ -694,8 +694,7 @@ namespace Oxide.Plugins
             public string Id, Name, Key;
             public DateTime Start, End;
             public Dictionary<string, int> HousePoints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            public Dictionary<string, int> PlayerPoints = new Dictionary<string, int>();
-            public Dictionary<string, string> PlayerHouse = new Dictionary<string, string>();
+            public Dictionary<string, int> PlayerPoints = new Dictionary<string, int>();     // "player|house" -> points given for that house
             public Dictionary<string, string> Names = new Dictionary<string, string>();
             public Dictionary<string, int> Daily = new Dictionary<string, int>();          // "day|player" -> points
             public Dictionary<string, List<string>> Givers = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -1037,6 +1036,7 @@ namespace Oxide.Plugins
                 { "CaravanProtected", "Newcomers under protection cannot bear the caravan: no raider could touch it." },
                 { "CaravanRaiderNo", "The merchants will not trust their goods to a raider with a price on their head." },
                 { "CaravanLeft", "You no longer guard the caravan." },
+                { "CaravanDropped", "You were not with the caravan, so your place among its guards went to another." },
                 { "CaravanBearerLeft", "The caravan at {0} needs a new bearer: [F4C96D]/caravan carry[FFFFFF]." },
                 { "CaravanBearerStays", "The bearer cannot leave the road. Bring the goods home." },
                 { "CaravanNotWith", "You are not with the caravan." },
@@ -1286,7 +1286,7 @@ namespace Oxide.Plugins
         };
         private static readonly HashSet<string> WarnKeys = new HashSet<string>
         {
-            "CaravanNoWaystone", "CaravanNotClose", "CaravanYouPlunder", "ItemsOwed", "StaffWinNothing", "AdminRemoveAsk", "AdminStopped",
+            "CaravanNoWaystone", "CaravanNotClose", "CaravanDropped", "CaravanYouPlunder", "ItemsOwed", "StaffWinNothing", "AdminRemoveAsk", "AdminStopped",
             "AdminChestFar", "WorldOff", "BountyNotYours", "AdminPostponed"
         };
 
@@ -1629,7 +1629,10 @@ namespace Oxide.Plugins
         private string Begin(string kind, string slot, string key, string target, DateTime now, DateTime end, bool manual)
         {
             if (data.Active != null) return Fmt("Busy", null, KindName(data.Active.Kind, null));
-            var a = new Run { Kind = kind, Slot = slot ?? "manual", Key = key ?? ("manual@" + Iso(now)), Start = now, End = end, Manual = manual };
+            int serial;
+            data.Turn.TryGetValue("serial", out serial);
+            data.Turn["serial"] = serial + 1;                  // every run has its own key (deeds are deduplicated by it)
+            var a = new Run { Kind = kind, Slot = slot ?? "manual", Key = (key ?? ("manual@" + Iso(now))) + "#" + (serial + 1), Start = now, End = end, Manual = manual };
             string fail = null;
             if (kind == KTreasure) fail = BeginTreasure(a, target);
             else if (kind == KBlood) BeginBlood(a);
@@ -2016,7 +2019,7 @@ namespace Oxide.Plugins
             data.Week.BloodKills++;
             dirty = true;
             if (kills < config.BloodMoon.KillDeedsPerPlayer)
-                Deed(kid, Clean(killer.Name, 40), "blood_moon_kill", "slew " + Clean(victim.Name, 40) + " under the Blood Moon", "world:blood:" + a.Key + ":" + pair);
+                Deed(kid, Clean(killer.Name, 40), "blood_moon_kill", "slew " + Clean(victim.Name, 40) + " under the Blood Moon", "world:blood:" + a.Key + ":" + kid + ":" + vid);
             Quest(kid, "blood_moon");
             Reply(killer, "BloodKillYou", Clean(victim.Name, 40), kills + 1);
         }
@@ -2193,7 +2196,6 @@ namespace Oxide.Plugins
             if (c.Escorts.ContainsKey(id)) { Reply(player, "CaravanAlreadyEscort"); return; }
             if (!Eligible(player)) { ReplyError(player, "StaffWinNothing"); return; }
             if (data.Bounties.ContainsKey(id)) { ReplyError(player, "CaravanRaiderNo"); return; }
-            if (c.Escorts.Count >= config.Caravan.MaxEscorts) { ReplyError(player, "CaravanFull", config.Caravan.MaxEscorts); return; }
             UnityEngine.Vector3 pos;
             if (!TryPos(player, out pos)) { ReplyError(player, "NoPosition"); return; }
             bool nearStart = c.Phase == "muster" && FlatDist(pos.x, pos.z, c.FX, c.FZ) <= config.Caravan.StartRadius * 2;
@@ -2202,10 +2204,33 @@ namespace Oxide.Plugins
             UnityEngine.Vector3 bp;
             if (bearer != null && TryPos(bearer, out bp)) nearBearer = FlatDist(pos.x, pos.z, bp.x, bp.z) <= config.Caravan.EscortRadius;
             if (!nearStart && !nearBearer) { ReplyError(player, "CaravanEscortFar", c.FromName); return; }
+            // Full: an escort who is not with the caravan right now (offline, or away from the start or the bearer)
+            // gives up their place, so idle names cannot hold every place against real guards.
+            if (c.Escorts.Count >= config.Caravan.MaxEscorts && !DropIdleEscort(c, bearer)) { ReplyError(player, "CaravanFull", config.Caravan.MaxEscorts); return; }
             c.Escorts[id] = new Escort { Name = Clean(player.Name, 40) };
             dirty = true;
             Reply(player, "CaravanYouEscort", c.ToName, config.Caravan.EscortMinPercent);
             if (bearer != null) Reply(bearer, "CaravanEscortJoined", Clean(player.Name, 40));
+        }
+
+        private bool DropIdleEscort(CaravanRun c, Player bearer)
+        {
+            UnityEngine.Vector3 bp = new UnityEngine.Vector3();
+            bool hasBp = bearer != null && TryPos(bearer, out bp);
+            foreach (KeyValuePair<string, Escort> kv in c.Escorts)
+            {
+                Player e = OnlineById(ParseId(kv.Key));
+                UnityEngine.Vector3 ep;
+                bool here = e != null && TryPos(e, out ep)
+                    && ((c.Phase == "muster" && FlatDist(ep.x, ep.z, c.FX, c.FZ) <= config.Caravan.StartRadius * 2)
+                        || (hasBp && FlatDist(ep.x, ep.z, bp.x, bp.z) <= config.Caravan.EscortRadius));
+                if (here) continue;
+                c.Escorts.Remove(kv.Key);
+                if (e != null) Reply(e, "CaravanDropped");
+                dirty = true;
+                return true;
+            }
+            return false;
         }
 
         private void CaravanLeave(Player player)
@@ -2235,7 +2260,9 @@ namespace Oxide.Plugins
                 Player b0 = OnlineById(ParseId(c.BearerId));
                 if (b0 == null) { Finish(a, "nobearer"); return; }
                 c.Phase = "road";
-                c.HasLast = false;
+                UnityEngine.Vector3 p0;
+                c.HasLast = TryPos(b0, out p0);              // the jump watch starts where the bearer stands at departure
+                if (c.HasLast) { c.LX = p0.x; c.LY = p0.y; c.LZ = p0.z; }
                 c.NextSighting = now.AddMinutes(config.Caravan.SightingMinutes);
                 dirty = true;
                 Herald(Fmt("CaravanDeparts", null, c.BearerName, c.FromName, c.ToName, (int)Math.Ceiling((a.End - now).TotalMinutes), c.Escorts.Count));
@@ -2792,9 +2819,10 @@ namespace Oxide.Plugins
             if (winner != null)
                 foreach (KeyValuePair<string, int> kv in r.PlayerPoints)
                 {
-                    string h;
-                    if (!r.PlayerHouse.TryGetValue(kv.Key, out h) || !SameText(h, winner)) continue;
-                    if (kv.Value > champPts || (kv.Value == champPts && string.CompareOrdinal(kv.Key, champId) < 0)) { champId = kv.Key; champPts = kv.Value; }
+                    int bar = kv.Key.IndexOf('|');
+                    if (bar <= 0 || !SameText(kv.Key.Substring(bar + 1), winner)) continue;     // points given for the winning house only
+                    string pid = kv.Key.Substring(0, bar);
+                    if (kv.Value > champPts || (kv.Value == champPts && string.CompareOrdinal(pid, champId) < 0)) { champId = pid; champPts = kv.Value; }
                 }
             string champName = champId != null && r.Names.ContainsKey(champId) ? r.Names[champId] : null;
             if (champId != null)
@@ -2847,9 +2875,9 @@ namespace Oxide.Plugins
             int hp, pp;
             r.HousePoints.TryGetValue(house, out hp);
             r.HousePoints[house] = hp + n;
-            r.PlayerPoints.TryGetValue(id, out pp);
-            r.PlayerPoints[id] = pp + n;
-            r.PlayerHouse[id] = house;
+            string pkey = id + "|" + house.Trim().ToLowerInvariant();
+            r.PlayerPoints.TryGetValue(pkey, out pp);
+            r.PlayerPoints[pkey] = pp + n;
             r.Names[id] = Clean(p.Name, 40);
             List<string> g;
             if (!r.Givers.TryGetValue(house, out g)) { g = new List<string>(); r.Givers[house] = g; }
@@ -2955,7 +2983,7 @@ namespace Oxide.Plugins
             {
                 int hp, mine, today;
                 r.HousePoints.TryGetValue(house, out hp);
-                r.PlayerPoints.TryGetValue(player.Id.ToString(), out mine);
+                r.PlayerPoints.TryGetValue(player.Id + "|" + house.Trim().ToLowerInvariant(), out mine);
                 r.Daily.TryGetValue(Now().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "|" + player.Id, out today);
                 Reply(player, "FestivalYours", HouseTint(house), hp, mine, Math.Max(0, f.DailyPlayerCap - today));
             }
