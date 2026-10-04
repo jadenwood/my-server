@@ -76,7 +76,7 @@ static class W
     public static object Cfg() { return F(A, "config"); }
     public static void Set(string field, object v) { SetF(Cfg(), field, v); }
     public static object Data() { return F(A, "data"); }
-    public static object Site() { return F(Data(), "Site"); }
+    public static object SiteData() { return F(Data(), "Site"); }
     public static object Rec(Player p) { var d = (IDictionary)F(Data(), "Players"); return d.Contains(p.Id.ToString()) ? d[p.Id.ToString()] : null; }
     public static string Stage(Player p) { var r = Rec(p); return r == null ? null : (string)F(r, "Stage"); }
     public static object RecF(Player p, string f) { return F(Rec(p), f); }
@@ -231,6 +231,24 @@ static class W
         Inv(p, "OnServerInitialized");
     }
 
+    // A crash: the plugin is gone without Unload (no save, the gate as it was), then a fresh load from the files.
+    public static void Crash()
+    {
+        var grants = new HashSet<string>(A.permission.Grants);
+        string json = A.Config.Json;
+        A.timer.DestroyAll();
+        var p = new RealmArrival();
+        p.Config.Json = json;
+        Inv(p, "LoadDefaultMessages");
+        foreach (var r in Refs) SetF(p, r[0], Absent.Contains(r[0]) ? null : (Plugin)typeof(W).GetField(r[1]).GetValue(null));
+        SetF(p, "clock", (Func<DateTime>)(() => Clock));
+        Inv(p, "Init");
+        foreach (var g in grants) p.permission.Grants.Add(g);
+        A = p;
+        Grid.PlaceHook = evt => Inv(A, "OnCubePlacement", evt);
+        Inv(p, "OnServerInitialized");
+    }
+
     // ---- time ----
     public static void Advance(double seconds)
     {
@@ -324,8 +342,8 @@ static class W
         Stand(adm, -2, 8, "droppad", "corner2");
         foreach (var s in StoneXZ) Stand(adm, s[0], s[1], "stone", "add");
         Stand(adm, 8, 125, "mercy", "add");
-        Stand(adm, 14, 125, "mercy", "add");
-        Stand(adm, 11, 136, "mercy", "add");
+        Stand(adm, 14, 122, "mercy", "add");
+        Stand(adm, 11, 140, "mercy", "add");
         Stand(adm, 11, 31, "eject", "set");
         Stand(adm, 11, 22, "threshold", "set");
         Stand(adm, 11, 130, "hearth", "set");

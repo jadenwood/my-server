@@ -1679,6 +1679,7 @@ namespace Oxide.Plugins
                 catch (Exception ex) { if (!Throttled("step|" + id, 60)) PrintError("Arrival step failed for " + Clean(p.Name, 40) + ": " + ex.Message); }
             }
             if (HallSet()) EvictTick(now);
+            WayboardTick(now);
             GateTick(now);
             if (now >= nextMinute)
             {
@@ -2367,6 +2368,24 @@ namespace Oxide.Plugins
                     list.Clear();
                     Ask(RealmWarden, "RaiseWardenAlert", "arrival_camp", p.Id, "evicted from the Gatehouse 3 times in 10 minutes");
                 }
+            }
+        }
+
+        // The Wayboard reached during the arrival or in its first two hours: Three Roads, once.
+        private void WayboardTick(DateTime now)
+        {
+            if (data.Site.Wayboard == null || !config.HourOneTips) return;
+            UnityEngine.Vector3 wb = PointV(data.Site.Wayboard);
+            foreach (Player p in OnlinePlayers())
+            {
+                Rec rec = FindRec(p.Id.ToString());
+                if (rec == null || rec.RoadsSent || rec.Variant != VNew || rec.Play || rec.T0 == DateTime.MinValue || (now - rec.T0).TotalHours >= 2) continue;
+                if (rec.Stage != SDone && !IsRunning(rec.Stage)) continue;
+                UnityEngine.Vector3 pos;
+                if (!TryPos(p, out pos) || Dist(pos, wb) > config.WayboardRadius) continue;
+                rec.RoadsSent = true;
+                dirty = true;
+                SendRoads(p);
             }
         }
 
@@ -3413,7 +3432,19 @@ namespace Oxide.Plugins
 
         private void AdminPlayer(Player player, string sub, string[] args)
         {
+            string resetTo = SPending;
             string name = JoinFrom(args, 2);
+            if (sub == "reset" && args.Length > 3)
+            {
+                string last = args[args.Length - 1].ToLowerInvariant();
+                if (last == SDone || last == SPending)
+                {
+                    resetTo = last;
+                    var parts = new string[args.Length - 3];
+                    Array.Copy(args, 2, parts, 0, parts.Length);
+                    name = string.Join(" ", parts).Trim();
+                }
+            }
             Player target = null;
             if (name.Length > 0)
             {
@@ -3446,7 +3477,7 @@ namespace Oxide.Plugins
                     return;
                 case "reset":
                     {
-                        string to = args.Length > 3 && args[args.Length - 1].ToLowerInvariant() == "done" ? SDone : SPending;
+                        string to = resetTo;
                         runs.Remove(target.Id);
                         ResetArrival(rec);
                         rec.Variant = "";
