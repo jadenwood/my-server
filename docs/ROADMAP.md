@@ -1,6 +1,6 @@
 # Realm Edition roadmap: from today to 1.0 and a live-service year
 
-This is the production plan for **Realm Edition of Reign of Kings**, written 2026-10-03. It covers the work from today to a public **1.0** with Season 1, and the first live-service year (Seasons 2 to 4). It says what "AAA" means for this project, the milestones and their exit criteria, the backlog by area, every UNVERIFIED item as a play-test checklist, the risks, and the volunteer roles.
+This is the production plan for **Realm Edition of Reign of Kings**, written 2026-10-03 and updated 2026-10-04 for the wave-4 systems (territorial war, quests, the arena, travel and kits, crafts, the living world, heraldry and council elections, and Steward's integration). It covers the work from today to a public **1.0** with Season 1, and the first live-service year (Seasons 2 to 4). It says what "AAA" means for this project, the milestones and their exit criteria, the backlog by area, every UNVERIFIED item as a play-test checklist, the risks, and the volunteer roles.
 
 Read [`HANDOFF.md`](HANDOFF.md) for the current state and [`realm-systems.md`](realm-systems.md) for the map of every part. Update this file at every milestone gate.
 
@@ -14,13 +14,15 @@ What reaches players, and how:
 
 | Channel | What Realm puts there | Where it lives |
 |---|---|---|
-| Server-side Oxide 2.0.3867 plugins (C# 3) | Houses, crown, laws, events, economy, seasons, anti-grief, cheat watch, the legendary blade | `plugins/*.cs` |
-| Blocks and block colours, which the game already syncs and saves | Monuments in the capital and at the house seats | `plugins/RealmSculptor.cs`, `art/sculptures/` |
-| Painted signs, which the game already syncs and saves | House crests, posters, the Chronicle board, wanted posters, standings | `plugins/RealmPainter.cs`, `art/paintings/` |
-| Chat, notices and popups | The Herald, the `/realm` hub, first steps, event heralds | `plugins/RealmHerald.cs` and every plugin's chat style |
-| The built-in `Mods\*.cfg` system | Atmosphere moods (Long Winter, Blood Moon, Golden Summer, Storm Season, Ashfall) | `mods/`, `server/Set-Mood.ps1` |
+| Server-side Oxide 2.0.3867 plugins (C# 3) | Houses, crown, laws, events, economy, seasons, anti-grief, cheat watch, the legendary blade; territorial war, quests and achievements, duels and tavern games, crafts and professions, the living world, council elections | `plugins/*.cs` |
+| Blocks and block colours, which the game already syncs and saves | Monuments in the capital and at the house seats; festival decorations (RealmWorld through RealmSculptor) | `plugins/RealmSculptor.cs`, `art/sculptures/` |
+| Painted signs, which the game already syncs and saves | House crests, posters, the Chronicle board, wanted posters, standings, the holdings board, treasure clues and festival standings | `plugins/RealmPainter.cs`, `art/paintings/` |
+| Chat, notices and popups | The Herald, the `/realm` hub, first steps, event heralds, every plugin's windows | `plugins/RealmHerald.cs` and every plugin's chat style |
+| The game's own guild data (name and banner colours), which the game already syncs | House colours on guild banners, crest flags, armour tints and name-tag icons | `plugins/RealmHeraldry.cs` |
+| Server-side moves and items the game already supports | Waystone travel with the game's own teleport call; kits, rewards and prizes into the packs | `plugins/RealmTravel.cs` and the plugins that pay goods |
+| The built-in `Mods\*.cfg` system | Atmosphere moods (Long Winter, Blood Moon, Golden Summer, Storm Season, Ashfall, Harvest Fair, Midwinter and more) | `mods/`, `server/Set-Mood.ps1` |
 | Realm (player app) | Play, server status, signed news, signed updates | `launcher/` (player build) |
-| Realm Steward (owner app) | Server setup, console, Court, Doctor, backups, publishing | `launcher/` (Steward build) |
+| Realm Steward (owner app) | Server setup, console, Court, Doctor, backups, publishing; with `team/steward-integration`, the Realm features switches, the Sentinel screen, news and update publishing, and data-file deploy | `launcher/` (Steward build) |
 | Outside the game | Chronicle overlay and `/realm`, portal, Discord bot and herald, stream scenes, analytics | `chronicle/`, `portal/`, `bot/`, `streamkit/`, `analytics/` |
 
 Hard limits that shape every item below:
@@ -68,17 +70,20 @@ Dates are targets. **A milestone ends when its exit criteria pass, not when its 
 
 Goal: one main branch with every finished team branch, green CI, and the deploy carrying everything the new plugins need.
 
-Work: merge `team/sculptor`, `team/sign-painter`, `team/ironbreaker`, `team/anti-cheat`, `team/player-launcher`, `team/web-and-broadcast` (merge notes in [`HANDOFF.md`](HANDOFF.md#in-flight)), then the P0 items marked M0 in [section 3](#3-backlog-by-area).
+Work: merge every finished team branch (merge notes in [`HANDOFF.md`](HANDOFF.md#wave-4-the-realms-new-systems)), then the P0 items marked M0 in [section 3](#3-backlog-by-area).
+
+State on 2026-10-04: wave 3 (`team/sculptor`, `team/sign-painter`, `team/ironbreaker`, `team/anti-cheat`, `team/player-launcher`, `team/web-and-broadcast`) and seven wave-4 branches (`team/dominion`, `team/quests`, `team/arena`, `team/travel`, `team/crafts`, `team/world-events`, `team/heraldry`) are merged into `claude/great-maxwell-wrksvt`. `team/steward-integration` is on its branch, merging next. Ticked criteria are met on the base; the others are open.
 
 Exit criteria:
 
-1. All 19 plugins are on the main branch. `bash tools/plugin-compile-check/check.sh` reports 0 errors.
-2. `node tools/realm-integration/check.mjs --commands` reports 0 problems with `STAFF_COMMANDS = ['sculpt', 'paint', 'ironbreaker', 'sentinel']` and no `PENDING_PLUGINS` entry left for RealmLegendary.
-3. Every `plugins/docs/*/logic-tests/run.sh`, `tools/realm-integration/cross-tests/run.sh` and `tools/exploit-review/run.sh` (with the `legendary` and `sentinel` suites) passes.
-4. CI runs the sculptor and painter tool tests, `cli.mjs check` and `paint.mjs check` (QA-1).
-5. Steward's **Update plugins** and `server/Deploy-Plugins.ps1` copy `art/sculptures/*.json` to `oxide\data\RealmSculptor\` and `art/paintings/RealmPainterArt.json` to `oxide\data\` (STW-1).
-6. `launcher` `npm run check` and `npm test` pass; the player screenshot script passes; the design and onboarding screenshot scripts no longer test removed player screens (PLA-1).
-7. `docs/realm-systems.md`, `docs/realm-commands.md` and `docs/HANDOFF.md` describe 19 plugins.
+1. [x] All 26 plugins are on the main branch. `bash tools/plugin-compile-check/check.sh` reports 0 errors.
+2. [x] `node tools/realm-integration/check.mjs --commands` reports 0 problems with one `STAFF_COMMANDS` list (`sentinel`, `paint`, `ironbreaker`, `sculpt`) and `PENDING_PLUGINS` empty.
+3. [x] Every `plugins/docs/*/logic-tests/run.sh`, `tools/realm-integration/cross-tests/run.sh`, `tools/exploit-review/run.sh` (with the `legendary`, `dominion`, `quests`, `arena`, `travel`, `crafts`, `world` and `heraldry` suites) and `tools/exploit-review/sentinel/run.sh` pass, here and in CI.
+4. [ ] CI runs the sculptor and painter tool tests and `cli.mjs check` (done) and `paint.mjs check` (open: SGN-8), and the mood tests for the new event keys under PowerShell 7 (QA-5).
+5. [ ] Steward's **Update plugins** and `server/Deploy-Plugins.ps1` copy `art/sculptures/*.json` to `oxide\data\RealmSculptor\`, `art/paintings/RealmPainterArt.json` to `oxide\data\` and `plugins/docs/RealmQuests/content/*.json` to `oxide\data\RealmQuests\` (STW-1: Steward's part is on `team/steward-integration`; the PowerShell script is open).
+6. [ ] `launcher` `npm run check` and `npm test` pass (done); the player screenshot script passes; the design and onboarding screenshot scripts no longer test removed player screens (PLA-1, open).
+7. [x] `docs/realm-systems.md`, `docs/realm-commands.md`, `docs/HANDOFF.md`, this file and `docs/community/how-to-play.md` describe the 26 plugins and the wave-4 branch still to merge.
+8. [ ] `team/steward-integration` is merged with its notes in [`HANDOFF.md`](HANDOFF.md#merge-notes-for-teamsteward-integration).
 
 ### M1 Owner proof
 
@@ -93,7 +98,11 @@ Exit criteria:
    - server-placed blocks show for clients with their colours (PT2.10), or RealmSculptor is parked;
    - a server-written sign picture reaches a second client (PT3.2), or RealmPainter is parked;
    - plugin damage blocking works (PT3.5, PT3.11), or the matching `Enforced`/`Block` switches are off and the rules are announce-only;
-   - server-side item moves show in the client at once (PT1.6), or the affected plugins run in honour mode.
+   - server-side item moves show in the client at once (PT1.6), or the affected plugins run in honour mode;
+   - wave 4: the game's own teleport moves a player for everyone and the server follows (PT1.25), or RealmTravel runs with `Travel.Mode: "road"`;
+   - wave 4: a client's gathering reaches plugins as container events (PT1.27), or RealmCrafts' gathering XP and bonus yield are switched off and the guide says so (kills, crafting and commissions still work);
+   - wave 4: a guild renamed and recoloured by the server shows on clients (PT1.30), or RealmHeraldry's colour sync is off and only elections run;
+   - wave 4: a duel's killing blow is turned aside with no death and no loot (PT3.20), or duels are switched off until `Duels.FatalMargin` or `PreventDeathFlag` is settled.
 3. The capital's first pieces stand in a crest zone on the test world: the Herald's Pillar, one Chronicle board, one house crest sign.
 4. Steward builds, installs and runs the server on the owner's PC with no step done by hand that `START-HERE.md` does not describe.
 5. No P0 item open.
@@ -109,10 +118,12 @@ Exit criteria (Checkpoint 1 of the launch plan, plus):
 1. 100% of friends who tried got in, with every failure understood. They joined with the **player app** (Play), not only by typing the address.
 2. 0 crashes in the last session; 0 unexplained plugin errors in `oxide/logs`.
 3. Every Chronicle type the session used appeared on the overlay, the portal and in Discord.
-4. 0 items duplicated or lost: `/treasury audit` and `/ironbreaker status` balance after every session; contract and market escrow counts match ([`smoke-test.md`](smoke-test.md) C11).
+4. 0 items duplicated or lost: `/treasury audit` and `/ironbreaker status` balance after every session; contract and market escrow counts match ([`smoke-test.md`](smoke-test.md) C11); marks held for duel stakes, commissions and ballot deposits are all accounted for in `/treasury audit`; no kit, quest, festival or event reward was paid twice.
 5. Sentinel: 0 alerts on honest players at the freeze score; `/sentinel peaks` recorded for tuning.
 6. At least 60% of friends come back for session 2.
 7. The capital stands: Old Throne monument, Herald's Pillar at the Hearth, Tournament Arch at the Listing Field, Chronicle board, wanted board, standings board (WLD-3, SGN-4).
+8. Wave 4 is set up on the alpha world: the seven holdings, the waystones, the twelve quest places, the world places and caravan routes, the Proving Ring and a tavern are marked (WLD-2), and the friends played at least one War Hours, one duel night and one world event (PT4.9 to PT4.12).
+9. The marks minted per day by Dominion, Quests, World and Crafts are recorded and the economy budget is set (SRV-21).
 
 ### M3 Closed beta
 
@@ -181,12 +192,12 @@ Season exit criteria (every season):
 
 | ID | Item | Pri | Size | When | Role |
 |---|---|---|---|---|---|
-| SRV-1 | Merge the four plugin branches. Resolve `STAFF_COMMANDS` in `tools/realm-integration/check.mjs` and its test to `['sculpt', 'paint', 'ironbreaker', 'sentinel']`; keep one copy of the RealmHerald logic-test exemption (identical on three branches; `team/sculptor` lacks it). | P0 | S | M0 | Plugin dev |
-| SRV-2 | Remove the RealmLegendary entry from `PENDING_PLUGINS` once `team/ironbreaker` is merged. | P0 | S | M0 | Plugin dev |
-| SRV-3 | Every plugin that pays items tells RealmSentinel first: `RealmSentinel.Call("SentinelItemSource", playerId, 30f)` in RealmTreasury, RealmContracts, RealmEvents, CrownAndConsequences (Royal Stores) and RealmLegendary. Any plugin that moves a player calls `SentinelGrace`. Until then Sentinel trusts those commands by name only. | P1 | M | M2 | Plugin dev |
+| SRV-1 | **Done 2026-10-03** (wave-3 merges; one list in `check.mjs`). Merge the four plugin branches. Resolve `STAFF_COMMANDS` in `tools/realm-integration/check.mjs` and its test to `['sculpt', 'paint', 'ironbreaker', 'sentinel']`; keep one copy of the RealmHerald logic-test exemption (identical on three branches; `team/sculptor` lacks it). | P0 | S | M0 | Plugin dev |
+| SRV-2 | **Done 2026-10-03** (`PENDING_PLUGINS` is empty). Remove the RealmLegendary entry from `PENDING_PLUGINS` once `team/ironbreaker` is merged. | P0 | S | M0 | Plugin dev |
+| SRV-3 | **Partly done:** the wave-4 plugins that pay goods or move players (RealmArena, RealmCrafts, RealmQuests, RealmTravel, RealmWorld) already call it; the five named here do not. Every plugin that pays items tells RealmSentinel first: `RealmSentinel.Call("SentinelItemSource", playerId, 30f)` in RealmTreasury, RealmContracts, RealmEvents, CrownAndConsequences (Royal Stores) and RealmLegendary. Any plugin that moves a player calls `SentinelGrace`. Until then Sentinel trusts those commands by name only. | P1 | M | M2 | Plugin dev |
 | SRV-4 | RealmContracts and RealmLaws call `RealmPainter.Call("RefreshBoards", "wanted")` after a proclamation or pardon; RealmLegendary calls `RefreshBoards("ironbreaker")` when the bearer changes. | P1 | S | M2 | Plugin dev |
 | SRV-5 | RealmRenown default config: an `ironbreaker` deed and a lasting "Ironbreaker" title, so RealmLegendary's `AddDeed` call counts. | P1 | S | M2 | Plugin dev |
-| SRV-6 | Chronicle types `blade_claimed`, `blade_lost` (and `monument_raised` for RealmSculptor): the three Chronicle lists, `portal/lib/model.mjs`, `launcher/lib/discord.js`, `art/icons/event-map.json` with two new icons, then switch RealmLegendary's two type constants. | P2 | M | Season 2 | Plugin dev, Artist |
+| SRV-6 | **On `team/steward-integration`** (`blade_claimed`, `blade_lost` with icons; RealmLegendary switched; `monument_raised` still open). Chronicle types `blade_claimed`, `blade_lost` (and `monument_raised` for RealmSculptor): the three Chronicle lists, `portal/lib/model.mjs`, `launcher/lib/discord.js`, `art/icons/event-map.json` with two new icons, then switch RealmLegendary's two type constants. | P2 | M | Season 2 | Plugin dev, Artist |
 | SRV-7 | A non-public claim API in CrownAndConsequences, so RealmDynasties stops calling the `/claim` command method (`CmdClaim`). | P1 | M | M3 | Plugin dev |
 | SRV-8 | Non-public `AddDeed` calls from RealmContracts, RealmHouses and RealmChronicle into RealmRenown, replacing RealmRenown's reads of their data files. | P2 | M | Season 2 | Plugin dev |
 | SRV-9 | **Small-server balance profile.** Claim and jury minimums, cooldowns, raven chances, Sentinel limits and event prizes tuned for 10 to 30 players, shipped as a documented config set; a second profile for 60+. Based on alpha numbers. | P1 | M | M2 | Plugin dev, Play-test lead |
@@ -196,14 +207,24 @@ Season exit criteria (every season):
 | SRV-13 | `tools/plugin-compile-check/UnityEngine.cs`: stubs for `Quaternion`, `Color32`, `Color`, `Vector2`, `Transform`, `Collider`, `Physics`, so RealmSculptor and RealmPainter can call the game directly instead of by reflection. Only after PT2 proves the reflected paths; keep the logic tests' metadata guard. | P2 | M | Season 2 | Plugin dev |
 | SRV-14 | Write every play-test result into the guide it settles, and remove the UNVERIFIED tag it settles. | P0 | S per session | M1 onward | Play-test lead |
 | SRV-15 | A2S name and slots: a design spike for a plugin that sets the Steam server name and max players (`docs/join-and-scale.md` section 4, option 3), so server browsers stop showing "Another ROK Server". UNVERIFIED that the Oxide sandbox allows it at run time. | P3 | M | live year | Plugin dev |
-| SRV-16 | Event-time trial by combat: RealmLaws exposes an "in duel" call so RealmEvents' truce can exempt duels. | P2 | S | Season 2 | Plugin dev |
+| SRV-16 | **Partly met** by RealmArena: trial by combat is staged in its ring and duel blows are exempt from the peace law (`IsDuelBlow`); RealmEvents' truce still has no duel exemption. Event-time trial by combat: RealmLaws exposes an "in duel" call so RealmEvents' truce can exempt duels. | P2 | S | Season 2 | Plugin dev |
+| SRV-17 | **Wave-4 titles as defaults.** A RealmRenown default title for `holding_taken` (for example *Marcher Lord*), the six quest titles (`plugins/docs/RealmQuests/renown-titles.json`) and *Wayfarer*, each with its badge in `art/src/titles.json` and the copies (bot, launcher, portal). Plus a config upgrade note or tool so live `RealmRenown.json` files gain the Arena, Quests and Travel titles without a paste. | P1 | M | M2 | Plugin dev, Artist |
+| SRV-18 | Short labels for the new Chronicle types (`holding_taken`, `census_taken`, `vote_held`, and `blade_claimed`, `blade_lost` after the Steward merge) in `bot/src/text.js`, `streamkit/public/assets/kit.js` and `launcher/lib/shared/notify.js`; they fall back to defaults today. | P1 | S | M2 | Web maintainer |
+| SRV-19 | **One treasury API.** Wave 4 added `GrantHouseIncome`, `RewardMarks`, `ChargeMarks` and the holds (`HoldMarks`, `PayFromHold`, `ReleaseHold`, `GetHold`). Design spike: one charge path, one mint path with one daily budget per source shown in `/treasury audit`, and `/purse` showing marks held in escrow. | P2 | M | Season 2 | Plugin dev |
+| SRV-20 | RealmWarden skips its combat-tag and grief heuristics for duel blows (`RealmArena.IsDuelBlow`), so a duellist is not flagged for a duel. | P1 | S | M2 | Plugin dev |
+| SRV-21 | **Economy budget for wave 4.** Dominion's payday (up to about 1,500 marks a day with seven holdings), Quests (up to 3,000 a day), World and Crafts rewards against `MintSupplyCap` 100,000 and the 20,000 crown reserve. Set `IncomeByKind`, `RewardMintPerDay`, `RewardScale` and the cap per season from PT7.17; part of the small-server profile (SRV-9). | P1 | M | M2 | Plugin dev, Owner |
+| SRV-22 | RealmLaws non-public `ApplyReferendum` (proclaim or repeal), so the crown's law referendums bind as decree referendums do. Today they are advisory and defiance is heralded and chronicled. | P2 | S | Season 2 | Plugin dev |
+| SRV-23 | Direct reports instead of file reads: RealmContracts and RealmEvents call `RealmQuests.ReportQuestEvent`; RealmTravel offers a non-public waystone lookup so RealmWorld stops reading `RealmTravel.json`; RealmTravel refuses journeys while `RealmWorld.IsCaravanBearer` (World already cancels them). | P2 | M | Season 2 | Plugin dev |
+| SRV-24 | House names: decide whether a player house may take a great house's name, which would give it that house's reserved colours in RealmHeraldry; enforce the decision in RealmHouses. | P1 | S | M2 | Owner, Plugin dev |
+| SRV-25 | Quest content for wave 4: weekly tasks and deeds for world events (treasure, caravan, legends), votes (`vote_cast`, `council_elected`), duels, holdings and crafting mastery, in `plugins/docs/RealmQuests/content/`. | P2 | M | Season 2 | Saga writer, Plugin dev |
+| SRV-26 | **Wave-4 tuning** from play: Arena `Duels.FatalMargin` and `PreventDeathFlag` (PT3.20, PT3.21), Dominion capture times, radii, garrison and cooldowns (PT4.12), Crafts XP and `Commissions.XpWithinHouse`, Heraldry `Voters.*`, Quests' caps, World rewards. Write the numbers into each guide. | P1 | M | M2 to M3 | Plugin dev, Play-test lead |
 
 ### 3.2 Sculptures and world build-out (the capital and the house seats)
 
 | ID | Item | Pri | Size | When | Role |
 |---|---|---|---|---|---|
 | WLD-1 | Run the shape test in game (PT2.13) and fix `art/tools/sculptor/shapes.json` and `shapes.mjs` with the real shapes; rebuild and re-preview every sculpture. | P0 | M | M1 | Builder |
-| WLD-2 | **World plan.** Map the twelve saga locations (L01-L12, [`saga/locations.md`](saga/locations.md)) onto the real map: coordinates, facing, crest zone owner, which monument and which signs go where, and a screenshot of each site. Kept as a plan file next to the sculptures. | P0 | M | M1 | Builder, Saga writer |
+| WLD-2 | **World plan.** Map the twelve saga locations (L01-L12, [`saga/locations.md`](saga/locations.md)) onto the real map: coordinates, facing, crest zone owner, which monument and which signs go where, and a screenshot of each site. Kept as a plan file next to the sculptures. Wave 4 adds what staff mark by standing on the spot: the seven holdings (`/dominion admin move`), the waystones (`/travel admin set`), the twelve quest places (`/quest admin place set`), RealmWorld's places, caravan routes and festival decorations, and the Proving Ring and taverns (`/arena admin zone set`, `tavern set`). One plan, so a holding, its waystone and its quest place agree. | P0 | M | M1 | Builder, Saga writer |
 | WLD-3 | **The capital.** A staff crest zone over the throne hill. Old Throne monument by the Old Throne (L01), Herald's Pillar at the Hearth (L02), notice boards at the Crown Market (L03) and the Tollbridge (L04), Tournament Arch at the Listing Field (L05). Seen from 10 m, 50 m and 150 m. | P1 | L | M2 | Builder |
 | WLD-4 | **The six house seats** (L07-L12): crest and banner signs at each seat at 1.0, monuments as houses earn them from Season 2 (EVT-6). Six house monuments already exist (`art/sculptures/house-*.json`). | P1 | L | M3 | Builder |
 | WLD-5 | Waymarks: Herald's Pillar variants and direction signs on the roads between the capital and the seats. | P2 | M | M4 | Builder, Artist |
@@ -212,19 +233,22 @@ Season exit criteria (every season):
 | WLD-8 | Community monuments for Season 4: a submission guide (original designs, or CC0 sources through `cli.mjs voxelize` with `--license` and `--source`), a vote on the portal or Discord, staff placement. | P2 | L | Season 4 | Builder, Community manager |
 | WLD-9 | Season sculpture sets: Ironbreaker monument at the Listing Field (Season 2), beacon towers (Season 3), the rebuilt capital (Season 4). | P2 | L each | live year | Builder |
 | WLD-10 | Network budget for big builds: settle `BlocksPerTick` from PT7.9 and write the rule "house monuments only with fewer than N players online" into the builder guide. | P1 | S | M3 | Builder |
+| WLD-11 | Holding banners and waystone markers: RealmSculptor pieces or sign art at each holding and waystone (the guides suggest `heralds-pillar` for the capital and `house-<name>` at the seats), and RealmDominion holdings raising or retiring their waystones once both are proven. | P2 | M | M4 | Builder, Plugin dev |
 
 ### 3.3 Sign art
 
 | ID | Item | Pri | Size | When | Role |
 |---|---|---|---|---|---|
-| SGN-1 | Deploy carries `art/paintings/RealmPainterArt.json` (with STW-1). | P0 | S | M0 | Launcher dev |
+| SGN-1 | **On `team/steward-integration`** (Steward part). Deploy carries `art/paintings/RealmPainterArt.json` (with STW-1). | P0 | S | M0 | Launcher dev |
 | SGN-2 | Which placeables are paintable, and the real face of each: record `DefaultFace` and `FacesByName` from PT2.2 and PT2.6 into the RealmPainter guide and config. | P0 | S | M1 | Builder |
 | SGN-3 | Tune redraw limits and `BoardTexture` from PT7.8. | P1 | S | M3 | Plugin dev |
 | SGN-4 | Capital boards: the Chronicle at the Hearth, wanted posters at the Market and the Tollbridge, standings at the Listing Field, the proclamation by the throne, the event poster at the Hearth. | P1 | M | M2 | Builder |
 | SGN-5 | Seat signs: crest and banner signs at each house seat (with WLD-4). | P1 | M | M3 | Builder |
 | SGN-6 | A capital map sign and direction signs (new paintings in `art/tools/painter`). | P2 | M | M4 | Artist |
 | SGN-7 | Season sign sets: a poster set and season medal per season, rendered by the painter tool and previewed in the guide. | P2 | M each | live year | Artist |
-| SGN-8 | CI runs `node --test art/tools/painter/test/*.test.mjs` and `node art/tools/painter/paint.mjs check` (with QA-1). | P0 | S | M0 | QA lead |
+| SGN-8 | **Half done:** the painter tests run in CI; `paint.mjs check` does not yet. CI runs `node --test art/tools/painter/test/*.test.mjs` and `node art/tools/painter/paint.mjs check` (with QA-1). | P0 | S | M0 | QA lead |
+| SGN-9 | New live boards: the arena ladder, a roads board of waystones, a guild board (`RealmCrafts.GetMasterCrafter`, `GetWorkshopTier`), a ballot board (`RealmHeraldry.GetBallotSummary`), a house-goal board (`RealmQuests.GetHouseGoalText`), and a preview PNG of the dominion board. | P3 | M | live year | Plugin dev, Artist |
+| SGN-10 | Per-holding sign paintings under `art/paintings/dominion/`, once RealmPainter is proven in game. | P3 | S | live year | Artist |
 
 ### 3.4 Events
 
@@ -246,11 +270,11 @@ RealmSentinel uses only Oxide hooks and the game's own server-side types. Tuning
 
 | ID | Item | Pri | Size | When | Role |
 |---|---|---|---|---|---|
-| SEN-1 | Add the `sentinel` suite to `tools/exploit-review/run.sh` and a row to its README (it runs `tools/exploit-review/sentinel/Tests.cs` with the Sentinel mocks). | P0 | S | M0 | QA lead |
+| SEN-1 | **Done differently:** CI runs `tools/exploit-review/sentinel/run.sh` as its own step; `run.sh` still has no `sentinel` case. Add the `sentinel` suite to `tools/exploit-review/run.sh` and a row to its README (it runs `tools/exploit-review/sentinel/Tests.cs` with the Sentinel mocks). | P0 | S | M0 | QA lead |
 | SEN-2 | Run the 21 Sentinel steps in watch mode (PT1.16, PT3.13 to PT3.16, PT7.10). | P0 | M | M1 to M2 | Play-test lead |
 | SEN-3 | One week of watch mode in the alpha and two in the beta. Record `/sentinel peaks`; set every limit comfortably above the honest peaks; write the numbers into the guide. | P1 | M | M2 to M3 | Plugin dev |
 | SEN-4 | Switch to `"Mode": "enforce"` after 2 beta weeks with 0 alerts at the freeze score on honest players. Keep AutoBan off for 1.0. | P1 | S | M3 | Owner |
-| SEN-5 | Steward shows `oxide/data/RealmSentinelFeed.json` in the Court (schema in the Sentinel guide), and `launcher/lib/moderation.js` lists the `/sentinel` admin commands. | P1 | M | M3 | Launcher dev |
+| SEN-5 | **On `team/steward-integration`** (the Sentinel screen with Kick and Ban; staff commands copied for pasting in game). Steward shows `oxide/data/RealmSentinelFeed.json` in the Court (schema in the Sentinel guide), and `launcher/lib/moderation.js` lists the `/sentinel` admin commands. | P1 | M | M3 | Launcher dev |
 | SEN-6 | Privacy notice and data-deletion process mention Sentinel's evidence (Steam IDs, names, positions, ping; no IP addresses; daily logs). | P1 | S | M3 | Legal reader |
 | SEN-7 | Appeals: a Sentinel-based action is appealable under [`ban-appeals.md`](community/ops/ban-appeals.md), and the evidence lines are what the appeal reviews. | P1 | S | M3 | Moderator lead |
 | SEN-8 | Re-tune after every game-mode change that changes movement or damage (moods do not; new events might). | P2 | S each | live year | Plugin dev |
@@ -261,7 +285,7 @@ RealmSentinel uses only Oxide hooks and the game's own server-side types. Tuning
 |---|---|---|---|---|---|
 | PLA-1 | After merging `team/player-launcher`: drop the allegiance check from `launcher/scripts/design-screens.mjs`, keep only the Steward part of `onboarding-screens.mjs`, fix the links in `launcher/README.md`, `docs/community/trailer-script.md` and `launcher/renderer/assets/README.md`. | P0 | S | M0 | Launcher dev |
 | PLA-2 | Windows proof of Play, Install, Update, portable and large downloads (PT5.6 to PT5.12). | P0 | M | M2 | Owner, Launcher dev |
-| PLA-3 | Publishing news and updates from Steward (STW-4); the first signed `news.json` and `update.json` hosted next to `servers.json`. | P1 | M | M3 | Launcher dev |
+| PLA-3 | The forms are **on `team/steward-integration`**; hosting the first signed feeds is open. Publishing news and updates from Steward (STW-4); the first signed `news.json` and `update.json` hosted next to `servers.json`. | P1 | M | M3 | Launcher dev |
 | PLA-4 | Installer trust: decide on Authenticode signing (cost, who holds the certificate). If not signed for 1.0, the download page shows the SmartScreen path with a screenshot. | P1 | M | M4 | Owner |
 | PLA-5 | `launcher/renderer/heraldry.js` reads or is checked against `chronicle/public/assets/realm-art.js`, so the event, title and house tables cannot drift. | P1 | S | M3 | Launcher dev |
 | PLA-6 | News content rhythm: one news item per event night and one per season beat, written from the saga pack. | P2 | S each | live year | Community manager |
@@ -271,20 +295,22 @@ RealmSentinel uses only Oxide hooks and the game's own server-side types. Tuning
 
 | ID | Item | Pri | Size | When | Role |
 |---|---|---|---|---|---|
-| STW-1 | **Deploy data files.** `launcher/lib/realm.js` `deployPlugins` and `server/Deploy-Plugins.ps1` also copy `art/sculptures/*.json` to `oxide\data\RealmSculptor\` and `art/paintings/RealmPainterArt.json` to `oxide\data\`, and `plugins/docs/RealmQuests/content/*.json` to `oxide\data\RealmQuests\`, and the release packaging carries them. Steward shows their versions. | P0 | M | M0 | Launcher dev |
-| STW-2 | `launcher/lib/moderation.js`: admin commands for RealmLaws (`/court admin`, `/law zone`), `/paint redraw all`, `/paint status`, `/paint signs`, `/sculpt placed`, `/sculpt status`, `/ironbreaker status`, `/sentinel status`, `/sentinel report`. | P1 | S | M2 | Launcher dev |
-| STW-3 | Sentinel feed in the Court (SEN-5). | P1 | M | M3 | Launcher dev |
-| STW-4 | "Publish news" and "Publish update" forms calling `lib/news.js` (`buildNews`, `signNews`) and `lib/updater.js` (`buildUpdate`, `signUpdate`) with the stored key; the update form reads size and SHA-256 from the release folder. | P1 | M | M3 | Launcher dev |
+| STW-1 | **Steward part on `team/steward-integration`** (with backup, atomic writes and plugin reloads; the installer packs the files); `server/Deploy-Plugins.ps1` is open and should also copy the mood folders. **Deploy data files.** `launcher/lib/realm.js` `deployPlugins` and `server/Deploy-Plugins.ps1` also copy `art/sculptures/*.json` to `oxide\data\RealmSculptor\` and `art/paintings/RealmPainterArt.json` to `oxide\data\`, and `plugins/docs/RealmQuests/content/*.json` to `oxide\data\RealmQuests\`, and the release packaging carries them. Steward shows their versions. | P0 | M | M0 | Launcher dev |
+| STW-2 | **On `team/steward-integration`**, extended to every wave-4 plugin's staff commands with argument checks. `launcher/lib/moderation.js`: admin commands for RealmLaws (`/court admin`, `/law zone`), `/paint redraw all`, `/paint status`, `/paint signs`, `/sculpt placed`, `/sculpt status`, `/ironbreaker status`, `/sentinel status`, `/sentinel report`. | P1 | S | M2 | Launcher dev |
+| STW-3 | **On `team/steward-integration`**. Sentinel feed in the Court (SEN-5). | P1 | M | M3 | Launcher dev |
+| STW-4 | **On `team/steward-integration`** (`publish-feeds.js`). "Publish news" and "Publish update" forms calling `lib/news.js` (`buildNews`, `signNews`) and `lib/updater.js` (`buildUpdate`, `signUpdate`) with the stored key; the update form reads size and SHA-256 from the release folder. | P1 | M | M3 | Launcher dev |
 | STW-5 | Realm health panel: each plugin loaded or not, each plugin's damaged-file state, Chronicle freshness, frame time or CPU, players online. | P2 | L | M4 | Launcher dev |
 | STW-6 | Prove worlds, pre-start, Stop it cleanly and Adopt it on Windows (PT0.4 to PT0.7) and fix what differs from the simulator. | P0 | M | M1 | Owner, Launcher dev |
 | STW-7 | Multi-server: prove two servers side by side (PT7.7) before offering Server II to anyone. | P2 | M | live year | Owner |
 | STW-8 | Clean-slate tool for 1.0: archive and reset the beta's season and legends files on purpose, with a confirmation (supports OPS-9). | P1 | S | M4 | Launcher dev |
+| STW-9 | Steward applies the right mood at the planned restart before a Blood Moon or festival (`RealmWorld.GetNextWorldEvent`, `GetFestivalName`), instead of a manual `Set-Mood.ps1 -Event` step. | P2 | M | Season 2 | Launcher dev |
+| STW-10 | RealmSentinel server-console commands (freeze, unfreeze, clear, report) like RealmCourt's `/realm.save`, so the Sentinel screen acts in one click instead of copying a command to paste in game. | P2 | M | M4 | Plugin dev, Launcher dev |
 
 ### 3.8 Web and broadcast (portal, Chronicle pages, overlay, stream scenes, bot)
 
 | ID | Item | Pri | Size | When | Role |
 |---|---|---|---|---|---|
-| WEB-1 | Merge `team/web-and-broadcast`; afterwards every change in `art/` runs `node portal/scripts/sync-art.mjs`. Update `art/README.md`'s "What has not been seen working". | P0 | S | M0 | Web maintainer |
+| WEB-1 | **Merged 2026-10-03.** Merge `team/web-and-broadcast`; afterwards every change in `art/` runs `node portal/scripts/sync-art.mjs`. Update `art/README.md`'s "What has not been seen working". | P0 | S | M0 | Web maintainer |
 | WEB-2 | Choose and set up portal hosting (static host with https), set `siteUrl`, publish the privacy notice and rules there. | P1 | M | M3 | Web maintainer |
 | WEB-3 | Remote overlay for creators: decide whether the Chronicle service is published behind a reverse proxy, and if so set it up and test it before the creator night (launch plan Phase 2). | P1 | M | M3 | Broadcast producer, Ops |
 | WEB-4 | OBS, Discord and phone proof (PT6). | P1 | M | M3 | Broadcast producer |
@@ -292,6 +318,8 @@ RealmSentinel uses only Oxide hooks and the game's own server-side types. Tuning
 | WEB-6 | The portal reads RealmSeasons' real `ScoreWeights` from its config, so its numbers match `/season standings`. | P2 | S | M4 | Web maintainer |
 | WEB-7 | The year book: a season archive per season and a Hall of Kings year page on the portal. | P2 | M | Season 4 | Web maintainer |
 | WEB-8 | Remove the leftover `streamkit/public/assets/favicon.svg` and its test. | P3 | S | any | Web maintainer |
+| WEB-9 | **Holdings on the web.** The portal and the Chronicle read `oxide/data/RealmDominionMap.json` (schema in the Dominion guide): a holdings map page and an `/api/state` section; the bot adds `/realm holdings`. | P2 | M | M4 | Web maintainer |
+| WEB-10 | Achievements and house colours outside the game: a public data file from RealmQuests for the portal and the player app's news, and house colours from `RealmHeraldry.json` (`GetHouseArms`) on the portal. | P3 | M | live year | Web maintainer, Plugin dev |
 
 ### 3.9 Ops
 
@@ -320,39 +348,44 @@ RealmSentinel uses only Oxide hooks and the game's own server-side types. Tuning
 | COM-7 | Publish the privacy notice and the data-deletion process; add Sentinel's data (SEN-6). | P1 | S | M3 | Legal reader |
 | COM-8 | Feedback loop: a "couldn't join?" form, a bug channel, a weekly triage into this backlog. | P1 | S | M2 | Play-test lead |
 | COM-9 | No paid perks of any kind until COM-6 is done and [`monetisation-guardrails.md`](legal/monetisation-guardrails.md) is followed. | P0 | — | always | Owner |
+| COM-10 | Privacy notice and deletion process cover the wave-4 data files: `RealmArena.json` (ratings, results, wagers, pairs), `RealmQuests.json` (progress; addresses only as a salted hash in memory), `RealmCrafts.json`, `RealmTravel.json`, `RealmDominion.json`, `RealmWorld.json` and `RealmHeraldry.json` (play time, votes until the count, deposits); `find-player-data.mjs` finds them. | P1 | S | M3 | Legal reader |
 
 ### 3.11 Quality and CI (across all areas)
 
 | ID | Item | Pri | Size | When | Role |
 |---|---|---|---|---|---|
-| QA-1 | CI runs `node --test art/tools/sculptor/test/*.test.mjs`, `node art/tools/sculptor/cli.mjs check`, `node --test art/tools/painter/test/*.test.mjs` and `node art/tools/painter/paint.mjs check`; `art/tools/package.json` `test` runs them too. The plugin logic-test loop already picks up new `plugins/docs/*/logic-tests/run.sh`. | P0 | S | M0 | QA lead |
+| QA-1 | **Mostly done:** CI runs the sculptor and painter tests and `cli.mjs check`; `paint.mjs check` is open (SGN-8). CI runs `node --test art/tools/sculptor/test/*.test.mjs`, `node art/tools/sculptor/cli.mjs check`, `node --test art/tools/painter/test/*.test.mjs` and `node art/tools/painter/paint.mjs check`; `art/tools/package.json` `test` runs them too. The plugin logic-test loop already picks up new `plugins/docs/*/logic-tests/run.sh`. | P0 | S | M0 | QA lead |
 | QA-2 | Play-test results log: each session's sheet (section 5) is copied, dated and filled in, and each result goes into its guide (SRV-14). | P0 | S | M1 | Play-test lead |
 | QA-3 | Screenshot review after every UI change: `launcher` player and Steward scripts, `portal/scripts/screens.mjs`, `streamkit/tools/screenshots.mjs`, `chronicle-shots.mjs`. | P1 | S each | always | Launcher dev, Web maintainer |
 | QA-4 | A regression rule: every bug found in a play-test gets a mock test in its plugin's logic tests or an exploit-review case before the fix is merged. | P1 | — | M1 onward | Plugin dev |
+| QA-5 | CI and tooling after wave 4: `paint.mjs check` in CI (SGN-8); `mods/presets/tests/Test-SetMood.ps1` for the `blood_moon`, `harvest_festival` and `midwinter` keys under PowerShell 7; the art build's `svgo` found through `ART_NODE_MODULES`; the Steward screenshot run fetches the Electron binary (`node node_modules/electron/install.js`). | P1 | S | M0 | QA lead |
 
 ---
 
 ## 4. Order of work up to 1.0
 
-1. **M0**: SRV-1, SRV-2, SEN-1, QA-1, SGN-8, STW-1, SGN-1, PLA-1, WEB-1. Then update the docs (HANDOFF, systems map, commands).
-2. **M1**: PT0 to PT3, with WLD-1, WLD-2, SGN-2, EVT-1, STW-6, SRV-14, QA-2 alongside.
-3. **M2**: OPS-1, PT4 and PT5, COM-1, COM-2, COM-8, SRV-3, SRV-4, SRV-5, SRV-9, SRV-10, STW-2, EVT-4, EVT-5, WLD-3, SGN-4, SEN-3.
-4. **M3**: PT6 and PT7, COM-3, COM-4, COM-6, COM-7, OPS-2 to OPS-8, SEN-4 to SEN-7, STW-3, STW-4, PLA-3, PLA-5, WEB-2 to WEB-5, WLD-4, WLD-7, WLD-10, SGN-3, SGN-5, SRV-7, EVT-3.
+1. **M0**: done: SRV-1, SRV-2, WEB-1, and the wave-3 and seven wave-4 merges. Open: merge `team/steward-integration` (which brings STW-1's Steward part, STW-2, STW-3, STW-4, SEN-5, SGN-1 and SRV-6), then the rest of STW-1 (`Deploy-Plugins.ps1`), SGN-8, QA-5, PLA-1 and SEN-1's `run.sh` case. Then update the docs (HANDOFF, systems map, commands) again.
+2. **M1**: PT0 to PT3 (with the wave-4 rows: PT0.13 to PT0.16, PT1.22 to PT1.32, PT2.17 to PT2.19, PT3.20 to PT3.28), with WLD-1, WLD-2 (now including the wave-4 places), SGN-2, EVT-1, STW-6, SRV-14, QA-2 alongside.
+3. **M2**: OPS-1, PT4 and PT5, COM-1, COM-2, COM-8, SRV-3, SRV-4, SRV-5, SRV-9, SRV-10, SRV-17, SRV-18, SRV-20, SRV-21, SRV-24, SRV-26, EVT-4, EVT-5, WLD-3, SGN-4, SEN-3.
+4. **M3**: PT6 and PT7, COM-3, COM-4, COM-6, COM-7, COM-10, OPS-2 to OPS-8, SEN-4, SEN-6, SEN-7, PLA-3 (hosting), PLA-5, WEB-2 to WEB-5, WLD-4, WLD-7, WLD-10, SGN-3, SGN-5, SRV-7, EVT-3.
 5. **M4**: PLA-4, STW-8, OPS-9, COM-5, the remaining P1 items, launch.
 
 ---
 
 ## 5. Play-test checklist: every UNVERIFIED item, in order
 
-This is every UNVERIFIED item in the repo as of 2026-10-03, as steps on the real server, in the order the owner should run them. The order goes from what one person can do alone to what needs friends, the public internet, broadcast tools and a crowd. Each session assumes the one before it passed.
+This is every UNVERIFIED item in the repo as of 2026-10-04, as steps on the real server, in the order the owner should run them. The order goes from what one person can do alone to what needs friends, the public internet, broadcast tools and a crowd. Each session assumes the one before it passed.
+
+The **wave-4 rows** (RealmDominion, RealmQuests, RealmArena, RealmTravel, RealmCrafts, RealmWorld, RealmHeraldry and Realm Steward's integration) are folded into the same sessions, after the wave-3 rows of each session and marked *(wave 4)*. They take the next free numbers so older references stay valid; in PT1 they sit before PT1.21, which ends the session by wiping the season. Run them in the order they appear.
 
 How to use it:
 
 - Work on `G:\RealmTest\server` (or a copy). **Back up before every session** (Steward: Servers > Backup).
 - Each row says what to do and what a pass looks like. **Settles** names the UNVERIFIED item and the guide that has the full step. When a row needs a config change for the test, put the default back afterwards.
 - Record the result in the guide the row names (SRV-14). A failure is a result too: write what you saw and switch on the fallback the guide gives.
-- These guides arrive with the M0 merges: [`RealmSculptor.md`](../plugins/docs/RealmSculptor.md), [`RealmPainter.md`](../plugins/docs/RealmPainter.md), [`RealmLegendary.md`](../plugins/docs/RealmLegendary.md), [`RealmSentinel.md`](../plugins/docs/RealmSentinel.md), and the player app's [`player-launcher.md`](player-launcher.md).
-- Abbreviations: **Smoke** = [`smoke-test.md`](smoke-test.md); **GP** = [`going-public.md`](going-public.md) section 5; plugin names refer to `plugins/docs/<Plugin>.md` and their numbered smoke or first-test steps; "U3" means item 3 of that guide's "What is UNVERIFIED" list.
+- Guides from the wave-3 merges: [`RealmSculptor.md`](../plugins/docs/RealmSculptor.md), [`RealmPainter.md`](../plugins/docs/RealmPainter.md), [`RealmLegendary.md`](../plugins/docs/RealmLegendary.md), [`RealmSentinel.md`](../plugins/docs/RealmSentinel.md), and the player app's [`player-launcher.md`](player-launcher.md). From wave 4: [`RealmDominion.md`](../plugins/docs/RealmDominion.md) (steps D1 to D12), [`RealmQuests.md`](../plugins/docs/RealmQuests.md) (QS1 to QS18), [`RealmArena.md`](../plugins/docs/RealmArena.md) (U1 to U19), [`RealmTravel.md`](../plugins/docs/RealmTravel.md) (T1 to T14), [`RealmCrafts.md`](../plugins/docs/RealmCrafts.md) (C1 to C16), [`RealmWorld.md`](../plugins/docs/RealmWorld.md) (W1 to W15), [`RealmHeraldry.md`](../plugins/docs/RealmHeraldry.md) (HR1 to HR11), and Steward's tests F1, F2, S1, S2, D1, C1, P1 in `launcher/README.md` ("Not verified") on `team/steward-integration`. Step letters repeat between guides (RealmDominion D1 is not RealmDynasties D1 or Steward D1), so every row names its guide.
+- Wave-4 set-up for a test session: grant yourself the seven new admin permissions (`realmdominion.admin`, `realmquests.admin`, `realmarena.admin`, `realmtravel.admin`, `realmcrafts.admin`, `realmworld.admin`, `realmheraldry.admin`; [`staff-roles-and-permissions.md`](community/ops/staff-roles-and-permissions.md)) and lower the minimums the guides name for small tests (house age and size in RealmDominion, play-time minimums in RealmArena and RealmQuests, `Voters.*` in RealmHeraldry). Put the defaults back afterwards: an admin who holds these permissions does not compete (RealmWorld pays them nothing while `General.AdminsCanWin` is false).
+- Abbreviations: **Smoke** = [`smoke-test.md`](smoke-test.md); **GP** = [`going-public.md`](going-public.md) section 5; plugin names refer to `plugins/docs/<Plugin>.md` and their numbered smoke or first-test steps; "U3" means item 3 of that guide's "What is UNVERIFIED" list, except in RealmArena, whose U1 to U19 are its own numbered test rows.
 
 ### PT0. Build, install and run (the owner alone, no game client needed until PT0.11)
 
@@ -360,7 +393,7 @@ How to use it:
 |---|---|---|---|
 | PT0.1 | On the owner's PC, double-click `Build-Realm.bat` in a fresh clone on G:. | Steps `[1/5]` to `[5/5]`, **Done**, and `release\1.0.0\` holds both installers and `SHA256SUMS.txt` whose hashes match the files. | `START-HERE.md`, `troubleshooting.md`: Build-Realm.bat on real Windows |
 | PT0.2 | Run `Realm-Steward-Setup-1.0.0.exe` over the old Steward. Note SmartScreen's exact text. | Installs per user with no administrator prompt; settings and the signing key are kept; the desktop shortcut opens 1.0.0. | `START-HERE.md` step 2 |
-| PT0.3 | In Steward, Update plugins. Then (until STW-1 lands) run `node art/tools/sculptor/cli.mjs export G:\RealmTest\server\oxide\data` and copy `art/paintings/RealmPainterArt.json` to `oxide\data\`. | `oxide\plugins` holds 19 `.cs` files; `oxide\data\RealmSculptor\` holds 11 sculptures; `RealmPainterArt.json` is there. | Deploy path for the new plugins |
+| PT0.3 | In Steward, Update plugins. Then (until STW-1 lands; with `team/steward-integration` merged, PT0.13 replaces the hand copies) run `node art/tools/sculptor/cli.mjs export G:\RealmTest\server\oxide\data`, copy `art/paintings/RealmPainterArt.json` to `oxide\data\` and `plugins/docs/RealmQuests/content/*.json` to `oxide\data\RealmQuests\`. | `oxide\plugins` holds 26 `.cs` files; `oxide\data\RealmSculptor\` holds 23 sculptures; `RealmPainterArt.json` and the six quest content files are there. | Deploy path for the new plugins |
 | PT0.4 | Start Server I from Steward with nothing else running. | Ready only after `Server for N players started on port 7350.` then `Game has started.`; Steward remembers this world; the next start loads the same world with no new `Saves\Slot` folder. | `worlds.md`: world memory, pin, choice on the real server; "empty slot" size rule |
 | PT0.5 | Stop the server. Start `ROK.exe` by hand from the server folder (or leave a stray one running), then press Start in Steward. Try **Stop it cleanly**; repeat and try **Adopt it**. | Steward names the leftover correctly, stops it cleanly the first time, adopts it the second time with the console working. | `worlds.md`: pre-start classification, Stop it cleanly, Adopt it on Windows |
 | PT0.6 | Start `Server.exe` once as administrator, let it start `ROK.exe`, then send `/shutdown` from Steward's console. Watch Task Manager for 10 s. | Write down whether `ROK.exe` comes back. If it does, Steward's pre-start check catches it on the next Start. | `worlds.md`: Server.exe relaunch after a clean `/shutdown`; `Session.lock` window |
@@ -368,8 +401,12 @@ How to use it:
 | PT0.8 | In Court: list players (`/realm.players`), Save world (`/realm.save`), **Say** a line, send a **Notice** and a **Popup**, kick a test name with a two-word reason. | Each answers. `/realm.players` and `/realm.save` work from RealmCourt. The reason arrives as one argument. | RealmCourt at run time; `saga/README.md` Say, Notice, Popup; `admin-console.md` kick matching |
 | PT0.9 | Task Manager > Details: add the Platform column; note `ROK.exe`'s platform and memory at idle. | Written down. A 32-bit process caps RAM near 4 GB; note it for OPS-2. | `ops/hosting-guide.md`: 32 or 64 bit |
 | PT0.10 | Check where Oxide made its folder: `oxide\` in the server root or `Saves\oxide\`. Start `node chronicle\server.js --data <that>\data`; open `/api/state`, `/api/events?since=0`, `/overlay`, `/realm`. | One `oxide\` folder with `plugins`, `config`, `data`, `lang`, `logs`; the Chronicle pages show the realm. | Smoke B4, C5; `RealmStats.md` data paths; Oxide data path in the launch plan |
-| PT0.11 | `oxide.plugins` in the console. Read `oxide\logs` for the start. Note any outbound web request Oxide makes. | All 19 plugins listed, no compile error, no repeated error. Requests written down. | Smoke B6, C1; every plugin's "loads" step |
+| PT0.11 | `oxide.plugins` in the console. Read `oxide\logs` for the start. Note any outbound web request Oxide makes. | All 26 plugins listed, no compile error, no repeated error. Requests written down. | Smoke B6, C1; every plugin's "loads" step |
 | PT0.12 | Join, place one block, `/realm.save`, restart, rejoin. Then Steward > Backup, and look inside the zip. | The block is still there. The zip holds `Saves\`. No new firewall rule appeared before Go Public. | Smoke A7, A8, A10 on the Steward path |
+| PT0.13 | *(wave 4, after `team/steward-integration` is merged)* In Steward, Update plugins on a clean `oxide\data`; change one byte of a deployed sculpture and Update again. | The sculptures, `RealmPainterArt.json` and the RealmQuests content arrive; a changed file is backed up to `_realm-backups\data-<time>\` first; damaged source files are refused; the affected plugins reload. | Steward D1 (`launcher/README.md`); STW-1 |
+| PT0.14 | *(wave 4)* In game as admin: `/dominion admin status`, `/quest admin status`, `/arena admin status`, `/travel admin status`, `/kit admin check`, `/craft admin status`, `/world admin status`, `/heraldry status`. | Each answers. Quests: every content file `ok`, no unknown item. Kits, Crafts and World: no "is not known" item names, or a list to fix (write the real names down). Crafts: "Container events subscribed: yes". Dominion: "7 holdings are not marked on the land yet". Heraldry: `Colour binding: ok`. Each lists its partner plugins as loaded. | RealmDominion D1; RealmQuests QS1, QS2; RealmTravel T1 (U6); RealmCrafts C1; RealmWorld W1; RealmHeraldry HR1 |
+| PT0.15 | *(wave 4, Steward)* On Steward's Realm features screen, turn RealmEvents "Truce of the Realm" off with the live console open; then restart the server. | The console shows `Unloaded plugin RealmEvents` then `Loaded plugin RealmEvents`; `oxide\config\RealmEvents.json` has `"EnableTruce": false`, and still has it after the restart. Turn it back on. | Steward F1, F2 |
+| PT0.16 | *(wave 4, Steward)* From the Court's staff-command folds, copy `/arena admin status`, `/quest admin status` and `/world admin status`; paste each in game as admin. | Each answers as typed. | Steward C1; STW-2 |
 
 ### PT1. One player in game: foundations, chat, items and the crown
 
@@ -394,7 +431,18 @@ How to use it:
 | PT1.17 | Stats alone: steps 1-6, 7 (fall and hunger), 8, 9, 10 (end `ROK.exe` in Task Manager, start again), 11, 12. | As in the guide; record which cause each death produced. | RealmStats 1-12; Stats U2 (`DamageType` per death), U3 (one `OnEntityDeath` per death), U4 (crypto on the game's Mono), U5 |
 | PT1.18 | Dynasties alone: D1-D4, D18, D19. | As in the guide. | RealmDynasties D1-D4, D18-D19; Dynasties U3, U4 |
 | PT1.19 | Ravens and Renown alone: RealmRavens R1, R2; RealmRenown 1, 2, 10, 11. | As in the guides. | RealmRavens R1-R2; RealmRenown 1-2, 10-11 |
-| PT1.20 | Moods: stop the server; `Apply-Preset.ps1 -WhatIf` for Grim but Readable, then apply, start, look; revert. Then `Set-Mood.ps1` with Long Winter, Blood Moon, Golden Summer, Storm Season and Ashfall, one at a time, `-Revert` between. | Smoke D1-D6 pass; write down the Mods file name and real defaults; each mood is visibly different and nights stay readable. | Smoke D1-D6; `mods/README.md` "Still UNVERIFIED" (file name, headless keys, defaults, locale, weather length, build match) |
+| PT1.20 | Moods: stop the server; `Apply-Preset.ps1 -WhatIf` for Grim but Readable, then apply, start, look; revert. Then `Set-Mood.ps1` with Long Winter, Blood Moon, Golden Summer, Storm Season and Ashfall, one at a time, `-Return` between. | Smoke D1-D6 pass; write down the Mods file name and real defaults; each mood is visibly different and nights stay readable. | Smoke D1-D6; `mods/README.md` "Still UNVERIFIED" (file name, headless keys, defaults, locale, weather length, build match) |
+| PT1.22 | *(wave 4)* **Mark the places on the test world** (as admin, standing on each spot): two waystones about 500 m apart (`/travel admin set crossing landmark The Crossing`, then `set mill landmark The Mill`); the Tollbridge holding at the first (`/dominion admin move tollbridge 20`); the Hearth quest place there (`/quest admin place set the_hearth 40`); two world places and a route (`/world admin place set ford 30 The Ford`, `place set mill 30 The Mill`, `route add r1 ford mill`); an arena and a tavern (`/arena admin zone set Proving Ring 20`, `tavern set Hearth Inn 10`). Then `/dominion here` inside the holding and 25 m out; `/travel admin status`. | Each plugin's status lists its places with your position; `/world schedule` shows the eight default slots in UTC; "You stand in The Tollbridge", then "You stand in no holding"; the throne point reads `(game)` with a position, or set it with `/travel admin throne`. | RealmDominion D2; RealmTravel T2 (U9); RealmQuests QS7 (set-up); RealmWorld W2; RealmArena set-up; WLD-2 on the test world |
+| PT1.23 | *(wave 4)* **The new windows:** `/dominion`, `/quest`, `/quest story`, `/achievements`, `/world`, `/heraldry colours`; walk into the second waystone's radius. Then `/realm popups off` and repeat. | Each window shows (note its size, its line breaks, what is cut off); "Waystone found" opens on discovery; with popups off only chat, and the chat lines come either way. | RealmDominion D3; RealmQuests QS3; RealmTravel T3 (U10); popup rules in `realm-commands.md` |
+| PT1.24 | *(wave 4)* **Holdings alone** (lower `MinHouseAgeHours` 0, `MinHouseMembers` 1, `MinMembershipHours` 0, `MinHeldHoursForIncome` 0): `/dominion admin open 30`; stand in the Tollbridge for 5 minutes; `/dominion admin payday`; open the field again and `/event start truce`; read `oxide\data\RealmDominionMap.json`. | The banner rises about every 30 s, then "House X takes The Tollbridge!"; `holding_taken` in `/chronicle`, 5 points in `/season house`, the deed in `/renown`; the payday reaches `/vault` and `/treasury audit` balances; the Herald pauses the War Hours for the truce and banners freeze; the map file has the guide's schema with live values. | RealmDominion D4, D8, D10, D11 |
+| PT1.25 | *(wave 4)* **Deciding: the teleport.** `/travel mill` and stand still 10 s; travel back and forth several times; `/travel admin status`. `/home set` outside, then inside your own crest zone; `/home` from far away. `/road mill` and walk, comparing the game's compass. | You arrive on the ground at the other waystone (not stuck, not falling); the toll leaves `/purse` and reaches `/treasury`; "arrivals not confirmed 0"; `/home` is refused outside the crest and brings you back inside it; the direction words match north. **Fallback:** if the move fails or arrivals are not confirmed, set `Travel.Mode: "road"` (journeys become the guided road) and write it in the guide; if north is flipped, set `Roads.NorthIsPositiveZ: false`. | RealmTravel T4, T5, T9, T12 (U1, U2, U5, U8) |
+| PT1.26 | *(wave 4)* **Quests alone** (content deployed, Season 1 running): take tasks that craft, slay, build, visit and deliver (`/quest admin reset <you> daily` to redraw); craft at a bench and by hand; kill a wolf, a deer and a chicken; place stone and wood blocks, break one and place it again; `/quest give all` with 150 wood; finish a task after 30 active minutes; finish one with full packs, then `/quest collect`; walk the story with `/quest admin complete <you> <step>`; watch 04:00 UTC. | Progress per product (if nothing moves, `ItemCrafterItemEvent` does not reach plugins: report it); `/quest admin creatures` names the kinds (change `slay_creature` targets to them if needed); one count per new cell only; "You reach the Hearth."; the goods leave the packs at once; marks paid and `/treasury audit` balances; the goods arrive once with no RealmSentinel alert; +5 renown (`quest_daily`); the story ends with the Herald and `title_earned`; the dailies change at 04:00 UTC, the weeklies on Monday, and a relog shows the same board. | RealmQuests QS4 to QS8, QS11 to QS14, QS18 |
+| PT1.27 | *(wave 4)* **Deciding: gathering seen by plugins.** `/craft admin watch <you>`. Chop a tree, break stone and iron ore, pick wild flax; move wood into a chest and back, drag a chest stack onto a carried one, split a stack; drop wood and pick it up; salvage a placed object and break a crate; plant and harvest a plot; kill and loot a wolf, then hit the corpse; craft at a smithy, a tannery, a campfire and by hand; `/craft admin unmapped`. | The watch says "gathered" with XP for real gathering only; "moved (not gathered)" for chest moves and pick-ups; "handed over by the game (Loot)" with no XP for salvage; "harvested", then Foraging XP; "slew wolf: Hunting +40" and corpse goods capped at 60 a creature; "made 1 <product>" at each station. Note the real creature, product and station names. **Fallback:** if gathering is not seen, set `Gathering.Enabled: false` and write it in the guide; kills, crafting and commissions still work. | RealmCrafts C2 to C8 (U1 to U7) |
+| PT1.28 | *(wave 4)* **Crafts perks and windows:** `/craft admin level <you> mining 50` and mine for a minute; `level <you> smithing 50` and craft many items; reach level 50 with popups on (`level 49` and some work); `/craft admin crown`. | The "Your skill finds you N more Stone" line every 30 s and the stone in the packs at once (RealmSentinel quiet); about 1 craft in 10 gives "A master's touch", at most 10 a day; the "Master of ..." window, the Herald line, the Guildmaster title and the Chronicle entry; the Master Crafter crowning with 250 marks and season points. | RealmCrafts C9, C10, C13, C14 (U8, U10) |
+| PT1.29 | *(wave 4)* **The living world alone:** lay a 3-place hunt with a wooden chest at the dig site (`/world admin hunt new`, `hunt step` at each place, `hunt chest`), `/world admin start treasure`, walk the places (run to the last one once), open the chest. `/world admin creatures` in the wild, put a kind into a legend's `Kinds`, `/world admin start legend <id>` and hunt it. `/world admin census`. Set a world event 20 minutes before Crown Night. | The Herald's first riddle; "You found place 1 of 3!" and the clue window; a place reached less than 20 s after the last is not counted; at the dig site +150 marks and the goods **in the chest** (else set `Treasure.UseChest: false`); the kinds are listed; the Legend takes clearly more blows (Toughness 4) and pays its slayer; `census_taken` in `/chronicle`; the clashing event waits or is skipped and no countdown is heralded for it. | RealmWorld W3, W4, W5 (finder), W11, W13, W14 (U1, U3, U4, U8, U10) |
+| PT1.30 | *(wave 4)* **Deciding: guild colours from the server.** Found a house from inside a game guild (or `/house link`); `/heraldry sync`; look at the guild menu, a placed crest's flags, your armour and the name-tag icon; relog. `/heraldry preview`, then `/heraldry colours moss-gold`. Count the banners and emblems in the game's banner menu, enter them as `Heraldry.BannerCount` and `PatternCount`, reload, `/heraldry banner <house> 1 1`. | The guild takes the house's name and colours; write down which parts change at once, after a relog, or never; the new pair shows at once; the banner and emblem change with no error in the client's log. **Fallback:** if the guild does not change, set `Heraldry.Enabled: false` and keep the elections. | RealmHeraldry HR2, HR3, HR5, HR6 |
+| PT1.31 | *(wave 4)* **Damaged-file guard, wave 4.** Stop the server; cut `RealmDominion.json`, `RealmQuests.json`, `RealmArena.json`, `RealmTravel.json`, `RealmCrafts.json`, `RealmWorld.json` and `RealmHeraldry.json` in half; start; try each plugin's command; save; stop. Restore the good files. | Each plugin refuses or pauses with its own message (`/dominion` paused, `/quest` says the board is closed, and so on); after the save every damaged file is unchanged. | RealmDominion D12; RealmQuests QS17; the data sections of the Arena, Travel, Crafts, World and Heraldry guides |
+| PT1.32 | *(wave 4)* **Restart, wave 4.** With a waystone found, a home set, a kit taken, crafting levels and an open commission, a treasure hunt running and a ballot open (`/ballot admin open`, `/ballot stand marshal` with `Voters.*` lowered): save and restart. | Found waystones, homes, cooldowns and kit claims; levels, the week, the commission and its hold in `/treasury`; the hunt and its progress; the candidate, the deposit and the ballot's close time. All still there. | RealmTravel T14 (U11); RealmCrafts C16 (U11); RealmWorld W15 (hunt); RealmHeraldry HR11 |
 | PT1.21 | End of session (destructive, after a backup): `/season end`, then Smoke E13 (delete `RealmSeasons.json`, keep `RealmLegends.json`, restart). Restore the backup afterwards. | E12 and E13 pass. | Smoke E12, E13 |
 
 ### PT2. Realm's art in the world (the owner alone)
