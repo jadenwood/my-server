@@ -1760,9 +1760,10 @@ namespace Oxide.Plugins
         {
             Challenge hit = null;
             count = 0;
+            DateTime now = Now();
             foreach (Challenge c in data.Challenges)
             {
-                if (Family(c) != family) continue;
+                if (Family(c) != family || now >= c.Expires) continue;     // lapsed: dropped on the next tick
                 bool invited = false;
                 foreach (Member m in c.Members) if (m.Id == id && !m.Accepted) invited = true;
                 if (!invited) continue;
@@ -2103,7 +2104,7 @@ namespace Oxide.Plugins
             {
                 int gain;
                 if (changes.TryGetValue(winners[0].Id, out gain) && gain > 0)
-                    AddDeed(winners[0].Id, winners[0].Name, config.Ranked.RenownDeed, "beat " + losers[0].Name + " in the ring", "arena:duel:" + d.Id);
+                    AddDeed(winners[0].Id, winners[0].Name, config.Ranked.RenownDeed, "beat " + losers[0].Name + " in the ring", null);   // RealmRenown's own cooldown applies
             }
             if (Notable(d)) HeraldThrottled(Fmt(d.Wager > 0 ? "HeraldWinWager" : "HeraldWin", null, wn, ln, d.Wager * d.Members.Count, Msg("How." + how, null)));
             int shown = 0;
@@ -3646,7 +3647,7 @@ namespace Oxide.Plugins
             }
             foreach (Challenge c in data.Challenges)
             {
-                if (!Involves(c, id)) continue;
+                if (!Involves(c, id) || Now() >= c.Expires) continue;
                 any = true;
                 bool mine = c.Members[0].Id == id;
                 Line(player, mine ? "StatusOut" : "StatusIn", Msg("Game." + Family(c), player), mine ? PendingNames(c) : c.Members[0].Name, c.Wager, SecondsLeft(c.Expires));
