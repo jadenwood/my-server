@@ -15,8 +15,8 @@
 //              the capital is closed to exiles (RealmLaws.IsExiled); holdings close in the raid hours
 //              (RealmWarden.IsRaidHourNow). The crown's Open Roads decree waives the toll (IsDecreeActive), houses
 //              sworn to the crown pay less (IsSwornToCrown), and each player's first FreeTrips journeys are free.
-//              A traveller who arrives is shielded from other players' blows for ArrivalShieldSeconds unless they
-//              strike first, so nobody can camp a waystone.
+//              A traveller who arrives is shielded from other players' blows and ropes for ArrivalShieldSeconds unless
+//              they strike first, so nobody can camp a waystone.
 //   Home       /home set inside your own crest zone (CrestScheme.CurrentCrestGroup(position) == SocialAPI.GetGroupId
 //              (player), or the crest is the player's own), /home to return: the same rules, and the home must still be
 //              yours and not under siege (CrestScheme.IsUnderSiege).
@@ -47,8 +47,10 @@
 //   Throne     [DEC] AncientThrone.EntityPosition (static; Vector3.zero when no throne is loaded), unless an admin set the
 //              point with /travel admin throne; else where a capture completed (OnThroneCaptured [OPJ L607]).
 //   Captives   [ASM] PlayerCaptureManager.Captured / HoldingCaptive / CaptivePlayerID, read from the player's entity.
-//   Hooks      OnEntityHealthChange [OPJ L162] (combat watch, breaks journeys, arrival shield), OnEntityDeath [OPJ L188],
-//              OnPlayerConnected / OnPlayerDisconnected [SRC], OnThroneCaptured [OPJ L607].
+//   Hooks      OnEntityHealthChange [OPJ L162] (combat watch, breaks journeys, arrival shield), OnPlayerCapture [OPJ L711]
+//              (the shield covers ropes too), OnEntityDeath [OPJ L188], OnPlayerConnected / OnPlayerDisconnected [SRC],
+//              OnThroneCaptured [OPJ L607]. A blow RealmWarden (new-player protection) or RealmEvents (IsTruceActive)
+//              forbids is no fight: it neither breaks a journey nor counts as combat.
 //
 // Data: oxide/data/RealmTravel.json. Journeys in progress are never saved: a reload cancels them and nothing is charged.
 // If the file exists but cannot be read the plugin pauses and NEVER writes it. Kits: the claim and the items owed are
@@ -71,6 +73,7 @@ using CodeHatch.Engine.Networking;                 // Player, Server [ASM]
 using CodeHatch.Inventory.Blueprints;              // InvItemBlueprint, InvBlueprints [ASM]
 using CodeHatch.Inventory.Blueprints.Components;   // ContainerManagement [ASM; IL ThronesCommandHandler.Give]
 using CodeHatch.ItemContainer;                     // Container, ItemCollection [ASM]
+using CodeHatch.Networking.Events;                 // PlayerCaptureEvent [ASM]
 using CodeHatch.Networking.Events.Entities;        // EntityDamageEvent, EntityDeathEvent [ASM]
 using CodeHatch.Thrones.AncientThrone;             // AncientThrone, AncientThroneCaptureEvent [ASM; DEC]
 using CodeHatch.Thrones.Capture;                   // PlayerCaptureManager [ASM]
@@ -95,6 +98,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin RealmSeasons;
         [PluginReference] private Plugin RealmRenown;
         [PluginReference] private Plugin RealmSentinel;
+        [PluginReference] private Plugin RealmEvents;
 
         private const string PermAdmin = "realmtravel.admin";
         private const string DataName = "RealmTravel";
@@ -980,14 +984,17 @@ namespace Oxide.Plugins
                 if (attacker != null && victim != null && attacker.Id == victim.Id) attacker = null;   // falling on your own sword
                 DateTime now = Now();
 
+                if (attacker != null) shieldUntil.Remove(attacker.Id);   // striking first ends your own shield
+                // A blow the realm does not allow (already cancelled, a protected newcomer, the Truce of the Realm) is
+                // no fight: it must not let a griefer keep someone off the roads by swinging at them.
+                if (evt.Cancelled || (attacker != null && victim != null && HitForbidden(victim))) return null;
                 if (attacker != null)
                 {
-                    shieldUntil.Remove(attacker.Id);                 // striking first ends your own shield
                     if (victim != null) lastPvp[attacker.Id] = now; else lastBeast[attacker.Id] = now;
                     BreakJourney(attacker, "Broken.fought");
                 }
                 if (victim == null) return null;
-                if (attacker != null && !evt.Cancelled && Shielded(victim.Id, now))
+                if (attacker != null && Shielded(victim.Id, now))
                 {
                     evt.Cancel("RealmTravel arrival shield");
                     d.Amount = 0f;
@@ -1000,6 +1007,43 @@ namespace Oxide.Plugins
             catch (Exception ex)
             {
                 if (!Throttled("dmg", 60)) PrintWarning("Damage watch failed: " + ex.Message);
+            }
+            return null;
+        }
+
+        // A player's blow that RealmWarden (new-player protection) or RealmEvents (the Truce of the Realm) blocks.
+        private bool HitForbidden(Player victim)
+        {
+            if (AskBool(RealmWarden, "IsNewPlayerProtected", victim.Id)) return true;
+            return AskBool(RealmEvents, "IsTruceActive");
+        }
+
+        // RB 1 [OPJ L711]. The arrival shield covers ropes and chains too: nobody binds a traveller in their first
+        // seconds at a waystone, and a shielded traveller who binds someone gives up the shield. Blocking as RealmWarden
+        // does (evt.Cancel + return true). Everything else returns null.
+        private object OnPlayerCapture(PlayerCaptureEvent evt)
+        {
+            if (loadFailed || data == null || evt == null || evt.Cancelled || evt.Target == null) return null;
+            try
+            {
+                if (evt.Captor == null || !evt.Captor.IsPlayer || evt.Captor.Owner == null) return null;
+                Player captor = evt.Captor.Owner, target = evt.Target;
+                if (captor.IsServer || target.IsServer || captor.Id == target.Id) return null;
+                DateTime now = Now();
+                shieldUntil.Remove(captor.Id);
+                BreakJourney(captor, "Broken.fought");
+                if (Shielded(target.Id, now))
+                {
+                    evt.Cancel("RealmTravel arrival shield");
+                    return true;
+                }
+                lastPvp[target.Id] = now;
+                lastPvp[captor.Id] = now;
+                BreakJourney(target, "Broken.hurt");
+            }
+            catch (Exception ex)
+            {
+                if (!Throttled("capture", 60)) PrintWarning("Capture watch failed: " + ex.Message);
             }
             return null;
         }

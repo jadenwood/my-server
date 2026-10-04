@@ -168,11 +168,14 @@ namespace CodeHatch.Damaging
 
 namespace CodeHatch.Networking.Events
 {
+    using CodeHatch.Engine.Core.Cache;
+    using CodeHatch.Engine.Networking;
     public class BaseEvent
     {
         public bool Cancelled; public string CancelReason;
         public void Cancel(string reason) { Cancelled = true; CancelReason = reason; }
     }
+    public class PlayerCaptureEvent : BaseEvent { public Entity Captor; public Player Target; }
 }
 
 namespace CodeHatch.Networking.Events.Entities

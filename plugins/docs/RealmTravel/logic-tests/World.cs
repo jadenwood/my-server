@@ -45,7 +45,7 @@ static class W
     public static HashSet<string> CourtOutlaws = new HashSet<string>(), Exiles = new HashSet<string>(), ContractOutlaws = new HashSet<string>();
     public static string Bearer;
     public static HashSet<ulong> Protected = new HashSet<ulong>(), WardenFight = new HashSet<ulong>();
-    public static bool RaidHours;
+    public static bool RaidHours, Truce;
     public static HashSet<string> PopupsOff = new HashSet<string>();
     public static int Season;
     public static List<string> Awards = new List<string>(), Deeds = new List<string>(), Graces = new List<string>(), ItemSources = new List<string>();
@@ -80,7 +80,7 @@ static class W
         Purses.Clear(); TreasuryMarks = 0; TreasuryRefuses = false; Charges.Clear();
         HouseOf.Clear(); Liege.Clear(); Treaties.Clear(); Rebellion = false; Ransom.Clear(); Sworn.Clear(); Decrees.Clear(); UtcOffset = 0;
         CourtOutlaws.Clear(); Exiles.Clear(); ContractOutlaws.Clear(); Bearer = null; Protected.Clear(); WardenFight.Clear(); RaidHours = false;
-        PopupsOff.Clear(); Season = 0; Awards.Clear(); Deeds.Clear(); Graces.Clear(); ItemSources.Clear(); Absent.Clear();
+        PopupsOff.Clear(); Truce = false; Season = 0; Awards.Clear(); Deeds.Clear(); Graces.Clear(); ItemSources.Clear(); Absent.Clear();
         SocialAPI.Registry.Clear(); SocialAPI.GroupOf.Clear();
         Crests = new CrestScheme();
         SocialAPI.Registry[typeof(CrestScheme)] = Crests;
@@ -142,6 +142,7 @@ static class W
         if (h == "IsRaidHourNow") return RaidHours;
         return null;
     });
+    public static Plugin Events = Fake("RealmEvents", (h, a) => h == "IsTruceActive" ? (object)Truce : null);
     public static Plugin Herald = Fake("RealmHerald", (h, a) => h == "PopupsWanted" ? (object)!PopupsOff.Contains((string)a[0]) : null);
     public static Plugin Seasons = Fake("RealmSeasons", (h, a) =>
     {
@@ -162,7 +163,7 @@ static class W
         new[] { "RealmTreasury", "Treasury" }, new[] { "RealmHouses", "Houses" }, new[] { "CrownAndConsequences", "Crown" },
         new[] { "RealmLaws", "Laws" }, new[] { "RealmContracts", "Contracts" }, new[] { "RealmLegendary", "Legendary" },
         new[] { "RealmWarden", "Warden" }, new[] { "RealmHerald", "Herald" }, new[] { "RealmSeasons", "Seasons" },
-        new[] { "RealmRenown", "Renown" }, new[] { "RealmSentinel", "Sentinel" },
+        new[] { "RealmRenown", "Renown" }, new[] { "RealmSentinel", "Sentinel" }, new[] { "RealmEvents", "Events" },
     };
 
     // A plugin with the default config (tweak changes it before Init), wired to the fakes, loaded and started.
@@ -260,6 +261,20 @@ static class W
     public static void Fall(Player victim, float amount = 10f)
     {
         Inv(T, "OnEntityHealthChange", new EntityDamageEvent { Entity = victim.Entity, Damage = new Damage { Amount = amount, DamageSource = null, DamageTypes = DamageType.Falling } });
+    }
+    // A rope or chain thrown by captor at target; true when the bind is allowed.
+    public static bool Bind(Player captor, Player target)
+    {
+        var evt = new CodeHatch.Networking.Events.PlayerCaptureEvent { Captor = captor.Entity, Target = target };
+        Inv(T, "OnPlayerCapture", evt);
+        return !evt.Cancelled;
+    }
+    // A blow another plugin (RealmWarden, the truce) has already cancelled.
+    public static void BlockedHit(Player attacker, Player victim)
+    {
+        var evt = new EntityDamageEvent { Entity = victim.Entity, Damage = new Damage { Amount = 10f, DamageSource = attacker.Entity } };
+        evt.Cancel("someone else");
+        Inv(T, "OnEntityHealthChange", evt);
     }
     public static void Die(Player victim) { Inv(T, "OnEntityDeath", new EntityDeathEvent { Entity = victim.Entity }); }
 
