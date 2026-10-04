@@ -815,6 +815,7 @@ namespace Oxide.Plugins
             public bool SourceCorpse;
             public object SourceContainer;
             public int TargetBefore = -1;
+            public bool Own;
         }
 
         private class CraftClaim
@@ -1612,7 +1613,7 @@ namespace Oxide.Plugins
                 if (config.Weekly.Enabled && now >= data.NextCrowning) Crown();
                 else if (!config.Weekly.Enabled && now >= data.NextCrowning) CloseWeek();
                 ExpireCommissions(now);
-                foreach (string id in new List<string>(data.OwedMarks.Keys)) if (OnlineById(id) != null) PayOwedMarks(id);
+                foreach (string id in new List<string>(data.OwedMarks.Keys)) if (OnlineById(id) != null && !Throttled("owedmarks|" + id, 60)) PayOwedMarks(id);
             }
             if (dirty && now >= nextSave) SaveData();
         }
@@ -1676,11 +1677,11 @@ namespace Oxide.Plugins
             try
             {
                 Player p = ClientOf(e);
-                if (p == null || !OwnContainer(e, p)) return;
+                if (p == null) return;
                 InvGameItemStack s = e.ItemStack;
                 if (s == null || s.Blueprint == null) return;
                 if (early.Count > 500) early.Clear();
-                early[e] = new Early { Stack = s, Item = s.Blueprint.Name, Amount = s.StackAmount };
+                early[e] = new Early { Stack = s, Item = s.Blueprint.Name, Amount = s.StackAmount, Own = OwnContainer(e, p) };
             }
             catch (Exception ex) { if (!Throttled("add", 60)) PrintWarning("Container watch failed: " + ex.Message); }
         }
@@ -1695,7 +1696,9 @@ namespace Oxide.Plugins
             try
             {
                 Player p = ClientOf(e);
-                if (p != null) Incoming(p, x.Item, x.Amount, x.Stack);
+                if (p == null) return;
+                if (x.Own) Incoming(p, x.Item, x.Amount, x.Stack);
+                else Departed(p, x.Item, x.Amount, x.Stack);
             }
             catch (Exception ex) { if (!Throttled("add", 60)) PrintWarning("Container watch failed: " + ex.Message); }
         }
@@ -1907,6 +1910,18 @@ namespace Oxide.Plugins
             if (moved > 0) Watch(p, moved + " " + item + " moved (not gathered)");
             if (corpseUnits > 0) Credit(p, item, corpseUnits, "corpse");
             if (units > 0) Credit(p, item, units, "gathered");
+        }
+
+        // Goods a client took out (of its packs, say) and put into a container that is not its own (a chest, a station):
+        // they have arrived somewhere else, so they are no longer on the move towards the packs.
+        private void Departed(Player p, string item, int amount, object stack)
+        {
+            Tracker t;
+            Transit tr;
+            if (stack == null || amount <= 0 || !trackers.TryGetValue(p.Id, out t) || !t.Stacks.TryGetValue(stack, out tr)) return;
+            int use = Math.Min(amount, tr.Units);
+            t.Stacks.Remove(stack);
+            PoolDraw(t, item, use, tr.Corpse, Now());
         }
 
         private GatherDef GatherDefFor(string item)
@@ -2508,6 +2523,7 @@ namespace Oxide.Plugins
         private void CmdOrder(Player player, string[] args)
         {
             if (!config.Commissions.Enabled) { ReplyError(player, "PartClosed"); return; }
+            if (RealmTreasury == null) { ReplyError(player, "OrderNoTreasury"); return; }
             // /craft order <item words...> <qty> <price> [min level]
             var nums = new List<long>();
             int end = args.Length;
@@ -2534,7 +2550,6 @@ namespace Oxide.Plugins
             DateTime last;
             if (data.LastPost.TryGetValue(id, out last) && (Now() - last).TotalSeconds < config.Commissions.PostCooldownSeconds)
             { ReplyError(player, "OrderCooldown", When(last.AddSeconds(config.Commissions.PostCooldownSeconds), player)); return; }
-            if (RealmTreasury == null) { ReplyError(player, "OrderNoTreasury"); return; }
             var c = new Commission
             {
                 Id = data.NextCommissionId, PosterId = id, PosterName = Clean(player.Name, 40), Item = bp.Name, Profession = ProfessionOfItem(bp.Name),
