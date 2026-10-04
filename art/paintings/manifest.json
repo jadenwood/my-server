@@ -233,6 +233,16 @@
       "sha256": "7f62cb5f68c0cd5cb810e9fa7556494833cb97c664cdc0be6b80b792103fceb6"
     },
     {
+      "id": "the-crossing",
+      "group": "posters",
+      "title": "The Crossing of the Grey Water: the raft, the Gatehouse of the Unwritten, the Hearth's smoke",
+      "width": 320,
+      "height": 256,
+      "file": "art/paintings/posters/the-crossing.png",
+      "bytes": 16267,
+      "sha256": "ff44e8c2f1782c78af6d3455ff345f66db607027dfc4af4db1ce69d93ce9f3a5"
+    },
+    {
       "id": "poster-ironbreaker",
       "group": "posters",
       "title": "Ironbreaker (static; the live board names its bearer)",
@@ -417,6 +427,15 @@
       "sha256": "79333854ee0db4a2f9cf7fd77e4433a77ab517d768dd44e815a1896016e6c094"
     },
     {
+      "id": "icon-24-ballot",
+      "kind": "mask",
+      "width": 24,
+      "height": 24,
+      "file": "art/paintings/sprites/icon-24-ballot.png",
+      "bytes": 181,
+      "sha256": "aa7c214a523cd85ce7688066986363eef9b4d4b3272ba39d9aec0181eb862fe0"
+    },
+    {
       "id": "icon-24-beacon",
       "kind": "mask",
       "width": 24,
@@ -442,6 +461,15 @@
       "file": "art/paintings/sprites/icon-24-blood-claim.png",
       "bytes": 291,
       "sha256": "20f428a7d3f9cec05e40e7172611bcd0f606f7bb70235dffcb95a8d85180d3b2"
+    },
+    {
+      "id": "icon-24-census",
+      "kind": "mask",
+      "width": 24,
+      "height": 24,
+      "file": "art/paintings/sprites/icon-24-census.png",
+      "bytes": 313,
+      "sha256": "c29df38db31db537428c0f27bbf564712a9f7f2a66cb098f4e7709cb5b70ceea"
     },
     {
       "id": "icon-24-claim",
@@ -1008,5 +1036,5 @@
       "sha256": "742167c3b8fe954a15b8918a667948d5212a78eb609e9edbccacb0810bcd2719"
     }
   ],
-  "version": "3204613439985fa3"
+  "version": "2b72ecf8e07a428b"
 }

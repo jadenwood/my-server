@@ -46,7 +46,10 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmsculptor.admin` | `RealmSculptor.cs` | `/sculpt list`, `preview`, `place`, `undo`, `remove`, `placed`, `status`, `protect`, `repair`, `materials`, `reload`: place, protect and take down the realm's block monuments | `place ... force` replaces players' blocks (put back on undo); a protected monument can block a road or a door | Yes | Yes | No | No |
 | `realmdominion.admin` | `RealmDominion.cs` | `/dominion admin status`, `create`, `move`, `radius`, `rename`, `remove`, `enable`, `disable`, `owner`, `reset`, `open`, `close`, `auto`, `payday`: mark the holdings on the land, open or close the War Hours, settle an owner | **Can hand a holding (and its daily marks) to any house** and open the field at will; holders never count in the field while `AdminsCount` is false (the default) | Yes | Yes | No | Yes |
 | `realmquests.admin` | `RealmQuests.cs` | `/quest admin status`, `reload`, `places`, `place set\|clear`, `reset <player>`, `complete <player> <quest>`, `creatures`, `items`: quest content, named places and a player's journal | `complete` finishes a task with its reward (a testing aid): **can pay marks and goods to anyone**, including themselves | Yes | On call | No | No |
+| `realmcrafts.admin` | `RealmCrafts.cs` | `/craft admin status`, `watch <player> [off]`, `unmapped`, `items <word>`, `xp <player> <profession> <amount>`, `level <player> <profession> <level>`, `reset <player> confirm`, `crown`, `cancel <id>`: professions, the weekly Master Crafter and the commission board | **Can set anyone's profession XP and level** (and with it their perks and market fee discount) and close the week early; `cancel` returns a commission's marks to its poster. Holders are never named Master Crafter while `AdminsCountForWeekly` is false (the default) | Yes | Yes | No | No |
 | `realmtravel.admin` | `RealmTravel.cs` | `/travel admin set`, `name`, `note`, `house`, `kind`, `toll`, `radius`, `hidden`, `enabled`, `mark`, `remove`, `list`, `unlock`, `lock`, `throne`, `tp`, `status`; `/kit admin items`, `check`, `reset`: raise and run the realm's waystones and kits | `/travel admin tp` moves them to any waystone; `unlock` and `/kit admin reset` can favour a player. With `General.AdminsExempt: true`: **no channel time, cooldowns or tolls** | Yes | Yes | No | No |
+| `realmworld.admin` | `RealmWorld.cs` | `/world admin status`, `start`, `stop`, `schedule`, `place set\|clear`, `places`, `hunt ...`, `route add\|remove`, `routes`, `deco add\|remove\|list`, `festival start\|stop\|cancel`, `census`, `creatures`, `legends`, `bounty [clear]`: lay out treasure hunts, caravan routes and festival decorations, start or call off world events | `start ... force` can run a world event over a RealmEvents event; a hunt's riddles and dig site are known to whoever lays them out, so holders win nothing in the world while `General.AdminsCanWin` is false (the default) | Yes | Yes | No | Yes |
+| `realmheraldry.admin` | `RealmHeraldry.cs` | `/heraldry sync`, `preview`, `set`, `reset`, `banner`, `status`: house colours on the game's guild banners; `/ballot admin open`, `advance`, `cancel`, `strike`, `audit`, `voter`: council elections and referendums | **Can set any house's colours, call or end an election early, cancel a ballot and strike a vote** (every strike is logged); may put a question to the realm without being monarch | Yes | Yes | No | No |
 
 Things that are **not** Oxide permissions but are staff powers all the same:
 
@@ -84,12 +87,16 @@ oxide.grant group realm_admin realmsculptor.admin
 oxide.grant group realm_admin realmdominion.admin
 oxide.grant group realm_admin realmquests.admin
 oxide.grant group realm_admin realmtravel.admin
+oxide.grant group realm_admin realmcrafts.admin
+oxide.grant group realm_admin realmworld.admin
+oxide.grant group realm_admin realmheraldry.admin
 
 oxide.grant group realm_mod realmwarden.admin
 oxide.grant group realm_mod realmravens.admin
 
 oxide.grant group realm_host realmevents.admin
 oxide.grant group realm_host realmarena.admin
+oxide.grant group realm_host realmworld.admin
 oxide.grant group realm_host realmpainter.admin
 oxide.grant group realm_host realmdominion.admin
 

@@ -106,7 +106,9 @@ const EVENT_TYPES = [
   { type: 'tithe_levied', label: 'The Tithe Gathered', group: 'Treasury & rumours', tone: 'iron' },
   { type: 'great_trade', label: 'A Great Sale', group: 'Treasury & rumours', tone: 'gold' },
   { type: 'rumour', label: 'A Rumour Spreads', group: 'Treasury & rumours', tone: 'iron' },
-  { type: 'holding_taken', label: 'A Holding Taken', group: 'Claims & war', tone: 'blood' }
+  { type: 'holding_taken', label: 'A Holding Taken', group: 'Claims & war', tone: 'blood' },
+  { type: 'census_taken', label: 'The Census', group: 'Seasons & events', tone: 'iron' },
+  { type: 'vote_held', label: 'The Realm Votes', group: 'Crown', tone: 'gold' }
 ];
 const TYPE_BY_ID = new Map(EVENT_TYPES.map((t) => [t.type, t]));
 const DEFAULT_TYPES = ['coronation', 'abdication', 'decree', 'claim_declared', 'rebellion_started', 'rebellion_ended', 'house_founded', 'oath_broken', 'treaty_signed', 'treaty_broken', 'ransom_paid', 'season_started', 'season_ended', 'event_started', 'tournament_champion'];

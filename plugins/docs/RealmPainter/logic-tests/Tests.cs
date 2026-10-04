@@ -244,7 +244,7 @@ static class T
         Ok(art != null, "the art bundle loads", (string)F(P, "artError") ?? "");
         var paintings = (List<string>)F(art, "Paintings");
         var fonts = (IDictionary)F(art, "Fonts");
-        Ok(paintings.Count == 25 && paintings.Contains("crest-varrow") && paintings.Contains("poster-ironbreaker"), "25 finished paintings are offered", string.Join(",", paintings));
+        Ok(paintings.Count == 26 && paintings.Contains("crest-varrow") && paintings.Contains("poster-ironbreaker") && paintings.Contains("the-crossing"), "26 finished paintings are offered", string.Join(",", paintings));
         Ok(fonts.Count == 7 && fonts.Contains("display"), "7 glyph atlases decode (dynamic-Huffman PNGs from Node's zlib)");
         var items = (IDictionary)F(art, "Items");
         int decoded = 0, total = 0;
@@ -257,7 +257,7 @@ static class T
             if (img != null && (int)F(img, "W") == (int)F(kv.Value, "Width") && (int)F(img, "H") == (int)F(kv.Value, "Height")) decoded++;
             if (kind != "mask" && img != null && ((string)kv.Key == "sigil-96-varrow" || (string)kv.Key == "tile-parchment")) File.WriteAllBytes(Path.Combine(Out, "bundle-" + kv.Key + ".rgba"), Px(img));
         }
-        Ok(decoded == total && total == 71, "every sprite in the bundle decodes at its stated size (" + decoded + "/" + total + ")");
+        Ok(decoded == total && total == 73, "every sprite in the bundle decodes at its stated size (" + decoded + "/" + total + ")");
 
         var small = NewPainter("{ \"MaxImageSide\": 256, \"MaxPngBytes\": 90000 }");
         var sp = (List<string>)F(F(small, "art"), "Paintings");
@@ -448,6 +448,33 @@ static class T
 
         object notice = gather("notice", "To the Capital | Follow the river road north. Mind the toll.");
         Ok((string)F(notice, "Title") == "To the Capital" && (string)F(notice, "Body") == "Follow the river road north. Mind the toll.", "a notice splits title and text at the bar");
+
+        // world (RealmWorld.GetWorldBoard): its own words and rows; a clue board passes its argument through.
+        string worldArg = null;
+        var worldPlugin = new Plugin { Name = "RealmWorld", Handler = (m, a) =>
+        {
+            if (m != "GetWorldBoard") return null;
+            worldArg = (string)a[0];
+            var d = new Dictionary<string, object> { { "kicker", "The Living World" }, { "rows", new List<Dictionary<string, object>>() } };
+            if (worldArg.StartsWith("clue")) { d["title"] = "The Miller's Hoard"; d["subtitle"] = "Clue 2 of 3"; d["body"] = "Where the wheel sleeps [E86A5C]and[FFFFFF] the water talks"; return d; }
+            d["title"] = "Abroad in Ostreval";
+            ((List<Dictionary<string, object>>)d["rows"]).Add(new Dictionary<string, object> { { "name", "Treasure Hunt" }, { "right", "Tue 19:00" }, { "sub", "(The Miller's Hoard)" } });
+            ((List<Dictionary<string, object>>)d["rows"]).Add(new Dictionary<string, object> { { "name", "House Varrow" }, { "right", "120" }, { "owner", "Varrow" } });
+            return d;
+        } };
+        SetF(P, "RealmWorld", worldPlugin);
+        object wb = gather("world", null);
+        var wrows = (IList)F(wb, "Rows");
+        Ok((string)F(wb, "Title") == "Abroad in Ostreval" && wrows.Count == 2 && (string)F(wrows[0], "Icon") == "icon-24-beacon" && (string)F(wrows[1], "Icon") == "sigil-32-varrow",
+            "world: RealmWorld's rows, a house row with its sigil");
+        object clue = gather("world", "clue 2");
+        Ok(worldArg == "clue 2" && (string)F(clue, "Title") == "The Miller's Hoard" && ((string)F(clue, "Body")).StartsWith("Where the wheel sleeps"), "world clue <n>: the argument reaches RealmWorld and the riddle is the body");
+        SetF(P, "RealmWorld", null);
+        Ok((string)F(gather("world", null), "Body") == "The living world is not kept in this realm.", "world: without RealmWorld the board says so");
+        worldPlugin.Handler = (m, a) => { throw new InvalidOperationException("boom"); };
+        SetF(P, "RealmWorld", worldPlugin);
+        Ok((string)F(gather("world", null), "Body") == "The living world is not kept in this realm.", "world: and when the call throws");
+        SetF(P, "RealmWorld", null);
 
         foreach (string k in new[] { "chronicle", "wanted", "standings", "proclamation", "event", "ironbreaker" }) SetF(P, k == "chronicle" ? "RealmChronicle" : k == "wanted" ? "RealmContracts" : k == "standings" ? "RealmSeasons" : k == "proclamation" ? "CrownAndConsequences" : k == "event" ? "RealmEvents" : "RealmLegendary", null);
         SetF(P, "RealmLaws", null);

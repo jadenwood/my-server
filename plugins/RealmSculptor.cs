@@ -8,6 +8,8 @@
 // A placement is built a few blocks per tick (BlocksPerTick every TickSeconds), bottom layer first, then painted
 // ColourDelaySeconds later. Every placed cell and the block that was there before is recorded in
 // oxide/data/RealmSculptor.json, so undo and remove put the ground back exactly, even after a restart.
+// API (non-public, Plugin.Call): PlaceSculptureAt(sculpture, x, y, z, turn, by) -> placement id or 0, and
+// RemoveSculpture(id) -> bool, for RealmWorld's festival decorations (never forced; same rules as /sculpt place).
 //
 // Game API used (all [CODE] = read in the decompiled 2.0.3867 Assembly-CSharp.dll; plugins/docs/RealmSculptor.md has
 // the details and what is still UNVERIFIED):
@@ -1454,6 +1456,74 @@ namespace Oxide.Plugins
         }
 
         private static int Byte(float f) { return Clamp((int)Math.Round(f * 255f), 0, 255); }
+
+        #endregion
+
+        #region API (plugin.Call) - non-public on purpose (see header)
+
+        // RealmWorld's festival decorations: place a sculpture as /sculpt place would for someone standing at (x, y, z)
+        // facing quarter-turn `turn` (0 = +z, 1 = +x, 2 = -z, 3 = -x). Never forced: occupied cells, unclaimed land
+        // (unless AllowUnclaimedLand, which this call never asks for), a missing material or the placement limit refuse it.
+        // Returns the placement id, or 0 when refused.
+        private int PlaceSculptureAt(string sculptureId, float x, float y, float z, int turn, string by)
+        {
+            if (dataFailed || data == null || !config.Enabled || !GameReady() || string.IsNullOrEmpty(sculptureId)) return 0;
+            Sculpture s;
+            if (!sculptures.TryGetValue(sculptureId.ToLowerInvariant(), out s)) return 0;
+            int fx, fy, fz;
+            try
+            {
+                Vector3 w = new Vector3();
+                w.x = x; w.y = y; w.z = z;
+                Vector3Int feet = grid.WorldToLocalCoordinate(w);
+                fx = feet.x; fy = feet.y; fz = feet.z;
+            }
+            catch (Exception) { return 0; }
+            int q = ((turn % 4) + 4) % 4;
+            PlaceArgs a = new PlaceArgs();
+            a.Turn = q;
+            Plan p = MakePlan(s, fx, fy, fz, q, a);
+            if (p.MaterialProblem != null || p.Unclaimed > 0 || p.Occupied > 0 || p.OtherSculpture > 0) return 0;
+            int standing = 0;
+            foreach (Placement x0 in data.Placements) if (x0.State != "removed") standing++;
+            if (standing >= config.MaxPlacements) return 0;
+            Placement pl = new Placement();
+            pl.Id = data.NextId++;
+            pl.Sculpture = s.Id;
+            pl.Name = s.Name;
+            pl.X = p.X0; pl.Y = p.Y0; pl.Z = p.Z0;
+            pl.Turn = p.Turn;
+            pl.By = Short(by ?? "plugin", 40);
+            pl.ById = "";
+            pl.At = clock().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture);
+            pl.State = "placing";
+            pl.Protected = config.ProtectSculptures;
+            pl.Cells = p.Cells;
+            data.Placements.Add(pl);
+            jobs.Add(NewJob(pl, false, null));
+            SaveData();
+            Puts((by ?? "A plugin") + " placed #" + pl.Id + " " + pl.Sculpture + " at " + pl.X + "," + pl.Y + "," + pl.Z + " (turn " + pl.Turn + ").");
+            return pl.Id;
+        }
+
+        // Takes down a placement (the ground is put back as it was). False when it is unknown or already gone.
+        private bool RemoveSculpture(int placementId)
+        {
+            if (dataFailed || data == null || !config.Enabled) return false;
+            foreach (Placement p in data.Placements)
+            {
+                if (p.Id != placementId) continue;
+                if (p.State == "removed" || p.State == "removing") return false;
+                Job running = null;
+                foreach (Job j in jobs) if (j.P == p) running = j;
+                if (running != null) jobs.Remove(running);
+                p.State = "removing";
+                jobs.Add(NewJob(p, true, null));
+                SaveData();
+                return true;
+            }
+            return false;
+        }
 
         #endregion
 

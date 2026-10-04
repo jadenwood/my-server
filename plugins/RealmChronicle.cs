@@ -76,7 +76,11 @@ namespace Oxide.Plugins
             // RealmTreasury, RealmRavens
             "treasury_mint", "treasury_grant", "tithe_levied", "great_trade", "rumour",
             // RealmDominion
-            "holding_taken"
+            "holding_taken",
+            // RealmWorld
+            "census_taken",
+            // RealmHeraldry
+            "vote_held"
         };
 
         // [SRC] Oxide.CSharp src/CSharpPlugin.cs:91 (PluginReferenceAttribute; the field is filled with the plugin
