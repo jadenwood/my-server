@@ -903,6 +903,7 @@ namespace Oxide.Plugins
 
         private void Tick()
         {
+            if (loadFailed || data == null) return;
             DateTime now = Now();
             double dt = lastTick == DateTime.MinValue ? config.TickSeconds : (now - lastTick).TotalSeconds;
             if (dt < 0) dt = 0;
