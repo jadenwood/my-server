@@ -98,7 +98,7 @@ test('built pages: art files exist, icons resolve, link previews, manifest, stri
   assert.match(varrow, /og\/varrow\.png/);
   assert.match(varrow, /content="summary"/);
   const kings = r.files.get('kings.html');
-  assert.equal((kings.match(/class="renown-badge"/g) || []).length, 22, 'every title badge on the Hall of Kings');
+  assert.equal((kings.match(/class="renown-badge"/g) || []).length, 25, 'every title badge on the Hall of Kings');
   const css = r.files.get('assets/houses.css');
   assert.match(css, /\.dye-varrow\{[^}]*--sigil:url\('art\/sigils\/varrow\.svg'\)/);
   const manifest = JSON.parse(r.files.get('manifest.webmanifest'));
@@ -121,5 +121,5 @@ test('title badges and season medals reach the Chronicle (showcase sample data)'
   assert.match(chron, /<span class="ev-ico badge infamous"><img class="ev-badge" src="assets\/art\/badges\/titles\/oathbreaker\.svg"/);
   const kings = r.files.get('kings.html');
   assert.match(kings, /renown earned[^"]*"[\s\S]*?Odo the Tall/);
-  assert.match(kings, /2 of 22 claimed/);
+  assert.match(kings, /2 of 25 claimed/);
 });
