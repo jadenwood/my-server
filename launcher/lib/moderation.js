@@ -127,7 +127,7 @@ const BUILD = {
   // Oxide's own console command (docs/oxide-rok-api.md section 6.5, src/ReignOfKingsCore.cs:88-103):
   // re-reads the plugin, its config (oxide/config/<Plugin>.json) and its data. Used after Steward
   // changes a plugin's config or data files. UNVERIFIED over the admin console socket on the real
-  // server (docs/realm-features.md, test F1).
+  // server (launcher/README.md, Not verified, test F1).
   reload: ({ plugin }) => {
     const p = pluginName(plugin);
     return { command: `/oxide.reload ${p}`, summary: `Reload ${p}` };

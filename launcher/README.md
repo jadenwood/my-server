@@ -40,16 +40,18 @@ The **folder rules** are the same as `RealmCommon.ps1`. A folder must be a full 
 | Screen | What is on it |
 |---|---|
 | **Home** | PLAY (Steam only), Server 1's direct-connect address, the "Your realm at a glance" strip (servers up, players, last crash, last backup, next restart), realm status, the king, the latest Chronicle events and the news. |
-| **Servers** | A strip with one card per server (I to IV) and **Add server**. For the selected server: Start, Stop, Restart, Force stop, the live console and a command box. **Server settings**: name, max players (up to 120), seconds between joins, game and query ports, restart after a crash, back up before every restart, restart every day at a set time. **Upkeep**: Update plugins (all servers), Back up world, Restore backup, Undo Oxide. |
-| **Court** | Live moderation over the game's admin console for the selected server: those present (with Steam IDs from the RealmCourt plugin), kick, mute, ban, unban, ban list, notice, popup, chat, whitelist on/off, save world, the live hall (chat, log, errors), in-game admin commands of the Realm plugins to copy, and the Court rolls written to `%APPDATA%\Realm\court\court-log.jsonl`. |
+| **Servers** | A strip with one card per server (I to IV) and **Add server**. For the selected server: Start, Stop, Restart, Force stop, the live console and a command box. **Server settings**: name, max players (up to 120), seconds between joins, game and query ports, restart after a crash, back up before every restart, restart every day at a set time. **Upkeep**: Update plugins (all servers; also the plugin data files, see [Plugin data files](#plugin-data-files)), Back up world, Restore backup, Undo Oxide. |
+| **Court** | Live moderation over the game's admin console for the selected server: those present (with Steam IDs from the RealmCourt plugin), kick, mute, ban, unban, ban list, notice, popup, chat, whitelist on/off, save world, the live hall (chat, log, errors), in-game staff commands of the Realm plugins to fill in and copy (one fold per plugin: houses, crown, contracts, laws and court, the Sentinel, monuments, signs, the Ironbreaker, quests, travel and kits, the Arena, Dominion, the living world, the guilds, heraldry and the council), and the Court rolls written to `%APPDATA%\Realm\court\court-log.jsonl`. |
 | **Realm** | The throne, the council, open claims and decrees, and every house with its vassals. It follows Server 1's Chronicle. |
 | **Overlay** | The OBS address `http://127.0.0.1:8787/overlay`, a live preview and the folder the Chronicle reads (Server 1). |
 | **Public** | Go Public for the chosen server: network mode, Windows Firewall rules, router ports, a self-check. |
-| **Publish** | The signing key and the signed server list (`servers.json`) for the player app. |
+| **Sentinel** | RealmSentinel's live alerts, suspects ranked by score and each one's evidence, with Kick and Ban over the admin console and the `/sentinel` commands filled in to copy. A badge on the rail counts unseen alerts. See [The Sentinel screen](#the-sentinel-screen). |
+| **Publish** | Three tabs, all signed with the same key: the server list (`servers.json`), **News** (`news.json`) and **Player update** (`update.json`). See [Publish news and player updates](#publish-news-and-player-updates). |
 | **Doctor** | The Connection Doctor ([`docs/connection-doctor.md`](../docs/connection-doctor.md)): one verdict and one fix for "I can't connect", 11 read-only checks, the game and server logs with known problems highlighted, a paste box for the game's popup text, and a redacted **Copy report**. |
+| **Features** | Realm features: each plugin's main switches, saved to `oxide\config\<Plugin>.json` with a backup and reloaded over the admin console. See [Realm features](#realm-features). |
 | **Settings** | Server 1's folder, which server program to run (`Server.exe` or `ROK.exe -batchmode -nographics -silentcrash`; it applies to every server), the Steam server folder, the Discord link and the news, and the opt-in **Discord herald** that posts new Chronicle events to a webhook ([`docs/discord-herald.md`](../docs/discord-herald.md)). |
 
-Screenshots: [setup](../docs/img/steward-setup.png), [setup in progress](../docs/img/steward-setup-progress.png), [setup done](../docs/img/steward-setup-done.png), [server](../docs/img/steward-server.png), [crash restart](../docs/img/steward-server-crash.png), [two servers](../docs/img/steward-fleet.png), [restore](../docs/img/steward-server-restore.png), [home](../docs/img/steward-home.png), [realm](../docs/img/steward-realm.png), [overlay](../docs/img/steward-overlay.png), [go public](../docs/img/steward-public.png), [publish](../docs/img/steward-publish.png), [settings](../docs/img/steward-settings.png).
+Screenshots: [setup](../docs/img/steward-setup.png), [setup in progress](../docs/img/steward-setup-progress.png), [setup done](../docs/img/steward-setup-done.png), [server](../docs/img/steward-server.png), [crash restart](../docs/img/steward-server-crash.png), [two servers](../docs/img/steward-fleet.png), [restore](../docs/img/steward-server-restore.png), [home](../docs/img/steward-home.png), [realm](../docs/img/steward-realm.png), [overlay](../docs/img/steward-overlay.png), [go public](../docs/img/steward-public.png), [publish](../docs/img/steward-publish.png), [settings](../docs/img/steward-settings.png), [Realm features](../docs/img/steward-features.png), [Realm features live](../docs/img/steward-features-live.png), [Sentinel](../docs/img/steward-sentinel.png), [Sentinel kick](../docs/img/steward-sentinel-kick.png), [Court staff commands](../docs/img/steward-court-commands.png), [publish news](../docs/img/steward-publish-news.png), [publish update](../docs/img/steward-publish-update.png).
 
 ### Up to four servers
 
@@ -145,6 +147,48 @@ The `servers.json` format is a JSON envelope:
 ```
 
 The list itself is `{schema: 1, realm, seq, issued, expires, servers: [{id, name, region, address, port, queryPort, maxPlayers, chronicleUrl?}], links?}`. `lib/shared/manifest.js` holds the schema.
+
+### Publish news and player updates
+
+The **News** and **Player update** tabs on Publish write `news.json` and `update.json` into the same folder as `servers.json`, signed with the same key (`lib/news.js` `buildNews`/`signNews`, `lib/updater.js` `buildUpdate`/`signUpdate`; the screen's logic is `lib/publish-feeds.js`). The formats and how the player app reads them are in [`docs/player-launcher.md`](../docs/player-launcher.md). **Nothing is uploaded**: put both files next to `servers.json` where you host it.
+
+- **News.** Up to 60 items: an announcement, a Chronicle highlight (**From the Chronicle** picks a recent entry) or "What's new in the realm" (a new sculpture, a law, an event, with an optional start time). Pinned items come first. Items stay in a draft (`%APPDATA%\Realm\publish\feeds.json`) until you press **Sign & write news.json**. The "As players see it" panel shows the two lists the player app shows.
+- **Player update.** **Choose installer** picks `Realm-Setup-<version>.exe` from the release folder. Steward reads its size and SHA-256 from the file and, when the folder has `SHA256SUMS.txt` (`npm run release`), refuses a file that does not match its line. Fill in the https download address (upload the installer there yourself), the patch notes, an optional minimum version (older apps must update) and the hotfix tick, then **Sign & write update.json**.
+- Each file carries a version number that only goes up: one more than the highest of Steward's own counter and the file already in the folder signed with this key. A lost profile or a second PC therefore cannot publish a file players would refuse as a rollback.
+- Before a file is written it is checked with the public key exactly as the player app checks it, then written atomically. A damaged draft file is never overwritten: the tab says so, and writing stops until you move it away.
+
+### The Sentinel screen
+
+The Sentinel screen reads what RealmSentinel writes ([`plugins/docs/RealmSentinel.md`](../plugins/docs/RealmSentinel.md), "The Steward feed"): `oxide\data\RealmSentinelFeed.json` (alerts, suspects, mode, online and frozen counts) and the evidence log `oxide\logs\RealmSentinel\realmsentinel_evidence-<date>.txt`. It never writes to them. Steward looks for changes every few seconds; a new alert raises a toast and counts on the rail badge until **Mark all seen**.
+
+- **Live alerts**, newest first, with the kind, the score and what the plugin did or would do (`would freeze`, `would kick` in watch mode).
+- **Suspects** ranked by score, with a bar against the alert, freeze, kick and ban scores from the plugin's config.
+- **Evidence** for the chosen player: every finding from the daily logs, newest first, with position and ping.
+- **Kick** and **Ban** are the game's own `/kick` and `/ban` over the admin console, with the reason `Sentinel: <kind>`. They go through the Court, so they land in the Court rolls. Ban asks first. **Reload plugin** sends `/oxide.reload RealmSentinel`.
+- **Report**, **Freeze 15 min**, **Unfreeze**, **Clear score** and **Sentinel ban** copy the `/sentinel` command, with the player's name quoted, for an admin to paste in game. Oxide runs a plugin's chat command only for a player, and the admin console is not one, so Steward cannot send these itself.
+
+### Realm features
+
+The **Features** screen lists every Realm plugin with its main switches (`lib/features.js` `CATALOGUE`). A test checks each switch against the plugin's `PluginConfig`, and that every plugin with a config is listed. Turning a switch:
+
+1. reads `oxide\config\<Plugin>.json` and refuses if it does not parse (the plugin then runs on its defaults; fix or delete the file);
+2. changes exactly the bytes of that one value. Everything else (64-bit Steam IDs, number formats, order) stays byte for byte, and the result is parsed again and must differ in that one value only;
+3. copies the old file to `<server>\_realm-backups\config-<time>\` and writes the new one through a temporary file. If the file changed on disk meanwhile, nothing is written;
+4. on a running server with the live console, sends `/oxide.reload <Plugin>` so the change applies at once. A stopped server picks it up at its next start. Each change is written to the Court rolls.
+
+A dangerous switch (the Sentinel's enforce mode, ban by itself) asks first. A master switch (for example "Quests" or "Guilds") dims the plugin's other switches while it is off. **More switches** lists every other true/false value in the file. A plugin that has not written its config yet says "no config yet: start the server once".
+
+### Plugin data files
+
+Some plugins read files Realm ships rather than files they write. **Update plugins** (and the setup step "Raise the banners") copies them before the plugins:
+
+| Files | To | Read by |
+|---|---|---|
+| `art/sculptures/*.json` | `oxide\data\RealmSculptor\` | RealmSculptor (monuments) |
+| `art/paintings/RealmPainterArt.json` | `oxide\data\` | RealmPainter (sign art; the Features screen shows its version) |
+| `plugins/docs/RealmQuests/content/*.json` | `oxide\data\RealmQuests\` | RealmQuests (tasks, story, deeds, places) |
+
+Every source file must parse as a JSON object first; a damaged or truncated one is not copied and the server's copy is left as it is. A changed file on the server is saved to `_realm-backups\data-<time>\` before it is replaced. Files you added yourself (your own sculpture) are listed but never touched. Each copy is written to `<name>.realm-part` and renamed into place. A running server reloads the plugins whose data changed over the admin console. In the installer the files are under `resources\realm-data` (`build/steward.json` `extraResources`). The Features screen shows each set and whether it still needs deploying.
 
 ---
 
@@ -289,6 +333,19 @@ Everything Windows-specific has only been reasoned about here, not run:
 - tray icons and notifications;
 - whether quick join survives the EAC bootstrapper;
 - whether four real servers coexist;
-- play at 120 players.
+- play at 120 players;
+- the Steward screens for the server plugins, listed below.
+
+**UNVERIFIED on the real server**, each with its test:
+
+| # | What | Test |
+|---|---|---|
+| F1 | `/oxide.reload <Plugin>` sent over the admin console reloads the plugin. | Start Server 1 from Steward with the live console. On Features, turn RealmEvents "Truce of the Realm" off. The live hall shows `Unloaded plugin RealmEvents` then `Loaded plugin RealmEvents`, and `oxide\config\RealmEvents.json` has `"EnableTruce": false`. |
+| F2 | A plugin keeps a config Steward edited (it does not write its old value back). | After F1, restart the server. The switch is still off on Features and in the file. |
+| S1 | RealmSentinel writes `RealmSentinelFeed.json` and the evidence log in the documented shape. | With the Sentinel in watch mode, a second account without admin rights floods chat (more than 12 lines in 10 s, six times over, so its score passes `AlertScore` 20 at 4 points a flood). Within 10 s the Sentinel screen lists the alert, and the account's evidence shows the line. |
+| S2 | Kick and Ban from the Sentinel screen. | Kick the test account from its evidence. It is disconnected with the reason `Sentinel: <kind>`, and the Court rolls show the kick. |
+| D1 | RealmSculptor, RealmPainter and RealmQuests read the deployed data. | Update plugins, then in game as an admin: `/sculpt list` lists the sculptures, `/paint status` shows the art version from the Features chip, `/quest admin status` shows six content files ok. |
+| C1 | The copied staff commands work as typed. | From the Court, copy `/arena admin status`, `/quest admin status` and `/world admin status` and paste them in game as an admin. Each answers. |
+| P1 | The player app accepts the published `news.json` and `update.json`. | Host both next to `servers.json`. A player app shows the news on Play and offers the update, and refuses it after one byte of the hosted installer is changed. |
 
 The tests to run on the owner's PC are listed in [`docs/going-public.md`](../docs/going-public.md) and `docs/seamless-design.md` §7.

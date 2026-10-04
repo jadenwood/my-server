@@ -2,7 +2,7 @@
 // Publish > News and Publish > Player update, and the data files Update plugins deploys. Uses an imitation
 // ROK.exe whose admin console speaks the game's socket protocol (test/fake-admin-console.js), real plugin
 // files, a RealmSentinel feed and evidence log in the shape the plugin writes, and saves
-// docs/img/steward-{features,features-live,sentinel,sentinel-kick,publish-news,publish-update}.png.
+// docs/img/steward-{features,features-live,sentinel,sentinel-kick,court-commands,publish-news,publish-update}.png.
 //
 //   xvfb-run -a node scripts/steward-integration-screens.mjs
 //
@@ -319,6 +319,22 @@ try {
   await page.click('#sentinel-root button:has-text("Reload plugin")');
   await sleep(800);
   check('Reload plugin sends /oxide.reload RealmSentinel', records().some((r) => r.received === '/oxide.reload RealmSentinel'));
+
+  // ---- Court: the in-game staff commands of every Realm plugin, one fold each
+  await go('court');
+  await page.waitForSelector('.court-plug-fold', { timeout: 10000 });
+  const MOD = require(path.join(launcher, 'lib', 'moderation.js'));
+  const pluginsWithCommands = new Set(MOD.PLUGIN_ADMIN.map((d) => d.plugin));
+  check('one fold per plugin with staff commands', (await page.locator('.court-plug-fold').count()) === pluginsWithCommands.size, String(pluginsWithCommands.size));
+  await page.evaluate(() => document.querySelectorAll('.court-plug-fold').forEach((f) => (f.open = false)));
+  const arena = page.locator('.court-plug-fold:has(summary:has-text("RealmArena"))');
+  await arena.locator('summary').click();
+  await arena.locator('.court-plug:has-text("call a duel off") input').fill('#12');
+  await arena.locator('.court-plug:has-text("call a duel off") button:has-text("Copy")').click();
+  await sleep(300);
+  check('a wave 3 staff command is filled and copied', (await app.evaluate(({ clipboard }) => clipboard.readText())) === '/arena admin void 12');
+  await arena.scrollIntoViewIfNeeded();
+  await shot('court-commands');
 
   // ---- Publish > News
   await go('publish');

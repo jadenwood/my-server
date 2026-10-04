@@ -442,7 +442,7 @@
       if (!folds.has(plugin)) {
         const f = el('details', 'court-plug-fold');
         if (folds.size < 2) f.open = true;
-        const sum = el('summary', 'mini-h', plugin);
+        const sum = el('summary', 'court-plug-sum', plugin);
         sum.appendChild(el('span', 'court-plug-count', ''));
         f.appendChild(sum);
         ui.plugins.appendChild(f);
