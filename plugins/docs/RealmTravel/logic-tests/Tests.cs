@@ -310,7 +310,9 @@ static class Tests
         Protected.Add(C);
         Hit(foe, p);
         Ok(Travelling(p) && Cmd(p, "travel", "cancel").Contains("You stay"), "a blow at a protected newcomer (RealmWarden blocks it) does not break their journey");
-        Ok(Cmd(p, "travel", "kingsreach").Contains("You set out"), "nor does it count as a fight for them"); Cmd(p, "travel", "cancel");
+        Ok(Cmd(p, "travel", "kingsreach").Contains("You set out"), "nor does it count as a fight for them");
+        Bind(foe, p);
+        Ok(Travelling(p), "nor does a rope thrown at a protected newcomer"); Cmd(p, "travel", "cancel");
         Protected.Clear();
         Truce = true;
         Cmd(p, "travel", "kingsreach");

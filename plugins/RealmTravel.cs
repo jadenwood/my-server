@@ -1031,6 +1031,7 @@ namespace Oxide.Plugins
                 if (captor.IsServer || target.IsServer || captor.Id == target.Id) return null;
                 DateTime now = Now();
                 shieldUntil.Remove(captor.Id);
+                if (HitForbidden(target)) return null;                // RealmWarden or the truce stops this rope
                 BreakJourney(captor, "Broken.fought");
                 if (Shielded(target.Id, now))
                 {

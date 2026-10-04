@@ -2,7 +2,7 @@
 
 Waystones you unlock by walking to them and travel between for a toll, a home inside your own crest zone, a guided road in chat, and the realm's kits: a newcomer's pack, daily house provisions and a season's bounty.
 
-**Status.** Compile-checked at C# 3 against the real Oxide 2.0.3867 and patched game DLL metadata (`tools/plugin-compile-check/check.sh`). Mock-tested: 300 checks (`plugins/docs/RealmTravel/logic-tests/run.sh`). Exploit suite: 69 checks including a 3000-step fuzz, plus 11 for the treasury door the tolls use (`tools/exploit-review/run.sh travel`). **Nothing here has been seen working on a real server.** Every game-side assumption is listed under [What is UNVERIFIED](#what-is-unverified), each with its smoke step.
+**Status.** Compile-checked at C# 3 against the real Oxide 2.0.3867 and patched game DLL metadata (`tools/plugin-compile-check/check.sh`). Mock-tested: 301 checks (`plugins/docs/RealmTravel/logic-tests/run.sh`). Exploit suite: 69 checks including a 3000-step fuzz, plus 11 for the treasury door the tolls use (`tools/exploit-review/run.sh travel`). **Nothing here has been seen working on a real server.** Every game-side assumption is listed under [What is UNVERIFIED](#what-is-unverified), each with its smoke step.
 
 Speaker in chat: **Roads** (lang key `Speaker`). Permission: `realmtravel.admin`. Files: `plugins/RealmTravel.cs`, `oxide/config/RealmTravel.json`, `oxide/data/RealmTravel.json`.
 
@@ -215,7 +215,7 @@ Offered to other plugins (`plugin.Call`, non-public): `GetDiscoveredCount(string
 
 ```
 bash tools/plugin-compile-check/check.sh                 # C# 3 against the real DLL metadata
-bash plugins/docs/RealmTravel/logic-tests/run.sh          # 300 checks
+bash plugins/docs/RealmTravel/logic-tests/run.sh          # 301 checks
 bash tools/exploit-review/run.sh travel                   # 69 checks with a 3000-step fuzz, then 11 for RealmTreasury.ChargeMarks
 ```
 
