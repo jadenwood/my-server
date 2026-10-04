@@ -82,6 +82,8 @@ generators share, so the pieces and the layout cannot disagree.
 | Reveal from arrival stone A2, gate closed | The gate down, the band flared |
 |---|---|
 | ![](preview/site-arrival-reveal-closed.png) | ![](preview/site-arrival-reveal-open.png) |
+| **The same at night** (a guess: only the fires give light) | **The avenue at night, between the kerb braziers** |
+| ![](preview/site-arrival-reveal-night.png) | ![](preview/site-arrival-avenue-night.png) |
 | **Out of the last pair** | **Back down the avenue** |
 | ![](preview/site-arrival-approach.png) | ![](preview/site-arrival-look-back.png) |
 
@@ -89,8 +91,16 @@ generators share, so the pieces and the layout cannot disagree.
 
 The other views are `site-arrival-threshold`, `-court`, `-avenue`, `-hearth`, `-aerial`, `-aerial-gate`, `-side` and
 `-pilgrim` (the Pilgrim's ledge from outside the left wall, for play-test 6b).
-The Old Throne on its hill and the fire in the pit are stand-ins in the previews only (`context` pieces and
-`terrain`); nothing places them.
+The Old Throne on its hill, the fire in the pit and the staff lights are stand-ins in the previews only (`context`
+pieces, `terrain` and `lights`); nothing places them. The night views (`night: true` on a preview) darken every block
+by a faint moon and light it warmly from each fire nearby; they are a guess at the night the design's `RevealNight`
+line describes, not the game's lighting.
+
+**Staff lights.** The design has staff build fire bowls in the court and braziers on both kerbs "so the court is
+readable at night" (sections 3.4 and 4.2). The site says where: `C1`-`C4` in the corners of the court floor (more than
+3 m from every arrival stone, clear of the Pilgrim's door), `K1`-`K14` on the ground one cell outside each kerb, a pair
+either side of the gate and then every 14.4 m, clear of the pledge stones and their crest posts (odd keys on the left).
+They are ordinary building, done after the pieces (run-sheet step 4); no plugin owns them.
 
 Choices the design left open, and why:
 
@@ -113,7 +123,7 @@ All of it is UNVERIFIED in game, like every sculpture: the materials, the colour
 the game's block collapsing (fallback: remove them), whether the sill can be climbed from outside (play-test 6b) and
 whether the band shows from 100 m (play-test 6). `node art/tools/sculptor/cli.mjs site arrival --anchor x,y,z
 --turn 0-3` prints the run-sheet for a real anchor: every stand spot, facing and `/sculpt place` command in route order,
-and every point in world cells.
+and every point and light in world cells.
 
 ## Site layouts (`realm-site/1`)
 
@@ -148,9 +158,18 @@ stands at (the middle of the cell's floor). A piece's world turn is `(turn + R) 
 | `boxes` | `Z0` (hall box) and `Z0b` (drop pad): `min` and `max` cells, inclusive. |
 | `zones[]` | The design's zones by `key` (`Z0` ... `Z5`, `corridor`): a `box`, or a `point` (`banner.*` means each banner point) with `radiusM` in metres, `dwellSeconds`, or an `axis` (two cells) with `halfWidthM`. |
 | `signs[]` | Sign spots for staff: `key` (G1-G4, P1-P6, W1-W5, H1), the clear `cell` the sign stands in, `faces` (`+x`, `-x`, `+z`, `-z`), the `/paint` `binding`, the notice `text` (under 180 characters), `slot` for house signs, `note`. |
+| `lights[]` | Staff-built lights: `key`, `kind` (`bowl`: a fire bowl on a floor; `brazier`: a fire on a stand), the `cell` the fire stands in (a clear cell with a floor or the ground under it, never on a point or the cell above one, a sign spot, a plugin cell or another light), `note`. Ordinary building; no plugin reads them. |
 | `terrain[]` | Preview-only ground: `mound` (the throne hill stand-in) and `fire` (the fire pit stand-in). Never built. |
 
 For RealmArrival: the points and boxes are what `/arrival admin ...` stores where staff stand, so the file says where
 those spots are and lets a test compare the stored points with the plan; `cells.gate.rows` and `cells.emberBand.cells`
 are the exact cells `gate build` and `beacon build 5` should write, relative to the stored gate cell and Hearth
 centre (`gate.rows[5][0]` is the gate-set cell; the band is the Hearth centre plus the offsets in `rule`).
+
+**The ember band's shape.** The 24 offsets are the octagon in `cells.emberBand.rule`: per quadrant `(5, 0)`, `(5, 1)`,
+`(4, 2)`, `(3, 3)`, `(2, 4)`, `(1, 5)` and their quarter-turns, each cell touching the next, so the band reads as one
+unbroken ring. The set is the same under every quarter-turn, so the offsets apply unchanged in world cells whatever
+turn the site is placed at. Note for `beacon build`: 24 cells at 15-degree steps rounded to the grid
+(`round(5 cos 15k), round(5 sin 15k)`) is a different set, with `(4, 3)`, `(4, 4)`, `(3, 4)` in place of `(4, 2)`,
+`(3, 3)`, `(2, 4)` and two one-cell gaps in every quadrant; RealmArrival should write the rule's cells so the band in
+game is the one in the previews.
