@@ -1792,6 +1792,14 @@ namespace Oxide.Plugins
             {
                 string wait;
                 n = CurrentStep(p, out next, out wait);
+                if (online != null && n != null && next != null && next.Id != ch.Id)
+                {
+                    // A new act opens: its intro, in chat and in the window.
+                    Reply(online, "StoryChapter", next.Act, next.Title);
+                    if (!string.IsNullOrEmpty(next.Intro)) Reply(online, "StoryIntro", next.Intro);
+                    popup.Append("\n\n").Append(Fmt("StoryChapter", online, next.Act, next.Title)).Append("\n").Append(next.Intro ?? "");
+                    p.Story.IntroShown = next.Id;
+                }
                 if (online != null && n != null) Reply(online, "StoryNext", n.Title);
                 else if (online != null && wait == "day" && next != null) Reply(online, "LogText", Fmt("StoryWaitDay", online, next.UnlockDay + 1));
             }
@@ -2624,7 +2632,7 @@ namespace Oxide.Plugins
                     string before;
                     data.Lieges.TryGetValue(kv.Key, out before);
                     if (string.IsNullOrEmpty(kv.Value) || SameName(before, kv.Value)) continue;
-                    if (HouseSize(kv.Key) < 2) continue;                       // a lone account's house swearing is no oath
+                    if (HouseSize(kv.Key) < 2 || HouseSize(kv.Value) < 2) continue;   // a lone account's house swearing or accepting is no oath
                     CreditHouse(kv.Key, TOath, "sworn", "oath");
                     CreditHouse(kv.Value, TOath, "accepted", "oath");
                     sworn++;
@@ -3114,6 +3122,12 @@ namespace Oxide.Plugins
                         HouseGoalDef def;
                         if (g.Done || !houseGoals.TryGetValue(g.GoalId, out def) || def.Objective.Type != TDeliver) continue;
                         int room = ShareLeft(id, g, def);
+                        int open = def.Objective.Count - g.Progress;
+                        int mine;
+                        g.Contrib.TryGetValue(id, out mine);
+                        // Never more than the goal still needs; when it is full but short of helpers, a new helper may
+                        // still give a real share (5%), so goods are not handed in for nothing.
+                        room = open > 0 ? Math.Min(room, open) : (mine == 0 ? Math.Min(room, Math.Max(1, def.Objective.Count / 20)) : 0);
                         if (room <= 0) continue;
                         HouseGoalState gs = g;
                         HouseGoalDef gd = def;
