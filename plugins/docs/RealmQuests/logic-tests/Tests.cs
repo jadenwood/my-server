@@ -21,7 +21,7 @@ static class T
         Repo = argv.Length > 0 ? argv[0] : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
         Content(); ContentRules(); ContentFiles(); DataSafety(); Assignment(); Rerolls(); Abandoning();
         Creatures(); Crafting(); Building(); Places(); Presence(); Events(); Oaths(); Chronicle(); Contracts(); Delivery(); AnyOne();
-        Rewards(); Goods(); StoryLine(); Achievements(); HouseGoals(); PvP(); Journal(); AchievementsCommand(); AdminCommands(); Api(); Config(); Arrival();
+        Rewards(); Goods(); StoryLine(); Achievements(); HouseGoals(); PvP(); Journal(); AchievementsCommand(); AdminCommands(); Api(); Config(); Arrival(); ArrivalChain();
         Console.WriteLine(pass + " passed, " + fail + " failed");
         return fail == 0 ? 0 : 1;
     }
@@ -1089,6 +1089,75 @@ static class T
         Server.ClientPlayers.Add(m); Everyone.Add(m);
         Inv(Q, "OnPlayerConnected", m);
         Ok(m.All().Contains("Tasks wait for you on the quest-board"), "arrival: stage none (closed or paused): FirstHint as before", m.All());
+    }
+
+    // The Unwritten chain (Arrival.json, docs/arrival-design.md 5.4 v2): opened only for a player never seen before while
+    // RealmArrival owns them; steps keep events in any order and finish in order; quiet while RealmArrival narrates; no
+    // reward of its own (ex_written pays the written deed); gone from the journal when done or after ArrivalOpenDays.
+    static List<string> ChainDone(Player p) { var a = F(P(p), "Arrival"); return a == null ? null : (List<string>)F(a, "Finished"); }
+    static void ArrivalChain()
+    {
+        Reset();
+        NewQuests();
+        var arr = F(Q, "arrival");
+        Ok(arr != null && ((IList)F(arr, "Steps")).Count == 4 && (string)F(arr, "Title") == "The Unwritten", "Arrival.json: the Unwritten chain loads, four steps");
+        var stages = new Dictionary<string, string>();
+        var plug = new Oxide.Core.Plugins.Plugin { Name = "RealmArrival", Handler = (h, x) => { string st; return h == "ArrivalStage" && stages.TryGetValue((string)x[0], out st) ? st : null; } };
+        SetF(Q, "RealmArrival", plug);
+        MarkPlace("the_hearth", 500, 500, 40);
+        var v = Mk(76561198000000201, "Old Hand");
+        Ok(F(P(v), "Arrival") == null, "chain: a player RealmArrival does not own gets none");
+        var n = new Player(76561198000000202, "Wren", 24);
+        stages[n.Id.ToString()] = "pending";
+        Server.ClientPlayers.Add(n); Everyone.Add(n);
+        Inv(Q, "OnPlayerConnected", n);
+        Ok(F(P(n), "Arrival") != null && ChainDone(n).Count == 0, "chain: a newcomer RealmArrival owns: it opens at the first connect");
+        Offline(n); Online(n);
+        Ok(ChainDone(n).Count == 0, "chain: a reconnect does not open it twice");
+        stages[n.Id.ToString()] = "running";
+        Inv(Q, "ReportQuestEvent", n.Id.ToString(), "custom", "arrival_crown", 1);   // /crown typed on the avenue
+        Ok(ChainDone(n).Count == 0, "chain: an early /crown is kept, but the chain waits for its first step");
+        Clear();
+        Inv(Q, "ReportQuestEvent", n.Id.ToString(), "custom", "arrival_gate", 1);
+        Ok(ChainDone(n).SequenceEqual(new[] { "ar_gate" }) && !n.All().Contains("is done"), "chain: through the gate, step 1 finishes quietly while RealmArrival narrates", n.All());
+        Cmd(n);
+        Ok(n.All().Contains("  The Unwritten: step 2 of 4, Warm Hands - "), "chain: /quest shows the step the newcomer is on", n.All());
+        Goto(n, 510, 505); Tick(1, false);
+        Ok(ChainDone(n).SequenceEqual(new[] { "ar_gate", "ar_hearth", "ar_crown" }), "chain: reaching the Hearth finishes step 2, and the early /crown step 3 right after it",
+            string.Join(",", ChainDone(n)));
+        stages[n.Id.ToString()] = "done";
+        Clear();
+        Inv(Q, "ReportQuestEvent", n.Id.ToString(), "custom", "arrival_road", 1);
+        Ok(n.All().Contains("The Unwritten: The First Road is done.") && n.All().Contains("Two stones known. The realm is larger than one fire.")
+            && n.All().Contains("[8FC97A]Quests[FFFFFF]: The Unwritten: every first step is walked."), "chain: after the arrival the last step is told, then the chain is done", n.All());
+        Ok(!Deeds.Any(d => d.Contains("arrival:complete")) && RewardCalls.Count == 0 && Pending(n) == 0, "chain: it pays nothing itself (ex_written pays the written deed)", string.Join("\n", Deeds));
+        Clear();
+        Cmd(n);
+        Ok(!n.All().Contains("The Unwritten:"), "chain: once done it leaves the journal");
+        Inv(Q, "ReportQuestEvent", n.Id.ToString(), "custom", "arrival_gate", 1);
+        Ok(!n.All().Contains("every first step"), "chain: done once");
+        // It closes after ArrivalOpenDays.
+        var w = new Player(76561198000000203, "Tamsin", 24);
+        stages[w.Id.ToString()] = "pending";
+        Server.ClientPlayers.Add(w); Everyone.Add(w);
+        Inv(Q, "OnPlayerConnected", w);
+        Clock = Clock.AddDays(8);
+        Clear();
+        Cmd(w);
+        Inv(Q, "ReportQuestEvent", w.Id.ToString(), "custom", "arrival_gate", 1);
+        Ok(!w.All().Contains("The Unwritten:") && ChainDone(w).Count == 0, "chain: after ArrivalOpenDays (7) it is gone from /quest and counts nothing");
+        // Content rules: custom and visit objectives only; steps pay nothing; the chain pays renown at most.
+        Reset();
+        WriteJson("RealmQuests/Arrival", "{ \"Version\": 1, \"Title\": \"The Unwritten\", \"Steps\": ["
+            + "{ \"Id\": \"ar_kill\", \"Title\": \"Blood\", \"Text\": \"Kill someone.\", \"Objectives\": [ { \"Type\": \"slay_player\", \"Count\": 1, \"Text\": \"Kill\" } ] },"
+            + "{ \"Id\": \"ar_gate\", \"Title\": \"Gate\", \"Text\": \"Walk out.\", \"Objectives\": [ { \"Type\": \"custom\", \"Targets\": [\"arrival_gate\"], \"Count\": 1, \"Text\": \"Out\" } ], \"Reward\": { \"Marks\": 500 } } ],"
+            + "\"Reward\": { \"Marks\": 1000, \"Renown\": \"written\" } }");
+        NewQuests();
+        var probs = (List<string>)F(Q, "contentProblems");
+        arr = F(Q, "arrival");
+        Ok(probs.Any(x => x.Contains("ar_kill") && x.Contains("cannot be an arrival step")) && ((IList)F(arr, "Steps")).Count == 1, "chain: a kill objective is refused", string.Join("\n", probs));
+        Ok(probs.Any(x => x.Contains("pays nothing on its own")) && (int)F(F(((IList)F(arr, "Steps"))[0], "Reward"), "Marks") == 0, "chain: a step's reward is dropped");
+        Ok(probs.Any(x => x.Contains("renown at most")) && (int)F(F(arr, "Reward"), "Marks") == 0 && (string)F(F(arr, "Reward"), "Renown") == "written", "chain: marks on the chain are dropped, renown kept");
     }
 
     static void Config()
