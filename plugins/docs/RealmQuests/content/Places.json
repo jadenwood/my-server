@@ -1,0 +1,17 @@
+{
+  "Version": 1,
+  "Places": [
+    { "Id": "old_throne", "Name": "the Old Throne", "Radius": 40, "Lore": "Merewin the Builder's throne of black stone, worn smooth on the left arm." },
+    { "Id": "the_hearth", "Name": "the Hearth", "Radius": 40, "Lore": "The great fire below the throne hill, where the Charter was sworn. It has never gone out." },
+    { "Id": "crown_market", "Name": "the Crown Market", "Radius": 50, "Lore": "Stalls rebuilt every season on the Builders' foundations. Never haggle on the first stone." },
+    { "Id": "tollbridge", "Name": "the Tollbridge", "Radius": 35, "Lore": "Fallen and rebuilt a dozen times. Every monarch claims the toll; every trader swears they paid it." },
+    { "Id": "listing_field", "Name": "the Listing Field", "Radius": 60, "Lore": "Where champions fight for Ashgrove's wreath of oak, and the winner stands on the Stone." },
+    { "Id": "crown_wold", "Name": "the Crown Wold", "Radius": 120, "Lore": "The old forest of the Builders' huntsmen. The quarry may run, but may not hide." },
+    { "Id": "varrows_stair", "Name": "Varrow's Stair", "Radius": 50, "Lore": "A stone keep on the hill road, its steps worn by nine generations of masons." },
+    { "Id": "ashgrove_vale", "Name": "Ashgrove Vale", "Radius": 90, "Lore": "Orchard-holds of the eastern vale. The oldest trees are scarred black at the root." },
+    { "Id": "corvanes_reach", "Name": "Corvane's Reach", "Radius": 50, "Lore": "A tower over the river crossing and the realm's oldest rookery." },
+    { "Id": "drowned_dunmere", "Name": "Drowned Dunmere", "Radius": 70, "Lore": "A flooded town whose bell is said to ring at low tide before the throne changes hands." },
+    { "Id": "ember_pass", "Name": "the Ember Pass", "Radius": 80, "Lore": "Forge-camps of the southern pass, and the old ransom-pits Halloran still keeps swept." },
+    { "Id": "merrins_ford", "Name": "Merrin's Ford", "Radius": 50, "Lore": "A river market at a shallow ford. Nobody quite trusts it, and everybody shops there." }
+  ]
+}

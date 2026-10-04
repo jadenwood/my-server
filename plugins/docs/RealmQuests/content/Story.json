@@ -1,0 +1,206 @@
+{
+  "Version": 1,
+  "Season": 1,
+  "Title": "The Hollow Crown",
+  "Prologue": "Last winter the Old Throne stood empty, and the Chronicle's pages for that winter were lost. A new season opens. Someone must fill the Hollow Crown.",
+  "Epilogue": "The pages of the lost winter stay blank, and the realm must write its own. You have written your part, and the Chronicle remembers it.",
+  "Reward": { "Marks": 250, "Items": [ { "Item": "SteelIngot", "Count": 10 } ], "Renown": "story_complete" },
+  "Chapters": [
+    {
+      "Id": "act1_empty_seat", "Act": 1, "Title": "The Empty Seat", "UnlockDay": 0,
+      "Intro": "The seat is empty and the crown is hollow. Under the Charter anyone may sit an empty throne. First the realm must learn who stands with whom.",
+      "Outro": "The seat has a sitter, or it waits. Either way the realm has chosen sides, and the Chronicle has begun to write.",
+      "Reward": { "Marks": 40, "Items": [ { "Item": "Bread", "Count": 5 } ] },
+      "Steps": [
+        {
+          "Id": "s1_hearth_ash", "Title": "Ash at the Hearth",
+          "Text": "Every season begins at the Hearth, where the Charter was sworn. Go and warm your hands at the great fire, and walk the waking realm.",
+          "Done": "The fire has not gone out in a hundred winters. It will not go out on your watch.",
+          "Objectives": [
+            { "Type": "visit", "Targets": ["the_hearth"], "Count": 1, "Text": "Warm your hands at the Hearth" },
+            { "Type": "playtime", "Count": 15, "Text": "Walk the realm, in active minutes" }
+          ],
+          "Reward": { "Marks": 20 }
+        },
+        {
+          "Id": "s1_banner", "Title": "Under a Banner",
+          "Text": "No one sits the throne alone. Found a house or join one, and stand under its banner when the realm counts its friends.",
+          "Done": "You have a banner now, and the banner has you. Both of you will be judged by the other.",
+          "Objectives": [ { "Type": "house", "Count": 1, "Text": "Belong to a house" } ],
+          "Reward": { "Marks": 25 }
+        },
+        {
+          "Id": "s1_roof", "Title": "A Roof Before Winter",
+          "Text": "A house without a roof is a rumour, and rumours do not last a winter. Raise walls for your house, block by block.",
+          "Done": "Walls and a roof. In Ostreval, that is the first argument a house ever wins.",
+          "Objectives": [ { "Type": "build", "Count": 60, "Text": "Lay building blocks" } ],
+          "Reward": { "Marks": 30, "Items": [ { "Item": "Bread", "Count": 5 } ] }
+        },
+        {
+          "Id": "s1_knee", "Title": "Bend the Knee, or Stand", "AnyOne": true,
+          "Text": "Oaths bind the realm together and treaties keep it from bleeding. See your house swear, seal or found, or keep the Truce at its gathering.",
+          "Done": "The realm knows where you stand. It will hold you to it.",
+          "Objectives": [
+            { "Type": "oath", "Count": 1, "Text": "Your house swears or accepts an oath" },
+            { "Type": "treaty", "Count": 1, "Text": "Your house seals a treaty" },
+            { "Type": "chronicle", "Targets": ["house_founded"], "Count": 1, "Text": "Found a house of your own" },
+            { "Type": "event", "Targets": ["truce"], "Count": 1, "Text": "Keep the Truce of the Realm at its gathering" }
+          ],
+          "Reward": { "Marks": 35 }
+        },
+        {
+          "Id": "s1_first_sitting", "Title": "The First Sitting", "AnyOne": true,
+          "Text": "Someone will sit the Old Throne first, and the realm will argue about it for a season. Stand on the throne hill, or stand on Crown Night.",
+          "Done": "You saw the seat with your own eyes. Most who talk about it never have.",
+          "Objectives": [
+            { "Type": "visit", "Targets": ["old_throne"], "Count": 1, "Text": "Stand before the Old Throne" },
+            { "Type": "event", "Targets": ["crown_night"], "Count": 1, "Text": "Stand on Crown Night" }
+          ],
+          "Reward": { "Marks": 30 }
+        }
+      ]
+    },
+    {
+      "Id": "act2_charter_tested", "Act": 2, "Title": "The Charter Tested", "UnlockDay": 14,
+      "Intro": "A crown that only sits is still hollow. Now the monarch must govern, with laws, a court, a treasury, and lists where the realm's best blades are weighed.",
+      "Outro": "Laws are read, coin changes hands and the lists have their champion. The realm has seen how this crown governs. Now it will answer.",
+      "Reward": { "Marks": 60 },
+      "Steps": [
+        {
+          "Id": "s2_market", "Title": "Coin at the Crown Market",
+          "Text": "The stalls are rebuilt on the Builders' foundations. Walk the Crown Market, and carry a purse worth opening there.",
+          "Done": "The traders watched your purse the whole way round. That is how you know it is full.",
+          "Objectives": [
+            { "Type": "visit", "Targets": ["crown_market"], "Count": 1, "Text": "Walk the Crown Market" },
+            { "Type": "marks", "Count": 50, "Text": "Hold marks in your purse" }
+          ],
+          "Reward": { "Marks": 25 }
+        },
+        {
+          "Id": "s2_contract", "Title": "Ink on the Board", "AnyOne": true,
+          "Text": "Merchants post their first contracts. Fill an order, collect a bounty or fight as a hired sword, or bring stone for the new stalls.",
+          "Done": "Your word is on the board and good. In a market, that is worth more than coin.",
+          "Objectives": [
+            { "Type": "contract", "Count": 1, "Text": "Finish a contract" },
+            { "Type": "deliver", "Targets": ["Stone"], "Count": 40, "Text": "Or hand in stone for the stalls" }
+          ],
+          "Reward": { "Marks": 30 }
+        },
+        {
+          "Id": "s2_lists", "Title": "The Lists of the Charter", "AnyOne": true,
+          "Text": "On Fridays the realm's champions fight for Ashgrove's wreath of oak. Take part in the Royal Tournament, or stand at the Listing Field.",
+          "Done": "You have seen the Stone and the wreath. One day, perhaps, the wreath will see you.",
+          "Objectives": [
+            { "Type": "event", "Targets": ["tournament"], "Count": 1, "Text": "Take part in the Royal Tournament" },
+            { "Type": "visit", "Targets": ["listing_field"], "Count": 1, "Text": "Or stand at the Listing Field" }
+          ],
+          "Reward": { "Marks": 30 }
+        },
+        {
+          "Id": "s2_forge", "Title": "Steel for the Charter",
+          "Text": "Laws need enforcers and enforcers need steel. Forge weapons fit for a court's champion.",
+          "Done": "Three blades for the realm's justice. Pray they are drawn rarely.",
+          "Objectives": [ { "Type": "craft", "Targets": ["~Sword", "~Axe", "~Mace", "~Spear", "~Flail", "~Hammer", "~Halberd", "~Morning Star"], "Count": 3, "Text": "Forge weapons" } ],
+          "Reward": { "Marks": 30 }
+        },
+        {
+          "Id": "s2_court", "Title": "Bricks for the Court",
+          "Text": "The court sits for the first time and has no hall to sit in. Bring clay for its bricks and lay stone for its floor.",
+          "Done": "The court has a floor to stand on. What it builds on it is up to the crown.",
+          "Objectives": [
+            { "Type": "deliver", "Targets": ["Clay"], "Count": 30, "Text": "Hand in clay" },
+            { "Type": "build", "Targets": ["stone", "cobblestone", "reinforced"], "Count": 40, "Text": "Lay stone blocks" }
+          ],
+          "Reward": { "Marks": 35 }
+        }
+      ]
+    },
+    {
+      "Id": "act3_lawful_hours", "Act": 3, "Title": "The Lawful Hours", "UnlockDay": 28,
+      "Intro": "Houses that were taxed, tried or passed over raise their claims at the Hearth. The Lawful Hours open, and the King's Hunt is loosed.",
+      "Outro": "The Night of Bells has rung. Whether the crown held or fell, every house now knows what one more crown day is worth.",
+      "Reward": { "Marks": 80, "Items": [ { "Item": "SteelIngot", "Count": 3 } ] },
+      "Steps": [
+        {
+          "Id": "s3_wold", "Title": "Into the Crown Wold",
+          "Text": "By old custom the monarch's huntsmen keep the Crown Wold. Walk its dark paths and thin the wolves that hunt there.",
+          "Done": "The Wold is a little less dark. The wolves that are left have learned your scent.",
+          "Objectives": [
+            { "Type": "visit", "Targets": ["crown_wold"], "Count": 1, "Text": "Walk the Crown Wold" },
+            { "Type": "slay_creature", "Targets": ["wolf"], "Count": 5, "Text": "Slay wolves" }
+          ],
+          "Reward": { "Marks": 35 }
+        },
+        {
+          "Id": "s3_lawful", "Title": "The Lawful Hours", "AnyOne": true,
+          "Text": "When a claim is raised the realm fights for the throne in the Lawful Hours. Stand on Crown Night, or meet a foe of another house in the field.",
+          "Done": "You stood when the realm stood. The Chronicle may not name you, but your house will.",
+          "Objectives": [
+            { "Type": "event", "Targets": ["crown_night"], "Count": 1, "Text": "Stand on Crown Night" },
+            { "Type": "slay_player", "Count": 1, "Text": "Or defeat a foe of another house" }
+          ],
+          "Reward": { "Marks": 35 }
+        },
+        {
+          "Id": "s3_hunt", "Title": "The King's Quarry", "AnyOne": true,
+          "Text": "The crown names a quarry and looses the realm on them. Ride with the King's Hunt, take the quarry, or bring down two foes of other houses.",
+          "Done": "The Hunt is over for now. The crown keeps a list, and so, it seems, do you.",
+          "Objectives": [
+            { "Type": "event", "Targets": ["kings_hunt"], "Count": 1, "Text": "Ride with the King's Hunt" },
+            { "Type": "chronicle", "Targets": ["hunt_kill"], "Count": 1, "Text": "Take the King's quarry" },
+            { "Type": "slay_player", "Count": 2, "Distinct": true, "Text": "Or defeat two different foes" }
+          ],
+          "Reward": { "Marks": 40 }
+        },
+        {
+          "Id": "s3_ember", "Title": "The Ransom-Pits",
+          "Text": "In the Ember Pass, Halloran keeps the old ransom-pits swept, in case the Charter changes its mind. See them, and bring the forges iron.",
+          "Done": "The pits are empty and the forges are fed. Halloran calls that a good week.",
+          "Objectives": [
+            { "Type": "visit", "Targets": ["ember_pass"], "Count": 1, "Text": "Walk the Ember Pass" },
+            { "Type": "deliver", "Targets": ["IronOre"], "Count": 40, "Text": "Hand in iron ore" }
+          ],
+          "Reward": { "Marks": 35 }
+        }
+      ]
+    },
+    {
+      "Id": "act4_reckoning", "Act": 4, "Title": "The Reckoning at the Hearth", "UnlockDay": 42,
+      "Intro": "The season's ledger is nearly closed. Every house can read the standings, and every house knows what is left to win.",
+      "Outro": "The ledger is closed. What is written in it will be read at the Hearth when the season ends.",
+      "Reward": { "Marks": 100 },
+      "Steps": [
+        {
+          "Id": "s4_ledger", "Title": "The Ledger is Read", "AnyOne": true,
+          "Text": "Earn your house its place in the standings. Help it meet a weekly goal, or finish two weekly tasks of your own.",
+          "Done": "Your line in the ledger is written in a steady hand.",
+          "Objectives": [
+            { "Type": "house_goal", "Count": 1, "Text": "Help your house meet a weekly goal" },
+            { "Type": "quests", "Targets": ["weekly"], "Count": 2, "Text": "Or finish weekly tasks" }
+          ],
+          "Reward": { "Marks": 40 }
+        },
+        {
+          "Id": "s4_last_night", "Title": "The Last Crown Night", "AnyOne": true,
+          "Text": "The last Crown Night falls on the final Saturday. Fight for the throne or guard it, and let the Chronicle name who held.",
+          "Done": "The last night is fought. Whoever sits the seat now sits it into the Hall of Kings.",
+          "Objectives": [
+            { "Type": "event", "Targets": ["crown_night"], "Count": 1, "Text": "Stand on the last Crown Night" },
+            { "Type": "slay_player", "Count": 3, "Distinct": true, "Text": "Or defeat three different foes" }
+          ],
+          "Reward": { "Marks": 45 }
+        },
+        {
+          "Id": "s4_hearth_truce", "Title": "The Hearth Truce", "AnyOne": true,
+          "Text": "On the last Sunday the realm gathers at the great fire without blades, every house under its banner. Be there.",
+          "Done": "No blood at the Hearth. The fire burns, the banners stir, and the season is nearly told.",
+          "Objectives": [
+            { "Type": "event", "Targets": ["truce"], "Count": 1, "Text": "Keep the Truce of the Realm" },
+            { "Type": "visit", "Targets": ["the_hearth"], "Count": 1, "Text": "Or stand at the Hearth" }
+          ],
+          "Reward": { "Marks": 45 }
+        }
+      ]
+    }
+  ]
+}

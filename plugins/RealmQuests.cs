@@ -381,6 +381,7 @@ namespace Oxide.Plugins
             public int Weight = 10;
             public bool NeedsHouse;
             public int MinActiveMinutes;
+            public bool AnyOne;                             // done when any one objective is done (else all of them)
             public List<ObjectiveDef> Objectives;
             public RewardDef Reward;
         }
@@ -549,6 +550,7 @@ namespace Oxide.Plugins
                         if (steps.Count == 0) { Problem("Story: chapter " + c.Id + " has no valid step"); continue; }
                         c.Steps = steps;
                         if (c.UnlockDay < 0) c.UnlockDay = 0;
+                        if (!OptionalText(c.Intro, 200) || !OptionalText(c.Outro, 200)) { Problem("Story: chapter " + c.Id + ": intro or outro is over 200 characters or holds [ ] { }"); c.Intro = null; c.Outro = null; }
                         CheckReward("Story/" + c.Id, c.Reward);
                         chapters.Add(c);
                     }
@@ -557,6 +559,7 @@ namespace Oxide.Plugins
                     sf.Chapters = chapters;
                     CheckReward("Story", sf.Reward);
                     if (!ValidText(sf.Title, 60)) sf.Title = "The Story";
+                    if (!OptionalText(sf.Prologue, 200) || !OptionalText(sf.Epilogue, 200)) { Problem("Story: prologue or epilogue is over 200 characters or holds [ ] { }"); sf.Prologue = null; sf.Epilogue = null; }
                     story = sf;
                 }
                 else Problem("Story: no valid chapter");
@@ -565,7 +568,7 @@ namespace Oxide.Plugins
             if (af != null && af.Achievements != null)
                 foreach (AchievementDef a in af.Achievements)
                 {
-                    string why = CheckAchievement(a, allIds);
+                    string why = CheckAchievement(a, allIds, rewardItems);
                     if (why != null) { Problem("Achievements: " + (a != null ? a.Id : "?") + ": " + why); continue; }
                     allIds[a.Id] = true;
                     achievements.Add(a);
@@ -591,6 +594,26 @@ namespace Oxide.Plugins
             Puts("Content: " + dailies.Count + " daily, " + weeklies.Count + " weekly, " + (story != null ? story.Chapters.Count : 0)
                 + " story chapters, " + achievements.Count + " achievements, " + houseGoals.Count + " house goals, " + places.Count
                 + " places" + (contentProblems.Count > 0 ? "; " + contentProblems.Count + " problem(s), see /quest admin status" : ""));
+        }
+
+        // Item names in content are checked against the game's blueprints once the world has loaded. An unknown name is
+        // reported (the delivery or reward cannot work) but the content stays, so a typo is fixed without a reload race.
+        private void CheckItems()
+        {
+            if (InvBlueprints.Instance == null) return;
+            var names = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            var all = new List<QuestDef>(dailies.Values);
+            all.AddRange(weeklies.Values);
+            if (story != null) foreach (ChapterDef c in story.Chapters) { all.AddRange(c.Steps); CollectRewardItems(c.Reward, names); }
+            if (story != null) CollectRewardItems(story.Reward, names);
+            foreach (QuestDef q in all)
+            {
+                CollectRewardItems(q.Reward, names);
+                foreach (ObjectiveDef o in q.Objectives) if (o.Type == TDeliver) foreach (string t in o.Targets) names[t.TrimStart('~')] = true;
+            }
+            foreach (HouseGoalDef g in houseGoals.Values) if (g.Objective.Type == TDeliver) foreach (string t in g.Objective.Targets) names[t.TrimStart('~')] = true;
+            foreach (AchievementDef a in achievements) foreach (TierDef t in a.Tiers) CollectRewardItems(t.Reward, names);
+            foreach (string n in names.Keys) if (FindBlueprint(n) == null) Problem("item '" + n + "' is not known to this server (/quest admin items <word>)");
         }
 
         private void Problem(string text)
@@ -619,7 +642,13 @@ namespace Oxide.Plugins
                 foreach (ObjectiveDef o in q.Objectives)
                 {
                     why = CheckObjective(o, rewardItems, false);
-                    if (why == null && (o.Type == TQuests || o.Type == TAchievements)) why = "a quest cannot count quests or achievements";
+                    if (why == null && o.Type == TAchievements) why = "a task cannot count achievements";
+                    if (why == null && o.Type == TQuests)
+                    {
+                        // Only a story step may count finished daily or weekly tasks (never story steps: no loop).
+                        if (!storyStep || o.Targets.Count == 0) why = "only a story step may count tasks, and it must name daily or weekly";
+                        else foreach (string t in o.Targets) if (t != KDaily && t != KWeekly) { why = "a story step may count only daily or weekly tasks"; break; }
+                    }
                     if (why != null) break;
                 }
             if (why == null) why = CheckReward(null, q.Reward);
@@ -646,8 +675,11 @@ namespace Oxide.Plugins
                 foreach (string t in o.Targets) if (rewardItems.ContainsKey(t.Trim())) return "'" + t + "' is also a reward item (a reward could be handed straight back in)";
             }
             if (o.Type == TVisit)
+            {
                 foreach (string t in o.Targets) if (!places.ContainsKey(t)) return "unknown place '" + t + "'";
-            if (o.Type == TVisit && o.Targets.Count == 0) o.Distinct = true;
+                if (o.Targets.Count > 0 && o.Count > o.Targets.Count) return "a visit cannot ask for more places than it names";
+                o.Distinct = true;                          // each place counts once
+            }
             return null;
         }
 
@@ -667,16 +699,15 @@ namespace Oxide.Plugins
             return why;
         }
 
-        private string CheckAchievement(AchievementDef a, Dictionary<string, bool> allIds)
+        private string CheckAchievement(AchievementDef a, Dictionary<string, bool> allIds, Dictionary<string, bool> rewardItems)
         {
             if (a == null) return "empty entry";
             if (!ValidId(a.Id) || allIds.ContainsKey(a.Id)) return "bad or duplicate id";
             if (!ValidText(a.Name, 40)) return "bad name";
             if (!ValidText(a.Text, 160)) return "bad text";
             if (a.Category == null || Array.IndexOf(Categories, a.Category) < 0) return "category must be one of " + string.Join(", ", Categories);
-            string o = CheckObjective(a.Objective, new Dictionary<string, bool>(), false);
+            string o = CheckObjective(a.Objective, rewardItems, false);
             if (o != null) return o;
-            if (a.Objective.Type == TDeliver) return "an achievement cannot be a delivery";
             if (a.Tiers == null || a.Tiers.Count == 0 || a.Tiers.Count > 4) return "needs 1-4 tiers";
             int last = 0;
             foreach (TierDef t in a.Tiers)
@@ -695,6 +726,11 @@ namespace Oxide.Plugins
             if (string.IsNullOrEmpty(id) || id.Length > 40) return false;
             foreach (char c in id) if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) return false;
             return true;
+        }
+
+        private static bool OptionalText(string s, int max)
+        {
+            return string.IsNullOrEmpty(s) || ValidText(s, max);
         }
 
         // Content text is plain: no colour tags, no braces (it is sent as an argument, but keep it clean), bounded.
@@ -1106,6 +1142,7 @@ namespace Oxide.Plugins
                 { "Category.economy", "Economy" },
                 { "Category.exploration", "Exploration" },
                 { "NotYet", "not yet" },
+                { "Unmarked", "not yet marked by the stewards" },
                 { "PopupJournal", "Your Journal" },
                 { "PopupDone", "Task Done" },
                 { "PopupDeed", "Deed Recorded" },
@@ -1217,6 +1254,7 @@ namespace Oxide.Plugins
                 craftSubscriber = null;
                 craftItemSubscriber = null;
             }
+            CheckItems();
             if (tickTimer != null && !tickTimer.Destroyed) tickTimer.Destroy();
             tickTimer = timer.Every(config.TickSeconds, SafeTick);
             foreach (Player p in OnlinePlayers()) Seen(p);
@@ -1396,6 +1434,7 @@ namespace Oxide.Plugins
                 if (exclude != null && exclude.Contains(q.Id)) continue;
                 if (q.NeedsHouse && string.IsNullOrEmpty(p.House)) continue;
                 if (q.MinActiveMinutes > p.ActiveMinutes) continue;
+                if (!Drawable(q)) continue;
                 cands.Add(q);
             }
             if (avoid != null && avoid.Count > 0)
@@ -1583,7 +1622,9 @@ namespace Oxide.Plugins
             string t = target.Trim();
             if (type == TSlayCreature) return subject.IndexOf(t.TrimStart('~'), StringComparison.OrdinalIgnoreCase) >= 0;
             if (t.StartsWith("~")) return t.Length > 1 && subject.IndexOf(t.Substring(1), StringComparison.OrdinalIgnoreCase) >= 0;
-            return string.Equals(t, subject, StringComparison.OrdinalIgnoreCase);
+            if (string.Equals(t, subject, StringComparison.OrdinalIgnoreCase)) return true;
+            // Goods may be named by the game's ResourceType name ("WolfPelt"); the subject is the item's display name.
+            return type == TDeliver && string.Equals(ItemName(t), subject, StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool Matches(ObjectiveDef o, string type, string subject)
@@ -1629,10 +1670,28 @@ namespace Oxide.Plugins
             return progress[index] != before;
         }
 
-        private static bool AllDone(List<ObjectiveDef> objectives, List<int> progress)
+        private bool AllDone(QuestDef q, List<int> progress)
         {
-            for (int i = 0; i < objectives.Count; i++)
-                if (i >= progress.Count || progress[i] < objectives[i].Count) return false;
+            int done = 0;
+            for (int i = 0; i < q.Objectives.Count; i++)
+                if ((i < progress.Count && progress[i] >= q.Objectives[i].Count) || Waived(q.Objectives[i])) done++;
+            return q.AnyOne ? done > 0 : done == q.Objectives.Count;
+        }
+
+        // A visit to places no steward has marked yet cannot be made; in the story it is waived so the tale never stalls.
+        private bool Waived(ObjectiveDef o)
+        {
+            if (o.Type != TVisit || data == null) return false;
+            if (o.Targets.Count == 0) return data.Places.Count < o.Count;
+            int marked = 0;
+            foreach (string t in o.Targets) if (data.Places.ContainsKey(t)) marked++;
+            return marked < o.Count;
+        }
+
+        // Daily and weekly tasks that need an unmarked place are not drawn at all (no free rewards).
+        private bool Drawable(QuestDef q)
+        {
+            foreach (ObjectiveDef o in q.Objectives) if (Waived(o)) return false;
             return true;
         }
 
@@ -1647,7 +1706,7 @@ namespace Oxide.Plugins
                     moved = true;
                     NoticeProgress(online, kind + q.Id + i, q.Title, q.Objectives[i], s.Progress[i]);
                 }
-            if (moved && AllDone(q.Objectives, s.Progress)) CompleteSlot(id, p, online, s, q, kind);
+            if (moved && AllDone(q, s.Progress)) CompleteSlot(id, p, online, s, q, kind);
             return moved;
         }
 
@@ -1688,7 +1747,7 @@ namespace Oxide.Plugins
                     moved = true;
                     NoticeProgress(online, "story" + q.Id + i, q.Title, q.Objectives[i], p.Story.Progress[i]);
                 }
-            if (moved && AllDone(q.Objectives, p.Story.Progress)) CompleteStep(id, p, online, ch, q);
+            if (moved && AllDone(q, p.Story.Progress)) CompleteStep(id, p, online, ch, q);
             return moved;
         }
 
@@ -1936,7 +1995,7 @@ namespace Oxide.Plugins
                     foreach (RewardItem i in r.Items)
                     {
                         AddOwed(p, i.Item, i.Count, label);
-                        parts.Add(i.Count + " " + i.Item);
+                        parts.Add(i.Count + " " + ItemName(i.Item));
                     }
                 if (r.SeasonPoints > 0 && config.SeasonPointRewards && !string.IsNullOrEmpty(p.House) && RealmSeasons != null)
                 {
@@ -2086,8 +2145,21 @@ namespace Oxide.Plugins
         private static InvItemBlueprint FindBlueprint(string name)
         {
             if (string.IsNullOrEmpty(name) || InvBlueprints.Instance == null) return null;
-            try { return InvBlueprints.Instance.GetBlueprintForName(name, false, true); }   // [ASM] exact name, any case
+            try
+            {
+                // The display name, any case; then the game's ResourceType name ("IronIngot"), which the lookup matches only
+                // case-sensitively and only when ignoreCase is false [ASM InvBlueprints.GetBlueprintForName; CODE].
+                InvItemBlueprint bp = InvBlueprints.Instance.GetBlueprintForName(name.Trim(), false, true);
+                if (bp == null) bp = InvBlueprints.Instance.GetBlueprintForName(name.Replace(" ", ""), true, false);
+                return bp;
+            }
             catch (Exception) { return null; }
+        }
+
+        private static string ItemName(string name)
+        {
+            InvItemBlueprint bp = FindBlueprint(name);
+            return bp != null && !string.IsNullOrEmpty(bp.Name) ? bp.Name : name;
         }
 
         private static int StackLimit(InvItemBlueprint bp)
@@ -2485,6 +2557,32 @@ namespace Oxide.Plugins
                     object m = RealmTreasury.Call("GetPurse", id);
                     if (m is long && (long)m > 0) RecordState(id, TMarks, "", (long)m);
                 }
+                Sweep(id, p, pl);
+            }
+        }
+
+        // Completes whatever is done but was not closed: a waived visit, an AnyOne task, content that changed.
+        private void Sweep(string id, PlayerQ p, Player online)
+        {
+            if (config.DailiesEnabled)
+                foreach (Slot s in new List<Slot>(p.Daily))
+                {
+                    QuestDef q;
+                    if (!s.Done && !s.Abandoned && s.QuestId != null && dailies.TryGetValue(s.QuestId, out q) && AllDone(q, s.Progress)) CompleteSlot(id, p, online, s, q, KDaily);
+                }
+            if (config.WeekliesEnabled)
+                foreach (Slot s in new List<Slot>(p.Weekly))
+                {
+                    QuestDef q;
+                    if (!s.Done && !s.Abandoned && s.QuestId != null && weeklies.TryGetValue(s.QuestId, out q) && AllDone(q, s.Progress)) CompleteSlot(id, p, online, s, q, KWeekly);
+                }
+            for (int guard = 0; guard < 3; guard++)
+            {
+                ChapterDef ch;
+                string wait;
+                QuestDef step = CurrentStep(p, out ch, out wait);
+                if (step == null || !AllDone(step, p.Story.Progress)) break;
+                CompleteStep(id, p, online, ch, step);
             }
         }
 
@@ -2744,7 +2842,8 @@ namespace Oxide.Plugins
             for (int i = 0; i < objectives.Count; i++)
             {
                 int have = i < progress.Count ? progress[i] : 0;
-                parts.Add(objectives[i].Text + " " + have + "/" + objectives[i].Count);
+                if (Waived(objectives[i])) parts.Add(objectives[i].Text + " " + Muted("(" + Msg("Unmarked", null) + ")"));
+                else parts.Add(objectives[i].Text + " " + have + "/" + objectives[i].Count);
             }
             return string.Join("; ", parts.ToArray());
         }
@@ -2852,7 +2951,7 @@ namespace Oxide.Plugins
             if (r != null)
             {
                 if (r.Marks > 0 && config.MarksRewards) parts.Add(Fmt("RewardMarks", player, (int)Math.Round(r.Marks * config.RewardScale)));
-                if (r.Items != null && config.ItemRewards) foreach (RewardItem i in r.Items) parts.Add(i.Count + " " + i.Item);
+                if (r.Items != null && config.ItemRewards) foreach (RewardItem i in r.Items) parts.Add(i.Count + " " + ItemName(i.Item));
                 if (r.SeasonPoints > 0 && config.SeasonPointRewards) parts.Add(Fmt("RewardPoints", player, r.SeasonPoints));
             }
             if (config.RenownRewards && RealmRenown != null && (r == null || r.Renown != "none")) parts.Add(Msg("RewardRenown", player));
@@ -2984,7 +3083,7 @@ namespace Oxide.Plugins
                         {
                             while (p.Story.Progress.Count <= idx) p.Story.Progress.Add(0);
                             p.Story.Progress[idx] = Math.Min(o.Count, p.Story.Progress[idx] + n);
-                            if (AllDone(q.Objectives, p.Story.Progress)) CompleteStep(id, p, player, c, q);
+                            if (AllDone(q, p.Story.Progress)) CompleteStep(id, p, player, c, q);
                         }
                     });
                 }
@@ -3028,7 +3127,7 @@ namespace Oxide.Plugins
                         {
                             while (slot.Progress.Count <= idx) slot.Progress.Add(0);
                             slot.Progress[idx] = Math.Min(o.Count, slot.Progress[idx] + n);
-                            if (!slot.Done && AllDone(quest.Objectives, slot.Progress)) CompleteSlot(id, p, player, slot, quest, kind);
+                            if (!slot.Done && AllDone(quest, slot.Progress)) CompleteSlot(id, p, player, slot, quest, kind);
                         }
                     });
                 }
@@ -3068,6 +3167,8 @@ namespace Oxide.Plugins
                     Reply(player, "GiveTaken", taken, bp.Name, n.Label);
                     MarkAction(player);
                     n.Apply(taken);
+                    // Deeds count every hand-in too (only deeds: the task that asked for the goods was credited above).
+                    if (config.AchievementsEnabled) AdvanceAchievements(player.Id.ToString(), p, player, TDeliver, bp.Name, taken, null, false);
                 }
             }
             if (gave) { dirty = true; SaveData(); }
@@ -3293,7 +3394,7 @@ namespace Oxide.Plugins
             switch (sub)
             {
                 case "status": AdminStatus(player); break;
-                case "reload": LoadContent(); foreach (Player pl in OnlinePlayers()) Seen(pl); Reply(player, "AdminReloaded"); AdminStatus(player); break;
+                case "reload": LoadContent(); CheckItems(); foreach (Player pl in OnlinePlayers()) Seen(pl); Reply(player, "AdminReloaded"); AdminStatus(player); break;
                 case "places": AdminPlaces(player); break;
                 case "place": AdminPlace(player, args); break;
                 case "reset": AdminReset(player, args); break;

@@ -1,0 +1,140 @@
+{
+  "Version": 1,
+  "Quests": [
+    {
+      "Id": "w_timber_levy", "Title": "The Great Timber Levy", "Weight": 10,
+      "Text": "Once a season the Stewards call the great levy of timber, for bridges, gallows and the Listing Field's stands.",
+      "Done": "The levy is filled. The Stewards enter your name in the margin of the Charter roll.",
+      "Objectives": [ { "Type": "deliver", "Targets": ["Wood"], "Count": 1000, "Text": "Hand in wood" } ],
+      "Reward": { "Marks": 60, "Items": [ { "Item": "Bread", "Count": 5 } ] }
+    },
+    {
+      "Id": "w_quarry_due", "Title": "The Quarry's Due", "Weight": 10,
+      "Text": "The Old Throne's stair wants new stone where nine generations of boots have worn it hollow.",
+      "Done": "The stair is mended. The next pretender will climb it on your stone.",
+      "Objectives": [ { "Type": "deliver", "Targets": ["Stone"], "Count": 800, "Text": "Hand in stone" } ],
+      "Reward": { "Marks": 60 }
+    },
+    {
+      "Id": "w_armoury_iron", "Title": "Iron for the Armoury", "Weight": 8,
+      "Text": "The crown's armoury is half empty and the Lawful Hours are coming. Bring ore, and smelt what you can.",
+      "Done": "The armoury rings with new iron. Whoever holds the crown will thank you, briefly.",
+      "Objectives": [
+        { "Type": "deliver", "Targets": ["IronOre"], "Count": 300, "Text": "Hand in iron ore" },
+        { "Type": "craft", "Targets": ["~Ingot"], "Count": 60, "Text": "Smelt ingots" }
+      ],
+      "Reward": { "Marks": 80, "Items": [ { "Item": "SteelIngot", "Count": 2 } ] }
+    },
+    {
+      "Id": "w_huntsman", "Title": "The Huntsman's Week", "Weight": 9,
+      "Text": "Halloran's huntsmen kept the Builder's forests. Keep them this week, and keep the wolves honest.",
+      "Done": "The huntsmen of old would have taken you on. Halloran still might.",
+      "Objectives": [
+        { "Type": "slay_creature", "Count": 40, "Text": "Slay creatures of the wild" },
+        { "Type": "slay_creature", "Targets": ["wolf"], "Count": 10, "Text": "Slay wolves" }
+      ],
+      "Reward": { "Marks": 70, "Items": [ { "Item": "CookedMeat", "Count": 10 } ] }
+    },
+    {
+      "Id": "w_bearbane", "Title": "Bearbane", "Weight": 6,
+      "Text": "Four bears have been seen near the orchard-holds this week. Ashgrove asks that there be none by Sunday.",
+      "Done": "Ashgrove's orchards are quiet. Ashgrove will remember, as Ashgrove does.",
+      "Objectives": [ { "Type": "slay_creature", "Targets": ["bear"], "Count": 4, "Text": "Slay bears" } ],
+      "Reward": { "Marks": 70 }
+    },
+    {
+      "Id": "w_arms_season", "Title": "Arms for the Season", "Weight": 8,
+      "Text": "Every house arms itself before the Lawful Hours. Forge blades, raise shields and fletch the arrows to go with them.",
+      "Done": "A house's worth of arms, ready before anyone thought to ask for them.",
+      "Objectives": [
+        { "Type": "craft", "Targets": ["~Sword", "~Axe", "~Mace", "~Spear", "~Flail", "~Hammer", "~Halberd", "~Morning Star"], "Count": 10, "Text": "Forge weapons" },
+        { "Type": "craft", "Targets": ["~Shield"], "Count": 2, "Text": "Make shields" },
+        { "Type": "craft", "Targets": ["~Arrow", "~Bolt"], "Count": 100, "Text": "Fletch arrows or bolts" }
+      ],
+      "Reward": { "Marks": 80 }
+    },
+    {
+      "Id": "w_keep_in_a_week", "Title": "A Keep in a Week", "Weight": 9,
+      "Text": "The Builders raised the Old Throne in a season. Raise something worth a song in a week.",
+      "Done": "It stands. The heralds may yet sing of it, if someone pays them.",
+      "Objectives": [ { "Type": "build", "Count": 600, "Text": "Lay building blocks" } ],
+      "Reward": { "Marks": 70, "Items": [ { "Item": "Charcoal", "Count": 20 } ] }
+    },
+    {
+      "Id": "w_stonewright", "Title": "Stonewright", "Weight": 7,
+      "Text": "Varrow's masons take no apprentice who has not laid three hundred stones in a week. Prove you would pass.",
+      "Done": "The masons of the Stair would take you. Whether you would take them is another matter.",
+      "Objectives": [ { "Type": "build", "Targets": ["stone", "cobblestone", "reinforced"], "Count": 300, "Text": "Lay stone blocks" } ],
+      "Reward": { "Marks": 75 }
+    },
+    {
+      "Id": "w_pilgrimage", "Title": "Pilgrimage of the Realm", "Weight": 7,
+      "Text": "The old pilgrims walked every named place of Ostreval in a single week. Walk six of them.",
+      "Done": "Six places in a week. The old pilgrims would have been out of breath.",
+      "Objectives": [ { "Type": "visit", "Count": 6, "Text": "Visit named places of the realm" } ],
+      "Reward": { "Marks": 80 }
+    },
+    {
+      "Id": "w_six_seats", "Title": "The Six Seats", "Weight": 5,
+      "Text": "Visit the seats of the six great houses, from Varrow's Stair to Merrin's Ford, and see the realm as its lords do.",
+      "Done": "You have stood in every great house's shadow. None of them owns you.",
+      "Objectives": [ { "Type": "visit", "Targets": ["varrows_stair", "ashgrove_vale", "corvanes_reach", "drowned_dunmere", "ember_pass", "merrins_ford"], "Count": 6, "Text": "Visit the six great seats" } ],
+      "Reward": { "Marks": 90 }
+    },
+    {
+      "Id": "w_warband", "Title": "The Warband", "Weight": 7, "AnyOne": true,
+      "Text": "A warband is judged by the foes it has faced. Face five of them from other houses, or stand on Crown Night.",
+      "Done": "Your name is spoken in other houses' halls now. Not kindly, but spoken.",
+      "Objectives": [
+        { "Type": "slay_player", "Count": 5, "Distinct": true, "Text": "Defeat different foes of other houses" },
+        { "Type": "event", "Targets": ["crown_night"], "Count": 1, "Text": "Or stand on Crown Night" }
+      ],
+      "Reward": { "Marks": 90 }
+    },
+    {
+      "Id": "w_courtier", "Title": "The Courtier's Week", "Weight": 6, "AnyOne": true, "NeedsHouse": true,
+      "Text": "Not every victory is won with a blade. See your house swear an oath or seal a treaty, or leave your name in the Chronicle.",
+      "Done": "The Chronicle has your name in it, and ink lasts longer than blood.",
+      "Objectives": [
+        { "Type": "oath", "Count": 1, "Text": "Your house swears or accepts an oath" },
+        { "Type": "treaty", "Count": 1, "Text": "Your house seals a treaty" },
+        { "Type": "chronicle", "Targets": ["law_proclaimed", "accusation", "claim_declared", "dynasty_founded", "heir_named", "title_bestowed"], "Count": 1, "Text": "Proclaim, accuse, claim or found a line" }
+      ],
+      "Reward": { "Marks": 90 }
+    },
+    {
+      "Id": "w_merrins_ledger", "Title": "The Ledger of Merrin", "Weight": 6, "AnyOne": true,
+      "Text": "Merrin's Ford runs on contracts and cargo. Finish three contracts, or fill one of Merrin's barges yourself.",
+      "Done": "Merrin's factors write your name in the good ledger. There is also a bad one.",
+      "Objectives": [
+        { "Type": "contract", "Count": 3, "Text": "Finish contracts" },
+        { "Type": "deliver", "Targets": ["Flax", "Clay", "Grain"], "Count": 150, "Text": "Or hand in flax, clay or grain" }
+      ],
+      "Reward": { "Marks": 80 }
+    },
+    {
+      "Id": "w_devoted", "Title": "Devoted Hand", "Weight": 8,
+      "Text": "The realm is built by those who keep turning up. Give it five active hours this week.",
+      "Done": "Five hours of honest work. The realm is a little more yours for it.",
+      "Objectives": [ { "Type": "playtime", "Count": 300, "Text": "Active time in the realm, in minutes" } ],
+      "Reward": { "Marks": 60 }
+    },
+    {
+      "Id": "w_every_bell", "Title": "Every Bell Answered", "Weight": 6,
+      "Text": "The realm's week has its bells: Crown Night, the Tournament, the King's Hunt, the Truce. Answer two of them.",
+      "Done": "Two bells, two answers. The Herald has started to expect you.",
+      "Objectives": [ { "Type": "event", "Count": 2, "Distinct": true, "Text": "Take part in different kinds of realm event" } ],
+      "Reward": { "Marks": 80 }
+    },
+    {
+      "Id": "w_provisioner", "Title": "Provisioner of the Host", "Weight": 6,
+      "Text": "An army marches on fruit and tallow as much as on iron. Provision the realm's host for the Lawful Hours.",
+      "Done": "The host will march fed. That is more than most hosts can say.",
+      "Objectives": [
+        { "Type": "deliver", "Targets": ["Apple", "Berry", "Cabbage", "Carrot"], "Count": 60, "Text": "Hand in fruit or roots" },
+        { "Type": "deliver", "Targets": ["Fat"], "Count": 30, "Text": "Hand in fat" }
+      ],
+      "Reward": { "Marks": 60 }
+    }
+  ]
+}
