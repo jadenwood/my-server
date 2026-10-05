@@ -1,10 +1,10 @@
 // The Hearth ring (docs/arrival-design.md 4.2): the raised round dais the Hearth fire burns on, 15 x 15 and 2 high.
 // Two stepped seating rings: a low outer step in Iron 700 and the dais in Iron 600, with a 3 x 3 hearthstone of
-// Iron 800 in the middle. Nothing stands on the dais: its middle is left open for the staff-built fire pit, which
-// burns there one block up so its flames show over the band, and the 24 cells of the ember band at radius 5 are left
-// EMPTY for RealmArrival, which places them (clay, Ember deep at rest, Ember hot in a flare) on the dais top: a low
-// parapet round the fire that shows from the Gatehouse 100 m away. The dais under them is part of this piece, so they
-// always rest on stone. Symmetric; drawn centred on the fire.
+// Iron 800 in the middle. Nothing of this piece stands on the dais: the staff-built fire pit burns on the hearthstone
+// one block up so its flames show over the band, and the 24 cells of the ember band at radius 5 sit ON TOP of the
+// 2-high ring (the layer above the dais, y 2), outside this piece altogether; RealmArrival places them there (clay,
+// Ember deep at rest, Ember hot in a flare): a low parapet round the fire that shows from the Gatehouse 100 m away. The
+// dais under them is part of this piece, so they always rest on stone. Symmetric; drawn centred on the fire.
 import { Grid, style, pal } from './lib/kit.mjs';
 import { HEARTH, RING, ringR } from './lib/arrival-site.mjs';
 
