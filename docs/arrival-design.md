@@ -245,6 +245,8 @@ On wipe day most veterans join within minutes. Sending them all through the Gate
 
 The game's logout or sleeper position stands. Nothing is sent, except a resume if the arrival was not finished.
 
+A player already in the world when the plugin loads, opens or resumes (their first spawn came before it was loaded) is treated the same way at once: `Character.HasCompletedCreation` (the server-side flag `AtFirstSpawn` is the inverse of) says their character is made, so the record is saved `done` and `ArrivalStage` answers `none` for that session. A player still on the character screen stays `pending`. (Added on `team/arrival-fixes`; before, such players read `pending` until they relogged.)
+
 ### Skipping
 
 - `/arrival skip` works at any stage. It drops all queued lines and marks the player Written with one line, "As you wish. The gate is open; the Hearth is yours." A player still in the hall box is moved to the forecourt eject point just outside the gate. This is not travel: it is 5 m.
@@ -340,7 +342,7 @@ Other features of the gatehouse:
 |---|---|---|---|---|
 | `processional-a`, `processional-b` | 7 x 39 and 7 x 38 | 1 | about 270 each | Path in cobblestone, unpainted. Kerbs in stone, Iron 600 `#34363c`. Optional: skip if the ground is not flat to within 1 block over 45 m. |
 | `pledge-stone-<house>` x 6 | 3 x 3 | 2 | about 10 each | Plinth in stone, the house `fieldDark`. Raised centre cell in clay, the house `metal`. For example: Varrow plinth `#2e162c`, centre `#9aa0a8`; Merrin plinth `#162c1c`, centre `#c9ced4`. One generator using `houseStyles`. |
-| `hearth-ring` | 15 x 15 | 2 | about 400 | Two stepped seating rings in stone, Iron 600 `#34363c` and Iron 700 `#26282d`. A ring of 24 cells at radius 5 is left **empty** for the plugin's ember band. The centre is left open for the staff fire pit. |
+| `hearth-ring` | 15 x 15 | 2 | about 400 | Two stepped seating rings in stone, Iron 600 `#34363c` and Iron 700 `#26282d`. The plugin's ember band (24 cells at radius 5) sits on top of the 2-high ring, on the dais; they are not cells of this piece. The centre is left open for the staff fire pit. |
 | `wayboard` | 15 x 2 | 5 | about 140 | Base in stone, Iron 600. Posts in spruce, Ink `#2a1c0f`. Top rail in clay, Ember `#d6a043`. Five sign faces. |
 
 **Existing pieces.** `house-varrow`, `house-ashgrove`, `house-corvane`, `house-dunmere`, `house-halloran` and `house-merrin` (20 x 7 cells footprint, 24 to 28 cells high, 1,044 to 1,118 blocks each, 29 to 34 m tall) stand in pairs with their fronts to the road. `heralds-pillar` (5 x 13 x 5, 132 blocks) stands on the throne side of the fire.
@@ -657,7 +659,8 @@ Respawns are handled in `OnPlayerRespawn(PlayerRespawnEvent e)`, by setting `e.P
 |---|---|
 | `PlayerRespawnAtBedEvent`, `PlayerRespawnAtBaseEvent` | Never touched: by hook time the bed has been consumed or warmed. |
 | Death during the arrival (stage `gatehouse` to `hearth`), Randomly or Normal | The least-recently-used **mercy stone** at the Hearth, never back into the Gatehouse. The stage jumps to the fire beats, and `MidDeath` is sent a tick later. Missed banners are available through `/arrival tour`. |
-| After Written, Randomly or Normal, while `IsNewPlayerProtected` is true and `MercyUsed < MercyRespawns` (default 1, max 3) | A mercy stone, then `Mercy` a tick later (Hearth's Mercy). |
+| The same with no mercy stone stored (only after `open force`, or `mercy clear` while open; added on `team/arrival-fixes`) | The eject point E just outside the gate, and the run goes on to the banners and the fire (`ReleasedGate`); with no E, the game's own respawn point and road mode (`MidDeathRoad`); with no Hearth either, Written at once. Counted as a death in the arrival; `MercyUsed` is not charged (it is the allowance after Written); the 8-minute cap still runs from the Finish click. |
+| After Written, Randomly or Normal, while `IsNewPlayerProtected` is true and `MercyUsed < MercyRespawns` (default 1, max 3) | A mercy stone, then `Mercy` a tick later (Hearth's Mercy). Without a mercy stone stored: vanilla, nothing used up. |
 | Everything else | Vanilla. |
 
 Rules for every case:

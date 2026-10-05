@@ -39,6 +39,8 @@ static partial class Tests
         Run("SitePlan", SitePlan); Run("PlanArrival", PlanArrival); Run("ReviewFixes", ReviewFixes); Run("ChatStyle", ChatStyle);
         Run("BandAllTurns", BandAllTurns); Run("LenientSite", LenientSite); Run("StuckAndReturning", StuckAndReturning); Run("CheckLoops", CheckLoops);
         Run("StaffAndPause", StaffAndPause); Run("MissingPlugins", MissingPlugins); Run("DamagedButReadable", DamagedButReadable);
+        Run("InWorldAtLoad", InWorldAtLoad); Run("MidDeathNoMercy", MidDeathNoMercy); Run("GateRecovery", GateRecovery); Run("BrokenConfig", BrokenConfig);
+        Run("FixesAlone", FixesAlone);
         Console.WriteLine(pass + " passed, " + fail + " failed");
         return fail == 0 ? 0 : 1;
     }
