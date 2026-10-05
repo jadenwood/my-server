@@ -134,7 +134,7 @@
     if (!data) return;
     for (const s of data.sets) {
       const chip = el('span', 'ft-datachip' + (s.changed ? ' stale' : '') + (s.invalid ? ' bad' : ''));
-      chip.title = `${s.plugin}: ${s.files} file${s.files === 1 ? '' : 's'} shipped${s.changed ? `, ${s.changed} newer than on the server` : ', all on the server'}${s.renamed && s.renamed.length ? `; written as ${s.renamed.map((r) => `${r.to} (from ${r.from})`).join(', ')}` : ''}${s.others.length ? `; also on the server: ${s.others.join(', ')}` : ''}`;
+      chip.title = `${s.plugin || 'Library'}: ${s.files} file${s.files === 1 ? '' : 's'} shipped${s.changed ? `, ${s.changed} newer than on the server` : ', all on the server'}${s.renamed && s.renamed.length ? `; written as ${s.renamed.map((r) => `${r.to} (from ${r.from})`).join(', ')}` : ''}${s.others.length ? `; also on the server: ${s.others.join(', ')}` : ''}`;
       chip.append(el('b', null, s.label), el('span', null, s.version ? `v ${s.version.slice(0, 8)}` : `${s.files} file${s.files === 1 ? '' : 's'}`));
       if (s.changed) chip.appendChild(el('i', null, `${s.changed} to deploy`));
       ui.data.appendChild(chip);

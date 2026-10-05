@@ -142,7 +142,7 @@ test('arrival site: the ember band is 24 empty cells round the fire, resting on 
   const ring = cells.get('hearth-ring');
   for (const c of b.cells) {
     assert.equal(c[1], b.centre[1]);
-    assert.ok(!ring.has(K(...c)), 'left empty by the ring');
+    assert.ok(!ring.has(K(...c)), 'not a cell of the ring (it sits on top of it)');
     assert.ok(ring.has(K(c[0], c[1] - 1, c[2])), 'rests on the dais');
     const r = Math.hypot(c[0] - b.centre[0], c[2] - b.centre[2]);
     assert.ok(r >= 4.2 && r <= 5.1, `about radius 5 (${r.toFixed(2)})`);

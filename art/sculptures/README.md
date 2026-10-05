@@ -17,7 +17,7 @@ server plugin `plugins/RealmSculptor.cs` places, paints, protects and removes th
 | `gatehouse-portcullis` | **The portcullis**: 30 reinforced cells in Iron 900. Never placed with `/sculpt`: RealmArrival builds it and takes it down row by row. | 30 | 5 x 6 x 1 | 7.2 m |
 | `processional-a`, `processional-b` | **The Processional**: the 7-wide road from the gate to the Hearth ring, unpainted cobbles between Iron 600 kerbs. Optional (flat ground only). | 273, 266 | 7 x 1 x 39, 7 x 1 x 38 | |
 | `pledge-stone-<house>` | **Pledge stones**: a 3 x 3 plinth in the house's dark field with a raised centre in its metal. | 10 | 3 x 2 x 3 | |
-| `hearth-ring` | **The Hearth ring**: the raised round dais of the Hearth fire, an Iron 700 outer step and an Iron 600 dais with an Iron 800 hearthstone for the staff fire pit. The ember band's 24 cells are left empty on top of it for RealmArrival. | 314 | 15 x 2 x 15 | 2.4 m |
+| `hearth-ring` | **The Hearth ring**: the raised round dais of the Hearth fire, an Iron 700 outer step and an Iron 600 dais with an Iron 800 hearthstone for the staff fire pit. The ember band's 24 cells sit on top of it, on the dais (y 2, not cells of this piece), placed by RealmArrival. | 314 | 15 x 2 x 15 | 2.4 m |
 | `wayboard` | **The wayboard**: an Iron 600 base, spruce posts and boards in Ink and Ink soft, an Ember rail, five bays for signs. | 123 | 15 x 5 x 2 | 6.0 m |
 
 ![All sculptures](preview/contact-sheet.png)

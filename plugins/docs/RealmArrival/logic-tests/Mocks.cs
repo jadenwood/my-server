@@ -124,6 +124,12 @@ namespace CodeHatch.Engine.Behaviours
     }
 }
 
+namespace CodeHatch.Engine.Characters
+{
+    // Character.HasCompletedCreation [DEC]: set at the Finish click, saved with the player; AtFirstSpawn is its inverse.
+    public class Character { public bool HasCompletedCreation { get; set; } }
+}
+
 namespace CodeHatch.Engine.Networking
 {
     using CodeHatch.Common;
@@ -131,6 +137,7 @@ namespace CodeHatch.Engine.Networking
     public class Player
     {
         public ulong Id; public string Name; public bool IsServer; public Entity Entity;
+        public CodeHatch.Engine.Characters.Character CurrentCharacter;     // null unless a test sets it: the game says nothing
         public List<string> Messages = new List<string>();
         public List<Popup> Popups = new List<Popup>();
         public List<string> Heals = new List<string>();
@@ -349,7 +356,12 @@ namespace Oxide.Core
             if (text.Trim().Length == 0) return default(T);                  // Newtonsoft returns null for an empty file
             return JsonSerializer.Deserialize<T>(text, Opts);
         }
-        public void WriteObject<T>(string n, T o) { Writes++; Written.Add(n); File.WriteAllText(P(n), JsonSerializer.Serialize(o, Opts)); }
+        public void WriteObject<T>(string n, T o)
+        {
+            Writes++; Written.Add(n);
+            Directory.CreateDirectory(Path.GetDirectoryName(P(n)));      // as Oxide's DynamicConfigFile.Save
+            File.WriteAllText(P(n), JsonSerializer.Serialize(o, Opts));
+        }
     }
     public class OxideMod { public DataFileSystem DataFileSystem = new DataFileSystem(); public string ConfigDirectory; }
     public static class Interface { public static OxideMod Oxide = new OxideMod(); }
@@ -363,12 +375,20 @@ namespace Oxide.Plugins
     [AttributeUsage(AttributeTargets.Method)] public class ChatCommandAttribute : Attribute { public ChatCommandAttribute(string a) { } }
     [AttributeUsage(AttributeTargets.Field)] public class PluginReferenceAttribute : Attribute { }
 
+    // In memory (Json); a test that sets Filename gets the file written too, as Oxide's DynamicConfigFile (Filename is
+    // its full path). ReadObject throws on text that is not JSON, as Newtonsoft does.
     public class ConfigFile
     {
         public string Json;
         public int Writes;
-        public T ReadObject<T>() { return Json == null ? default(T) : JsonSerializer.Deserialize<T>(Json, DataFileSystem.Opts); }
-        public void WriteObject(object o, bool sync) { Writes++; Json = JsonSerializer.Serialize(o, o.GetType(), DataFileSystem.Opts); }
+        public string Filename;
+        public T ReadObject<T>() { return Json == null || Json.Trim().Length == 0 ? default(T) : JsonSerializer.Deserialize<T>(Json, DataFileSystem.Opts); }
+        public void WriteObject(object o, bool sync)
+        {
+            Writes++;
+            Json = JsonSerializer.Serialize(o, o.GetType(), DataFileSystem.Opts);
+            if (Filename != null) File.WriteAllText(Filename, Json);
+        }
     }
     public class LangLib
     {

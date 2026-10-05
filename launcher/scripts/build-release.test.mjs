@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import {
   LAUNCHER, REPO, EDITIONS, readVersion, loadEditionConfig, installerName, releaseDir, sha256File, checksumsText,
   collectRelease, playerConfigWarning, electronBuilderCacheDir, ensureWinCodeSign, explainBuildError, WIN_CODE_SIGN
@@ -71,7 +72,7 @@ test('the player uninstaller removes only its own realm:// handler', () => {
 test('the Steward installer still carries the plugins and the Chronicle', () => {
   const st = loadEditionConfig('steward');
   const from = st.extraResources.map((r) => r.from).sort();
-  assert.deepEqual(from, ['../art/paintings', '../art/sculptures', '../art/sculptures/sites', '../chronicle', '../plugins', '../plugins/docs/RealmQuests/content']);
+  assert.deepEqual(from, ['../art/paintings', '../art/sculptures', '../art/sculptures/sites', '../chronicle', '../mods/presets', '../plugins', '../plugins/docs/RealmQuests/content']);
   assert.ok(fs.readdirSync(path.join(REPO, 'plugins')).filter((f) => f.endsWith('.cs')).length >= 14);
 });
 
@@ -86,7 +87,8 @@ test('the Steward installer carries the plugin data files where lib/realm.js dat
     const fromRel = path.relative(LAUNCHER, dev[i].src).split(path.sep).join('/');
     const entry = st.extraResources.find((r) => r.to === rel && r.from === fromRel);
     assert.ok(entry, `${packaged[i].id}: extraResources maps ${fromRel} to ${rel}`);
-    const wanted = dev[i].only ? dev[i].only : ['*.json'];
+    // The mood library packs rotation.json and one <id>/<id>.cfg per mood folder (see the next test).
+    const wanted = dev[i].kind === 'moods' ? ['rotation.json', '*/*.cfg'] : dev[i].only ? dev[i].only : ['*.json'];
     assert.deepEqual(entry.filter, wanted, `${packaged[i].id} filter`);
     const files = fs.readdirSync(dev[i].src).filter((f) => f.endsWith('.json'));
     assert.ok(files.length >= 1, `${dev[i].id} has files in the repository`);
@@ -97,6 +99,60 @@ test('the Steward installer carries the plugin data files where lib/realm.js dat
   assert.equal(path.relative(res, arrival.src).split(path.sep).join('/'), 'realm-data/RealmArrival');
   assert.deepEqual(arrival.only, ['arrival.json']);
   assert.deepEqual(arrival.as, { 'arrival.json': 'site.json' });
+});
+
+// Walks a folder the way electron-builder copies an extraResources entry (its own FileMatcher filter).
+function packedFiles(FileMatcher, from, filter) {
+  const m = new FileMatcher(from, 'out', (x) => x, filter);
+  const keep = m.createFilter();
+  const out = [];
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, e.name);
+      const st = fs.statSync(abs);
+      if (!keep(abs, st)) continue;
+      if (st.isDirectory()) walk(abs);
+      else out.push(path.relative(from, abs).split(path.sep).join('/'));
+    }
+  };
+  walk(from);
+  return out.sort();
+}
+
+test('the Steward installer packs the mood library the way lib/realm.js deploys it (rotation.json, <id>/<id>.cfg)', async (t) => {
+  let FileMatcher;
+  try {
+    ({ FileMatcher } = await import(pathToFileURL(path.join(LAUNCHER, 'node_modules', 'app-builder-lib', 'out', 'fileMatcher.js')).href));
+  } catch {
+    t.skip('electron-builder (app-builder-lib) is not installed; npm install in launcher/ to run this test');
+    return;
+  }
+  const R = (await import('../lib/realm.js')).default;
+  const st = loadEditionConfig('steward');
+  const moods = R.dataSets(REPO, false).find((s) => s.id === 'moods');
+  const entry = st.extraResources.find((r) => r.to === 'realm-data/moods');
+  const from = path.resolve(LAUNCHER, entry.from);
+  assert.equal(from, moods.src);
+  const packed = packedFiles(FileMatcher, from, entry.filter);
+  const ids = fs.readdirSync(from, { withFileTypes: true }).filter((e) => e.isDirectory() && fs.existsSync(path.join(from, e.name, `${e.name}.cfg`))).map((e) => e.name).sort();
+  assert.ok(ids.length >= 13, `mood folders: ${ids.join(', ')}`);
+  assert.deepEqual(packed, ['rotation.json', ...ids.map((id) => `${id}/${id}.cfg`)].sort(), 'only the mood files: no Apply-Preset.ps1, no tests');
+  // What the installer carries is exactly what the deploy plans from the packaged folder.
+  const base = tmp();
+  try {
+    const res = path.join(base, 'res');
+    for (const f of packed) {
+      fs.mkdirSync(path.dirname(path.join(res, 'realm-data', 'moods', f)), { recursive: true });
+      fs.copyFileSync(path.join(from, f), path.join(res, 'realm-data', 'moods', f));
+    }
+    const root = path.join(base, 'server');
+    fs.mkdirSync(root);
+    const plan = await R.planData(root, R.dataSets(res, true).filter((s) => s.id === 'moods'));
+    assert.deepEqual(plan.items.map((i) => i.name), packed);
+    assert.ok(plan.items.every((i) => i.state === 'new'), JSON.stringify(plan.items.filter((i) => i.state !== 'new')));
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
 });
 
 test('collectRelease copies the installers and writes sha256sum-format checksums', () => {

@@ -66,7 +66,12 @@
 // and RealmArena.json (arena zones), for /arrival admin check.
 //
 // The arrival gives no items and no marks. Data: if oxide/data/RealmArrival.json exists but cannot be read, routing is
-// off (vanilla spawns), ArrivalStage answers none and the file is never written.
+// off (vanilla spawns), ArrivalStage answers none and the file is never written; the built gate's cells are also kept in
+// oxide/data/RealmArrival_gate.json, so a portcullis left closed is still forced open at load (or by
+// /arrival admin gate open force, from the site plan where the admin stands if that file is gone too). Config: if
+// oxide/config/RealmArrival.json cannot be read, it is copied to RealmArrival.json.broken-<UTC time>, the defaults run
+// in memory (closed), and nothing writes the file until it is fixed or /arrival admin config reset confirm. Those two
+// copies use System.IO (as RealmPainter does): DataFileSystem cannot copy a file it cannot parse.
 // Language level: C# 3 syntax, .NET 3.5 API surface. Cross-plugin methods are non-public (Oxide calls NonPublic|Instance).
 // UNVERIFIED in game: everything at run time. See plugins/docs/RealmArrival.md for the first-test plan.
 
@@ -114,6 +119,7 @@ namespace Oxide.Plugins
         private const string PermSkip = "realmarrival.skip";
         private const string DataName = "RealmArrival";
         private const string SiteFileName = "RealmArrival/site";       // oxide/data/RealmArrival/site.json, read only
+        private const string GateFileName = "RealmArrival_gate";       // oxide/data/RealmArrival_gate.json: the built gate's cells
         private const int DataFormat = 1;
         private const float BlockSize = 1.2f;                          // BlockManager.BLOCK_SIZE, as RealmSculptor
         private static readonly string[] FacingNames = { "+z", "+x", "-z", "-x" };
@@ -142,6 +148,11 @@ namespace Oxide.Plugins
         private PluginConfig config;
         private StoredData data;
         private bool loadFailed;
+        private bool configFailed;                       // the config could not be read: defaults in memory, the file never written
+        private string configProblem = "";
+        private string configBackup = "";                // the copy of the broken config (file name), once made
+        private List<Cell> recoveredGate;                // the gate's cells from RealmArrival_gate.json when the data file is unreadable
+        private string gateFileStatus = "not read";
         private bool dirty;
         private bool popupsClosed;                       // set on Unload: answers to windows still open are ignored
         private Timer tickTimer;
@@ -163,6 +174,7 @@ namespace Oxide.Plugins
         private readonly HashSet<ulong> staleWake = new HashSet<ulong>();          // woke in the hall from an old arrival
         private readonly HashSet<string> firstSightC = new HashSet<string>();      // variant C seen for the first time this session
         private readonly HashSet<ulong> providerMarks = new HashSet<ulong>();      // one-shot marks for the provider wrapper
+        private readonly HashSet<ulong> staffPending = new HashSet<ulong>();       // reset to pending by staff this session: left as they are
         private readonly Dictionary<ulong, UnityEngine.Vector3> providerAnswers = new Dictionary<ulong, UnityEngine.Vector3>();
         private readonly Dictionary<ulong, int> sessionOf = new Dictionary<ulong, int>();
         private readonly Dictionary<ulong, DateTime> joinedAt = new Dictionary<ulong, DateTime>();
@@ -350,9 +362,62 @@ namespace Oxide.Plugins
             if (config.WaveUntil == null) config.WaveUntil = "";
         }
 
-        private void SaveConfigNow()
+        // Never over a file that could not be read (configFailed): the defaults stay in memory only.
+        private bool SaveConfigNow()
         {
+            if (configFailed) return false;
             Config.WriteObject(config, true);
+            return true;
+        }
+
+        // Reads the config. A file that cannot be read (or reads as nothing) is never written over: it is copied aside
+        // first (RealmArrival.json.broken-<UTC time>), the defaults run in memory (the arrival closed), one error is
+        // logged, and the config-saving admin commands are refused until it is fixed and the plugin reloaded, or
+        // /arrival admin config reset confirm writes the defaults (RealmSculptor and RealmStats keep the same rule).
+        private void LoadConfigSafe()
+        {
+            configFailed = false;
+            configProblem = "";
+            try { config = Config.ReadObject<PluginConfig>(); }
+            catch (Exception ex)
+            {
+                config = null;
+                configFailed = true;
+                configProblem = ex.Message;
+            }
+            if (config == null && !configFailed) { configFailed = true; configProblem = "the file is empty"; }
+            ClampConfig();
+            if (!configFailed) return;
+            string backupError = BackupBrokenConfig();
+            PrintError("oxide/config/RealmArrival.json could not be read (" + configProblem + "). RealmArrival runs on the defaults in memory "
+                + "(the arrival closed) and will NOT write that file"
+                + (configBackup.Length > 0 ? "; a copy is at " + configBackup : backupError != null ? "; it could not be copied aside (" + backupError + ")" : "")
+                + ". Fix it and reload, or /arrival admin config reset confirm to write the defaults.");
+        }
+
+        // Copies the broken config next to itself, once: a copy with the same bytes from an earlier load is used again, so
+        // restarts on the same broken file do not pile up copies. Null when done (or no file to keep), else why not.
+        private string BackupBrokenConfig()
+        {
+            if (configBackup.Length > 0) return null;
+            try
+            {
+                string path = Config.Filename;
+                if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return null;
+                string text = System.IO.File.ReadAllText(path);
+                string dir = System.IO.Path.GetDirectoryName(path), name = System.IO.Path.GetFileName(path);
+                string[] earlier = System.IO.Directory.GetFiles(dir, name + ".broken-*");
+                Array.Sort(earlier, StringComparer.Ordinal);
+                for (int i = earlier.Length - 1; i >= 0; i--)
+                    if (System.IO.File.ReadAllText(earlier[i]) == text) { configBackup = System.IO.Path.GetFileName(earlier[i]); return null; }
+                string to = path + ".broken-" + Now().ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+                string stem = to;
+                for (int k = 2; System.IO.File.Exists(to); k++) to = stem + "-" + k;
+                System.IO.File.Copy(path, to);
+                configBackup = System.IO.Path.GetFileName(to);
+                return null;
+            }
+            catch (Exception ex) { return ex.Message; }
         }
 
         #endregion
@@ -714,6 +779,7 @@ namespace Oxide.Plugins
                 { "SkipDone", "As you wish. The gate is open; the Hearth is yours." },
                 { "Mercy", "The Hearth takes you back, once. Raise a bed before you fall again." },
                 { "MidDeath", "The Hearth's smoke led you back. The fire is before you." },
+                { "MidDeathRoad", "The Hearth's smoke is {0} m off. [F4C96D]/road the-hearth[FFFFFF] leads you back to the fire." },
                 { "Evicted", "The Gatehouse is for the Unwritten." },
                 { "RoadsA", "Three roads leave the Hearth: the Crown Market for coin and contracts, the Listing Field for the Ring, the seats for the houses." },
                 { "RoadsB", "Walk one: [F4C96D]/road crown-market[FFFFFF]. Your first 3 waystone journeys are free." },
@@ -734,11 +800,12 @@ namespace Oxide.Plugins
                 // /arrival
                 { "Closed", "The Gatehouse is closed for now." },
                 { "Paused", "Arrivals are off: oxide/data/RealmArrival.json could not be read. An admin must fix or move it, then reload." },
+                { "PausedAdmin", "  [A3A6AD]Staff: a portcullis left closed opens with[FFFFFF] [F4C96D]/arrival admin gate open force[FFFFFF][A3A6AD]; the config:[FFFFFF] [F4C96D]/arrival admin config[FFFFFF][A3A6AD].[FFFFFF]" },
                 { "NoPermission", "You may not do that." },
                 { "PlayerNotFound", "No such person is online (or the name is ambiguous)." },
                 { "Help1", "[F4C96D]/arrival[FFFFFF] - where you are in your arrival and what is next." },
                 { "Help2", "  [F4C96D]/arrival skip[FFFFFF] ends it now; [F4C96D]/arrival tour[FFFFFF] tells you the banners, the fire and the roads again." },
-                { "HelpAdmin", "  Staff: [F4C96D]/arrival admin[FFFFFF] status | site | check | runsheet | lot | open | close | pause | resume | mode | gatemode | evict | wave" },
+                { "HelpAdmin", "  Staff: [F4C96D]/arrival admin[FFFFFF] status | site | check | runsheet | lot | open | close | pause | resume | mode | gatemode | evict | wave | config" },
                 { "HelpAdmin2", "  [F4C96D]/arrival admin[FFFFFF] stone | mercy | hall | droppad | eject | threshold | hearth | wayboard | throne | banner | gate | beacon | play | skip | reset | veteran | pass" },
                 { "StageNow", "Your arrival: {0}." },
                 { "Stage.pending", "not begun" },
@@ -763,9 +830,12 @@ namespace Oxide.Plugins
                 { "AdminRefused", "Refused: {0}" },
                 { "AdminStatus1", "Arrival: {0}, mode {1}, gate {2} ({3}), wave {4}, evict {5}, live arrivals {6}." },
                 { "AdminStatus2", "  Routed {0}, re-routed {1}, unconfirmed {2}, road mode {3}, released {4}, skipped {5}, written {6}." },
-                { "AdminStatus3", "  Popups sent {0}, answered {1}; pledges {2}; evictions {3}; self-check closures {4}; mercy {5}." },
+                { "AdminStatus3", "  Popups sent {0}, answered {1}; pledges {2}; evictions {3}; self-check closures {4}; mercy {5}; deaths in arrival {6} ({7} with no mercy stone)." },
                 { "AdminStatus4", "  Mean seconds: gatehouse {0}, banners {1}, hearth {2}. Last timings (s): {3}" },
                 { "AdminStatusBind", "  Block grid: {0}" },
+                { "AdminStatusConfig", "  [E8913A]Config:[FFFFFF] oxide/config/RealmArrival.json could not be read ({0}); the defaults run in memory and nothing is saved to it (copy: {1})." },
+                { "ConfigLocked", "Refused: oxide/config/RealmArrival.json could not be read, so nothing is saved to it (copy: {0}). Fix it and reload, or [F4C96D]/arrival admin config reset confirm[FFFFFF] to write the defaults." },
+                { "ConfigOk", "oxide/config/RealmArrival.json was read; admin commands save to it as usual." },
                 { "CheckOk", "Site check passed: {0} stones, {1} mercy stones, gate {2}, beacon {3} cells." },
                 { "CheckProblem", "  [E8913A]Problem:[FFFFFF] {0}" },
                 { "CheckWarning", "  [A3A6AD]Note: {0}[FFFFFF]" },
@@ -864,17 +934,12 @@ namespace Oxide.Plugins
 
         private void Init()
         {
-            try { config = Config.ReadObject<PluginConfig>(); }
-            catch (Exception ex)
-            {
-                PrintError("oxide/config/RealmArrival.json could not be read (" + ex.Message + "); using the defaults for this run.");
-                config = null;
-            }
-            ClampConfig();
+            LoadConfigSafe();
             permission.RegisterPermission(PermAdmin, this);
             permission.RegisterPermission(PermSkip, this);
             LoadData();
-            if (!loadFailed) SeedFromHerald();
+            if (!loadFailed) { SeedFromHerald(); SyncGateFile(); }
+            else LoadGateFile();
             LoadSite();
         }
 
@@ -902,6 +967,7 @@ namespace Oxide.Plugins
                 if (!sessionOf.ContainsKey(p.Id)) { sessionCounter++; sessionOf[p.Id] = sessionCounter; }
                 if (IsRunning(rec.Stage) && !runs.ContainsKey(p.Id)) Rebuild(p, rec);
             }
+            ResolveOnline(true);
         }
 
         private void RetryBind()
@@ -913,11 +979,21 @@ namespace Oxide.Plugins
             AfterBind();
         }
 
-        // The gate is always forced open at load: a crash or a world saved while it was closed never traps anyone.
+        // The gate is always forced open at load: a crash or a world saved while it was closed never traps anyone. With the
+        // data file unreadable, the cells come from RealmArrival_gate.json.
         private void AfterBind()
         {
-            ForceGateOpen();
-            if (loadFailed || data == null) return;
+            int opened = ForceGateOpen();
+            if (loadFailed || data == null)
+            {
+                if (recoveredGate != null && recoveredGate.Count > 0)
+                    Puts("The data file could not be read; the gate's " + recoveredGate.Count + " cells from oxide/data/" + GateFileName + ".json are open ("
+                        + opened + " were solid).");
+                else
+                    PrintWarning("The data file could not be read and oxide/data/" + GateFileName + ".json is " + gateFileStatus + ", so the gate's cells are not "
+                        + "known. If a portcullis was left closed: stand on the eject point E outside it, facing the Hearth, and /arrival admin gate open force.");
+                return;
+            }
             SelfCheck();
             nextSelfCheck = Now().AddMinutes(config.SiteSelfCheckMinutes);
         }
@@ -1073,6 +1149,7 @@ namespace Oxide.Plugins
             spawnedUnseen.Remove(id.ToString());
             popupAsks.Remove(id.ToString());
             firstMoveWatch.Remove(id);
+            staffPending.Remove(id);
             if (loadFailed || data == null || player.IsServer) return;
             Rec rec = FindRec(id.ToString());
             if (rec == null) return;
@@ -1082,6 +1159,59 @@ namespace Oxide.Plugins
             if (rec.T0 != DateTime.MinValue) rec.LogoutsSinceArrival++;
             dirty = true;
             SaveData();
+        }
+
+        // Is this player's character made on this world? Character.HasCompletedCreation [DEC], read on the server through
+        // Player.CurrentCharacter: the game sets it at the Finish click (PlayerListener.OnPreSpawnComplete, in the same
+        // call that then raises OnPlayerSpawned; FinishedFirstCharacterCreation.OnHasFinished too), keeps it with the
+        // player's save (Player.Serialize), and OnPlayerSpawn's AtFirstSpawn is its inverse (PlayerListener.
+        // OnPlayerFirstSpawn). 1: in the world; 0: still on the character screen; -1: the game does not say (no character).
+        private static int CreationDone(Player p)
+        {
+            try
+            {
+                if (p == null || p.CurrentCharacter == null) return -1;
+                return p.CurrentCharacter.HasCompletedCreation ? 1 : 0;
+            }
+            catch (Exception) { return -1; }
+        }
+
+        // Players online when the plugin loads, opens or resumes, whose first spawn it never saw (it came before the plugin
+        // was loaded), would otherwise read "pending" until they log off. One whose character is made is a returning
+        // player (variant C, design 3: saved as done, a known veteran; ArrivalStage answers none this session, as after a
+        // returning spawn): never sent into the arrival. One still on the character screen stays pending (its Finish
+        // click then answers none for the session, OnPlayerSpawned). One the game says nothing about stays as it is, and
+        // so does one staff reset to pending this session. At load only, a record left crossing whose character is made
+        // (the Finish click came while the plugin was not loaded) is done, as at a returning spawn.
+        private void ResolveOnline(bool atLoad)
+        {
+            if (loadFailed || data == null) return;
+            foreach (Player p in OnlinePlayers())
+            {
+                try
+                {
+                    Rec rec = FindRec(p.Id.ToString());
+                    if (rec != null && rec.Stage != SPending && !(atLoad && rec.Stage == SCrossing)) continue;
+                    if (staffPending.Contains(p.Id) || CreationDone(p) != 1) continue;
+                    if (rec == null) rec = RecOf(p);
+                    string idS = p.Id.ToString();
+                    rec.Finished = true;
+                    Count("resolved_in_world");
+                    if (rec.Stage == SCrossing)
+                    {
+                        providerMarks.Remove(p.Id);
+                        StageTo(rec, SDone);
+                        LogHook("ResolveOnline", p, "crossing, character made: done");
+                        continue;
+                    }
+                    rec.Variant = VReturning;
+                    StageTo(rec, SDone);
+                    firstSightC.Add(idS);
+                    spawnedUnseen.Remove(idS);
+                    LogHook("ResolveOnline", p, "pending, character made: done (variant C)");
+                }
+                catch (Exception ex) { if (!Throttled("resolve", 60)) PrintWarning("Could not resolve an online player: " + ex.Message); }
+            }
         }
 
         // The game's first-spawn event, every session [OPJ L240]. AtFirstSpawn is true while the character still has to be
@@ -1460,14 +1590,16 @@ namespace Oxide.Plugins
                 if (player == null || player.IsServer) return;
                 Rec rec = FindRec(player.Id.ToString());
                 LogHook("OnPlayerRespawn", player, e.GetType().Name + ", stage " + (rec != null ? rec.Stage : "(no record)"));
-                if (rec == null || data.Site.Mercy.Count == 0) return;
+                if (rec == null) return;
                 ulong id = player.Id;
                 DateTime now = Now();
                 if (IsRunning(rec.Stage))
                 {
                     rec.Deaths++;
+                    Count("mid_death");
+                    dirty = true;
                     int m = PickMercy();
-                    if (m < 0) return;
+                    if (m < 0) { MidDeathFallback(player, rec, e, now); return; }
                     Point mp = data.Site.Mercy[m];
                     Ask(RealmSentinel, "SentinelGrace", id, 20f);
                     e.Position = V(mp.X, mp.Y + 0.5f, mp.Z);
@@ -1485,11 +1617,11 @@ namespace Oxide.Plugins
                         run.Narrating = true;
                     }
                     rec.RoadMode = false;
-                    Count("mid_death");
                     timer.Once(0.1f, delegate { Say(OnlineById(id), "MidDeath"); });
-                    dirty = true;
                     return;
                 }
+                // Hearth's Mercy needs a mercy stone: without one the game's respawn stands and nothing is used up.
+                if (data.Site.Mercy.Count == 0) return;
                 if (rec.Stage == SDone && rec.Variant == VNew && !rec.Play && rec.WrittenAt != DateTime.MinValue
                     && rec.MercyUsed < config.MercyRespawns && AskBool(RealmWarden, "IsNewPlayerProtected", id))
                 {
@@ -1506,6 +1638,52 @@ namespace Oxide.Plugins
                 }
             }
             catch (Exception ex) { PrintError("OnPlayerRespawn: " + ex.Message); }
+        }
+
+        // A death during the arrival with no mercy stone stored (open force, or mercy clear while open). Deterministic, and
+        // never a half-finished run: the eject point E just outside the gate when it is stored (the road to the fire starts
+        // there; the run goes on to the banners and the fire, as after a mercy stone), else the game's own respawn point
+        // stands and the run goes on in road mode (/road the-hearth; the fire beats and the Herald line if they reach the
+        // Hearth, written by the road-mode cap otherwise); with no Hearth stored either, the arrival is written at once.
+        // Never back into the hall. Counted as mid_death, and mid_death_no_mercy for status. MercyUsed is not charged:
+        // design 6.1 gives deaths during the arrival their own rule, and MercyRespawns is the allowance after Written.
+        // The overall cap still counts from the Finish click (Run.Since is not reset), so dying is never a way to stay.
+        private void MidDeathFallback(Player player, Rec rec, PlayerRespawnEvent e, DateTime now)
+        {
+            ulong id = player.Id;
+            Count("mid_death_no_mercy");
+            if (!rec.GateDone) { rec.GateDone = true; rec.ReleasedAt = now; }
+            Run run;
+            if (runs.TryGetValue(id, out run))
+            {
+                run.Queue.Clear();
+                run.AtFire = false;
+                run.InQuiet = false;
+                run.Narrating = true;
+            }
+            Point ej = data.Site.Eject;
+            if (ej != null && !InHall(PointV(ej), 0f))
+            {
+                Ask(RealmSentinel, "SentinelGrace", id, 20f);
+                e.Position = V(ej.X, ej.Y + 0.5f, ej.Z);
+                rec.ToFire = true;                                // the Herald line, if not yet sent, comes at the fire
+                rec.RoadMode = false;
+                if (run != null) run.Road = false;
+                if (rec.Stage == SGatehouse || rec.Stage == SReleased) StageTo(rec, SBanners);
+                timer.Once(0.1f, delegate { Say(OnlineById(id), "ReleasedGate"); });
+                return;
+            }
+            if (HearthSet())
+            {
+                rec.RoadMode = true;
+                if (run != null) run.Road = true;
+                if (rec.Stage == SGatehouse) StageTo(rec, SReleased);
+                int metres = Round10(FlatDist(e.Position, HearthV()));
+                timer.Once(0.1f, delegate { Say(OnlineById(id), "MidDeathRoad", metres); });
+                return;
+            }
+            Handover(player, rec, false);
+            timer.Once(0.1f, delegate { Say(OnlineById(id), "Wander"); });
         }
 
         #endregion
@@ -2687,18 +2865,92 @@ namespace Oxide.Plugins
             return rows;
         }
 
-        // Unload, pause, load and staff: every gate cell becomes air at once. Never traps anyone.
-        private void ForceGateOpen()
+        // Unload, pause, load and staff: every gate cell becomes air at once. Never traps anyone. Returns how many cells
+        // were solid. With the data file unreadable, the cells are the ones RealmArrival_gate.json kept.
+        private int ForceGateOpen()
         {
             gateWantClose = false;
             gateWantOpen = false;
             gateBusy = false;
             gateTestCloseAt = DateTime.MinValue;
-            if (data == null || data.Site.GateCells.Count == 0 || !GridReady()) { gateClosed = false; gateRows = 0; return; }
-            foreach (Cell c in data.Site.GateCells) if (MaterialAt(c) != 0) PlaceCell(c, 0);
+            List<Cell> cells = KnownGateCells();
+            if (cells == null || cells.Count == 0 || !GridReady()) { gateClosed = false; gateRows = 0; return 0; }
+            int opened = 0;
+            foreach (Cell c in cells) if (MaterialAt(c) != 0) { PlaceCell(c, 0); opened++; }
             gateClosed = false;
             gateRows = 0;
             gateOpenedAt = Now();
+            return opened;
+        }
+
+        private List<Cell> KnownGateCells()
+        {
+            return data != null ? data.Site.GateCells : recoveredGate;
+        }
+
+        // The gate-state file, oxide/data/RealmArrival_gate.json: only the built gate's cells, apart from the data file, so
+        // a crash that leaves RealmArrival.json unreadable never leaves the gate's cells unknown. Written when the cells
+        // change (gate build, gate remove) and at a load that finds it missing or different; never created while no gate
+        // is built, and never written while the data file cannot be read.
+        private class GateFile
+        {
+            public int Format = 1;
+            public List<Cell> Cells = new List<Cell>();
+        }
+
+        private List<Cell> ReadGateFile(out string status)
+        {
+            try
+            {
+                if (!Interface.Oxide.DataFileSystem.ExistsDatafile(GateFileName)) { status = "missing"; return null; }
+                GateFile f = Interface.Oxide.DataFileSystem.ReadObject<GateFile>(GateFileName);
+                if (f == null || f.Cells == null) { status = "empty"; return null; }
+                var cells = new List<Cell>();
+                foreach (Cell c in f.Cells) if (c != null) cells.Add(c);
+                status = "ok";
+                return cells;
+            }
+            catch (Exception ex)
+            {
+                status = "unreadable (" + ex.Message + ")";
+                return null;
+            }
+        }
+
+        private void LoadGateFile()
+        {
+            recoveredGate = ReadGateFile(out gateFileStatus);
+        }
+
+        private static string CellsKey(List<Cell> cells)
+        {
+            var keys = new List<string>();
+            foreach (Cell c in cells) keys.Add(c.X + "," + c.Y + "," + c.Z);
+            keys.Sort(StringComparer.Ordinal);
+            return string.Join(";", keys.ToArray());
+        }
+
+        private void SaveGateFile()
+        {
+            if (loadFailed || data == null) return;
+            try
+            {
+                if (data.Site.GateCells.Count == 0 && !Interface.Oxide.DataFileSystem.ExistsDatafile(GateFileName)) return;
+                GateFile f = new GateFile();
+                foreach (Cell c in data.Site.GateCells) { Cell k = new Cell(); k.X = c.X; k.Y = c.Y; k.Z = c.Z; f.Cells.Add(k); }
+                Interface.Oxide.DataFileSystem.WriteObject(GateFileName, f);
+                gateFileStatus = "ok";
+            }
+            catch (Exception ex) { PrintWarning("Could not write oxide/data/" + GateFileName + ".json: " + ex.Message); }
+        }
+
+        private void SyncGateFile()
+        {
+            if (loadFailed || data == null) return;
+            string status;
+            List<Cell> kept = ReadGateFile(out status);
+            gateFileStatus = status;
+            if (kept == null ? data.Site.GateCells.Count > 0 : CellsKey(kept) != CellsKey(data.Site.GateCells)) SaveGateFile();
         }
 
         // Asks the gate to open: now if the cycle allows (GateCycleMinSeconds between openings), else as soon as it does.
@@ -3161,7 +3413,7 @@ namespace Oxide.Plugins
         private void CmdArrival(Player player, string command, string[] args)
         {
             if (player == null) return;
-            if (loadFailed || data == null) { ReplyError(player, "Paused"); return; }
+            if (loadFailed || data == null) { CmdRecovery(player, args); return; }
             string sub = args != null && args.Length > 0 ? args[0].ToLowerInvariant() : "";
             Rec rec = RecOf(player);
             switch (sub)
@@ -3190,6 +3442,29 @@ namespace Oxide.Plugins
                     player.SendMessage(Msg("Help2", player));
                     return;
             }
+        }
+
+        // While the data file cannot be read, only staff's way out works: gate open force (the cells from
+        // RealmArrival_gate.json, or the site plan where they stand) and the config. Everything else says why it is off.
+        private void CmdRecovery(Player player, string[] args)
+        {
+            string a1 = args != null && args.Length > 1 ? args[1].ToLowerInvariant() : "";
+            string a2 = args != null && args.Length > 2 ? args[2].ToLowerInvariant() : "";
+            string a3 = args != null && args.Length > 3 ? args[3].ToLowerInvariant() : "";
+            bool admin = IsAdmin(player);
+            if (admin && args != null && args.Length > 0 && args[0].ToLowerInvariant() == "admin")
+            {
+                if (a1 == "gate" && a2 == "open" && a3 == "force")
+                {
+                    UnityEngine.Vector3 here;
+                    bool hasPos = TryPos(player, out here);
+                    AdminGateForce(player, args, hasPos, here);
+                    return;
+                }
+                if (a1 == "config") { AdminConfig(player, args); return; }
+            }
+            ReplyError(player, "Paused");
+            if (admin) player.SendMessage(Msg("PausedAdmin", player));
         }
 
         private void ShowMine(Player player, Rec rec)
@@ -3287,8 +3562,10 @@ namespace Oxide.Plugins
                 case "check": AdminCheck(player); return;
                 case "lot": AdminLot(player, args); return;
                 case "runsheet": AdminRunsheet(player); return;
+                case "config": AdminConfig(player, args); return;
                 case "open":
                     {
+                        if (ConfigLocked(player)) return;
                         List<string> problems = SiteProblems(new List<string>());
                         // open force (test servers, first-test plan): opens despite the problems, says and logs each one.
                         // The stones still have to exist, and the self-check still closes it if a stone loses its floor.
@@ -3305,26 +3582,32 @@ namespace Oxide.Plugins
                             PrintWarning(Clean(player.Name, 40) + " opened the Gatehouse by force with " + problems.Count + " problem(s): " + string.Join("; ", problems.ToArray()));
                         }
                         config.Open = true; SaveConfigNow(); UpdateProvider();
+                        ResolveOnline(false);
                         nextSelfCheck = Now().AddMinutes(config.SiteSelfCheckMinutes);
                         Reply(player, problems.Count > 0 ? "OpenedForce" : "Opened", problems.Count);
                         return;
                     }
                 case "close":
+                    if (ConfigLocked(player)) return;
                     config.Open = false; SaveConfigNow(); UpdateProvider();
                     Reply(player, "ClosedNow");
                     return;
                 case "pause": Pause(); Reply(player, "PausedNow"); return;
                 case "resume":
                     s.Paused = false; dirty = true; UpdateProvider();
+                    ResolveOnline(false);
                     foreach (ulong u in new List<ulong>(staleWake)) StaleWake(u);   // handed back by the pause, still inside
                     Reply(player, "Resumed");
                     return;
                 case "mode":
+                    if (ConfigLocked(player)) return;
                     if (a2 != "teleport" && a2 != "provider" && a2 != "road" && a2 != "off") { Usage(player, "/arrival admin mode teleport|provider|road|off"); return; }
                     config.RoutingMode = a2; SaveConfigNow(); UpdateProvider();
+                    ResolveOnline(false);
                     Done(player, "mode " + a2);
                     return;
                 case "gatemode":
+                    if (ConfigLocked(player)) return;
                     if (a2 != "open" && a2 != "portcullis") { Usage(player, "/arrival admin gatemode open|portcullis"); return; }
                     config.GateMode = a2; SaveConfigNow();
                     if (a2 == "open") ForceGateOpen();
@@ -3361,12 +3644,14 @@ namespace Oxide.Plugins
                 case "gate": AdminGate(player, args, hasPos, here); return;
                 case "beacon": AdminBeacon(player, args); return;
                 case "evict":
+                    if (ConfigLocked(player)) return;
                     if (a2 != "on" && a2 != "off") { Usage(player, "/arrival admin evict on|off"); return; }
                     config.Evict = a2 == "on"; SaveConfigNow();
                     Done(player, "evict " + a2);
                     return;
                 case "wave":
                     {
+                        if (ConfigLocked(player)) return;
                         int minutes;
                         if (a2 == "off") { config.WaveMode = false; config.WaveUntil = ""; SaveConfigNow(); Done(player, "wave off"); return; }
                         if (a2 != "on" || args.Length < 4 || !int.TryParse(args[3], out minutes) || minutes < 1 || minutes > 600) { Usage(player, "/arrival admin wave on <minutes>|off"); return; }
@@ -3505,13 +3790,16 @@ namespace Oxide.Plugins
                             s.GateCells.Add(c);
                         }
                         dirty = true;
+                        SaveGateFile();
                         gateRows = 0; gateClosed = false;
                         Done(player, "gate cells " + s.GateCells.Count + (skipped > 0 ? " (" + skipped + " cells were not empty and are left alone)" : "") + "; closing now");
                         gateOpenedAt = DateTime.MinValue;
                         RequestGateClose();
                         return;
                     }
-                case "open": RequestGateOpen(true); Done(player, "gate opening"); return;
+                case "open":
+                    if (args.Length > 3 && args[3].ToLowerInvariant() == "force") { AdminGateForce(player, args, hasPos, here); return; }
+                    RequestGateOpen(true); Done(player, "gate opening"); return;
                 case "close": RequestGateClose(); Done(player, "gate closing (waits while anyone stands within " + config.GateClearanceMetres + " m)"); return;
                 case "test":
                     RequestGateOpen(true);
@@ -3522,12 +3810,67 @@ namespace Oxide.Plugins
                     ForceGateOpen();
                     s.GateCells.Clear();
                     dirty = true;
+                    SaveGateFile();
                     Done(player, "gate removed (its cells are air)");
                     return;
                 default:
-                    Usage(player, "/arrival admin gate set <w> <h> [+z|+x|-z|-x]|build|open|close|test|remove");
+                    Usage(player, "/arrival admin gate set <w> <h> [+z|+x|-z|-x]|build|open [force]|close|test|remove");
                     return;
             }
+        }
+
+        // gate open force [+z|+x|-z|-x]: every gate cell to air at once, with no cycle, clearance or arrival rule (opening
+        // never traps anyone; in portcullis mode the normal cycle closes it again later, so pause or gatemode open keeps it
+        // open). Works while the data file cannot be read. The cells are the stored ones (RealmArrival_gate.json when the
+        // data file is unreadable); if none are known, the site plan's gate rows placed by the stored anchor, or else by
+        // where the admin stands: on the plan's eject point E, just outside the gate (so it works from outside a closed
+        // portcullis), facing out toward the Hearth. Then only cells that hold the gate's material (GateMaterialId) are
+        // cleared, so a wrong spot clears nothing else.
+        private void AdminGateForce(Player player, string[] args, bool hasPos, UnityEngine.Vector3 here)
+        {
+            if (!GridReady()) { Reply(player, "AdminRefused", "block grid not ready (" + bindError + ")"); return; }
+            List<Cell> cells = KnownGateCells();
+            if (cells != null && cells.Count > 0)
+            {
+                int n = ForceGateOpen();
+                PrintWarning(Clean(player.Name, 40) + " forced the gate open: " + n + " of " + cells.Count + " cells were solid.");
+                Done(player, "gate forced open: " + n + " of " + cells.Count + " cells cleared" + (data == null ? " (the cells from " + GateFileName + ".json)" : ""));
+                return;
+            }
+            if (site == null)
+            {
+                Reply(player, "AdminRefused", "the gate's cells are not known (" + GateFileName + ".json " + gateFileStatus + ") and there is no site file ("
+                    + siteStatus + "); clear the portcullis by hand");
+                return;
+            }
+            int ax, ay, az, turn;
+            string from;
+            if (data != null && data.Site.Anchored)
+            {
+                ax = data.Site.AnchorX; ay = data.Site.AnchorY; az = data.Site.AnchorZ; turn = data.Site.Turn;
+                from = "the stored anchor";
+            }
+            else
+            {
+                if (!hasPos) return;
+                int q = args.Length > 4 ? Array.IndexOf(FacingNames, args[4].ToLowerInvariant()) : FacingOf(player);
+                if (q < 0 || !site.points.ContainsKey("E")) { Usage(player, "/arrival admin gate open force [+z|+x|-z|-x] (stand on the eject point E outside the gate, facing the Hearth)"); return; }
+                AnchorFrom(CellAt(here), q, "E", out ax, out ay, out az, out turn);
+                from = "where you stand";
+            }
+            int cleared = 0, total = 0;
+            foreach (List<List<int>> row in site.cells.gate.rows)
+                foreach (List<int> c in row)
+                {
+                    Cell w = PlanCellAt(c, ax, ay, az, turn);
+                    total++;
+                    if (MaterialAt(w) == config.GateMaterialId) { PlaceCell(w, 0); cleared++; }
+                }
+            gateClosed = false; gateRows = 0; gateBusy = false; gateWantClose = false; gateWantOpen = false; gateTestCloseAt = DateTime.MinValue;
+            gateOpenedAt = Now();
+            PrintWarning(Clean(player.Name, 40) + " forced the gate open from the site plan (" + from + "): " + cleared + " of " + total + " plan cells held the gate's material.");
+            Done(player, "gate forced open from the site plan (" + from + "): " + cleared + " of " + total + " cells held the gate's material and are air now"
+                + (cleared == 0 ? "; if the gate still stands, stand on E (4 m outside it) facing the Hearth and try again" : ""));
         }
 
         // Facing out = from the hall's centre toward the Hearth, rounded to an axis; the gate runs to the right of that.
@@ -3639,6 +3982,7 @@ namespace Oxide.Plugins
                         ResetArrival(rec);
                         rec.Variant = "";
                         rec.Stage = to; rec.StageAt = Now();
+                        if (to == SPending) staffPending.Add(target.Id); else staffPending.Remove(target.Id);
                         dirty = true;
                         Done(player, tn + " reset to " + to);
                         return;
@@ -3673,11 +4017,44 @@ namespace Oxide.Plugins
             var pl = new List<string>();
             foreach (KeyValuePair<string, int> kv in data.Stats.PledgesByHouse) pl.Add(kv.Key + " " + kv.Value);
             player.SendMessage(Fmt("AdminStatus3", player, Counter("popups_sent"), Counter("popups_answered"), pl.Count > 0 ? string.Join(", ", pl.ToArray()) : "0",
-                Counter("evictions"), Counter("self_check_closures"), Counter("mercy")));
+                Counter("evictions"), Counter("self_check_closures"), Counter("mercy"), Counter("mid_death"), Counter("mid_death_no_mercy")));
             var t = new List<string>();
             foreach (int x in data.Stats.Timings) t.Add(x.ToString(CultureInfo.InvariantCulture));
             player.SendMessage(Fmt("AdminStatus4", player, Mean(SGatehouse), Mean(SBanners), Mean(SHearth), t.Count > 0 ? string.Join(" ", t.ToArray()) : "-"));
             player.SendMessage(Fmt("AdminStatusBind", player, GridReady() ? "bound" : bindError));
+            if (configFailed) player.SendMessage(Fmt("AdminStatusConfig", player, Clean(configProblem, 80), configBackup.Length > 0 ? configBackup : "-"));
+        }
+
+        // A config-saving command while the config file could not be read: refused, with the way out.
+        private bool ConfigLocked(Player player)
+        {
+            if (!configFailed) return false;
+            ReplyError(player, "ConfigLocked", configBackup.Length > 0 ? configBackup : "-");
+            return true;
+        }
+
+        // /arrival admin config [reset confirm]: whether the config was read; reset confirm writes the defaults (the ones
+        // running in memory) over a file that could not be read, after copying it aside.
+        private void AdminConfig(Player player, string[] args)
+        {
+            string a2 = args.Length > 2 ? args[2].ToLowerInvariant() : "";
+            string a3 = args.Length > 3 ? args[3].ToLowerInvariant() : "";
+            if (a2 == "")
+            {
+                if (!configFailed) { Reply(player, "ConfigOk"); return; }
+                ReplyError(player, "ConfigLocked", configBackup.Length > 0 ? configBackup : "-");
+                return;
+            }
+            if (a2 != "reset" || a3 != "confirm") { Usage(player, "/arrival admin config [reset confirm]"); return; }
+            if (!configFailed) { Reply(player, "AdminRefused", "the config was read: edit it and reload instead"); return; }
+            string why = BackupBrokenConfig();
+            if (why != null) { Reply(player, "AdminRefused", "the broken file could not be copied aside (" + Clean(why, 80) + "); move it away by hand, then reload"); return; }
+            configFailed = false;
+            ClampConfig();
+            SaveConfigNow();
+            PrintWarning(Clean(player.Name, 40) + " wrote the default config over oxide/config/RealmArrival.json"
+                + (configBackup.Length > 0 ? " (the broken file is kept as " + configBackup + ")" : "") + ".");
+            Done(player, "config reset to the defaults (the arrival is closed)" + (configBackup.Length > 0 ? "; the broken file is kept as " + configBackup : ""));
         }
 
         private string Mean(string stage)
@@ -3935,11 +4312,28 @@ namespace Oxide.Plugins
         private Cell PlanCell(List<int> c)
         {
             Site s = data.Site;
+            return PlanCellAt(c, s.AnchorX, s.AnchorY, s.AnchorZ, s.Turn);
+        }
+
+        private static Cell PlanCellAt(List<int> c, int ax, int ay, int az, int turn)
+        {
             int tx, tz;
-            TurnXZ(c[0], c[2], s.Turn, out tx, out tz);
+            TurnXZ(c[0], c[2], turn, out tx, out tz);
             Cell r = new Cell();
-            r.X = s.AnchorX + tx; r.Y = s.AnchorY + c[1]; r.Z = s.AnchorZ + tz;
+            r.X = ax + tx; r.Y = ay + c[1]; r.Z = az + tz;
             return r;
+        }
+
+        // The plan's anchor and turn from the cell an admin's feet are in (the plan's point `at`: gateSet for site anchor,
+        // E for gate open force) and the way they face (out of the gate, the way gateSet faces).
+        private void AnchorFrom(Cell feet, int q, string at, out int ax, out int ay, out int az, out int turn)
+        {
+            SitePoint gs = site.points["gateSet"];
+            SitePoint here = site.points[at];
+            turn = ((q - FacingIndex(gs.facing ?? "+z")) % 4 + 4) % 4;
+            int tx, tz;
+            TurnXZ(here.cell[0], here.cell[2], turn, out tx, out tz);
+            ax = feet.X - tx; ay = feet.Y - here.cell[1]; az = feet.Z - tz;
         }
 
         // Where a player stands in a cell: its centre (LocalToWorldCoordinate [DEC]), lowered to just above the floor.
@@ -4209,13 +4603,10 @@ namespace Oxide.Plugins
                         if (s.GateCells.Count > 0 || s.BeaconCells.Count > 0) { Reply(player, "AdminRefused", "gate remove and beacon clear first: their cells belong to the old anchor"); return; }
                         int q = args.Length > 3 ? Array.IndexOf(FacingNames, args[3].ToLowerInvariant()) : FacingOf(player);
                         if (q < 0) { Usage(player, "/arrival admin site anchor [+z|+x|-z|-x] (stand in the gateSet cell, facing out toward the Hearth)"); return; }
-                        SitePoint gs = site.points["gateSet"];
-                        int turn = ((q - FacingIndex(gs.facing ?? "+z")) % 4 + 4) % 4;
-                        Cell feet = CellAt(here);
-                        int tx, tz;
-                        TurnXZ(gs.cell[0], gs.cell[2], turn, out tx, out tz);
+                        int ax, ay, az, turn;
+                        AnchorFrom(CellAt(here), q, "gateSet", out ax, out ay, out az, out turn);
                         s.Anchored = true; s.Turn = turn;
-                        s.AnchorX = feet.X - tx; s.AnchorY = feet.Y - gs.cell[1]; s.AnchorZ = feet.Z - tz;
+                        s.AnchorX = ax; s.AnchorY = ay; s.AnchorZ = az;
                         int n = ApplyPlan();
                         Done(player, "site anchored at cell " + s.AnchorX + "," + s.AnchorY + "," + s.AnchorZ + ", turn " + turn + "; " + n + " points and boxes stored"
                             + (LotComplete() ? "" : "; draw the lot for the banners (lot draw)"));

@@ -283,6 +283,15 @@ const RULES = [
     fix: 'Open Task Manager > Details, end every ROK.exe (and Server.exe) from your server folder, then press Start once. If it is a different program, give this instance its own ports on the Servers screen.'
   },
   {
+    id: 'missing-game-files',
+    severity: 'bad',
+    title: 'Game files are missing from the server',
+    re: /TypeInitializationException[^\n]*?CodeHatch\.Networking\.Events\.EventManager|type initializer for '?CodeHatch\.Networking\.Events\.EventManager'? threw/i,
+    evidence: '[DEC] EventManager static constructor enumerates the exported types of Assembly-CSharp; that throws when an assembly it references cannot be loaded',
+    cause: 'A DLL that the game\'s Assembly-CSharp.dll needs is missing from the server\'s ROK_Data\\Managed folder, so the server stops while it starts.',
+    fix: 'Realm Steward: open the Doctor and read the "Server game files" check; it names the missing DLLs. Copy only those from the Steam copy of the dedicated server (ROK_Data\\Managed), never over the Oxide-patched Assembly-CSharp.dll. If they are missing there too, Verify integrity of game files in Steam first.'
+  },
+  {
     id: 'server-start-error',
     severity: 'bad',
     title: 'The server could not start its network',

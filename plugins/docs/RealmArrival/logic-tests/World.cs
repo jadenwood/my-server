@@ -215,6 +215,7 @@ static class W
         A.timer.DestroyAll();
         var p = new RealmArrival();
         p.Config.Json = json;
+        p.Config.Filename = A.Config.Filename;                      // Oxide keeps the config file where it is
         if (tweak != null)
         {
             var cfg = typeof(RealmArrival).GetNestedType("PluginConfig", BF);
@@ -240,6 +241,7 @@ static class W
         A.timer.DestroyAll();
         var p = new RealmArrival();
         p.Config.Json = json;
+        p.Config.Filename = A.Config.Filename;                      // Oxide keeps the config file where it is
         Inv(p, "LoadDefaultMessages");
         foreach (var r in Refs) SetF(p, r[0], Absent.Contains(r[0]) ? null : (Plugin)typeof(W).GetField(r[1]).GetValue(null));
         SetF(p, "clock", (Func<DateTime>)(() => Clock));

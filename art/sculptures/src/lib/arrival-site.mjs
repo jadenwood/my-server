@@ -55,8 +55,9 @@ export const AVENUE = {
 export const HEARTH = { x: 0, z: 107, half: 7, bandY: 2 };
 
 // The ember band: 24 cells round the fire at radius 5 (an octagon: |dx| or |dz| = 5 with the other at most 1, and the
-// diagonals |dx| + |dz| = 6). RealmArrival places and recolours them; the hearth ring leaves them empty and holds
-// them up on its dais, so they stand one block proud of it at the height of the Hearth centre's feet cell (y 2).
+// diagonals |dx| + |dz| = 6). RealmArrival places and recolours them. They are not cells of the hearth ring at all: the
+// ring is 2 high (step y 0, dais y 1) and the band sits on top of it, on the dais, one block proud of it at the height
+// of the Hearth centre's feet cell (y 2).
 export function bandOffsets() {
   const out = [];
   for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) {

@@ -106,7 +106,7 @@ The content lives in [`RealmQuests/content/`](RealmQuests/content/) and is read 
 | `Achievements.json` | The deeds | 68 |
 | `HouseGoals.json` | The weekly house goal pool | 12 |
 
-**Deploying.** Copy the folder to the server: `plugins\docs\RealmQuests\content\*.json` -> `<server>\oxide\data\RealmQuests\`. Steward's deploy does not copy it yet (ROADMAP STW-1, with the sculptures and sign art). Without it the plugin runs but `/quest` says the board is not posted. After editing a file on the server, `/quest admin reload`.
+**Deploying.** Copy the folder to the server: `plugins\docs\RealmQuests\content\*.json` -> `<server>\oxide\data\RealmQuests\`. Steward's Update plugins and `server\Deploy-Plugins.ps1` copy it (ROADMAP STW-1). Without it the plugin runs but `/quest` says the board is not posted. After editing a file on the server, `/quest admin reload`.
 
 **Marking places.** No code knows where the realm's places are on the map you run. Before launch a steward stands at each and types `/quest admin place set <id> [radius]` (`/quest admin places` lists them). Until a place is marked: daily and weekly tasks that need it are not drawn, and a story step that needs it is waived (the tale never stalls on a steward's to-do list).
 

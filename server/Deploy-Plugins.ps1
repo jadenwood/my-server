@@ -25,6 +25,14 @@
   renamed into place. A running plugin reads its data when it loads: reload the plugins whose data
   changed (oxide.reload <Plugin> in the server console) unless their .cs changed too.
 
+  The world-mood library goes with them, with the same backup, owner-file and .realm-part rules:
+    mods\presets\rotation.json and mods\presets\<id>\<id>.cfg -> <server>\realm-moods\
+  That is the layout Set-Mood.ps1 reads (-PresetsDir <server>\realm-moods). It is a library only: the game
+  reads Mods\<Name>.cfg, and this script never writes Mods\, so the active mood does not change. Switch it
+  with Set-Mood.ps1. The .cfg files are not JSON; each must be UTF-8 text of at most 64 KB whose lines are
+  comments or complete key = 'value' lines for the proven mood keys (no key twice, a final line break).
+  rotation.json must be a JSON object with "moods" and "seasonCycle". Nothing reloads for the library.
+
 .EXAMPLE
   .\Deploy-Plugins.ps1 -WhatIf
   .\Deploy-Plugins.ps1
@@ -148,6 +156,113 @@ foreach ($d in $dataSets) {
     }
 }
 
+# ---------- world-mood library (ROADMAP STW-1) ----------
+# Keep in step with launcher/lib/realm.js (dataSets 'moods', checkMoodText). mods\presets\rotation.json and
+# mods\presets\<id>\<id>.cfg go to <server>\realm-moods\, the layout Set-Mood.ps1 reads with -PresetsDir. It is a
+# library only: the game reads Mods\<Name>.cfg, never this folder, and nothing here writes Mods\. Switching the
+# live mood stays Set-Mood.ps1's job. The .cfg files are not JSON, so Test-RealmMoodFile checks them instead.
+$moodKeys = @(
+    'Atmosphere.FogDensity', 'Atmosphere.FogColor', 'Atmosphere.SunColor', 'Atmosphere.MoonColor',
+    'Atmosphere.IslandLatitude', 'Atmosphere.IslandLongitude',
+    'Weather.ClearWeight', 'Weather.CloudyWeight', 'Weather.PrecipitateLowWeight', 'Weather.PrecipitateMediumWeight', 'Weather.PrecipitateHeavyWeight',
+    'Clock.DaySpeed'
+)
+
+function Test-RealmMoodFile([string]$Path) {
+    # $null when the file looks like a whole mood file, otherwise the reason: UTF-8 text of at most 64 KB, every
+    # line a comment or a complete key = 'value' line for a proven mood key (Set-Mood.ps1 $MoodKeys), no key twice,
+    # at least one key, and a final line break (a cut-off copy is refused).
+    try {
+        $fi = Get-Item -LiteralPath $Path
+        if ($fi.Length -gt 64KB) { return 'larger than 64 KB' }
+        if ($fi.Length -eq 0) { return 'empty' }
+        $bytes = [System.IO.File]::ReadAllBytes($fi.FullName)
+    } catch {
+        return ('unreadable (' + $_.Exception.Message + ')')
+    }
+    try { $text = (New-Object System.Text.UTF8Encoding($false, $true)).GetString($bytes) } catch { return 'not UTF-8 text' }
+    if ([regex]::IsMatch($text, '[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]')) { return 'not a text file (control characters)' }
+    $text = $text.TrimStart([char]0xFEFF)
+    if (-not $text.EndsWith("`n")) { return 'no line break at the end (cut off?)' }
+    $lines = $text -split "`r?`n"
+    $seen = @{}
+    for ($i = 0; $i -lt $lines.Count - 1; $i++) {
+        $line = $lines[$i]
+        $m = [regex]::Match($line, '^\s*#@scale\s+(\S+)\s+=\s*''([^''#]*)''\s*$')
+        if (-not $m.Success) {
+            if ([regex]::IsMatch($line, '^\s*(#|$)')) { continue }
+            $m = [regex]::Match($line, '^\s*([^#=\s][^=]*?)\s+=\s*''([^''#]*)''\s*(#.*)?$')
+            if (-not $m.Success) { return ("line {0} is not a complete key = 'value' line" -f ($i + 1)) }
+        }
+        $key = $m.Groups[1].Value.Trim()
+        if ($moodKeys -cnotcontains $key) { return ("line {0}: '{1}' is not a mood key" -f ($i + 1), $key) }
+        if ($seen.ContainsKey($key)) { return ("line {0}: '{1}' is set twice" -f ($i + 1), $key) }
+        if (-not $m.Groups[2].Value.Trim()) { return ("line {0}: '{1}' has no value" -f ($i + 1), $key) }
+        $seen[$key] = $true
+    }
+    if ($seen.Count -eq 0) { return 'no mood lines' }
+    return $null
+}
+
+function Test-RealmMoodRotation([string]$Path) {
+    # rotation.json: a JSON object with a "moods" object and a "seasonCycle" list.
+    $why = Test-RealmDataFile $Path
+    if ($why) { return $why }
+    $j = ConvertFrom-Json -InputObject ([System.IO.File]::ReadAllText((Get-Item -LiteralPath $Path).FullName))
+    $mp = $j.PSObject.Properties['moods']
+    if ($null -eq $mp -or $mp.Value -isnot [System.Management.Automation.PSCustomObject]) { return 'no "moods" object' }
+    $sp = $j.PSObject.Properties['seasonCycle']
+    if ($null -eq $sp -or $sp.Value -isnot [System.Array]) { return 'no "seasonCycle" list' }
+    return $null
+}
+
+$moodSrc = Join-Path $dataSrcRoot 'mods\presets'
+$moodDest = Join-Path $root 'realm-moods'
+$moodNames = @()
+if (Test-Path -LiteralPath (Join-Path $moodSrc 'rotation.json') -PathType Leaf) { $moodNames += 'rotation.json' }
+foreach ($dir in @(Get-ChildItem -LiteralPath $moodSrc -Directory -ErrorAction SilentlyContinue | Sort-Object Name)) {
+    if ($dir.Name -cmatch '^[a-z0-9][a-z0-9-]{0,63}$' -and (Test-Path -LiteralPath (Join-Path $dir.FullName ($dir.Name + '.cfg')) -PathType Leaf)) {
+        $moodNames += ($dir.Name + '\' + $dir.Name + '.cfg')
+    }
+}
+if ($moodNames.Count -eq 0) {
+    Write-Host ('  {0,-10} World mood presets: no files in {1}' -f 'missing', $moodSrc) -ForegroundColor Yellow
+} else {
+    foreach ($n in $moodNames) {
+        $src = Join-Path $moodSrc $n
+        $dest = Join-Path $moodDest $n
+        $rel = 'realm-moods\' + $n
+        if ($n -eq 'rotation.json') { $why = Test-RealmMoodRotation $src } else { $why = Test-RealmMoodFile $src }
+        $state = 'new'
+        if ($why) {
+            $state = 'invalid'
+        } elseif (Test-Path -LiteralPath $dest -PathType Leaf) {
+            $same = (Get-FileHash -LiteralPath $src).Hash -eq (Get-FileHash -LiteralPath $dest).Hash
+            $state = if ($same) { 'unchanged' } else { 'changed' }
+        }
+        if ($state -eq 'invalid') {
+            $dataInvalid++
+            Write-Host ('  {0,-10} {1}: {2}; not copied, the copy on the server is left as it is' -f 'refused', $rel, $why) -ForegroundColor Yellow
+        } else {
+            Write-Host ('  {0,-10} {1}' -f $state, $rel)
+        }
+        if ($state -eq 'new' -or $state -eq 'changed') {
+            $dataCopy += [pscustomobject]@{ Source = $src; Dest = $dest; Rel = $rel; State = $state; Plugin = $null }
+        }
+    }
+    # The owner's own files in realm-moods (one level deep) are listed, never touched.
+    if (Test-Path -LiteralPath $moodDest -PathType Container) {
+        $onServer = @()
+        foreach ($x in @(Get-ChildItem -LiteralPath $moodDest -File)) { $onServer += $x.Name }
+        foreach ($sub in @(Get-ChildItem -LiteralPath $moodDest -Directory)) {
+            foreach ($x in @(Get-ChildItem -LiteralPath $sub.FullName -File)) { $onServer += ($sub.Name + '\' + $x.Name) }
+        }
+        foreach ($x in @($onServer | Where-Object { $moodNames -notcontains $_ -and $_ -notlike '*.realm-part' } | Sort-Object)) {
+            Write-Host ('  {0,-10} realm-moods\{1} (not shipped by Realm; left alone)' -f 'other', $x)
+        }
+    }
+}
+
 if ($copy.Count -eq 0 -and $dataCopy.Count -eq 0) {
     Write-Host 'Nothing to deploy; all plugins and their data files are up to date.' -ForegroundColor Green
     if ($dataInvalid -gt 0) { Write-Host "$dataInvalid data file(s) refused (see above): fix them in the repo and deploy again." -ForegroundColor Yellow }
@@ -156,7 +271,7 @@ if ($copy.Count -eq 0 -and $dataCopy.Count -eq 0) {
 $running = @(Get-RealmServerProcess $root).Count -gt 0
 if ($running) { Write-Host '  Server is running: Oxide should hot-reload the copied plugins.' }
 
-$q = "Copy $($copy.Count) plugin file(s) from '$srcDir' to '$target' and $($dataCopy.Count) data file(s) to '$dataDir'?"
+$q = "Copy $($copy.Count) plugin file(s) from '$srcDir' to '$target' and $($dataCopy.Count) data file(s) to '$dataDir' and '$moodDest'?"
 if (-not (Confirm-RealmStep $PSCmdlet $target "Deploy $($copy.Count) plugin(s) and $($dataCopy.Count) data file(s)" $q $Yes)) { return }
 
 # Data first: a plugin that loads before its data says "nothing to show" until it is reloaded.
@@ -173,7 +288,7 @@ foreach ($c in $dataCopy) {
     Move-Item -LiteralPath $part -Destination $c.Dest -Force
 }
 if ($dataCopy.Count -gt 0) {
-    Write-Host "Deployed $($dataCopy.Count) data file(s) to $dataDir" -ForegroundColor Green
+    Write-Host "Deployed $($dataCopy.Count) data file(s) to $dataDir and $moodDest" -ForegroundColor Green
     if (Test-Path -LiteralPath $dataBackupDir) { Write-Host "Replaced data files saved in $dataBackupDir" }
 }
 if ($dataInvalid -gt 0) { Write-Host "$dataInvalid data file(s) refused (see above): fix them in the repo and deploy again." -ForegroundColor Yellow }
@@ -198,7 +313,8 @@ if ($copy.Count -eq 0) {
 # A running plugin reads its data when it loads. Oxide reloads a plugin whose .cs changed by itself; the others
 # need a reload (Realm Steward sends it over the admin console).
 $changedCs = @($copy | ForEach-Object { [System.IO.Path]::GetFileNameWithoutExtension($_.Dest) })
-$needReload = @($dataCopy | ForEach-Object { $_.Plugin } | Sort-Object -Unique | Where-Object { $changedCs -notcontains $_ })
+# The mood library has no plugin (Plugin = $null): nothing reloads for it.
+$needReload = @($dataCopy | ForEach-Object { $_.Plugin } | Where-Object { $_ } | Sort-Object -Unique | Where-Object { $changedCs -notcontains $_ })
 if ($needReload.Count -gt 0) {
     $verb = 'When the server next starts they load the new data.'
     if ($running) { $verb = 'Type in the server console:' }

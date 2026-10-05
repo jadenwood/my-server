@@ -65,6 +65,14 @@
       "filter": [
         "arrival.json"
       ]
+    },
+    {
+      "from": "../mods/presets",
+      "to": "realm-data/moods",
+      "filter": [
+        "rotation.json",
+        "*/*.cfg"
+      ]
     }
   ],
   "extraFiles": [
