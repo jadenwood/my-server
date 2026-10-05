@@ -2,7 +2,7 @@
 
 A newcomer's first minutes in Ostreval, from the game's own character screen on the ferryman's raft to the Hearth fire, in three to five minutes. The approved design, with every beat, line and game citation, is [`docs/arrival-design.md`](../../docs/arrival-design.md); this guide is how to install, build, run and test it.
 
-**Status.** Compile-checked at C# 3 against the real Oxide 2.0.3867 and patched game DLL metadata (`tools/plugin-compile-check/check.sh`). Mock-tested: 559 checks (`plugins/docs/RealmArrival/logic-tests/run.sh`), including the real site plan placed at all four turns and a full arrival walked on it. Exploit suite: 87 checks (`tools/exploit-review/run.sh arrival`). **Nothing here has been seen working on a real server.** Every game-side assumption is listed under [What is UNVERIFIED](#what-is-unverified), each with its step in the [first-test plan](#first-test-plan-10-steps).
+**Status.** Compile-checked at C# 3 against the real Oxide 2.0.3867 and patched game DLL metadata (`tools/plugin-compile-check/check.sh`). Mock-tested: 650 checks (`plugins/docs/RealmArrival/logic-tests/run.sh`), including the real site plan placed at all four turns, the ember band checked cell for cell against the site file at all four turns, and a full arrival walked on it. Exploit suite: 95 checks (`tools/exploit-review/run.sh arrival`). **Nothing here has been seen working on a real server.** Every game-side assumption is listed under [What is UNVERIFIED](#what-is-unverified), each with its step in the [first-test plan](#first-test-plan-10-steps).
 
 Speaker in chat: **Hearth** (lang key `Speaker`). Permissions: `realmarrival.admin`, `realmarrival.skip`. Files: `plugins/RealmArrival.cs`, `oxide/config/RealmArrival.json`, `oxide/data/RealmArrival.json`, and the site plan `oxide/data/RealmArrival/site.json` (a copy of `art/sculptures/sites/arrival.json`, read only).
 
@@ -24,7 +24,7 @@ Speaker in chat: **Hearth** (lang key `Speaker`). Permissions: `realmarrival.adm
 | `/quest`, 70 m from the fire, or 60 s after the last line | **Written** (green): the arrival is done, `/realm path` keeps the first steps, and RealmHerald's reminders start from now. |
 | The first hour | Each once: Three Roads at the wayboard (or 10 minutes after Written) with the next event, ten minutes of shelter left, the first block outside a crest, the first dusk, the sleeper tip on the next join, and `/arrival` on the second join. |
 
-Returning players see nothing. Veterans on a fresh world (a known record, or seeded from RealmHerald) keep the game's spawn and get one `Veteran` line (`VeteranMode` can give them the short or full walk). Anyone can `/arrival skip`.
+Returning players see nothing. Veterans on a fresh world (a known record, or seeded from RealmHerald) keep the game's spawn and get one `Veteran` line (`VeteranMode` can give them the short or full walk; a veteran who leaves that walk midway, during creation or by a world reset, stays a veteran and never gets the newcomer's Herald line, quest credit or pledges). Anyone can `/arrival skip`.
 
 ## Commands
 
@@ -33,7 +33,7 @@ Returning players see nothing. Veterans on a fresh world (a known record, or see
 | Command | Does |
 |---|---|
 | `/arrival` | Your stage and the next step; after the arrival, your page so far (house, waystones known, tale) and the next event. |
-| `/arrival skip` | Ends the arrival at once ("As you wish. The gate is open; the Hearth is yours."). From the hall it moves you 4 m out to the forecourt; anywhere else it moves nobody. |
+| `/arrival skip` | Ends the arrival at once ("As you wish. The gate is open; the Hearth is yours."). From the hall it moves you 4 m out to the forecourt (with no eject point stored, the gate opens instead and stays open while you are inside); anywhere else it moves nobody. A skip from the arrival credits its first quest step (`arrival_gate`). |
 | `/arrival tour` | The banners, the fire and the roads speak again the next time you pass them. Never moves anyone. |
 
 **Staff** (`/arrival admin ...`, permission `realmarrival.admin`):
@@ -51,15 +51,15 @@ Returning players see nothing. Veterans on a fresh world (a known record, or see
 | `runsheet` | The after-wipe list with what the plugin can see of each step. |
 | `lot` / `lot draw` / `lot set <six houses>` / `lot clear` | The pair lot: which great house stands in which slot (`p1-left` ... `p3-right`). `draw` casts it on the server and the Herald tells the realm; `set` records a lot drawn elsewhere (dice on stream). The banner points follow. |
 | `open` / `open force` / `close` | Open routes newcomers into the Gatehouse (only once the check passes). `open force` is for a test server: it opens despite the problems, says and logs each one, and the self-check still closes it if a stone loses its floor. `close`: vanilla spawns for new players; arrivals under way finish; `ArrivalStage` answers `none`. |
-| `pause` / `resume` | Instant global off: vanilla spawns, the provider restored, the gate opened, every arrival handed back to RealmHerald's normal welcome. |
+| `pause` / `resume` | Instant global off: vanilla spawns, the provider restored, the gate opened, every arrival handed back to RealmHerald's normal welcome. Nobody is moved and nobody is evicted while paused; at `resume`, a handed-back newcomer still in the hall is let out to E with `ReleasedGate` (never an eviction), and one who was offline is let out the same way when they next wake there. |
 | `mode teleport\|provider\|road\|off` | Routing (see [Routing](#routing-and-its-fallbacks)). |
 | `gatemode open\|portcullis` | The open arch (default) or the sinking portcullis. |
 | `stone add\|remove <n>\|list\|clear`, `mercy add\|remove <n>\|list\|clear` | Store stones where you stand (when not anchoring the plan). |
 | `hall corner1\|corner2`, `droppad corner1\|corner2`, `eject set`, `threshold set`, `hearth set`, `wayboard set`, `throne set` (each also `clear`) | Store the boxes and points where you stand. |
 | `banner set\|clear <house>` | Stand on a pledge stone. |
 | `gate set <w> <h> [+z\|+x\|-z\|-x]`, `gate build\|open\|close\|test\|remove` | The portcullis cells (plugin-owned). With the plan anchored, `gate build` writes the plan's exact 30 cells. `test` opens it and closes it again after `GateMinOpenSeconds`, even while the arrival is closed. |
-| `beacon build <radius> [dy]`, `beacon clear`, `beacon test` | The ember band round the stored Hearth (the plan's 24 cells at radius 5). |
-| `evict on\|off`, `wave on <minutes>\|off` | Hall eviction; launch-wave mode (gate held open, no window, two per stone, overflow to the mercy stones). |
+| `beacon build <radius> [dy]`, `beacon clear`, `beacon test` | The ember band: exactly the site file's `cells.emberBand` (24 cells at radius 5, the octagon in its `rule`, not 15-degree steps). With the plan anchored, the plan's own cells, wherever the hearth point is stored; with the file but no anchor, its offsets round the stored Hearth; without the file, the same octagon built in. |
+| `evict on\|off`, `wave on <minutes>\|off` | Hall eviction (never staff with `realmarrival.skip` or `realmarrival.admin`, never while paused); launch-wave mode (gate held open, no window, two per stone, overflow to the mercy stones). |
 | `play <player>`, `skip <player>`, `reset <player> [pending\|done]`, `veteran <player>`, `pass <player>` | A staff run (no Herald line, quest credit or deed; refused in a fight); end someone's arrival; reset a record; mark a known veteran; open the gate for someone stuck, or move them out of the hall. |
 
 ## The site
@@ -70,11 +70,11 @@ Returning players see nothing. Veterans on a fresh world (a known record, or see
 copy art\sculptures\sites\arrival.json G:\RealmTest\server\oxide\data\RealmArrival\site.json
 ```
 
-The plugin only reads it. Without it, every point is stored by staff standing on it, and the check notes that the plan cannot be compared.
+The plugin only reads it, and only the fields it needs: anything else in the file (`lights[]`, `terrain[]`, notes, fields a later version adds) is ignored, so the art side can add to the format without breaking the plugin. Without it, every point is stored by staff standing on it, and the check notes that the plan cannot be compared.
 
 **Coordinates.** The plan is in block cells (1.2 m). `/arrival admin site anchor` finds the world cell of the plan's origin from where you stand and which way you face: world cell = anchor + turn(site cell, R), with `turn([x, y, z], 1) = [z, y, -x]`, the same quarter-turns `/sculpt place` uses. A point a player stands at is the cell's centre (`RootCubeGrid.LocalToWorldCoordinate`) lowered to just above its floor; arrival teleports go 0.5 m above that.
 
-**Plugin-owned cells.** The portcullis (30 reinforced cells, Iron 900) and the ember band (24 clay cells, Ember deep resting, Ember hot when it flares) are never RealmSculptor cells, so `/sculpt repair` and `/sculpt remove` never touch them. RealmArrival records them, protects them (`OnCubeTakeDamage`, `OnCubePlacement`) and forces the gate open on every load.
+**Plugin-owned cells.** The portcullis (30 reinforced cells, Iron 900) and the ember band (24 clay cells, Ember deep resting, Ember hot when it flares; they rest on the hearth ring's dais, one cell above it at the Hearth centre's height, `restsOn: hearth-ring`) are never RealmSculptor cells, so `/sculpt repair` and `/sculpt remove` never touch them. RealmArrival records them, protects them (`OnCubeTakeDamage`, `OnCubePlacement`) and forces the gate open on every load.
 
 **First build** (after PT2, on the test world first):
 
@@ -107,7 +107,7 @@ Sculptures, signs, crests, fire pits and the plugin's gate and band cells are wo
 
 ## The check
 
-`/arrival admin check` (and `open`) refuses while any of these is wrong: no stones, no mercy stones, no hall box, no eject point, gold line or hearth; portcullis mode without a built gate; a stone without two air cells or a block floor; a mercy stone or E without two air cells; with the plan anchored, a missing stone floor; the hall box or a stone inside the Hearth town zone; the hall within 80 m of the Old Throne; any site point inside a RealmDominion holding or an arena zone; the hearth more than 3 m from RealmQuests' `the_hearth` or RealmLaws' `Hearth`; RealmSentinel or RealmTravel not loaded; no waystone `the-hearth`. It notes (without refusing): no drop pad, no wayboard, fewer than six pledge stones, the throne's position unknown, the site file missing or unusable, the lot not drawn, the plan not anchored, points more than 1.5 m off the plan, gate cells off the plan, and any zone radius in the plan that differs from the config.
+`/arrival admin check` (and `open`) refuses while any of these is wrong: no stones, no mercy stones, no hall box, no eject point, gold line or hearth; portcullis mode without a built gate; the eject point inside the hall box (eviction would loop), a stone outside it (every arrival check would fail into road mode), or a mercy stone inside it (deaths would go back in); a stone without two air cells or a block floor; a mercy stone or E without two air cells; with the plan anchored, a missing stone floor; the hall box or a stone inside the Hearth town zone; the hall within 80 m of the Old Throne; any site point inside a RealmDominion holding or an arena zone; the hearth more than 3 m from RealmQuests' `the_hearth` or RealmLaws' `Hearth`; RealmSentinel or RealmTravel not loaded; no waystone `the-hearth`. It notes (without refusing): no drop pad, no wayboard, fewer than six pledge stones, the throne's position unknown, the site file missing or unusable, the lot not drawn, the plan not anchored, points more than 1.5 m off the plan, gate cells off the plan, and any zone radius in the plan that differs from the config.
 
 ## Routing and its fallbacks
 
@@ -118,7 +118,7 @@ Sculptures, signs, crests, fire pits and the plugin's gate and band cells are wo
 | `road` | No move: the newcomer is released where the game put them with `/road the-hearth`; the fire beats and the Herald line come at the fire. |
 | `off` | Vanilla. |
 
-Arrival checks at T+3 s and T+10 s: outside the hall box, one more teleport (counted unconfirmed); still outside, road mode. Stones are used least recently first, a stone with a player in arrival or any sleeper within 1.5 m is taken, each placement gets up to 1.2 m of jitter when the stone is shared, each stone takes a second player when all six are taken, and beyond twelve the newcomer goes to a mercy stone at the Hearth with the short lines.
+Arrival checks at T+3 s and T+10 s: outside the hall box, one more teleport (counted unconfirmed); still outside, road mode. A run that has never reached the hall 8 s after the last check (its check timers died with a reload) goes to road mode too, so nobody waits in the `gatehouse` stage outside the Gatehouse. While portcullis cells are stored but the block grid is not bound (a load right after a crash that left the gate closed), newcomers go by road mode until the bind's retry forces the gate open. Stones are used least recently first, a stone with a player in arrival or any sleeper within 1.5 m is taken, each placement gets up to 1.2 m of jitter when the stone is shared, each stone takes a second player when all six are taken, and beyond twelve the newcomer goes to a mercy stone at the Hearth with the short lines.
 
 ## Config (`oxide/config/RealmArrival.json`)
 
@@ -159,7 +159,7 @@ Arrival checks at T+3 s and T+10 s: outside the hall box, one more teleport (cou
 
 ## Integration
 
-**Offered** (non-public, `Plugin.Call`): `ArrivalStage(string id)` returns `pending` (no record or not yet spawned, while open), `crossing`, `running` (in the Gatehouse, released, on the banners or at the Hearth), `done` or `none`; `OwnsArrival(string id)` is true for the first three. Both answer from saved data alone, so load order does not matter.
+**Offered** (non-public, `Plugin.Call`): `ArrivalStage(string id)` returns `pending` (no record or not yet spawned, while open), `crossing`, `running` (in the Gatehouse, released, on the banners or at the Hearth), `done` or `none`; `OwnsArrival(string id)` is true for the first three. Both answer from saved data alone, so load order does not matter. One session-only exception: a pending record whose Finish click the plugin saw without seeing creation start (it was loaded mid-creation) answers `none` until that player logs off, so the other plugins' welcome is not held back; nothing is saved, and a stray event cannot turn a newcomer into a veteran.
 
 **Guards in other plugins** (design 7.3, on this branch): RealmHerald defers its welcome and newcomer broadcast while the arrival owns a newcomer and, once done, sends the MOTD alone and starts the reminders; RealmWarden skips its join "Welcome", starts play time at the first spawn (character creation no longer uses the protected hour) and offers `GetProtectionMinutesLeft`; RealmQuests skips the first hint and holds the tale's first news; RealmTravel skips the 45 s kit hint. RealmRenown has the deed kind `written`. RealmHerald's `/realm` catalogue lists `/arrival` under roads.
 
@@ -171,16 +171,16 @@ Arrival checks at T+3 s and T+10 s: outside the hall box, one more teleport (cou
 
 ## Data
 
-`oxide/data/RealmArrival.json`: one record per Steam id (it survives wipes), the stored site (points, gate and band cells, the anchor, the lot) and the counters. Saved on every stage change (debounced), on `OnServerSave` and on Unload. If the file exists but cannot be read, routing is off (vanilla spawns), `ArrivalStage` answers `none`, and the file is never overwritten: fix it or move it away, then reload. The site file is only ever read.
+`oxide/data/RealmArrival.json`: one record per Steam id (it survives wipes), the stored site (points, gate and band cells, the anchor, the lot) and the counters. Saved on every stage change (debounced), on `OnServerSave` and on Unload. If the file exists but cannot be read, routing is off (vanilla spawns), `ArrivalStage` answers `none`, and the file is never overwritten: fix it or move it away, then reload. A file that reads but holds nulls or bad entries (a hand edit) is repaired on load: null points and cells dropped, unknown houses and stages dropped or read as `done`, the used-time lists matched to the stones, the turn wrapped to 0-3. The site file is only ever read.
 
 ## Tests
 
 ```
-bash plugins/docs/RealmArrival/logic-tests/run.sh      # 559 checks
-bash tools/exploit-review/run.sh arrival               # 87 checks (A1-A20 in tools/exploit-review/arrival/README.md)
+bash plugins/docs/RealmArrival/logic-tests/run.sh      # 650 checks
+bash tools/exploit-review/run.sh arrival               # 95 checks (A1-A21 in tools/exploit-review/arrival/README.md)
 ```
 
-The logic tests compile the plugin unchanged with `Mocks.cs` (the game and Oxide surface it touches, a grid that rounds cells as the game does, a virtual clock) and `World.cs` (a site on the +z axis and fake RealmSentinel, RealmTravel, RealmWarden, RealmHouses, CrownAndConsequences, RealmEvents, RealmArena, RealmQuests, RealmRenown and RealmHerald). `Tests4.cs` copies the real `art/sculptures/sites/arrival.json`, anchors it at all four turns, computes every expected cell from the file itself and compares, then walks a newcomer from the Finish click to Written on the anchored plan. They prove the plugin's rules, not the game's behaviour.
+The logic tests compile the plugin unchanged with `Mocks.cs` (the game and Oxide surface it touches, a grid that rounds cells as the game does, a virtual clock) and `World.cs` (a site on the +z axis and fake RealmSentinel, RealmTravel, RealmWarden, RealmHouses, CrownAndConsequences, RealmEvents, RealmArena, RealmQuests, RealmRenown and RealmHerald). `Tests4.cs` copies the real `art/sculptures/sites/arrival.json`, anchors it at all four turns, computes every expected cell from the file itself and compares, then walks a newcomer from the Finish click to Written on the anchored plan. `Tests5.cs` holds the integration review: the ember band against the file at all four turns (anchored, unanchored and the built-in fallback), a site file full of unknown fields, the stuck-in-the-gatehouse cases (reload before the first move, pause, skip with no E, a closed gate whose grid is not bound), veterans re-crossing, the check's loop guards, staff and eviction, a full arrival with RealmQuests, RealmWarden and RealmHerald (then every Realm plugin) unloaded, and a damaged but readable data file. They prove the plugin's rules, not the game's behaviour.
 
 ## First-test plan (10 steps)
 

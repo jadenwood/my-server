@@ -169,7 +169,11 @@ centre (`gate.rows[5][0]` is the gate-set cell; the band is the Hearth centre pl
 **The ember band's shape.** The 24 offsets are the octagon in `cells.emberBand.rule`: per quadrant `(5, 0)`, `(5, 1)`,
 `(4, 2)`, `(3, 3)`, `(2, 4)`, `(1, 5)` and their quarter-turns, each cell touching the next, so the band reads as one
 unbroken ring. The set is the same under every quarter-turn, so the offsets apply unchanged in world cells whatever
-turn the site is placed at. Note for `beacon build`: 24 cells at 15-degree steps rounded to the grid
-(`round(5 cos 15k), round(5 sin 15k)`) is a different set, with `(4, 3)`, `(4, 4)`, `(3, 4)` in place of `(4, 2)`,
-`(3, 3)`, `(2, 4)` and two one-cell gaps in every quadrant; RealmArrival should write the rule's cells so the band in
-game is the one in the previews.
+turn the site is placed at. 24 cells at 15-degree steps rounded to the grid (`round(5 cos 15k), round(5 sin 15k)`) is
+a different set, with `(4, 3)`, `(4, 4)`, `(3, 4)` in place of `(4, 2)`, `(3, 3)`, `(2, 4)` and one-cell gaps; RealmArrival
+does not use it. `beacon build 5` writes exactly these cells: the plan's own cells once the site is anchored (whatever
+hearth point staff stored), else these offsets round the stored Hearth, else the same octagon built into the plugin
+(`RealmArrival.BandCells`). `plugins/docs/RealmArrival/logic-tests/Tests5.cs` checks all three against this file at
+all four turns. The band rests on the hearth ring's dais (`restsOn`): the ring is two cells high and has no cells where
+the band stands. Plugins read only the fields named above; anything else in a site file (`lights[]`, `terrain[]`, a
+later field) is ignored by RealmArrival's reader, which a test also checks.
