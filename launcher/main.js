@@ -52,7 +52,8 @@ const DEV_STEAM_SERVER = DEV ? process.env.REALM_DEV_STEAM_SERVER || '' : '';
 const RESOURCE_BASE = app.isPackaged ? process.resourcesPath : path.join(__dirname, '..');
 const CHRONICLE_DIR = path.join(RESOURCE_BASE, 'chronicle');
 const PLUGINS_DIR = path.join(RESOURCE_BASE, 'plugins');
-// Data files some plugins read (sculptures, sign art, quest content, the arrival site plan): resources\realm-data when installed.
+// Data files some plugins read (sculptures, sign art, quest content, the arrival site plan) and the world-mood
+// library for Set-Mood.ps1 (<server>\realm-moods, never Mods\): resources\realm-data when installed.
 const DATA_SETS = R.dataSets(RESOURCE_BASE, app.isPackaged);
 const PLAYER_CONFIG_IN_REPO = path.join(__dirname, 'player', 'player-config.json');
 
@@ -1414,7 +1415,7 @@ function registerIpc() {
         lastData = data;
         const m = mgr(inst.id);
         if (res.copied) m.log('sys', `Deployed ${res.copied} plugin file(s) to ${res.target}. Oxide reloads changed plugins while the server runs.`);
-        if (data.copied) m.log('sys', `Deployed ${data.copied} data file(s) to ${data.target} (${data.reload.join(', ')}).`);
+        if (data.copied) m.log('sys', `Deployed ${data.copied} data file(s)${data.reload.length ? ` for ${data.reload.join(', ')}` : ''} (plugin data in ${data.target}, world mood presets in ${path.join(c.root, 'realm-moods')}).`);
         for (const i of data.items.filter((x) => x.state === 'invalid')) m.log('err', `Not deployed: ${i.rel} (${i.reason}). The copy on the server was left as it was.`);
         // A running plugin reads its data at load: reload the ones whose data changed (their .cs was
         // not changed, or Oxide's own file watcher reloads them anyway).

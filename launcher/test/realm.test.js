@@ -284,7 +284,8 @@ test('data deploy: sculptures, painter bundle and quest content land in oxide\\d
 test('data deploy: the development sources are the repository files', async () => {
   const repo = path.join(__dirname, '..', '..');
   const sets = R.dataSets(repo, false);
-  assert.deepEqual(sets.map((s) => s.plugin), ['RealmSculptor', 'RealmPainter', 'RealmQuests', 'RealmArrival']);
+  assert.deepEqual(sets.map((s) => s.plugin), ['RealmSculptor', 'RealmPainter', 'RealmQuests', 'RealmArrival', null]);
+  assert.equal(sets.find((s) => s.id === 'moods').src, path.join(repo, 'mods', 'presets'));
   const base = await tmpdir();
   const { root } = await makeTestCopy(base);
   const plan = await R.planData(root, sets);
@@ -301,6 +302,120 @@ test('data deploy: the development sources are the repository files', async () =
   assert.equal(JSON.parse(fs.readFileSync(arrival[0].src, 'utf8')).format, 'realm-site/1');
   // The sites folder is not a sculpture: the sculptures set never picks it up.
   assert.ok(!plan.items.some((i) => i.set === 'sculptures' && /arrival/.test(i.name)));
+  // Every mood in mods/presets passes the deploy's sanity check and lands in <server>/realm-moods/<id>/<id>.cfg.
+  const moods = plan.items.filter((i) => i.set === 'moods');
+  assert.ok(moods.length >= 14, moods.map((i) => i.name).join(', '));
+  assert.ok(moods.some((i) => i.name === 'rotation.json' && i.dest === path.join(root, 'realm-moods', 'rotation.json')));
+  for (const i of moods.filter((x) => x.name !== 'rotation.json')) {
+    const id = i.name.split('/')[0];
+    assert.equal(i.name, `${id}/${id}.cfg`);
+    assert.equal(i.rel, `realm-moods/${id}/${id}.cfg`);
+    assert.equal(i.dest, path.join(root, 'realm-moods', id, `${id}.cfg`));
+  }
+  assert.ok(!moods.some((i) => /Apply-Preset|tests/.test(i.name)), 'scripts and tests are not shipped');
+});
+
+test('mood library deploy: rotation.json and <id>/<id>.cfg go to realm-moods; Mods\\ is never touched; damaged sources refused', async () => {
+  const base = await tmpdir();
+  const { root } = await makeTestCopy(base);
+  const res = path.join(base, 'res');
+  const sets = R.dataSets(res, true).filter((s) => s.id === 'moods');
+  assert.equal(sets.length, 1);
+  const src = path.join(res, 'realm-data', 'moods');
+  assert.equal(sets[0].src, src);
+  const good = "# Realm world mood\nAtmosphere.FogDensity = '1.1'\nWeather.ClearWeight = '6'\n#@scale Clock.DaySpeed = '0.9'\n";
+  await write(path.join(src, 'rotation.json'), '{"moods":{"dawn":{}},"seasonCycle":["dawn"],"events":{}}');
+  await write(path.join(src, 'dawn', 'dawn.cfg'), good);
+  await write(path.join(src, 'dawn', 'Apply-Preset.ps1'), 'Write-Host');
+  await write(path.join(src, 'cut', 'cut.cfg'), "Atmosphere.FogDensity = '1.1'\nWeather.ClearWeight = '6");
+  await write(path.join(src, 'odd', 'odd.cfg'), "Atmosphere.FogDensity = '1.1'\nPlayer.Speed = '9'\n");
+  await write(path.join(src, 'Upper', 'Upper.cfg'), good);
+  await write(path.join(src, 'loose', 'other-name.cfg'), good);
+  await write(path.join(src, 'notes.txt'), 'not shipped');
+  // The live Mods files on the server: a mood id that happens to match a handler name must not matter.
+  const mods = path.join(root, 'Mods');
+  await write(path.join(mods, 'Environment.cfg'), "Atmosphere.FogDensity = '1.4'\n");
+  await write(path.join(mods, 'Environment.defaults.cfg'), "Atmosphere.FogDensity = '1'\n");
+  await write(path.join(mods, 'dawn.cfg'), 'the owner\'s live file');
+  const modsBefore = Object.fromEntries(fs.readdirSync(mods).map((n) => [n, fs.readFileSync(path.join(mods, n), 'utf8')]));
+
+  const lib = path.join(root, 'realm-moods');
+  const first = await R.deployData(root, sets);
+  assert.deepEqual(first.items.map((i) => `${i.name}:${i.state}`), ['cut/cut.cfg:invalid', 'dawn/dawn.cfg:new', 'odd/odd.cfg:invalid', 'rotation.json:new']);
+  assert.equal(first.copied, 2);
+  assert.equal(first.invalid, 2);
+  assert.deepEqual(first.reload, [], 'no plugin reloads for the mood library');
+  assert.match(first.items[0].reason, /line 2 is not a complete key = 'value' line|no line break/);
+  assert.match(first.items[2].reason, /'Player\.Speed' is not a mood key/);
+  assert.equal(fs.readFileSync(path.join(lib, 'dawn', 'dawn.cfg'), 'utf8'), good);
+  assert.ok(fs.existsSync(path.join(lib, 'rotation.json')));
+  assert.ok(!fs.existsSync(path.join(lib, 'cut')), 'a damaged mood is never copied');
+  assert.ok(!fs.existsSync(path.join(lib, 'dawn', 'Apply-Preset.ps1')));
+  assert.ok(!fs.existsSync(path.join(lib, 'notes.txt')));
+  assert.ok(!fs.existsSync(path.join(root, 'oxide', 'data', 'realm-moods')), 'the library is not plugin data');
+  const summary = first.sets[0];
+  assert.equal(summary.dir, lib);
+  assert.equal(summary.plugin, null);
+  assert.deepEqual(Object.fromEntries(fs.readdirSync(mods).map((n) => [n, fs.readFileSync(path.join(mods, n), 'utf8')])), modsBefore, 'Mods\\ is untouched');
+
+  // The owner's own mood and a hand-edited shipped mood: the own one is listed and kept, the edited one is
+  // backed up to _realm-backups\\data-<time>\\realm-moods\\ before the shipped version replaces it.
+  await write(path.join(lib, 'mine', 'mine.cfg'), "Weather.ClearWeight = '9'\n");
+  await write(path.join(lib, 'dawn', 'dawn.cfg'), "Atmosphere.FogDensity = '1.3'\n");
+  // A damaged source never replaces the good copy on the server.
+  await write(path.join(lib, 'cut', 'cut.cfg'), "Atmosphere.FogDensity = '1.2'\n");
+  const second = await R.deployData(root, sets);
+  assert.equal(second.copied, 1);
+  assert.deepEqual(second.sets[0].others, ['mine/mine.cfg'], 'shipped names (even refused ones) are not owner files');
+  assert.equal(await fsp.readFile(path.join(second.backupDir, 'realm-moods', 'dawn', 'dawn.cfg'), 'utf8'), "Atmosphere.FogDensity = '1.3'\n");
+  assert.equal(await fsp.readFile(path.join(lib, 'dawn', 'dawn.cfg'), 'utf8'), good);
+  assert.equal(await fsp.readFile(path.join(lib, 'mine', 'mine.cfg'), 'utf8'), "Weather.ClearWeight = '9'\n");
+  assert.equal(await fsp.readFile(path.join(lib, 'cut', 'cut.cfg'), 'utf8'), "Atmosphere.FogDensity = '1.2'\n");
+  assert.ok(!fs.readdirSync(path.join(lib, 'dawn')).some((n) => n.endsWith('.realm-part')));
+  assert.deepEqual(Object.fromEntries(fs.readdirSync(mods).map((n) => [n, fs.readFileSync(path.join(mods, n), 'utf8')])), modsBefore);
+
+  // A rotation.json without moods/seasonCycle is refused.
+  await write(path.join(src, 'rotation.json'), '{"events":{}}');
+  const third = await R.deployData(root, sets);
+  assert.equal(third.copied, 0);
+  assert.match(third.items.find((i) => i.name === 'rotation.json').reason, /no "moods" object/);
+});
+
+test('mood file sanity check: text, complete lines, proven keys only, no repeats, a final line break, 64 KB', async () => {
+  const ok = (t) => R.checkMoodText(Buffer.from(t));
+  assert.equal(ok("Atmosphere.FogDensity = '1.1'\n").ok, true);
+  assert.equal(ok("\uFEFF# c\r\nAtmosphere.FogDensity = '1.1'\r\n\r\n").ok, true, 'BOM and CRLF');
+  assert.equal(ok("  Weather.ClearWeight = '3'   # trailing note\n").ok, true);
+  assert.equal(ok("#@scale Clock.DaySpeed = '0.9'\n").ok, true);
+  assert.match(ok("Atmosphere.FogDensity='1.1'\n").reason, /not a complete key = 'value' line/);
+  assert.match(ok("Atmosphere.FogDensity = '1.1\n").reason, /not a complete/);
+  assert.match(ok("Atmosphere.FogDensity = '1.1'").reason, /no line break at the end/);
+  assert.match(ok("Atmosphere.FogDensity = '1.1'\nAtmosphere.FogDensity = '1.2'\n").reason, /set twice/);
+  assert.match(ok("Atmosphere.FogDensity = ''\n").reason, /no value/);
+  assert.match(ok("Server.Name = 'x'\n").reason, /not a mood key/);
+  assert.match(ok("#@scale Server.Name = '2'\n").reason, /not a mood key/);
+  assert.match(ok('# only comments\n\n').reason, /no mood lines/);
+  assert.match(ok("Atmosphere.FogDensity = '1.1'\n\u0000\n").reason, /control characters/);
+  assert.match(R.checkMoodText(Buffer.from([0x41, 0xff, 0xfe, 0x0a])).reason, /not UTF-8/);
+  const base = await tmpdir();
+  const big = path.join(base, 'big.cfg');
+  await write(big, '#'.repeat(70 * 1024) + "\nAtmosphere.FogDensity = '1.1'\n");
+  assert.match((await R.checkMoodFile(big)).reason, /larger than/);
+  const empty = path.join(base, 'empty.cfg');
+  await write(empty, '');
+  assert.equal((await R.checkMoodFile(empty)).reason, 'empty');
+  assert.equal((await R.checkMoodFile(path.join(base, 'none.cfg'))).reason, 'missing');
+});
+
+test('the mood keys the deploy accepts are exactly Set-Mood.ps1 $MoodKeys', () => {
+  const ps = fs.readFileSync(path.join(__dirname, '..', '..', 'server', 'Set-Mood.ps1'), 'utf8');
+  const block = ps.slice(ps.indexOf('$MoodKeys = @{'), ps.indexOf('$WeightOrder'));
+  const keys = [...block.matchAll(/^\s*'([A-Za-z.]+)'\s*=\s*@\{/gm)].map((m) => m[1]);
+  assert.equal(keys.length, 12);
+  assert.deepEqual([...R.MOOD_KEYS].sort(), keys.sort());
+  const deploy = fs.readFileSync(path.join(__dirname, '..', '..', 'server', 'Deploy-Plugins.ps1'), 'utf8');
+  const dkeys = [...deploy.slice(deploy.indexOf('$moodKeys = @('), deploy.indexOf('$moodKeys = @(') + 2000).matchAll(/'([A-Za-z]+\.[A-Za-z]+)'/g)].map((m) => m[1]);
+  assert.deepEqual(dkeys.sort(), keys.sort(), 'Deploy-Plugins.ps1 checks the same keys');
 });
 
 test('data deploy: the arrival site plan is written as RealmArrival/site.json with backups and the usual rules', async () => {

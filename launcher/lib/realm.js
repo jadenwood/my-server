@@ -416,9 +416,35 @@ async function deployPlugins(root, srcDir) {
 //
 // In the installed Steward the files are under resources\realm-data (build/steward.json extraResources);
 // in a development checkout they are read from the repository itself.
+//
+// The world-mood library (mods/presets, kind 'moods') is the one set that is not plugin data: it goes to
+// <server>\realm-moods\ (base 'server'), laid out the way server\Set-Mood.ps1 reads -PresetsDir:
+// rotation.json and <id>\<id>.cfg per mood. It is a library only. The game reads Mods\<Name>.cfg, not
+// this folder, and the deploy never writes Mods\: switching the live mood stays Set-Mood.ps1's job
+// (Set-Mood.ps1 -PresetsDir <server>\realm-moods -Mood <id>). The .cfg files are not JSON, so each one
+// gets checkMoodFile instead: UTF-8 text, at most 64 KB, every line a comment or a complete key = 'value'
+// line for one of the proven mood keys, no key twice, at least one key, and a final line break (a cut-off
+// copy is refused). rotation.json must be a JSON object with "moods" and "seasonCycle". No plugin reloads.
 
 const DATA_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}\.json$/;
 const DATA_MAX_BYTES = 16 * 1024 * 1024;
+const MOOD_ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const MOOD_MAX_BYTES = 64 * 1024;
+// The keys a mood may set: server/Set-Mood.ps1 $MoodKeys (proven in docs/mods-keys-from-dll.md); a test keeps them equal.
+const MOOD_KEYS = [
+  'Atmosphere.FogDensity',
+  'Atmosphere.FogColor',
+  'Atmosphere.SunColor',
+  'Atmosphere.MoonColor',
+  'Atmosphere.IslandLatitude',
+  'Atmosphere.IslandLongitude',
+  'Weather.ClearWeight',
+  'Weather.CloudyWeight',
+  'Weather.PrecipitateLowWeight',
+  'Weather.PrecipitateMediumWeight',
+  'Weather.PrecipitateHeavyWeight',
+  'Clock.DaySpeed'
+];
 
 function dataSets(resourceBase, packaged) {
   const p = (...a) => path.join(resourceBase, ...a);
@@ -426,7 +452,8 @@ function dataSets(resourceBase, packaged) {
     { id: 'sculptures', label: 'Monuments', plugin: 'RealmSculptor', src: packaged ? p('realm-data', 'RealmSculptor') : p('art', 'sculptures'), dest: 'RealmSculptor', only: null, versionKey: null },
     { id: 'paintings', label: 'Sign art bundle', plugin: 'RealmPainter', src: packaged ? p('realm-data') : p('art', 'paintings'), dest: '', only: ['RealmPainterArt.json'], versionKey: 'Version' },
     { id: 'quests', label: 'Quests and deeds', plugin: 'RealmQuests', src: packaged ? p('realm-data', 'RealmQuests') : p('plugins', 'docs', 'RealmQuests', 'content'), dest: 'RealmQuests', only: null, versionKey: null },
-    { id: 'arrival', label: 'Arrival site plan', plugin: 'RealmArrival', src: packaged ? p('realm-data', 'RealmArrival') : p('art', 'sculptures', 'sites'), dest: 'RealmArrival', only: ['arrival.json'], as: { 'arrival.json': 'site.json' }, versionKey: null }
+    { id: 'arrival', label: 'Arrival site plan', plugin: 'RealmArrival', src: packaged ? p('realm-data', 'RealmArrival') : p('art', 'sculptures', 'sites'), dest: 'RealmArrival', only: ['arrival.json'], as: { 'arrival.json': 'site.json' }, versionKey: null },
+    { id: 'moods', label: 'World mood presets', plugin: null, kind: 'moods', base: 'server', src: packaged ? p('realm-data', 'moods') : p('mods', 'presets'), dest: 'realm-moods', only: null, versionKey: null }
   ];
 }
 
@@ -456,28 +483,129 @@ async function checkDataFile(file, versionKey) {
   }
 }
 
+// Sanity check for one world-mood file's bytes (not JSON). Returns { ok, reason }.
+function checkMoodText(buf) {
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(buf);
+  } catch {
+    return { ok: false, reason: 'not UTF-8 text' };
+  }
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text)) return { ok: false, reason: 'not a text file (control characters)' };
+  text = text.replace(/^\uFEFF/, '');
+  if (!/\n$/.test(text)) return { ok: false, reason: 'no line break at the end (cut off?)' };
+  const seen = new Set();
+  const lines = text.split(/\r?\n/);
+  lines.pop();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const at = `line ${i + 1}`;
+    let m = /^\s*#@scale\s+(\S+)\s+=\s*'([^'#]*)'\s*$/.exec(line);
+    if (!m) {
+      if (/^\s*(#|$)/.test(line)) continue;
+      m = /^\s*([^#=\s][^=]*?)\s+=\s*'([^'#]*)'\s*(#.*)?$/.exec(line);
+      if (!m) return { ok: false, reason: `${at} is not a complete key = 'value' line` };
+    }
+    const key = m[1].trim();
+    if (!MOOD_KEYS.includes(key)) return { ok: false, reason: `${at}: '${key.slice(0, 60)}' is not a mood key` };
+    if (seen.has(key)) return { ok: false, reason: `${at}: '${key}' is set twice` };
+    if (!m[2].trim()) return { ok: false, reason: `${at}: '${key}' has no value` };
+    seen.add(key);
+  }
+  if (!seen.size) return { ok: false, reason: 'no mood lines' };
+  return { ok: true };
+}
+
+async function checkMoodFile(file) {
+  let buf;
+  try {
+    const st = await fsp.stat(file);
+    if (st.size > MOOD_MAX_BYTES) return { ok: false, reason: `larger than ${S.formatBytes(MOOD_MAX_BYTES)}` };
+    if (!st.size) return { ok: false, reason: 'empty' };
+    buf = await fsp.readFile(file);
+  } catch (e) {
+    return { ok: false, reason: e.code === 'ENOENT' ? 'missing' : e.message };
+  }
+  const r = checkMoodText(buf);
+  return r.ok ? { ok: true, version: null } : r;
+}
+
+// rotation.json: a JSON object with a "moods" object and a "seasonCycle" list (Set-Mood.ps1 -Season/-Event/-List).
+async function checkMoodRotation(file) {
+  const r = await checkDataFile(file, null);
+  if (!r.ok) return r;
+  const j = JSON.parse((await fsp.readFile(file, 'utf8')).replace(/^\uFEFF/, ''));
+  if (!j.moods || typeof j.moods !== 'object' || Array.isArray(j.moods)) return { ok: false, reason: 'no "moods" object' };
+  if (!Array.isArray(j.seasonCycle)) return { ok: false, reason: 'no "seasonCycle" list' };
+  return { ok: true, version: null };
+}
+
+// The shipped files of a moods set, as '/'-separated paths: rotation.json and <id>/<id>.cfg.
+async function moodNames(dir) {
+  let entries = [];
+  try {
+    entries = await fsp.readdir(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const e of entries) {
+    if (e.isFile() && e.name === 'rotation.json') out.push(e.name);
+    else if (e.isDirectory() && MOOD_ID_RE.test(e.name) && (await F.isFile(path.join(dir, e.name, `${e.name}.cfg`)))) out.push(`${e.name}/${e.name}.cfg`);
+  }
+  return out.sort();
+}
+
+// Files in the server's moods folder, one level deep, as '/'-separated paths (for the "others" listing).
+async function moodServerFiles(dir) {
+  const out = [];
+  let entries = [];
+  try {
+    entries = await fsp.readdir(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    if (e.isFile()) out.push(e.name);
+    else if (e.isDirectory()) {
+      try {
+        for (const f of await fsp.readdir(path.join(dir, e.name), { withFileTypes: true })) if (f.isFile()) out.push(`${e.name}/${f.name}`);
+      } catch {
+        /* unreadable: not listed */
+      }
+    }
+  }
+  return out.filter((n) => !n.endsWith('.realm-part')).sort();
+}
+
 async function planData(root, sets) {
   const oxideDir = (await getOxideDir(root)) || path.join(root, 'oxide');
   const dataDir = path.join(oxideDir, 'data');
   const out = { target: dataDir, items: [], sets: [] };
   for (const set of sets) {
+    const moods = set.kind === 'moods';
     let names = [];
-    try {
-      names = (await fsp.readdir(set.src)).filter((n) => DATA_NAME_RE.test(n) && /\.json$/i.test(n));
-    } catch {
-      names = [];
+    if (moods) names = await moodNames(set.src);
+    else {
+      try {
+        names = (await fsp.readdir(set.src)).filter((n) => DATA_NAME_RE.test(n) && /\.json$/i.test(n));
+      } catch {
+        names = [];
+      }
     }
     if (set.only) names = names.filter((n) => set.only.includes(n));
     names.sort();
-    const destDir = set.dest ? path.join(dataDir, set.dest) : dataDir;
+    // A set with base 'server' lives in the server folder itself, not in oxide\data.
+    const baseDir = set.base === 'server' ? root : dataDir;
+    const destDir = set.dest ? path.join(baseDir, set.dest) : baseDir;
     const destNames = names.map((n) => dataDestName(set, n));
     const renamed = names.map((n, i) => ({ from: n, to: destNames[i] })).filter((r) => r.from !== r.to);
     const summary = { id: set.id, label: set.label, plugin: set.plugin, dir: destDir, files: 0, changed: 0, invalid: 0, version: null, others: [], renamed, missing: !names.length };
     for (const name of names) {
-      const destName = dataDestName(set, name);
-      const src = path.join(set.src, name);
-      const dest = path.join(destDir, destName);
-      const check = await checkDataFile(src, set.versionKey);
+      const destName = moods ? name : dataDestName(set, name);
+      const src = path.join(set.src, ...name.split('/'));
+      const dest = path.join(destDir, ...destName.split('/'));
+      const check = moods ? await (name.endsWith('.cfg') ? checkMoodFile(src) : checkMoodRotation(src)) : await checkDataFile(src, set.versionKey);
       let state;
       if (!check.ok) state = 'invalid';
       else if (await F.isFile(dest)) state = (await F.sha256File(src)) === (await F.sha256File(dest)) ? 'unchanged' : 'changed';
@@ -488,7 +616,9 @@ async function planData(root, sets) {
       if (state === 'invalid') summary.invalid++;
       out.items.push({ set: set.id, plugin: set.plugin, name, destName, rel: set.dest ? `${set.dest}/${destName}` : destName, src, dest, state, reason: check.ok ? null : check.reason });
     }
-    if (set.dest) {
+    if (moods) {
+      summary.others = (await moodServerFiles(destDir)).filter((n) => !destNames.includes(n));
+    } else if (set.dest) {
       try {
         summary.others = (await fsp.readdir(destDir)).filter((n) => /\.json$/i.test(n) && !destNames.includes(n)).sort();
       } catch {
@@ -517,7 +647,8 @@ async function deployData(root, sets) {
     await fsp.copyFile(i.src, tmp);
     await fsp.rename(tmp, i.dest);
   }
-  const reload = [...new Set(todo.map((i) => i.plugin))].sort();
+  // The plugins whose data changed (the mood library has no plugin: nothing reloads for it).
+  const reload = [...new Set(todo.map((i) => i.plugin).filter(Boolean))].sort();
   return { ...plan, copied: todo.length, invalid: plan.items.filter((i) => i.state === 'invalid').length, reload, backupDir: backedUp ? backupDir : null };
 }
 
@@ -645,6 +776,9 @@ module.exports = {
   deployPlugins,
   dataSets,
   checkDataFile,
+  checkMoodText,
+  checkMoodFile,
+  MOOD_KEYS,
   planData,
   deployData,
   backupsDir,

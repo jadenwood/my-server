@@ -79,6 +79,24 @@ cd <repo>\mods\presets\grim-but-readable
 
 It refuses any key that is not one of the twelve proven mood keys, adds or replaces only that mood's lines (lines an earlier mood set and this one does not stay, so run `-Revert` first for a clean swap), and skips Golden Summer's relative `#@scale` day speed, which only Set-Mood.ps1 can work out. How any mood looks in game is UNVERIFIED.
 
+### The mood library on the server (Update plugins, Deploy-Plugins.ps1)
+
+Realm Steward's **Update plugins** and `server\Deploy-Plugins.ps1` copy the mood library to the server, next to the plugins:
+
+```
+mods\presets\rotation.json        -> <server>\realm-moods\rotation.json
+mods\presets\<id>\<id>.cfg         -> <server>\realm-moods\<id>\<id>.cfg      (all 13 moods)
+```
+
+That is the layout `Set-Mood.ps1` reads, so on a PC without the repository it works from the deployed copy:
+
+```powershell
+.\Set-Mood.ps1 -List -PresetsDir G:\RealmTest\server\realm-moods
+.\Set-Mood.ps1 -Season 3 -PresetsDir G:\RealmTest\server\realm-moods
+```
+
+The deploy **only ships the library**. It never writes `Mods\`, so the mood that is active stays active; the game reads only `Mods\<Name>.cfg`, never `realm-moods\`. Switching mood is still `Set-Mood.ps1`'s job (or `Apply-Preset.ps1`'s). The rules are those of the plugin data files: a damaged source is refused and the copy on the server is left as it is; a mood file you edited on the server is saved to `_realm-backups\data-<time>\realm-moods\` before the shipped one replaces it; a mood folder of your own in `realm-moods\` is listed and never touched; each copy is written to `<name>.realm-part` and renamed into place. A `.cfg` source is accepted only as UTF-8 text of at most 64 KB whose lines are comments or complete `key = 'value'` lines (or `#@scale key = 'factor'`) for the twelve proven keys, with no key twice and a final line break. `rotation.json` must be a JSON object with `moods` and `seasonCycle`. `Apply-Preset.ps1` and the tests are not shipped.
+
 ### Revert
 
 With the server stopped, run:

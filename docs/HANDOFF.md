@@ -126,7 +126,7 @@ types (47 with `team/steward-integration`), the `/realm` hub lists 53 commands.
   Steward's rules (JSON-object check, backup to `_realm-backups\data-<time>\`, owner files left alone,
   `.realm-part` then rename), and both now copy RealmArrival's site plan `art/sculptures/sites/arrival.json`
   as `oxide\data\RealmArrival\site.json` (the installer packs it as `realm-data\RealmArrival\arrival.json`).
-  The Court lists RealmArrival's staff commands. The mood folders are still copied by hand (ROADMAP STW-1).
+  The Court lists RealmArrival's staff commands. The mood folders are deployed to `<server>\realm-moods\` by Update plugins and `Deploy-Plugins.ps1` since `team/steward-fixes` (ROADMAP STW-1).
 
 ### Things the owner must do before the wave-4 tests mean anything
 
@@ -146,8 +146,8 @@ types (47 with `team/steward-integration`), the `/realm` hub lists 53 commands.
 Follow [`ROADMAP.md`](ROADMAP.md). In short:
 
 1. **Finish M0 Integrate.** `team/steward-integration` is merged (check its notes above) and
-   `team/arrival-deploy` closes STW-1's data files; the open M0
-   items: the mood folders in `Deploy-Plugins.ps1` (STW-1), `paint.mjs check` and the new mood
+   `team/arrival-deploy` and `team/steward-fixes` (the mood folders) close STW-1; the open M0
+   items: `paint.mjs check` and the new mood
    keys in CI (SGN-8, QA-5), the removed player screens in the screenshot scripts and docs (PLA-1).
    All checks green.
 2. **M1 Owner proof.** On `G:\RealmTest\server`, run play-test sessions PT0 (build, install, run),
