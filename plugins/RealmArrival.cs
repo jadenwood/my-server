@@ -1070,6 +1070,7 @@ namespace Oxide.Plugins
             providerAnswers.Remove(id);
             staleWake.Remove(id);
             firstSightC.Remove(id.ToString());
+            spawnedUnseen.Remove(id.ToString());
             popupAsks.Remove(id.ToString());
             firstMoveWatch.Remove(id);
             if (loadFailed || data == null || player.IsServer) return;
@@ -1105,11 +1106,13 @@ namespace Oxide.Plugins
         }
 
         private readonly HashSet<ulong> pendingVet = new HashSet<ulong>();
+        private readonly HashSet<string> spawnedUnseen = new HashSet<string>();     // pending records past a Finish click this session
 
         private void FirstSpawn(Player player, Rec rec)
         {
             ulong id = player.Id;
             pendingVet.Remove(id);
+            spawnedUnseen.Remove(id.ToString());
             providerMarks.Remove(id);
             providerAnswers.Remove(id);
             runs.Remove(id);
@@ -1122,8 +1125,11 @@ namespace Oxide.Plugins
             }
             // A known veteran: done (finished, or seen returning), seeded from RealmHerald, or not handled last time (none:
             // closed, paused) after making a character. An in-arrival stage means the world was reset mid-arrival: restart.
+            // A veteran's own short or full walk (variant B) left midway (quit during creation, or the world reset
+            // mid-walk) stays variant B: never the newcomer's Herald line, quest credit or pledges.
             bool veteran = rec.Stage == SDone || rec.Seeded && rec.Stage != SCrossing && !IsRunning(rec.Stage)
-                || rec.Stage == SNone && rec.Finished;
+                || rec.Stage == SNone && rec.Finished
+                || rec.Variant == VVeteran && (rec.Stage == SCrossing || IsRunning(rec.Stage));
             if (veteran)
             {
                 // Variant B: a known veteran on a fresh world.
@@ -1168,6 +1174,12 @@ namespace Oxide.Plugins
                 timer.Once(10f, delegate { Resume(id); });
                 return;
             }
+            // A newcomer handed back by a pause (stage none after an arrival) who wakes in the hall is let out with
+            // ReleasedGate like a stale one, never evicted or counted toward a Warden alert. (Anyone else who logs off
+            // in the hall is evicted as usual when they wake there.)
+            if (!staleWake.Contains(id) && rec.Stage == SNone && rec.T0 != DateTime.MinValue
+                && (InHall(at, 0f) || rec.HasLogout && InHall(V(rec.LX, rec.LY, rec.LZ), 0f)))
+                staleWake.Add(id);
             if (staleWake.Contains(id)) timer.Once(2f, delegate { StaleWake(id); });
             ScheduleJoinTips(player, rec);
         }
@@ -1191,6 +1203,14 @@ namespace Oxide.Plugins
                 if (pendingVet.Remove(id))
                 {
                     if (Handling()) StartVeteranLine(player, rec);
+                    return;
+                }
+                if (rec.Stage == SPending)
+                {
+                    // A character made without this plugin seeing creation start (it was loaded mid-creation), or a
+                    // stray event. Nothing is saved or moved; for this session ArrivalStage answers none, so RealmHerald
+                    // and the others welcome them as today instead of waiting on "pending" until they log off.
+                    spawnedUnseen.Add(id.ToString());
                     return;
                 }
                 if (rec.Stage != SCrossing) return;
@@ -1229,9 +1249,11 @@ namespace Oxide.Plugins
             run.LastMoveAt = now;
             run.LastProgressAt = now;
             run.Mode = rec.Variant == VVeteran ? config.VeteranMode : "";
-            if (config.RoutingMode == "road" || data.Site.Stones.Count == 0 || !HallSet())
+            if (config.RoutingMode == "road" || data.Site.Stones.Count == 0 || !HallSet() || GateUnmanaged())
             {
                 if (data.Site.Stones.Count == 0 || !HallSet()) PrintWarning("No arrival stones or hall box stored: " + Clean(player.Name, 40) + " goes by road mode.");
+                else if (GateUnmanaged()) PrintWarning("The portcullis cells exist but the block grid is not bound (" + bindError + "): the gate cannot be opened, so "
+                    + Clean(player.Name, 40) + " goes by road mode.");
                 StartRoadMode(player, rec, run, false);
                 return;
             }
@@ -1794,6 +1816,14 @@ namespace Oxide.Plugins
                     if (NarrationDue(run, pos, now)) Narrate(p, rec, run);
                 }
                 else run.Narrating = true;
+            }
+            // Never in the hall and the arrival checks long over (their timers died with a reload, or the move never
+            // held): road mode, so a run can never wait silently in the gatehouse stage outside the Gatehouse.
+            if (!run.Narrating && rec.Stage == SGatehouse && !run.Road && !rec.ToFire && HallSet() && !InHall(pos, 3f)
+                && rec.T0 != DateTime.MinValue && (now - rec.T0).TotalSeconds > config.ArrivalCheckSeconds[config.ArrivalCheckSeconds.Count - 1] + 8)
+            {
+                StartRoadMode(p, rec, run, true);
+                return;
             }
             if (!run.Narrating) return;                           // nothing is said or triggered under the loader
 
@@ -2419,8 +2449,11 @@ namespace Oxide.Plugins
         // Eviction: an online player with no gatehouse stage and no realmarrival.skip who stays in the hall box more than
         // EvictSeconds is moved to the eject point (4 m outside the gate; never a trip). Three in ten minutes raise a
         // Warden alert. A player waking there from an old arrival is let out with ReleasedGate and never counted.
+        // Not while paused or disabled (instant global off: nobody is in an arrival to protect), and never staff
+        // (realmarrival.skip or realmarrival.admin: they store the stones and boxes standing in the hall).
         private void EvictTick(DateTime now)
         {
+            if (data.Site.Paused || !config.Enabled) { inHallSince.Clear(); return; }
             foreach (Player p in OnlinePlayers())
             {
                 UnityEngine.Vector3 pos;
@@ -2428,7 +2461,7 @@ namespace Oxide.Plugins
                 Rec rec = FindRec(p.Id.ToString());
                 if (rec != null && (IsRunning(rec.Stage) || rec.Stage == SCrossing)) { inHallSince.Remove(p.Id); continue; }
                 if (staleWake.Contains(p.Id)) continue;          // let out by StaleWake, not evicted
-                if (!config.Evict || HasPerm(p, PermSkip) || data.Site.Eject == null) continue;
+                if (!Evictable(p)) continue;
                 DateTime since;
                 if (!inHallSince.TryGetValue(p.Id, out since)) { inHallSince[p.Id] = now; continue; }
                 if ((now - since).TotalSeconds < config.EvictSeconds) continue;
@@ -2446,6 +2479,11 @@ namespace Oxide.Plugins
                     Ask(RealmWarden, "RaiseWardenAlert", "arrival_camp", p.Id, "evicted from the Gatehouse 3 times in 10 minutes");
                 }
             }
+        }
+
+        private bool Evictable(Player p)
+        {
+            return config.Evict && data.Site.Eject != null && !HasPerm(p, PermSkip) && !IsAdmin(p);
         }
 
         // The Wayboard reached during the arrival or in its first two hours: Three Roads, once.
@@ -2617,6 +2655,13 @@ namespace Oxide.Plugins
             return grid.LocalToWorldCoordinate(new Vector3Int(c.X, c.Y, c.Z));
         }
 
+        // Portcullis cells are stored but the grid is not bound (yet): a crash may have left them solid and nothing here
+        // can open them, so nobody is routed into the hall until the bind succeeds (it forces the gate open then).
+        private bool GateUnmanaged()
+        {
+            return config.GateMode == "portcullis" && data != null && data.Site.GateCells.Count > 0 && !GridReady();
+        }
+
         private bool PortcullisMode()
         {
             return config.GateMode == "portcullis" && data != null && data.Site.GateCells.Count > 0 && GridReady();
@@ -2676,17 +2721,24 @@ namespace Oxide.Plugins
         // Newcomers inside the hall box: waiting (gatehouse, not timed out) and released (the gate already opened for
         // them, or their 8 minutes ran out). The gate is held open while any released one is still inside, and while two
         // or more wait, so it never closes behind someone who has no way left to open it.
+        // Anyone else inside whom eviction will not move out (staff, a stale wake-up, eviction off or no eject point: a
+        // player who skipped in a hall with no E) counts as released too: the gate never shuts on a way out.
         private void ArrivalsInHall(out int waiting, out int released)
         {
             waiting = 0; released = 0;
-            foreach (KeyValuePair<ulong, Run> kv in runs)
+            foreach (Player p in OnlinePlayers())
             {
-                Rec r = FindRec(kv.Key.ToString());
-                Player p = OnlineById(kv.Key);
                 UnityEngine.Vector3 pos;
-                if (r == null || p == null || !IsRunning(r.Stage) || !TryPos(p, out pos) || !InHall(pos, 1f)) continue;
-                if (r.Stage == SGatehouse && !r.GateDone && !r.TimedOut) waiting++;
-                else released++;
+                if (!TryPos(p, out pos) || !InHall(pos, 1f)) continue;
+                Rec r = FindRec(p.Id.ToString());
+                if (r != null && IsRunning(r.Stage))
+                {
+                    if (r.Stage == SGatehouse && !r.GateDone && !r.TimedOut) waiting++;
+                    else released++;
+                    continue;
+                }
+                if (r != null && r.Stage == SCrossing) continue;
+                if (staleWake.Contains(p.Id) || !Evictable(p)) released++;
             }
         }
 
@@ -2822,7 +2874,7 @@ namespace Oxide.Plugins
                 ulong id = e.PlayerId;
                 if (!providerMarks.Remove(id)) return false;          // one shot
                 Rec rec = FindRec(id.ToString());
-                if (rec == null || rec.Stage != SCrossing || rec.Staff || data.Site.Stones.Count == 0 || !HallSet()) return false;
+                if (rec == null || rec.Stage != SCrossing || rec.Staff || data.Site.Stones.Count == 0 || !HallSet() || GateUnmanaged()) return false;
                 bool mercy;
                 if (!ChooseTarget(id, out v, out mercy) || mercy) return false;
                 providerAnswers[id] = v;
@@ -2991,7 +3043,7 @@ namespace Oxide.Plugins
         {
             if (player == null || player.IsServer || !config.UsePopups || popupsClosed) return false;
             if (RealmHerald == null) return true;
-            object wanted = RealmHerald.Call("PopupsWanted", player.Id.ToString());
+            object wanted = Ask(RealmHerald, "PopupsWanted", player.Id.ToString());   // a throw reads as "no answer"
             return !(wanted is bool) || (bool)wanted;
         }
 
@@ -3175,8 +3227,17 @@ namespace Oxide.Plugins
             runs.Remove(player.Id);
             providerMarks.Remove(player.Id);
             UnityEngine.Vector3 pos;
-            if (TryPos(player, out pos) && InHall(pos, 0f) && data.Site.Eject != null) MoveTo(player, data.Site.Eject, 20f, 0.5f);
-            if (!rec.GateDone && running) { rec.GateDone = true; rec.ReleasedAt = Now(); }
+            if (TryPos(player, out pos) && InHall(pos, 0f))
+            {
+                if (data.Site.Eject != null) MoveTo(player, data.Site.Eject, 20f, 0.5f);
+                else RequestGateOpen(true);                       // no forecourt point (open force): the gate opens instead
+            }
+            if (!rec.GateDone && running)
+            {
+                rec.GateDone = true;
+                rec.ReleasedAt = Now();
+                Quest(player, rec, "arrival_gate");               // the Unwritten chain's first step: the gate is behind them
+            }
             Count("skipped");
             Handover(player, rec, false);
             if (before) { StageTo(rec, SDone); rec.WrittenAt = Now(); }
@@ -3255,6 +3316,7 @@ namespace Oxide.Plugins
                 case "pause": Pause(); Reply(player, "PausedNow"); return;
                 case "resume":
                     s.Paused = false; dirty = true; UpdateProvider();
+                    foreach (ulong u in new List<ulong>(staleWake)) StaleWake(u);   // handed back by the pause, still inside
                     Reply(player, "Resumed");
                     return;
                 case "mode":
@@ -3339,9 +3401,19 @@ namespace Oxide.Plugins
             RestoreProvider();
             ForceGateOpen();
             EndFlare();
+            var handedBack = new List<ulong>();
             foreach (KeyValuePair<string, Rec> kv in data.Players)
-                if (IsRunning(kv.Value.Stage) || kv.Value.Stage == SCrossing) StageTo(kv.Value, SNone);
+                if (IsRunning(kv.Value.Stage) || kv.Value.Stage == SCrossing)
+                {
+                    ulong u;
+                    if (IsRunning(kv.Value.Stage) && ulong.TryParse(kv.Key, out u)) handedBack.Add(u);
+                    StageTo(kv.Value, SNone);
+                }
             runs.Clear();
+            // Newcomers handed back are never evicted or counted for it: pause moves nobody (the gate is open; they walk
+            // out), and anyone still in the hall at resume is let out as from an old arrival (ReleasedGate). Those offline
+            // are let out when they next wake there (Returning).
+            foreach (ulong u in handedBack) if (OnlineById(u) != null) staleWake.Add(u);
             shieldUntil.Clear();
             providerMarks.Clear();
             pendingVet.Clear();
@@ -3470,8 +3542,9 @@ namespace Oxide.Plugins
             return sx != 0 || sz != 0;
         }
 
-        // beacon build <radius> [dy]: the ember band round the stored Hearth centre (BandCells: the plan's 24 cells at its
-        // radius 5), clay resting Ember deep; only empty cells are used. clear: air again. test: one flare.
+        // beacon build <radius> [dy]: the ember band (BandCells: exactly the site file's 24 cells at radius 5, placed by
+        // the anchor when the plan is anchored, else round the stored Hearth centre), clay resting Ember deep; only empty
+        // cells are used. clear: air again. test: one flare.
         private void AdminBeacon(Player player, string[] args)
         {
             string a2 = args.Length > 2 ? args[2].ToLowerInvariant() : "";
@@ -3994,34 +4067,35 @@ namespace Oxide.Plugins
             return list;
         }
 
-        // The ember band round the stored Hearth centre: the plan's 24 cells (their offsets from its centre) when the
-        // radius is the plan's, else the same rule for another radius: max(|dx|,|dz|) <= r and |dx|+|dz| <= r+1, but not
-        // max <= r-1 and |dx|+|dz| <= r (an octagon), round from the avenue side.
+        // The ember band: exactly the site file's cells.emberBand (art/sculptures/sites/arrival.json, the octagon in its
+        // "rule"; art/sculptures/README.md "The ember band's shape"), never cells at 15-degree steps rounded to the grid
+        // (that set has (4, 3), (4, 4), (3, 4) and gaps where the octagon has (4, 2), (3, 3), (2, 4)).
+        //   Plan anchored, radius the plan's: the plan's own 24 cells placed by the anchor and turn (PlanCell), so the band
+        //     stands exactly where the hearth ring's dais holds it up, whatever the stored hearth point says.
+        //   Site file read but not anchored: the file's offsets from its centre, round the cell of the stored Hearth.
+        //   No file (or another radius): the built-in rule, the same octagon: max(|dx|,|dz|) <= r and |dx|+|dz| <= r+1,
+        //     but not max <= r-1 and |dx|+|dz| <= r; at r = 5 that is the file's 24 cells.
+        // The band rests ON the hearth ring: the hearth-ring sculpture is 2 cells high (step and dais), and the band
+        // stands one cell above its dais at the height of the Hearth centre's feet cell (the site's y 2, restsOn
+        // hearth-ring). The ring has no cells where the band goes; nothing there is "left empty" for it.
+        // Every set is the same under a quarter-turn; the order runs from the avenue side round through +x.
         private List<Cell> BandCells(Cell centre, int r, int dy)
         {
-            var offsets = new List<int[]>();
-            SiteBand band = site != null && site.cells != null ? site.cells.emberBand : null;
-            if (band != null && band.radius == r && band.cells != null && band.cells.Count > 0)
-            {
-                foreach (List<int> c in band.cells) offsets.Add(new[] { c[0] - band.centre[0], c[1] - band.centre[1], c[2] - band.centre[2] });
-            }
-            else
-            {
-                var ring = new List<KeyValuePair<double, int[]>>();
-                for (int dx = -r; dx <= r; dx++)
-                    for (int dz = -r; dz <= r; dz++)
-                    {
-                        int m = Math.Max(Math.Abs(dx), Math.Abs(dz)), sum = Math.Abs(dx) + Math.Abs(dz);
-                        if (m > r || sum > r + 1 || (m <= r - 1 && sum <= r)) continue;
-                        double a = Math.Atan2(dx, -dz);            // 0 toward the avenue (-z), then round through +x
-                        if (a < 0) a += Math.PI * 2;
-                        ring.Add(new KeyValuePair<double, int[]>(a, new[] { dx, 0, dz }));
-                    }
-                ring.Sort(delegate(KeyValuePair<double, int[]> p, KeyValuePair<double, int[]> q) { return p.Key.CompareTo(q.Key); });
-                foreach (KeyValuePair<double, int[]> kv in ring) offsets.Add(kv.Value);
-            }
-            int turn = data.Site.Anchored ? data.Site.Turn : 0;
             var list = new List<Cell>();
+            SiteBand band = site != null && site.cells != null ? site.cells.emberBand : null;
+            bool fromFile = band != null && band.radius == r && band.cells != null && band.cells.Count > 0 && IsCell(band.centre);
+            if (fromFile && PlanReady())
+            {
+                foreach (List<int> c in band.cells)
+                {
+                    Cell w = PlanCell(c);
+                    w.Y += dy;
+                    list.Add(w);
+                }
+                return list;
+            }
+            List<int[]> offsets = fromFile ? FileBandOffsets(band) : BandRule(r);
+            int turn = data.Site.Anchored ? data.Site.Turn : 0;
             foreach (int[] o in offsets)
             {
                 int tx, tz;
@@ -4031,6 +4105,32 @@ namespace Oxide.Plugins
                 list.Add(c);
             }
             return list;
+        }
+
+        private static List<int[]> FileBandOffsets(SiteBand band)
+        {
+            var offsets = new List<int[]>();
+            foreach (List<int> c in band.cells) offsets.Add(new[] { c[0] - band.centre[0], c[1] - band.centre[1], c[2] - band.centre[2] });
+            return offsets;
+        }
+
+        // The built-in fallback: the octagon of cells.emberBand.rule, in order from the avenue side (-z) round through +x.
+        private static List<int[]> BandRule(int r)
+        {
+            var ring = new List<KeyValuePair<double, int[]>>();
+            for (int dx = -r; dx <= r; dx++)
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    int m = Math.Max(Math.Abs(dx), Math.Abs(dz)), sum = Math.Abs(dx) + Math.Abs(dz);
+                    if (m > r || sum > r + 1 || (m <= r - 1 && sum <= r)) continue;
+                    double a = Math.Atan2(dx, -dz);
+                    if (a < 0) a += Math.PI * 2;
+                    ring.Add(new KeyValuePair<double, int[]>(a, new[] { dx, 0, dz }));
+                }
+            ring.Sort(delegate(KeyValuePair<double, int[]> p, KeyValuePair<double, int[]> q) { return p.Key.CompareTo(q.Key); });
+            var offsets = new List<int[]>();
+            foreach (KeyValuePair<double, int[]> kv in ring) offsets.Add(kv.Value);
+            return offsets;
         }
 
         // The floors under the arrival stones: the plan's stoneFloors when anchored, else the cell under each stone.
@@ -4302,6 +4402,17 @@ namespace Oxide.Plugins
             if (s.Wayboard == null) warnings.Add("wayboard not set: Three Roads comes 10 minutes after the arrival instead");
             if (s.Banners.Count < 6) warnings.Add(s.Banners.Count + " of 6 pledge stones set (banner set <house>)");
             if (config.GateMode == "portcullis" && s.GateCells.Count == 0) problems.Add("gatemode portcullis but no gate built (gate set, gate build)");
+            if (HallSet())
+            {
+                // Each of these would loop or misroute: E inside the box re-evicts every few seconds (and skip, AFK and
+                // stale wake-ups would land back inside); a stone outside it fails every arrival check into road mode; a
+                // mercy stone inside it sends deaths back into the Gatehouse.
+                if (s.Eject != null && InHall(PointV(s.Eject), 0f)) problems.Add("the eject point E lies inside the hall box (eviction would loop; store E outside the gate)");
+                for (int i = 0; i < s.Stones.Count; i++)
+                    if (!InHall(PointV(s.Stones[i]), 0f)) { problems.Add(StoneName(i) + " lies outside the hall box (re-store the stone or the hall corners)"); break; }
+                for (int i = 0; i < s.Mercy.Count; i++)
+                    if (InHall(PointV(s.Mercy[i]), 0f)) { problems.Add(MercyName(i) + " lies inside the hall box (mercy stones belong at the Hearth)"); break; }
+            }
             if (GridReady())
             {
                 for (int i = 0; i < s.Stones.Count; i++) FloorCheck(StoneName(i), s.Stones[i], true, problems, warnings);
@@ -4548,7 +4659,7 @@ namespace Oxide.Plugins
             if (loadFailed || data == null || playerId == null) return SNone;
             Rec r = FindRec(playerId);
             bool open = config.Enabled && config.Open && !data.Site.Paused && config.RoutingMode != "off";
-            if (r == null || r.Stage == SPending) return open ? SPending : SNone;
+            if (r == null || r.Stage == SPending) return open && !spawnedUnseen.Contains(playerId) ? SPending : SNone;
             if (r.Stage == SCrossing) return data.Site.Paused ? SNone : SCrossing;
             if (IsRunning(r.Stage)) return data.Site.Paused ? SNone : "running";
             if (r.Stage == SDone) return firstSightC.Contains(playerId) ? SNone : SDone;

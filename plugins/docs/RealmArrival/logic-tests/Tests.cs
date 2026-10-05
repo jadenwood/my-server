@@ -37,6 +37,8 @@ static partial class Tests
         Run("HourOne", HourOne); Run("Page", Page); Run("Admin", AdminCmds); Run("SiteCheck", SiteCheck); Run("SelfCheck", SelfCheck);
         Run("RoadMode", RoadMode); Run("Wave", Wave); Run("Reload", ReloadRebuild); Run("DataSafety", DataSafety);
         Run("SitePlan", SitePlan); Run("PlanArrival", PlanArrival); Run("ReviewFixes", ReviewFixes); Run("ChatStyle", ChatStyle);
+        Run("BandAllTurns", BandAllTurns); Run("LenientSite", LenientSite); Run("StuckAndReturning", StuckAndReturning); Run("CheckLoops", CheckLoops);
+        Run("StaffAndPause", StaffAndPause); Run("MissingPlugins", MissingPlugins); Run("DamagedButReadable", DamagedButReadable);
         Console.WriteLine(pass + " passed, " + fail + " failed");
         return fail == 0 ? 0 : 1;
     }
