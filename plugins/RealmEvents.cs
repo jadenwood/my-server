@@ -12,6 +12,12 @@
 //                 hook OnEntityDeath(EntityDeathEvent) [OPJ L188; IL EntityHealth.InvokeDeath], victim =
 //                 evt.Entity.Owner, killer = evt.KillingDamage.DamageSource.Owner [ASM; USE DeathMessages.cs:20].
 //                 Housemates never count and each victim counts at most TournamentMaxKillsPerVictim times per killer.
+//                 Against feeding (alts, housemates, allies giving up kills): kills of a liege, vassal or treaty
+//                 partner's entrant do not count (TournamentAlliesCount false); houses are compared both as they were
+//                 at entry and as they are now, so leaving a house for the evening does not help; a victim must be
+//                 online (a sleeping body is no fight); one victim feeds at most TournamentMaxScoredDeathsPerVictim
+//                 points in all; an entrant who leaves cannot enter again; and prizes and points need at least
+//                 TournamentMinEntrantsForPrizes entrants who fought (killed or died).
 //                 Prizes are real items given with the same calls RealmContracts uses (the game's own /give path:
 //                 GetInventory -> Container.Contents, ItemCollection.AutoMergeAdd of InvGameItemStack, capped at
 //                 ContainerManagement.StackLimit, every amount MEASURED with ItemCollection.AutoCount [IL
@@ -20,7 +26,14 @@
 //                 quarry with /hunt name <player>. A verified kill of a quarry (same death hook) by someone outside the
 //                 quarry's house pays the hunter a prize and the hunter's house points; quarry still unclaimed at the
 //                 end "survive the hunt" and their house earns points. No quarry named within HuntNamingMinutes =
-//                 the hunt is called off.
+//                 the hunt is called off. Against farming (HuntExcludeAllies): no quarry from the crown's own house,
+//                 its liege, vassals or treaty partners; a quarry cannot be claimed by its house or allied houses
+//                 (now, or when it was named: the members of those houses at naming are barred for the whole hunt);
+//                 a quarry must be online when slain; the same hunter takes the same quarry for a prize at most once
+//                 per HuntPairCooldownDays; a quarry survives only if online for HuntSurviveMinOnlinePercent of the
+//                 hunt after being named (logging off is fleeing) and still of the house it was named with; and no
+//                 player under RealmWarden's new-player protection is named (they cannot be harmed, so they would
+//                 always survive, and naming them is harassment).
 //   truce         "Truce of the Realm". A no-PvP proclamation. Enforced with OnEntityHealthChange(EntityDamageEvent)
 //                 [OPJ L162], RB 1: evt.Cancel() + Damage.Amount = 0 + return true [USE NoFriendlyFire.cs:116-117];
 //                 [IL] EntityHealth.InvokeDamage calls the hook first and returns early on a non-null result (the same
@@ -37,6 +50,12 @@
 // and logged.
 //
 // Season points go to RealmSeasons via its non-public AwardHouse(house, points, honour); without it events still run.
+// The Proving Ring: while the Royal Tournament runs, RealmArena may draw a bracket of its entrants (GetTournamentEntrants)
+// and fight it in the ring; ring duels end without a death, so each bracket win is scored here as a kill under the same
+// rules (ScoreTournamentDuel). Without RealmArena nothing changes.
+// The Ironbreaker: the tournament champion and each hunter paid for a quarry are offered the legendary blade through
+// RealmLegendary's non-public AwardEventPrize(kind, playerId, name). RealmLegendary decides (its PrizeEvents config, and
+// only while the blade rests in the armoury); without it nothing changes here.
 // Data: oxide/data/RealmEvents.json (running events, fired occurrences, owed prizes). If it exists but cannot be
 // parsed, the plugin refuses to run and never writes it, so owed prizes are not lost.
 //
@@ -69,6 +88,8 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin RealmHouses;
         [PluginReference] private Plugin CrownAndConsequences;
         [PluginReference] private Plugin RealmSeasons;
+        [PluginReference] private Plugin RealmWarden;
+        [PluginReference] private Plugin RealmLegendary;   // the Ironbreaker prize (OfferLegendary)
 
         private const string PermAdmin = "realmevents.admin";
         private const string DataName = "RealmEvents";
@@ -125,7 +146,10 @@ namespace Oxide.Plugins
 
             public bool TournamentRequireJoin = true;
             public bool TournamentHousematesCount = false;
+            public bool TournamentAlliesCount = false;         // kills of a liege, vassal or treaty partner's entrants
             public int TournamentMaxKillsPerVictim = 2;
+            public int TournamentMaxScoredDeathsPerVictim = 4; // one victim feeds at most this many points in all (0 = no cap)
+            public int TournamentMinEntrantsForPrizes = 3;     // entrants who killed or died; fewer = no prizes or points (0 = off)
             public int TournamentMinKillsToPlace = 1;
             public List<int> TournamentPlacePoints;    // season points for 1st, 2nd, 3rd...
             public List<Prize> TournamentPrizes;
@@ -135,6 +159,10 @@ namespace Oxide.Plugins
             public int HuntKillPoints = 15;
             public int HuntSurvivePoints = 10;
             public List<Prize> HuntPrizes;             // paid to the hunter per quarry claimed
+            public bool HuntExcludeAllies = true;      // no quarry from the crown's side; the quarry's own side cannot claim
+            public bool HuntSkipProtectedPlayers = true;   // never name a player under RealmWarden's new-player protection
+            public int HuntPairCooldownDays = 14;      // same hunter, same quarry: one prize per this many days (0 = off)
+            public int HuntSurviveMinOnlinePercent = 75;   // share of the hunt (after naming) a quarry must be online to survive
 
             public bool TruceEnforced = true;
             public bool TruceYieldsToRebellion = true;
@@ -194,6 +222,11 @@ namespace Oxide.Plugins
             if (config.TournamentMinKillsToPlace < 1) config.TournamentMinKillsToPlace = 1;
             if (config.HuntMaxTargets < 1) config.HuntMaxTargets = 1;
             if (config.HuntNamingMinutes < 1) config.HuntNamingMinutes = 1;
+            if (config.TournamentMaxScoredDeathsPerVictim < 0) config.TournamentMaxScoredDeathsPerVictim = 0;
+            if (config.TournamentMinEntrantsForPrizes < 0) config.TournamentMinEntrantsForPrizes = 0;
+            if (config.HuntPairCooldownDays < 0) config.HuntPairCooldownDays = 0;
+            if (config.HuntSurviveMinOnlinePercent < 0) config.HuntSurviveMinOnlinePercent = 0;
+            if (config.HuntSurviveMinOnlinePercent > 100) config.HuntSurviveMinOnlinePercent = 100;
             config.TournamentPrizes.RemoveAll(IsBadPrize);
             config.HuntPrizes.RemoveAll(IsBadPrize);
         }
@@ -214,6 +247,7 @@ namespace Oxide.Plugins
             public int Kills;
             public int Deaths;
             public DateTime LastKill;
+            public int Fed;                            // own deaths that scored for someone
             public Dictionary<string, int> Victims = new Dictionary<string, int>();   // victim id -> times counted
         }
 
@@ -224,6 +258,10 @@ namespace Oxide.Plugins
             public string House;
             public string ClaimedById;
             public string ClaimedByName;
+            public bool NoPrize;                       // taken by a hunter still on HuntPairCooldownDays for this quarry
+            public List<string> Barred = new List<string>();   // ids of the quarry's side when named: they never claim it
+            public int Samples;                        // ticks while at large, and how many of them online
+            public int OnlineSamples;
         }
 
         private class ActiveEvent
@@ -237,6 +275,7 @@ namespace Oxide.Plugins
             public List<string> CaptureHouses = new List<string>();
             // tournament
             public Dictionary<string, Entrant> Entrants = new Dictionary<string, Entrant>();
+            public List<string> Left = new List<string>();          // ids that left; they cannot enter again
             // kings_hunt
             public List<Quarry> Quarry = new List<Quarry>();
             public string NamedBy;
@@ -261,6 +300,7 @@ namespace Oxide.Plugins
             public Dictionary<string, DateTime> Announced = new Dictionary<string, DateTime>();   // key|minutes -> start
             public List<Owed> Owed = new List<Owed>();
             public List<string> History = new List<string>();      // last results, newest last (for /events)
+            public Dictionary<string, DateTime> HuntPairs = new Dictionary<string, DateTime>();   // "hunter|quarry" -> last prize
         }
 
         private void SaveData()
@@ -271,30 +311,60 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+        #endregion
+
         #region Lang
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Prefix", "[C8A050]Realm Events[FFFFFF]: " },
-                { "Herald", "[C8A050]Herald[FFFFFF]: " },
-                { "Help", "/events | /event collect | /tourney join|leave|standings | /hunt [name <player>] | /truce. Admin: /event start <crown_night|tournament|kings_hunt|truce> [minutes] | stop <kind> | cancel <kind>" },
+                { "Speaker", "Events" },
+                { "Herald", "[D6A043]Herald[FFFFFF]: " },
+                { "Help", "  [F4C96D]/events[FFFFFF] | [F4C96D]/event collect[FFFFFF] | [F4C96D]/tourney join|leave|standings[FFFFFF] | [F4C96D]/hunt[FFFFFF] [name <player>] | [F4C96D]/truce[FFFFFF]" },
+                { "HelpAdmin", "  Admin: [F4C96D]/event start[FFFFFF] <crown_night|tournament|kings_hunt|truce> [minutes] | stop <kind> | cancel <kind>" },
+                { "EventsHeader", "The realm's calendar (times in UTC):" },
                 { "Name.crown_night", "Crown Night" },
                 { "Name.tournament", "the Royal Tournament" },
                 { "Name.kings_hunt", "the King's Hunt" },
                 { "Name.truce", "the Truce of the Realm" },
                 { "Countdown.crown_night", "Crown Night falls in {0} min. The throne is fought for tonight: houses with a declared claim may take it. {1}" },
-                { "Countdown.tournament", "The Royal Tournament begins in {0} min. Enter with /tourney join; every kill of another entrant scores." },
+                { "Countdown.tournament", "The Royal Tournament begins in {0} min. Enter with [F4C96D]/tourney join[FFFFFF]; every kill of another entrant scores." },
                 { "Countdown.kings_hunt", "The King's Hunt begins in {0} min. The monarch will name the quarry; hunters, ready your blades." },
                 { "Countdown.truce", "The Truce of the Realm begins in {0} min. For {1} min no blood may be shed between players." },
                 { "Begin.crown_night", "Crown Night has fallen! It lasts until {0} UTC. {1}" },
-                { "Begin.tournament", "The Royal Tournament has begun! It ends {0} UTC. Enter with /tourney join." },
+                { "Begin.tournament", "The Royal Tournament has begun! It ends {0} UTC. Enter with [F4C96D]/tourney join[FFFFFF]." },
                 { "Begin.kings_hunt", "The King's Hunt has begun! It ends {0} UTC. {1}" },
                 { "Begin.truce", "The Truce of the Realm is proclaimed until {0} UTC. {1}" },
                 { "ClaimsTonight", "Claims tonight: {0}." },
-                { "NoClaimsTonight", "No claim stands for tonight yet: a house leader may still /claim declare." },
-                { "HuntNameNow", "Monarch, name your quarry with /hunt name <player> within {0} min." },
+                { "NoClaimsTonight", "No claim stands for tonight yet: a house leader may still [F4C96D]/claim declare[FFFFFF]." },
+                { "HuntNameNow", "Monarch, name your quarry with [F4C96D]/hunt name[FFFFFF] <player> within {0} min." },
                 { "HuntNoMonarch", "There is no monarch to call the hunt; it is called off." },
                 { "HuntCalledOff", "No quarry was named; the King's Hunt is called off." },
                 { "TruceEnforcedLine", "Blows between players will not land." },
@@ -314,10 +384,10 @@ namespace Oxide.Plugins
                 { "NoSurvivors", "Every quarry was taken." },
                 { "TruceKept", "The truce was kept." },
                 { "TruceBroken", "Truce breakers: {0}." },
-                { "EventsActive", "Now: {0} until {1} UTC ({2} min left)." },
-                { "EventsNext", "Next: {0} at {1} UTC (in {2})." },
-                { "EventsNone", "No realm events are scheduled." },
-                { "EventsHistory", "Last: {0}" },
+                { "EventsActive", "  Now: {0} until {1} UTC ({2} min left)." },
+                { "EventsNext", "  Next: {0} at {1} UTC (in {2})." },
+                { "EventsNone", "  No realm events are scheduled." },
+                { "EventsHistory", "  Last: {0}" },
                 { "NoPermission", "You may not do that." },
                 { "UnknownKind", "Unknown event. Use crown_night, tournament, kings_hunt or truce." },
                 { "KindDisabled", "{0} is disabled in the config." },
@@ -327,7 +397,7 @@ namespace Oxide.Plugins
                 { "Started", "{0} started." },
                 { "Joined", "You enter the Royal Tournament. Kills of other entrants score; housemates do not count." },
                 { "AlreadyJoined", "You are already entered." },
-                { "Left", "You leave the tournament. Your score is struck." },
+                { "Left", "You leave the tournament. Your score is struck, and you cannot enter it again." },
                 { "NotEntered", "You are not entered." },
                 { "NoJoinNeeded", "Everyone fights in this tournament; there is nothing to join." },
                 { "NoTournament", "No Royal Tournament is running or about to begin." },
@@ -348,6 +418,14 @@ namespace Oxide.Plugins
                 { "QuarryAlready", "{0} is already named." },
                 { "QuarryNamed", "{0}{1} is named quarry of the King's Hunt!" },
                 { "QuarryTakenBroadcast", "{0} has taken the King's quarry {1}!" },
+                { "QuarryTakenNoPrize", "{0} has taken the King's quarry {1}, but has already been paid for this quarry lately: no prize." },
+                { "QuarryOwnSide", "{0} cannot claim the quarry: their house is on the quarry's side." },
+                { "QuarryCrownSide", "{0} is of the crown's own house or its allies; name a quarry from outside them." },
+                { "QuarryProtected", "{0} is under new-player protection and cannot be named quarry." },
+                { "Fled", "Fled the hunt (offline for too long): {0}." },
+                { "TooFew", "Too few took the field for prizes ({0} fought; {1} needed)." },
+                { "NoScoreAlly", "Tournament: kills of your own or an allied house do not score." },
+                { "NoRejoin", "You left this tournament; you cannot enter it again." },
                 { "TruceActive", "The Truce of the Realm holds until {0} UTC ({1})." },
                 { "TruceSuspended", "suspended while a rebellion is fought" },
                 { "TruceEnforcedShort", "enforced" },
@@ -356,8 +434,9 @@ namespace Oxide.Plugins
                 { "TruceBlocked", "The Truce of the Realm holds: your blow does not land." },
                 { "TruceBreachBroadcast", "{0} has broken the Truce of the Realm!" },
                 { "PrizeGiven", "You receive {0} {1} ({2})." },
-                { "PrizeOwed", "Your packs are full. {0} {1} wait for you: /event collect" },
-                { "NothingOwed", "Nothing is owed to you." }
+                { "PrizeOwed", "Your packs are full. {0} {1} wait for you: [F4C96D]/event collect[FFFFFF]" },
+                { "NothingOwed", "Nothing is owed to you." },
+                { "Paused", "Realm events are paused: oxide/data/RealmEvents.json could not be read." }
             }, this);
         }
 
@@ -374,7 +453,7 @@ namespace Oxide.Plugins
 
         private void Reply(Player player, string key, params object[] args)
         {
-            player.SendMessage(Msg("Prefix", player) + Fmt(key, player, args));      // single-string overload: brace safe
+            player.SendMessage(Styled(Msg("Speaker", player), ToneOf(key), Fmt(key, player, args)));   // single-string overload: brace safe
         }
 
         private void ReplyRaw(Player player, string key, params object[] args)
@@ -384,7 +463,16 @@ namespace Oxide.Plugins
 
         private void ReplyError(Player player, string key, params object[] args)
         {
-            player.SendError(Fmt(key, player, args));
+            player.SendError(Styled(Msg("Speaker", player), ChatError, Fmt(key, player, args)));
+        }
+
+        // Tone of a reply (chat style): done, or take care; everything else is news.
+        private static readonly HashSet<string> OkKeys = new HashSet<string> { "Joined", "Started", "PrizeGiven" };
+        private static readonly HashSet<string> WarnKeys = new HashSet<string> { "Left" };
+
+        private static string ToneOf(string key)
+        {
+            return OkKeys.Contains(key) ? ChatOk : WarnKeys.Contains(key) ? ChatWarn : ChatGold;
         }
 
         private void Herald(string text)
@@ -429,6 +517,7 @@ namespace Oxide.Plugins
             if (data.Announced == null) data.Announced = new Dictionary<string, DateTime>();
             if (data.Owed == null) data.Owed = new List<Owed>();
             if (data.History == null) data.History = new List<string>();
+            if (data.HuntPairs == null) data.HuntPairs = new Dictionary<string, DateTime>();
             data.Active.RemoveAll(delegate(ActiveEvent a) { return a == null || Array.IndexOf(Kinds, a.Kind) < 0; });
             foreach (ActiveEvent a in data.Active)
             {
@@ -436,7 +525,10 @@ namespace Oxide.Plugins
                 if (a.Entrants == null) a.Entrants = new Dictionary<string, Entrant>();
                 if (a.Quarry == null) a.Quarry = new List<Quarry>();
                 if (a.Breakers == null) a.Breakers = new List<string>();
+                if (a.Left == null) a.Left = new List<string>();
                 foreach (Entrant e in a.Entrants.Values) if (e != null && e.Victims == null) e.Victims = new Dictionary<string, int>();
+                a.Quarry.RemoveAll(delegate(Quarry q) { return q == null || q.Id == null; });
+                foreach (Quarry q in a.Quarry) if (q.Barred == null) q.Barred = new List<string>();
             }
             data.Owed.RemoveAll(delegate(Owed o) { return o == null || o.PlayerId == null || o.Item == null || o.Amount <= 0; });
         }
@@ -519,6 +611,7 @@ namespace Oxide.Plugins
             foreach (ActiveEvent a in data.Active.ToArray())
             {
                 if (now >= a.End) { FinishEvent(a, false); changed = true; continue; }
+                if (a.Kind == KHunt) SampleQuarry(a);
                 if (a.Kind == KHunt && a.Quarry.Count == 0 && (now - a.Start).TotalMinutes >= config.HuntNamingMinutes)
                 {
                     data.Active.Remove(a);
@@ -561,6 +654,7 @@ namespace Oxide.Plugins
             // Forget occurrence keys older than nine days (the schedule is weekly at most).
             DateTime cutoff = now.AddDays(-9);
             changed |= Prune(data.Fired, cutoff) | Prune(data.Announced, cutoff);
+            changed |= Prune(data.HuntPairs, now.AddDays(-Math.Max(1, config.HuntPairCooldownDays)));
             if (changed) SaveData();
         }
 
@@ -752,6 +846,16 @@ namespace Oxide.Plugins
 
         private void FinishTournament(ActiveEvent a)
         {
+            int fought = 0;
+            foreach (Entrant e in a.Entrants.Values) if (e.Kills > 0 || e.Deaths > 0) fought++;
+            if (config.TournamentMinEntrantsForPrizes > 0 && fought < config.TournamentMinEntrantsForPrizes)
+            {
+                string few = Fmt("TooFew", null, fought, config.TournamentMinEntrantsForPrizes);
+                Herald(Fmt("End.tournament", null, few));
+                Chronicle("event_ended", "The Royal Tournament ends", few + " " + a.Entrants.Count + " entered.", new string[0]);
+                AddHistory("Royal Tournament: too few fought");
+                return;
+            }
             List<KeyValuePair<string, Entrant>> ranked = RankEntrants(a);
             var places = new List<string>();
             int place = 0;
@@ -775,6 +879,7 @@ namespace Oxide.Plugins
                 Chronicle("tournament_champion", champ.Name + " wins the Royal Tournament",
                     (champ.House != null ? champ.Name + " of House " + champ.House : champ.Name) + " is champion with " + champ.Kills
                     + " kills. Standings: " + result + ".", new[] { champ.Name });
+                OfferLegendary(KTournament, ranked[0].Key, champ.Name);
             }
             else Chronicle("event_ended", "The Royal Tournament ends", "No one scored. " + a.Entrants.Count + " entered.", new string[0]);
             AddHistory("Royal Tournament: " + result);
@@ -789,15 +894,21 @@ namespace Oxide.Plugins
 
         private void FinishHunt(ActiveEvent a)
         {
+            SampleQuarry(a);
             var survivors = new List<string>();
+            var fled = new List<string>();
             foreach (Quarry q in a.Quarry)
             {
                 if (q.ClaimedById != null) continue;
+                if (q.OnlineSamples * 100 < config.HuntSurviveMinOnlinePercent * q.Samples) { fled.Add(q.Name); continue; }
                 survivors.Add(q.Name);
-                if (q.House != null) Award(q.House, config.HuntSurvivePoints, "Survived the King's Hunt: " + q.Name);
+                // Points go to the house the quarry was named with, and only while they still belong to it.
+                string houseNow = HouseOf(ParseId(q.Id));
+                if (q.House != null && SameName(houseNow, q.House)) Award(q.House, config.HuntSurvivePoints, "Survived the King's Hunt: " + q.Name);
             }
             string result = a.Quarry.Count == 0 ? Msg("HuntCalledOff", null)
                 : (survivors.Count > 0 ? Fmt("Survivors", null, string.Join(", ", survivors.ToArray())) : Msg("NoSurvivors", null));
+            if (fled.Count > 0) result += " " + Fmt("Fled", null, string.Join(", ", fled.ToArray()));
             Herald(Fmt("End.kings_hunt", null, result));
             Chronicle("event_ended", "The King's Hunt ends", result, survivors.ToArray());
             AddHistory("King's Hunt: " + result);
@@ -887,8 +998,11 @@ namespace Oxide.Plugins
             DateTime now = Now();
             bool changed = false;
 
+            // A sleeping body left by a logged-out player is no fight (UNVERIFIED whether the game reports its death).
+            bool victimOnline = OnlineById(vid) != null;
+
             ActiveEvent t = Running(KTournament);
-            if (t != null && now < t.End)
+            if (t != null && now < t.End && victimOnline)
             {
                 Entrant ke = TournamentEntrant(t, killer, kHouse);
                 Entrant ve = TournamentEntrant(t, victim, vHouse);
@@ -898,25 +1012,48 @@ namespace Oxide.Plugins
                     changed = true;
                     int times;
                     ke.Victims.TryGetValue(vid, out times);
-                    if ((config.TournamentHousematesCount || !sameHouse) && times < config.TournamentMaxKillsPerVictim)
+                    // Houses as they were at entry and as they are now: leaving a house for the evening does not help.
+                    bool housemates = AnySame(kHouse, ke.House, vHouse, ve.House);
+                    bool allies = !housemates && !config.TournamentAlliesCount && AnyAllied(kHouse, ke.House, vHouse, ve.House);
+                    bool fedOut = config.TournamentMaxScoredDeathsPerVictim > 0 && ve.Fed >= config.TournamentMaxScoredDeathsPerVictim;
+                    if ((housemates && !config.TournamentHousematesCount) || allies) NoticeThrottled(killer, "NoScoreAlly");
+                    else if (times < config.TournamentMaxKillsPerVictim && !fedOut)
                     {
                         ke.Victims[vid] = times + 1;
                         ke.Kills++;
                         ke.LastKill = now;
+                        ve.Fed++;
                         NoticeThrottled(killer, "Scored", ke.Kills);
                     }
                 }
             }
 
             ActiveEvent h = Running(KHunt);
-            if (h != null && now < h.End)
+            if (h != null && now < h.End && victimOnline)
             {
                 foreach (Quarry q in h.Quarry)
                 {
                     if (q.Id != vid || q.ClaimedById != null || sameHouse) continue;
+                    if (config.HuntExcludeAllies && (q.Barred.Contains(kid) || Allied(kHouse, q.House) || Allied(kHouse, vHouse)))
+                    {
+                        NoticeThrottled(killer, "QuarryOwnSide", killer.Name);
+                        continue;
+                    }
                     q.ClaimedById = kid;
                     q.ClaimedByName = killer.Name;
                     changed = true;
+                    string pair = kid + "|" + vid;
+                    DateTime lastPaid;
+                    if (config.HuntPairCooldownDays > 0 && data.HuntPairs.TryGetValue(pair, out lastPaid)
+                        && (now - lastPaid).TotalDays < config.HuntPairCooldownDays)
+                    {
+                        // Taken (the quarry does not survive), but the same pair is not paid twice in the cooldown.
+                        q.NoPrize = true;
+                        SaveData();
+                        Herald(Fmt("QuarryTakenNoPrize", null, killer.Name, q.Name));
+                        continue;
+                    }
+                    data.HuntPairs[pair] = now;
                     SaveData();                                  // claimed before anything is paid
                     Herald(Fmt("QuarryTakenBroadcast", null, killer.Name, q.Name));
                     Chronicle("hunt_kill", killer.Name + " takes the King's quarry " + q.Name,
@@ -925,6 +1062,7 @@ namespace Oxide.Plugins
                         new[] { killer.Name, q.Name });
                     if (kHouse != null) Award(kHouse, config.HuntKillPoints, "Took the King's quarry " + q.Name + " (" + killer.Name + ")");
                     foreach (Prize p in config.HuntPrizes) GrantPrize(kid, killer.Name, p, "the King's Hunt");
+                    OfferLegendary(KHunt, kid, killer.Name);
                 }
             }
 
@@ -1000,8 +1138,9 @@ namespace Oxide.Plugins
         private void CmdEvents(Player player, string command, string[] args)
         {
             if (player == null) return;
-            if (loadFailed) { player.SendError("Realm events are paused: oxide/data/RealmEvents.json could not be read."); return; }
+            if (loadFailed) { ReplyError(player, "Paused"); return; }
             DateTime now = Now();
+            Reply(player, "EventsHeader");
             foreach (ActiveEvent a in data.Active)
                 Reply(player, "EventsActive", KindTitle(a.Kind), a.End.ToString("HH:mm"), Math.Max(0, (int)Math.Ceiling((a.End - now).TotalMinutes)));
             var upcoming = new List<KeyValuePair<DateTime, string>>();
@@ -1017,6 +1156,7 @@ namespace Oxide.Plugins
                 Reply(player, "EventsNext", KindTitle(u.Value), u.Key.ToString("ddd HH:mm"), Until(u.Key - now));
             if (data.History.Count > 0) Reply(player, "EventsHistory", data.History[data.History.Count - 1]);
             Reply(player, "Help");
+            if (IsAdmin(player)) Reply(player, "HelpAdmin");
         }
 
         [ChatCommand("event")]
@@ -1069,6 +1209,7 @@ namespace Oxide.Plugins
                 Dictionary<string, Entrant> book = t != null ? t.Entrants : (TournamentSoon() ? pendingEntrants : null);
                 if (book == null) { Reply(player, "NoTournament"); return; }
                 if (book.ContainsKey(id)) { Reply(player, "AlreadyJoined"); return; }
+                if (t != null && t.Left.Contains(id)) { ReplyError(player, "NoRejoin"); return; }
                 book[id] = new Entrant { Name = player.Name, House = HouseOf(player.Id) };
                 if (t != null) SaveData();
                 Reply(player, "Joined");
@@ -1078,7 +1219,7 @@ namespace Oxide.Plugins
             {
                 Dictionary<string, Entrant> book = t != null ? t.Entrants : pendingEntrants;
                 if (!book.Remove(id)) { Reply(player, "NotEntered"); return; }
-                if (t != null) SaveData();
+                if (t != null) { t.Left.Add(id); SaveData(); }
                 Reply(player, "Left");
                 return;
             }
@@ -1126,7 +1267,14 @@ namespace Oxide.Plugins
                 string tid = target.Id.ToString();
                 foreach (Quarry q in h.Quarry) if (q.Id == tid) { ReplyError(player, "QuarryAlready", target.Name); return; }
                 string house = HouseOf(target.Id);
-                h.Quarry.Add(new Quarry { Id = tid, Name = target.Name, House = house });
+                if (config.HuntSkipProtectedPlayers && IsProtected(target)) { ReplyError(player, "QuarryProtected", target.Name); return; }
+                if (config.HuntExcludeAllies && house != null)
+                {
+                    string monarch, crownHouse;
+                    CurrentCrown(out monarch, out crownHouse);
+                    if (crownHouse != null && Allied(crownHouse, house)) { ReplyError(player, "QuarryCrownSide", target.Name); return; }
+                }
+                h.Quarry.Add(new Quarry { Id = tid, Name = target.Name, House = house, Barred = SideMembers(house), Samples = 1, OnlineSamples = 1 });
                 if (IsMonarch(player)) h.NamedBy = player.Name;
                 SaveData();
                 string text = Fmt("QuarryNamed", null, target.Name, house != null ? " of House " + house : "");
@@ -1282,6 +1430,48 @@ namespace Oxide.Plugins
             return result;
         }
 
+        // RealmArena: the entrants of the Royal Tournament running now (or entered during its countdown), as "id|name".
+        private string[] GetTournamentEntrants()
+        {
+            var list = new List<string>();
+            if (loadFailed || data == null) return list.ToArray();
+            ActiveEvent t = Running(KTournament);
+            foreach (KeyValuePair<string, Entrant> kv in t != null ? t.Entrants : pendingEntrants)
+                if (t == null || !t.Left.Contains(kv.Key)) list.Add(kv.Key + "|" + kv.Value.Name);
+            return list.ToArray();
+        }
+
+        // RealmArena: a bracket duel won in the ring between two entrants of the running Royal Tournament. Ring duels end
+        // without a death, so the death hook never sees them; the win scores as a kill would, under the same rules
+        // (housemates and allies never count, the per-victim caps hold). Returns true when it scored.
+        private bool ScoreTournamentDuel(string winnerId, string loserId)
+        {
+            if (loadFailed || data == null || string.IsNullOrEmpty(winnerId) || string.IsNullOrEmpty(loserId) || winnerId == loserId) return false;
+            ActiveEvent t = Running(KTournament);
+            if (t == null || Now() >= t.End) return false;
+            Entrant ke, ve;
+            ulong kid, vid;
+            if (!t.Entrants.TryGetValue(winnerId, out ke) || !t.Entrants.TryGetValue(loserId, out ve)) return false;
+            if (!ulong.TryParse(winnerId, out kid) || !ulong.TryParse(loserId, out vid)) return false;
+            string kHouse = HouseOf(kid), vHouse = HouseOf(vid);
+            ve.Deaths++;
+            int times;
+            ke.Victims.TryGetValue(loserId, out times);
+            bool housemates = AnySame(kHouse, ke.House, vHouse, ve.House);
+            bool allies = !housemates && !config.TournamentAlliesCount && AnyAllied(kHouse, ke.House, vHouse, ve.House);
+            bool fedOut = config.TournamentMaxScoredDeathsPerVictim > 0 && ve.Fed >= config.TournamentMaxScoredDeathsPerVictim;
+            bool scored = !((housemates && !config.TournamentHousematesCount) || allies) && times < config.TournamentMaxKillsPerVictim && !fedOut;
+            if (scored)
+            {
+                ke.Victims[loserId] = times + 1;
+                ke.Kills++;
+                ke.LastKill = Now();
+                ve.Fed++;
+            }
+            SaveData();
+            return scored;
+        }
+
         #endregion
 
         #region Helpers
@@ -1308,10 +1498,20 @@ namespace Oxide.Plugins
             if (RealmChronicle == null) return;
             object r = RealmChronicle.Call("Log", type, title, detail, actors ?? new string[0]);
             // An older RealmChronicle without these types rejects them (returns 0); fall back to a decree line.
-            // A rejection of a type that was accepted before is the chronicle's duplicate filter: leave it dropped.
+            // -1 is a duplicate or a line folded by the flood budget: never retried. An older chronicle returned 0 for a
+            // duplicate, so a 0 for a type that was accepted before is left dropped too.
             if (r is int && (int)r > 0) chronicleTypeAccepted[type] = true;
             else if (r is int && (int)r == 0 && type != "decree" && !chronicleTypeAccepted.ContainsKey(type))
                 RealmChronicle.Call("Log", "decree", title, detail, actors ?? new string[0]);
+        }
+
+        // The Ironbreaker as a prize: only the winner's id and name go across; RealmLegendary applies its own rules
+        // (which events award it, whether it is free, cooldowns) and does its own herald and Chronicle lines.
+        private void OfferLegendary(string kind, string playerId, string playerName)
+        {
+            if (RealmLegendary == null) return;
+            try { RealmLegendary.Call("AwardEventPrize", kind, playerId, playerName); }
+            catch (Exception ex) { PrintWarning("RealmLegendary prize offer failed: " + ex.Message); }
         }
 
         private void CurrentCrown(out string monarch, out string house)
@@ -1353,6 +1553,80 @@ namespace Oxide.Plugins
             GuildScheme guilds = SocialAPI.Get<GuildScheme>();
             Guild g = guilds != null ? guilds.TryGetGuildByMember(playerId) : null;
             return g != null && !string.IsNullOrEmpty(g.Name) ? g.Name : null;
+        }
+
+        // Same house, liege or vassal of each other, or bound by a treaty. Without RealmHouses only the same name counts.
+        private bool Allied(string a, string b)
+        {
+            if (a == null || b == null) return false;
+            if (SameName(a, b)) return true;
+            if (RealmHouses == null) return false;
+            if (SameName(RealmHouses.Call("GetLiege", a) as string, b) || SameName(RealmHouses.Call("GetLiege", b) as string, a)) return true;
+            object r = RealmHouses.Call("HasTreaty", a, b);
+            return r is bool && (bool)r;
+        }
+
+        private static bool AnySame(string a1, string a2, string b1, string b2)
+        {
+            return SameName(a1, b1) || SameName(a1, b2) || SameName(a2, b1) || SameName(a2, b2);
+        }
+
+        private bool AnyAllied(string a1, string a2, string b1, string b2)
+        {
+            return Allied(a1, b1) || Allied(a1, b2) || Allied(a2, b1) || Allied(a2, b2);
+        }
+
+        // Player ids of a house and of every house allied with it (liege, vassals, treaty partners), as they are now.
+        private List<string> SideMembers(string house)
+        {
+            var ids = new List<string>();
+            if (house == null || RealmHouses == null) return ids;
+            var side = new List<string> { house };
+            string liege = RealmHouses.Call("GetLiege", house) as string;
+            if (!string.IsNullOrEmpty(liege)) side.Add(liege);
+            var vassals = RealmHouses.Call("GetVassals", house) as List<string>;
+            if (vassals != null) side.AddRange(vassals);
+            var all = RealmHouses.Call("GetHouseSummaries") as List<Dictionary<string, object>>;
+            if (all != null)
+                foreach (Dictionary<string, object> s in all)
+                {
+                    object n;
+                    string other = s != null && s.TryGetValue("name", out n) ? n as string : null;
+                    if (string.IsNullOrEmpty(other) || SameName(other, house)) continue;
+                    object r = RealmHouses.Call("HasTreaty", house, other);
+                    if (r is bool && (bool)r) side.Add(other);
+                }
+            foreach (string h in side)
+            {
+                var members = RealmHouses.Call("GetMembers", h) as List<string>;
+                if (members == null) continue;
+                foreach (string id in members) if (!string.IsNullOrEmpty(id) && !ids.Contains(id)) ids.Add(id);
+            }
+            return ids;
+        }
+
+        // Counts, for each quarry still at large, whether they are online now (see HuntSurviveMinOnlinePercent).
+        private void SampleQuarry(ActiveEvent a)
+        {
+            foreach (Quarry q in a.Quarry)
+            {
+                if (q.ClaimedById != null) continue;
+                q.Samples++;
+                if (OnlineById(q.Id) != null) q.OnlineSamples++;
+            }
+        }
+
+        private bool IsProtected(Player p)
+        {
+            if (RealmWarden == null || p == null) return false;
+            object r = RealmWarden.Call("IsNewPlayerProtected", p.Id);
+            return r is bool && (bool)r;
+        }
+
+        private static ulong ParseId(string id)
+        {
+            ulong u;
+            return ulong.TryParse(id, out u) ? u : 0UL;
         }
 
         private void NoticeThrottled(Player player, string key, params object[] args)

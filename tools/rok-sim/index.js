@@ -8,5 +8,7 @@ module.exports = {
   props: require('./lib/props'),
   chronicle: require('./lib/chronicle'),
   logs: require('./lib/logs'),
-  cmdline: require('./lib/cmdline')
+  cmdline: require('./lib/cmdline'),
+  slots: require('./lib/slots'),
+  ...require('./lib/watchdog')
 };

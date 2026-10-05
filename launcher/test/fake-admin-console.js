@@ -201,6 +201,14 @@ class FakeAdminConsole extends EventEmitter {
       case 'echo':
         out(args.join(' '));
         break;
+      // Oxide's console command (src/ReignOfKingsCore.cs). The wording of the real lines is UNVERIFIED.
+      case 'oxide.reload':
+      case 'o.reload':
+      case 'plugin.reload':
+        this.reloads = (this.reloads || []).concat(args[0] || '');
+        out(`Unloaded plugin ${args[0]} v1.0.0 by Realm`);
+        out(`Loaded plugin ${args[0]} v1.0.0 by Realm`);
+        break;
       default:
         this.logLine('E', `Unknown command '${text}'. For help type /help`);
     }

@@ -18,7 +18,10 @@ const DEFAULTS = Object.freeze({
   // Server instances s1..s4 (lib/fleet.js); s1's folder is testRoot.
   instances: [],
   // Last "Publish server list" inputs and the list's sequence number.
-  publish: {}
+  publish: {},
+  // Per server: the world slot that last reached "Game has started." { s1: { slot, root, at } }
+  // (lib/worlds.js, docs/worlds.md).
+  worlds: {}
 });
 
 class Settings {
@@ -50,6 +53,7 @@ class Settings {
     this.data.setupComplete = this.data.setupComplete === true;
     if (!Array.isArray(this.data.instances)) this.data.instances = [];
     if (!this.data.publish || typeof this.data.publish !== 'object' || Array.isArray(this.data.publish)) this.data.publish = {};
+    if (!this.data.worlds || typeof this.data.worlds !== 'object' || Array.isArray(this.data.worlds)) this.data.worlds = {};
     return this.data;
   }
 

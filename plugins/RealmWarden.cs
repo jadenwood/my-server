@@ -9,6 +9,10 @@
 //                          true [USE NoFriendlyFire.cs:116-117]. Binding: OnPlayerCapture (PlayerCaptureEvent) [OPJ L711].
 //                          A protected player who attacks, binds, breaks into a crest zone or takes the throne
 //                          (OnThroneCaptured [OPJ L607]) loses the protection at once, so it cannot be used to grief.
+//                          A new record's play time starts at the first OnPlayerSpawned (character made), not the
+//                          join; the wall clock still starts at the join. The join "Welcome" line is left to
+//                          RealmArrival while it owns the newcomer (OwnsArrival). GetProtectionMinutesLeft(ulong) is
+//                          offered for RealmArrival's ProtectionSoon tip.
 //   Combat-log detection   Every unblocked player-on-player hit tags both sides as "in combat" for WindowSeconds.
 //                          Leaving inside that window (OnPlayerDisconnected, core-dispatched [SRC]) is flagged,
 //                          logged as evidence and queued as an admin alert. A death (OnEntityDeath [OPJ L188]) clears
@@ -69,6 +73,7 @@ namespace Oxide.Plugins
     public class RealmWarden : ReignOfKingsPlugin
     {
         [PluginReference] private Plugin CrownAndConsequences;
+        [PluginReference] private Plugin RealmArrival;
 
         private const string PermAdmin = "realmwarden.admin";
         private const string DataName = "RealmWarden";
@@ -401,6 +406,7 @@ namespace Oxide.Plugins
             public long FirstSeen;
             public long LastSeen;
             public double Playtime;                          // seconds online
+            public bool AwaitingSpawn;                       // new record: play time counts from the first spawn, not the join
             public bool ProtectionEnded;
             public string ProtectionEndReason = "";
             public long ProtectedUntil;                      // admin grant, overrides the normal window
@@ -540,31 +546,60 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+        #endregion
+
         #region Lang
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Prefix", "[7090B0]Warden[FFFFFF]: " },
-                { "Help1", "/warden status - your protection, mute and combat state, and the raid hours." },
-                { "Help2", "/warden rules - the fair-play rules. /warden report <player> <reason> - tell the admins (quote names with spaces)." },
-                { "Help3", "/warden protection off confirm - give up your new-player protection early." },
-                { "HelpAdmin1", "Admin: /warden alerts [all] [page] | /warden ack <id|all> | /warden player <player> | /warden evidence [player] [page]" },
-                { "HelpAdmin2", "Admin: /warden protect <player> <minutes|off> | /warden mute <player> <minutes> | /warden unmute <player> | /warden clear <player> | /warden raid" },
+                { "Speaker", "Warden" },
+                { "HelpHeader", "The Warden keeps play fair: new-player protection, raid hours and reports." },
+                { "Help1", "  [F4C96D]/warden status[FFFFFF] - your protection, mute and combat state, and the raid hours." },
+                { "Help2", "  [F4C96D]/warden rules[FFFFFF] - the fair-play rules. [F4C96D]/warden report[FFFFFF] <player> <reason> - tell the admins (quote names with spaces)." },
+                { "Help3", "  [F4C96D]/warden protection off confirm[FFFFFF] - give up your new-player protection early." },
+                { "HelpAdmin1", "  Admin: [F4C96D]/warden alerts[FFFFFF] [all] [page] | [F4C96D]/warden ack[FFFFFF] <id|all> | [F4C96D]/warden player[FFFFFF] <player> | [F4C96D]/warden evidence[FFFFFF] [player] [page]" },
+                { "HelpAdmin2", "  Admin: [F4C96D]/warden protect[FFFFFF] <player> <minutes|off> | [F4C96D]/warden mute[FFFFFF] <player> <minutes> | [F4C96D]/warden unmute[FFFFFF] <player> | [F4C96D]/warden clear[FFFFFF] <player> | [F4C96D]/warden raid[FFFFFF]" },
                 { "NoPermission", "You may not do that." },
                 { "PlayerNotFound", "No one by that name is online or in the Warden's records." },
                 { "Ambiguous", "More than one player matches '{0}'. Use more of the name or their Steam ID." },
                 { "BadNumber", "'{0}' is not a whole number from {1} to {2}." },
                 { "DataDamaged", "The Warden's records are damaged (oxide/data/RealmWarden.json). Nothing is being saved and new-player protection is off until an admin repairs it." },
-                { "Welcome", "Welcome to Ostreval. You are under new-player protection for {0} of play: other players cannot wound or bind you. Attacking anyone ends it. /warden status" },
+                { "Welcome", "Welcome to Ostreval. You are under new-player protection for {0} of play: other players cannot wound or bind you. Attacking anyone ends it. [F4C96D]/warden status[FFFFFF]" },
                 { "ProtectionLeft", "New-player protection: {0} left." },
                 { "ProtectionNone", "New-player protection: none." },
                 { "ProtectionEndedMsg", "Your new-player protection has ended ({0}). Other players can now attack you." },
                 { "ProtectionExpired", "Your new-player protection has run out. Other players can now attack you." },
                 { "ProtectedTarget", "{0} is under new-player protection and cannot be harmed." },
                 { "ProtectedCapture", "{0} is under new-player protection and cannot be bound." },
-                { "OptOutConfirm", "This cannot be undone. Type /warden protection off confirm to give up your protection." },
+                { "OptOutConfirm", "This cannot be undone. Type [F4C96D]/warden protection off confirm[FFFFFF] to give up your protection." },
                 { "OptOutDisabled", "Giving up protection early is turned off on this server." },
                 { "NotProtected", "You are not under new-player protection." },
                 { "Muted", "You are muted by the Warden for {0}." },
@@ -587,11 +622,11 @@ namespace Oxide.Plugins
                 { "RaidClosedNone", "Raid hours: closed. No window is configured." },
                 { "RaidOff", "Raid hours: not enforced; structures can be attacked at any time." },
                 { "RaidRebellion", "Raid hours: OPEN while a rebellion window is open." },
-                { "RaidBlocked", "Outside raid hours: structures in a claimed zone cannot be damaged. /warden status" },
+                { "RaidBlocked", "Outside raid hours: structures in a claimed zone cannot be damaged. [F4C96D]/warden status[FFFFFF]" },
                 { "Rules1", "Fair play: new players are protected for {0} of play; leaving within {1} s of a fight is flagged; chat flooding gets a timed mute." },
                 { "Rules2", "Names that impersonate staff or that the community has banned are flagged. No one is banned automatically; the admins decide." },
                 { "ReportDisabled", "Reports are turned off on this server." },
-                { "ReportUsage", "Usage: /warden report <player> <reason>. Quote names with spaces." },
+                { "ReportUsage", "Usage: [F4C96D]/warden report[FFFFFF] <player> <reason>. Quote names with spaces." },
                 { "ReportSelf", "You cannot report yourself." },
                 { "ReportReason", "Give a reason of {0} to {1} characters." },
                 { "ReportCooldown", "You can send another report in {0}." },
@@ -600,15 +635,15 @@ namespace Oxide.Plugins
                 { "ReportSent", "Report #{0} sent to the admins. Thank you." },
                 { "AlertsNone", "No alerts." },
                 { "AlertsHeader", "Alerts ({0} unread, {1} stored) page {2}/{3}:" },
-                { "AlertLine", "#{0} {1} {2} {3}: {4}{5}" },
-                { "AlertChat", "[FF8040]#{0} {1}[FFFFFF] {2}: {3}" },
-                { "AlertOverflow", "+{0} more alerts were queued. /warden alerts" },
-                { "AlertsUnread", "{0} unread Warden alerts. /warden alerts" },
+                { "AlertLine", "  #{0} {1} {2} {3}: {4}{5}" },
+                { "AlertChat", "[E8913A]Warden alert #{0} {1}[FFFFFF] {2}: {3}" },
+                { "AlertOverflow", "+{0} more alerts were queued. [F4C96D]/warden alerts[FFFFFF]" },
+                { "AlertsUnread", "{0} unread Warden alerts. [F4C96D]/warden alerts[FFFFFF]" },
                 { "AckDone", "Acknowledged {0} alert(s)." },
                 { "AckNone", "No such unread alert." },
                 { "EvidenceNone", "No evidence recorded." },
                 { "EvidenceHeader", "Evidence page {0}/{1}:" },
-                { "EvidenceLine", "#{0} {1} {2} {3}: {4}{5}" },
+                { "EvidenceLine", "  #{0} {1} {2} {3}: {4}{5}" },
                 { "PlayerHeader", "{0} ({1}) first seen {2}, last seen {3}, played {4}." },
                 { "PlayerFlags", "Flags: {0}" },
                 { "PlayerState", "Protection: {0}. Mute: {1}. Combat: {2}." },
@@ -635,12 +670,29 @@ namespace Oxide.Plugins
 
         private void Reply(Player player, string key, params object[] args)
         {
-            player.SendMessage(Msg("Prefix", player) + Fmt(key, player, args));      // single-string overload: brace safe
+            player.SendMessage(Styled(Msg("Speaker", player), ToneOf(key), Fmt(key, player, args)));   // single-string overload: brace safe
         }
 
+        // Refusals are red; warnings sent the same way (combat, sleeper) keep the amber of their tone.
         private void ReplyError(Player player, string key, params object[] args)
         {
-            player.SendError(Fmt(key, player, args));
+            player.SendError(Styled(Msg("Speaker", player), WarnKeys.Contains(key) ? ChatWarn : ChatError, Fmt(key, player, args)));
+        }
+
+        // Tone of a reply (chat style): done, or take care; everything else is news.
+        private static readonly HashSet<string> OkKeys = new HashSet<string>
+        {
+            "AckDone", "ClearDone", "MuteSet", "UnmuteSet", "ProtectSet", "ProtectOff", "ReportSent"
+        };
+        private static readonly HashSet<string> WarnKeys = new HashSet<string>
+        {
+            "ProtectionEndedMsg", "ProtectionExpired", "Muted", "MutedNow", "NameWarn", "OpponentLeft", "OptOutConfirm", "CombatState",
+            "CombatStart", "SleeperNote", "AlertsUnread", "AlertOverflow", "RaidBlocked"
+        };
+
+        private static string ToneOf(string key)
+        {
+            return OkKeys.Contains(key) ? ChatOk : WarnKeys.Contains(key) ? ChatWarn : ChatGold;
         }
 
         private bool Throttled(string key, double seconds)
@@ -742,6 +794,7 @@ namespace Oxide.Plugins
             PlayerRec r = Rec(p.Id);
             if (r == null) return;
             double last;
+            if (r.AwaitingSpawn) { lastAccrual[p.Id] = now; r.LastSeen = (long)now; return; }   // still making a character
             if (lastAccrual.TryGetValue(p.Id, out last))
             {
                 double add = now - last;
@@ -771,6 +824,7 @@ namespace Oxide.Plugins
             {
                 r = new PlayerRec();
                 r.FirstSeen = now;
+                r.AwaitingSpawn = true;
                 data.Players[id] = r;
             }
             r.Name = Clean(p.Name, 64);
@@ -794,7 +848,8 @@ namespace Oxide.Plugins
                     int unread = UnreadCount();
                     if (config.Alerts.RemindOnAdminJoin && unread > 0) Reply(player, "AlertsUnread", unread);
                 }
-                if (isNew && IsProtectedRec(r, NowSec()))
+                // RealmArrival's Shelter line replaces this welcome while it owns the newcomer's first minutes.
+                if (isNew && IsProtectedRec(r, NowSec()) && !ArrivalOwns(player.Id))
                     Reply(player, "Welcome", Dur(config.NewPlayerProtection.PlaytimeMinutes * 60));
                 CheckName(player);
             }
@@ -802,6 +857,40 @@ namespace Oxide.Plugins
             {
                 PrintError("Connect check failed: " + ex.Message);
             }
+        }
+
+        // A new record's play time starts when the character is made (OnPlayerSpawned [OPJ L1244]), so character
+        // creation does not use up the protected hour; the 48 h wall clock still runs from the first join. A returning
+        // character (OnPlayerSpawn [OPJ L240] with AtFirstSpawn false [DEC]) starts it too.
+        private void OnPlayerSpawned(PlayerPreSpawnCompleteEvent e)
+        {
+            if (e == null || data == null) return;
+            try { StartPlaytime(e.Player); }
+            catch (Exception ex) { PrintError("Spawn check failed: " + ex.Message); }
+        }
+
+        private void OnPlayerSpawn(PlayerFirstSpawnEvent e)
+        {
+            if (e == null || data == null || e.AtFirstSpawn) return;
+            try { StartPlaytime(e.Player); }
+            catch (Exception ex) { PrintError("Spawn check failed: " + ex.Message); }
+        }
+
+        private void StartPlaytime(Player player)
+        {
+            if (player == null || player.IsServer) return;
+            PlayerRec r = Rec(player.Id);
+            if (r == null || !r.AwaitingSpawn) return;
+            r.AwaitingSpawn = false;
+            lastAccrual[player.Id] = NowSec();
+            dirty = true;
+        }
+
+        private bool ArrivalOwns(ulong id)
+        {
+            if (RealmArrival == null) return false;
+            try { object o = RealmArrival.Call("OwnsArrival", id.ToString()); return o is bool && (bool)o; }
+            catch (Exception) { return false; }
         }
 
         private void OnPlayerDisconnected(Player player)
@@ -1530,6 +1619,7 @@ namespace Oxide.Plugins
 
         private void ShowHelp(Player p)
         {
+            Reply(p, "HelpHeader");
             Reply(p, "Help1");
             Reply(p, "Help2");
             if (config.NewPlayerProtection.AllowOptOut) Reply(p, "Help3");
@@ -1543,7 +1633,7 @@ namespace Oxide.Plugins
         {
             Reply(p, "Rules1", Dur(config.NewPlayerProtection.PlaytimeMinutes * 60), config.CombatLog.WindowSeconds);
             Reply(p, "Rules2");
-            p.SendMessage(Msg("Prefix", p) + RaidStatus(p));
+            p.SendMessage(Styled(Msg("Speaker", p), ChatGold, RaidStatus(p)));
         }
 
         private void ShowStatus(Player p)
@@ -1557,7 +1647,7 @@ namespace Oxide.Plugins
             if (combat.TryGetValue(p.Id, out tag) && now - tag.LastHit <= config.CombatLog.WindowSeconds)
                 Reply(p, "CombatState", (int)Math.Ceiling(config.CombatLog.WindowSeconds - (now - tag.LastHit)));
             else Reply(p, "CombatNone");
-            p.SendMessage(Msg("Prefix", p) + RaidStatus(p));
+            p.SendMessage(Styled(Msg("Speaker", p), ChatGold, RaidStatus(p)));
         }
 
         private void CmdProtection(Player p, string[] args)
@@ -1793,7 +1883,7 @@ namespace Oxide.Plugins
         {
             RaidSettings c = config.RaidHours;
             Reply(p, "RaidAdmin", c.Enabled, c.Block, c.UtcOffsetMinutes, raidWindows.Count, c.AllowDuringRebellion);
-            p.SendMessage(Msg("Prefix", p) + RaidStatus(p));
+            p.SendMessage(Styled(Msg("Speaker", p), ChatGold, RaidStatus(p)));
         }
 
         private void AdminLog(Player admin, string targetId, string targetName, string what)
@@ -1871,6 +1961,16 @@ namespace Oxide.Plugins
         private bool IsNewPlayerProtected(ulong playerId)
         {
             return data != null && IsProtectedId(playerId);
+        }
+
+        // Whole minutes of new-player protection left (0 when not protected). RealmArrival's ProtectionSoon tip uses it;
+        // the end of protection is never announced to others.
+        private int GetProtectionMinutesLeft(ulong playerId)
+        {
+            PlayerRec r = Rec(playerId);
+            if (data == null || r == null) return 0;
+            double left = ProtectionLeft(r, NowSec());
+            return left <= 0 ? 0 : (int)Math.Ceiling(left / 60.0);
         }
 
         private bool IsInCombat(ulong playerId)

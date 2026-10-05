@@ -22,6 +22,9 @@ const files = [
   'renderer/court.js',
   'renderer/discord.js',
   'renderer/dashboard.js',
+  'renderer/publish-feeds.js',
+  'renderer/sentinel.js',
+  'renderer/features.js',
   ...readdirSync(path.join(root, 'build')).filter((f) => f.endsWith('.js')).map((f) => `build/${f}`),
   ...readdirSync(path.join(root, 'scripts')).filter((f) => f.endsWith('.mjs')).map((f) => `scripts/${f}`),
   ...readdirSync(path.join(root, 'test')).filter((f) => f.endsWith('.js')).map((f) => `test/${f}`)

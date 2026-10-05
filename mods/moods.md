@@ -2,16 +2,23 @@
 
 A **world mood** is a named preset for the game's built-in Mods system. It changes fog, sun and moon colour, weather odds and, in one case, the speed of the day. Ostreval looks and plays differently from one season to the next, but nothing on the player's side changes. The server sends the values to each player when they join, and the player's own unmodified Steam copy applies them (see [README.md](README.md) and [docs/mods-keys-from-dll.md](../docs/mods-keys-from-dll.md)).
 
-There are six moods. Four are **season moods**, which last a whole season. Two are **overlays**, which run for a weekend or a short story arc and then hand back to the season mood.
+There are thirteen moods. Seven are **season moods**, which last a whole season: four take turns in the season cycle and three are **season looks**, alternatives an owner may pick instead. Six are **overlays**, which run for an event, a weekend, a festival week or a short story arc and then hand back to the season mood.
 
 | Mood | Kind | In one line | Folder |
 |---|---|---|---|
-| Grim but Readable | season | The baseline: cool grey light and mixed weather. Used for the Thaw season and between arcs. | `presets/grim-but-readable/` (made by an earlier team, read-only here) |
+| Grim but Readable | season | The baseline: cool grey light and mixed weather. Used for the Thaw season and between arcs. | `presets/grim-but-readable/` |
 | Golden Summer | season | Warm honey light, thin haze, almost no rain, slightly longer days. | `presets/golden-summer/` |
 | Storm Season | season | Rain most of the time, slate light, wet fog. Clear skies are rare. | `presets/storm-season/` |
 | Long Winter | season | Pale cold sun, low grey skies, icy fog, a bright cold moon. | `presets/long-winter/` |
-| Blood Moon | overlay | Red moon nights under clear skies. | `presets/blood-moon/` |
+| Spring Rains | season look | Fresh green-gold light, a light mist, showers but never a storm. An alternative to Grim for the Thaw. | `presets/spring-rains/` |
+| Hunter's Moon | season look | A copper moon, amber afternoons, valley mist, grey days without storms. An alternative to Storm Season. | `presets/hunters-moon/` |
+| First Frost | season look | Crisp blue-white light, a bright cold moon, thin air, mostly clear. An alternative to Long Winter. | `presets/first-frost/` |
+| Blood Moon | overlay | Red moon nights under clear skies. The season finale. | `presets/blood-moon/` |
+| Crown Night | overlay | A gold moon over a violet haze, clear skies. The weekly Crown Night. | `presets/crown-night/` |
+| Truce | overlay | Soft pale light, thin air, no rain. A scheduled Truce of the Realm. | `presets/truce/` |
 | Ashfall | overlay | Brown-grey ash haze, an orange sun, dry and overcast. | `presets/ashfall/` |
+| Harvest Fair | overlay | A low amber sun, an orange harvest moon, golden haze, dry skies. RealmWorld's Harvest Fair week. | `presets/harvest-festival/` |
+| Midwinter | overlay | A bright silver-blue moon, a pale cold sun, frost haze, still skies. RealmWorld's Midwinter week. | `presets/midwinter/` |
 
 ## The keys moods may use
 
@@ -42,6 +49,13 @@ At each weather change, `Weather.ChangeTheWeather` multiplies each weight by a r
 | Long Winter | 3 / 6 / 4 / 3 / 2 | 8.9% | 56.5% | 23.5% | 8.9% | 1.5% | 0.6% |
 | Blood Moon | 6 / 3 / 1 / 0 / 0 | 73.6% | 24.0% | 1.9% | never | never | 0.5% |
 | Ashfall | 3 / 7 / 1 / 0 / 0 | 20.8% | 77.4% | 1.7% | never | never | 0.2% |
+| Crown Night | 7 / 3 / 1 / 0 / 0 | 77.4% | 20.8% | 1.7% | never | never | 0.2% |
+| Truce | 6 / 5 / 0 / 0 / 0 | 58.2% | 41.7% | never | never | never | 0.2% |
+| Spring Rains | 4 / 4 / 6 / 2 / 0 | 21.3% | 21.3% | 54.5% | 2.1% | never | 0.7% |
+| Hunter's Moon | 5 / 5 / 3 / 1 / 0 | 43.4% | 43.4% | 11.9% | 0.3% | never | 0.8% |
+| First Frost | 6 / 4 / 1 / 1 / 0 | 65.3% | 32.2% | 1.1% | 1.1% | never | 0.3% |
+| Harvest Fair | 7 / 4 / 1 / 0 / 0 | 70.5% | 28.1% | 1.3% | never | never | 0.2% |
+| Midwinter | 6 / 4 / 2 / 0 / 0 | 63.5% | 30.5% | 5.6% | never | never | 0.4% |
 
 **UNVERIFIED: how often the weather changes.** The interval is `_WeatherChangeRate`, a Unity-serialized field. Its C# initializer is `2`, but the scene value is not in the DLL. Cloud cover moves towards its target at `_CloudCoverDelta`, which is 0.0006 per second in the code, so a full clear-to-overcast change takes about 28 minutes. If the change interval is short, the weights act as a mix of targets that the sky drifts between, and the table gives the share of time each target is picked.
 
@@ -63,7 +77,7 @@ The luminance numbers measure light *colour* only. How bright the game looks in 
 
 ---
 
-## The five new moods
+## Long Winter, Blood Moon, Golden Summer, Storm Season and Ashfall
 
 All colour and fog values assume the scene defaults are white and `1`, which are the code initializers. Set-Mood.ps1 prints the server's real default next to each value and flags any difference.
 
@@ -85,7 +99,7 @@ All colour and fog values assume the scene defaults are white and `1`, which are
 
 ### Blood Moon
 
-*A red moon over Ostreval.* This is an overlay for Crown Night weekends and season finales. It is not meant to run for a whole season.
+*A red moon over Ostreval.* This is an overlay for season finales and, at most once more a season, a Crown Night (`crown_night_blood`); the weekly Crown Night has its own gold mood. It is not meant to run for a whole season.
 
 | Key | Value | Effect |
 |---|---|---|
@@ -150,6 +164,121 @@ All colour and fog values assume the scene defaults are white and `1`, which are
 
 ---
 
+## Five more moods: Crown Night, Truce and three season looks
+
+Two more overlays for the realm's own events, and three **season looks**: alternatives an owner can pick by hand with `-Mood` instead of the cycle's mood (listed under `seasonLooks` in [`presets/rotation.json`](presets/rotation.json); `-Season` does not use them). The same rules apply: only the twelve proven keys, every readability floor kept, colours assume white scene defaults. **What each one looks like is described from the colour maths only. Nobody has seen any of them in game (UNVERIFIED).**
+
+Every mood can be installed with `server\Set-Mood.ps1 -Mood <id>` or, without a full swap, with `presets\grim-but-readable\Apply-Preset.ps1 -Mood <id>` (see [README.md](README.md)).
+
+### Crown Night
+
+*The night the Old Throne is fought for.* The weekly overlay for RealmEvents' Crown Night (`-Event crown_night`). Blood Moon stays the rarer, darker look for the season finale and at most one more Crown Night a season (`-Event crown_night_blood`), so the red moon keeps its weight.
+
+| Key | Value | Effect |
+|---|---|---|
+| `Atmosphere.MoonColor` | `rgba(1,0.92,0.7,1)` | A gold moon, light and disc (luminance 0.92). |
+| `Atmosphere.SunColor` | `rgba(1,0.92,0.84,1)` | A warm, dusk-coloured day before the fight (luminance 0.93). |
+| `Atmosphere.FogColor` | `rgba(0.9,0.86,0.96,1)` | A faint royal-violet haze (luminance 0.88). |
+| `Atmosphere.FogDensity` | `0.95` | Sight in fog is about 5% longer. |
+| Weather | 7 / 3 / 1 / 0 / 0 | Clear 77% of changes. Never medium or heavy rain. |
+
+**What it should look like (UNVERIFIED):** warm gold moonlight on stone and armour, a soft violet cast in the distance, clear skies. **Rationale:** Crown Night is a fight at night, and on stream it has to read. Gold moonlight is bright: of the overlays only Truce has a brighter moon. **Readability note:** If banners look washed out, lower red and green together to `rgba(0.95,0.88,0.7,1)` (luminance 0.88).
+
+### Truce
+
+*The realm holds its breath.* An overlay for a scheduled Truce of the Realm long enough to plan a restart around: a truce day, peace talks, a break between seasons (`-Event truce`). A short truce needs no mood, as before.
+
+| Key | Value | Effect |
+|---|---|---|
+| `Atmosphere.SunColor` | `rgba(1,0.98,0.95,1)` | A soft, faintly warm sun, the closest to plain white of any mood (luminance 0.98). |
+| `Atmosphere.MoonColor` | `rgba(0.94,0.96,1,1)` | A pale silver moon (luminance 0.96). |
+| `Atmosphere.FogColor` | `rgba(0.96,0.97,1,1)` | A clean, faintly cool haze (luminance 0.97). |
+| `Atmosphere.FogDensity` | `0.9` | Sight in fog is about 11% longer. |
+| Weather | 6 / 5 / 0 / 0 / 0 | Clear or cloudy only. It never rains during a truce. |
+
+**What it should look like (UNVERIFIED):** quiet, pale and even light, long views, no rain. **Rationale:** a truce should feel different from war at a glance, and riders under a banner of truce should be seen coming. **Readability note:** the most readable mood after Golden Summer; nothing to watch except that it may look flat.
+
+### Spring Rains (season look)
+
+*The realm turning green again.* An alternative to Grim but Readable for the Thaw season.
+
+| Key | Value | Effect |
+|---|---|---|
+| `Atmosphere.SunColor` | `rgba(0.98,1,0.92,1)` | A fresh sun with a hint of green-gold (luminance 0.99). |
+| `Atmosphere.MoonColor` | `rgba(0.9,0.96,1,1)` | A clear, cool moon (luminance 0.95). |
+| `Atmosphere.FogColor` | `rgba(0.9,0.97,0.92,1)` | A faintly green mist (luminance 0.95). |
+| `Atmosphere.FogDensity` | `1.1` | Sight in fog is about 9% shorter. |
+| Weather | 4 / 4 / 6 / 2 / 0 | Light rain on more than half the changes, never a storm. |
+
+**What it should look like (UNVERIFIED):** bright, slightly green light between quick showers. **Rationale:** spring is wet but gentle; showers break up long sight lines without the slog of Storm Season. **Readability note:** light rain shortens sight in fog again (`RainyWeatherVisibility`); if it feels closed in, lower `FogDensity` to `1.0` first.
+
+### Hunter's Moon (season look)
+
+*Late autumn after the harvest.* An alternative to Storm Season for an autumn that should be moody rather than wet. It also suits a King's Hunt week.
+
+| Key | Value | Effect |
+|---|---|---|
+| `Atmosphere.MoonColor` | `rgba(1,0.78,0.55,1)` | A low copper moon (luminance 0.81). |
+| `Atmosphere.SunColor` | `rgba(1,0.9,0.76,1)` | Amber afternoons (luminance 0.91). |
+| `Atmosphere.FogColor` | `rgba(0.96,0.9,0.8,1)` | A warm grey-amber valley mist (luminance 0.91). |
+| `Atmosphere.FogDensity` | `1.2` | Sight in fog is about 17% shorter. |
+| Weather | 5 / 5 / 3 / 1 / 0 | Clear or grey in equal measure, some light rain, never a storm. |
+
+**What it should look like (UNVERIFIED):** copper nights and amber days with mist in the low ground. **Rationale:** closer, quieter sight lines for hunting country, without Storm Season's rain. **Readability note:** the copper moon is darker than most (0.81) but well above the floor, and red is kept full so silhouettes read. If nights are too dark, raise green and blue together, for example to `rgba(1,0.84,0.64,1)`.
+
+### First Frost (season look)
+
+*The first cold, clear days of winter.* A readable alternative to Long Winter, for a new-player wave or a server that finds Long Winter too closed in.
+
+| Key | Value | Effect |
+|---|---|---|
+| `Atmosphere.SunColor` | `rgba(0.9,0.95,1,1)` | A crisp, cold sun (luminance 0.94). |
+| `Atmosphere.MoonColor` | `rgba(0.85,0.93,1,1)` | A bright, cold moon (luminance 0.92). |
+| `Atmosphere.FogColor` | `rgba(0.92,0.96,1,1)` | A clean frost-blue haze (luminance 0.95). |
+| `Atmosphere.FogDensity` | `0.95` | Sight in fog is about 5% longer. Cold air is clear air. |
+| Weather | 6 / 4 / 1 / 1 / 0 | Mostly clear, never a storm. |
+
+**What it should look like (UNVERIFIED):** blue-white light, long clear views, a bright moon. **Rationale:** winter's colour without winter's walls of fog. **Readability note:** no Mods key exists for snow, so any precipitation looks like the game's rain.
+
+---
+
+## The living world's moods: Blood Moon nights, the Harvest Fair and Midwinter
+
+`plugins/RealmWorld.cs` runs three things that have a look of their own (see [`plugins/docs/RealmWorld.md`](../plugins/docs/RealmWorld.md)). The plugin cannot change the sky itself: the Mods system is read at start-up only, so each look is a mood the owner applies at the planned restart before it, exactly like Crown Night. RealmWorld writes a reminder in the server log when each one begins. **Nothing here has been seen in game (UNVERIFIED).**
+
+- **A Blood Moon night** (every other Thursday 20:00 UTC by default) uses the existing **Blood Moon** mood: `-Event blood_moon`. It is a night, not a weekend, so use it only when a restart falls before it anyway; the event works without it.
+- **The Harvest Fair** (a week from 22 September) and **Midwinter** (a week from 20 December) have their own overlays, below: `-Event harvest_festival` and `-Event midwinter`. A festival lasts a week, which fits the restart plan well.
+
+### Harvest Fair
+
+*The week the houses bring in the harvest.* The overlay for RealmWorld's Harvest Fair (`-Event harvest_festival`). Golden Summer stays the season look; the fair is warmer and lower in the sky, and it has its own moon.
+
+| Key | Value | Effect |
+|---|---|---|
+| `Atmosphere.MoonColor` | `rgba(1,0.84,0.62,1)` | A great orange harvest moon, light and disc (luminance 0.86). |
+| `Atmosphere.SunColor` | `rgba(1,0.9,0.72,1)` | A low amber sun, warmer than Golden Summer's (luminance 0.91). |
+| `Atmosphere.FogColor` | `rgba(1,0.94,0.84,1)` | A warm golden haze over the fields (luminance 0.95). |
+| `Atmosphere.FogDensity` | `1.05` | Sight in fog is about 5% shorter: chaff and dust in the air, not a wall. |
+| Weather | 7 / 4 / 1 / 0 / 0 | Clear 70% of changes. Never medium or heavy rain. |
+
+**What it should look like (UNVERIFIED):** amber afternoons and an orange moon over a fairground. **Rationale:** a fair is held under open skies, and the houses' monuments raised for it (RealmSculptor) should catch warm light. **Readability note:** the moon is the darkest part (0.86) and well above the floor; red is kept full so banners read at night.
+
+### Midwinter
+
+*The longest nights of the year, kept with fires and feasting.* The overlay for RealmWorld's Midwinter (`-Event midwinter`). Long Winter and First Frost stay the winter season moods; Midwinter is a festival look laid over either.
+
+| Key | Value | Effect |
+|---|---|---|
+| `Atmosphere.MoonColor` | `rgba(0.85,0.92,1,1)` | A silver-blue moon bright enough to walk by (luminance 0.91). |
+| `Atmosphere.SunColor` | `rgba(0.9,0.94,1,1)` | A pale, cold sun (luminance 0.94). |
+| `Atmosphere.FogColor` | `rgba(0.92,0.95,1,1)` | A clean frost haze (luminance 0.95). |
+| `Atmosphere.FogDensity` | `1.15` | Sight in fog is about 13% shorter: cold air, breath and hearth smoke. |
+| Weather | 6 / 4 / 2 / 0 / 0 | Mostly clear and still, some light falls, never a storm. |
+
+**What it should look like (UNVERIFIED):** blue-white nights under a bright moon, short grey days. **Rationale:** Midwinter is a hunt (wolves and bears count for the houses) and a feast; the nights must stay walkable. **Readability note:** no Mods key exists for snow, so what falls looks like the game's rain. If the haze feels closed in over a Long Winter season, lower `FogDensity` to `1.05`.
+
+---
+
 ## Rotation plan
 
 The plan ties moods to the two schedule systems that already exist. It is kept in [`presets/rotation.json`](presets/rotation.json), and `Set-Mood.ps1 -Season` and `-Event` read it from there.
@@ -182,11 +311,17 @@ The plan ties moods to the two schedule systems that already exist. It is kept i
 | Event key (`-Event`) | Mood | When | Ends |
 |---|---|---|---|
 | `season_finale` | Blood Moon | The last Saturday of each season: restart that morning, before the final Crown Night. | `-Return` at the Sunday restart. |
-| `crown_night` | Blood Moon | At most one more Crown Night per season, so the red moon stays special. | `-Return` at the next restart. |
+| `crown_night` | Crown Night | Any Crown Night: restart before it (default Saturday 19:00 UTC). | `-Return` at the next restart. |
+| `crown_night_blood` | Blood Moon | At most one more Crown Night per season instead of `crown_night`, so the red moon stays special. | `-Return` at the next restart. |
 | `war_arc` | Ashfall | Admin call after a forced change of crown (a rebellion won). At most once per season, at most 7 days, never in week 1. | `-Return`. |
 | `royal_tournament` | Golden Summer | Tournament day, so PvP ranking is not decided by weather. Skip it during a Golden Summer season, where it already applies. | `-Return`. |
+| `truce` | Truce | A Truce of the Realm scheduled long enough to plan a restart around (a truce day, peace talks). | `-Return`. |
+| `blood_moon` | Blood Moon | A RealmWorld Blood Moon night (`/world schedule`), when a restart falls before it anyway. | `-Return` at the next restart. |
+| `harvest_festival` | Harvest Fair | RealmWorld's Harvest Fair: restart the morning it opens (default 22 September 12:00 UTC). | `-Return` at the first restart after it closes. |
+| `midwinter` | Midwinter | RealmWorld's Midwinter: restart the morning it opens (default 20 December 12:00 UTC). | `-Return` at the first restart after it closes. |
 
-- King's Hunt and the Truce have no mood. They are short and need no restart.
+- The King's Hunt has no mood, and neither does a short truce: they need no restart. Hunter's Moon suits a hunt week if the owner wants one (`-Mood hunters-moon`).
+- **Season looks** are not in the cycle. To use one, run `-Mood spring-rains` (or `hunters-moon`, `first-frost`) at the season's first restart instead of `-Season <n>`. `seasonLooks` in `rotation.json` records which cycle mood each one stands in for.
 - `-Event` remembers the season mood that was active, and `-Return` puts it back. If you stack overlays, for example Ashfall during a Blood Moon weekend, `-Return` still goes back to the season mood, not to the first overlay.
 - A Realm Chronicle entry is not written by Set-Mood.ps1, because it runs while the server is stopped. Announce a mood change in the season-start post or the news feed, as you do for other changes. **No new Chronicle event types are needed.**
 
@@ -220,7 +355,7 @@ Here is what it does to keep the server safe:
 - **Validation.** Every mood file is checked against the proven keys, value types and readability floors before anything is written.
 - **State.** The active mood, the overlay's return mood and every line written are stored in `<server>\.realm-mood.json`. This file is outside `Mods\`.
 
-**Coexistence with `presets/grim-but-readable/Apply-Preset.ps1`:** both scripts write the same keys. Use Set-Mood.ps1 from now on. To get Grim, run `.\Set-Mood.ps1 -Mood grim-but-readable`. If you also run `Apply-Preset.ps1 -Revert` later, it restores the files as they were before Grim was *first* applied. That undoes any mood set since then.
+**Coexistence with `presets/grim-but-readable/Apply-Preset.ps1`:** both scripts write the same keys. Apply-Preset.ps1 now takes `-Mood <id>` for any mood (and `-List`), but it only adds or replaces that mood's lines: lines an earlier mood set stay, and it skips Golden Summer's relative `#@scale` day speed. Prefer Set-Mood.ps1, which swaps whole moods and keeps state. If you run `Apply-Preset.ps1 -Revert` later, it restores the files as they were before the *first* Apply-Preset.ps1 change. That undoes any mood set since then.
 
 ### Checking a mood (needs the owner's PC)
 
@@ -231,7 +366,9 @@ Here is what it does to keep the server safe:
 
 ## Tests
 
-[`presets/tests/Test-SetMood.ps1`](presets/tests/Test-SetMood.ps1) builds a fake test copy, with a marker, made-up `Environment.defaults.cfg` and unrelated override files, and runs Set-Mood.ps1 through 70 checks. They cover: list and odds, `-WhatIf` writing nothing, apply, swap, relative `DaySpeed`, a no-op re-apply, stacked overlays and return, season rotation, drift in `-Status`, clear, restore, Steam and marker and backup-location refusals, ten kinds of bad mood file, undeclared keys and comma-decimal refusal.
+[`presets/tests/presets.test.mjs`](presets/tests/presets.test.mjs) (Node, runs anywhere: `node --test mods/presets/tests/`) checks every mood file with the same rules as Set-Mood.ps1 (only the proven keys, the line format, value types and every readability floor), that `rotation.json` names only moods that exist and every mood has an entry, that the weather odds in each mood file's comments and in the table above are the exact odds of its weights, that every mood is described here, that Apply-Preset.ps1 and Set-Mood.ps1 allow the same twelve keys, and that every mood has the `# Identity:` line `Apply-Preset.ps1 -List` prints and an id its `-Mood` check accepts.
+
+[`presets/tests/Test-SetMood.ps1`](presets/tests/Test-SetMood.ps1) builds a fake test copy, with a marker, made-up `Environment.defaults.cfg` and unrelated override files, and runs Set-Mood.ps1 through 75 checks (the five new list checks and the new `crown_night` mapping were not run in this environment, which has no PowerShell: UNVERIFIED until the next `pwsh` run). They cover: list and odds, `-WhatIf` writing nothing, apply, swap, relative `DaySpeed`, a no-op re-apply, stacked overlays and return, season rotation, drift in `-Status`, clear, restore, Steam and marker and backup-location refusals, ten kinds of bad mood file, undeclared keys and comma-decimal refusal.
 
 ```powershell
 pwsh -File mods/presets/tests/Test-SetMood.ps1                                   # Linux/macOS
@@ -246,7 +383,7 @@ Everything in [README.md](README.md#still-unverified-needs-a-running-server) app
 
 - How every mood **looks**. All the numbers here are colour maths on the code's formulas. Nobody has seen a mood in game yet.
 - How often the weather changes (`_WeatherChangeRate`, a serialized scene value), and so how long a storm lasts.
-- Whether this map can show snow (Long Winter). No Mods key exists for snow.
+- Whether this map can show snow (Long Winter, First Frost). No Mods key exists for snow.
 - Whether `Clock.DaySpeed` has a scene curve (`DaySpeedModifier`) that makes the 0.9 factor feel different by day and by night.
 - Whether a mood can be applied without a restart. The plan assumes it cannot.
 - What colour values above 1 would do. Moods avoid them.

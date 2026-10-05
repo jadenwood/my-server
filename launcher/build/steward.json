@@ -37,6 +37,34 @@
       "filter": [
         "*.cs"
       ]
+    },
+    {
+      "from": "../art/sculptures",
+      "to": "realm-data/RealmSculptor",
+      "filter": [
+        "*.json"
+      ]
+    },
+    {
+      "from": "../art/paintings",
+      "to": "realm-data",
+      "filter": [
+        "RealmPainterArt.json"
+      ]
+    },
+    {
+      "from": "../plugins/docs/RealmQuests/content",
+      "to": "realm-data/RealmQuests",
+      "filter": [
+        "*.json"
+      ]
+    },
+    {
+      "from": "../art/sculptures/sites",
+      "to": "realm-data/RealmArrival",
+      "filter": [
+        "arrival.json"
+      ]
     }
   ],
   "extraFiles": [
@@ -74,6 +102,9 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "Realm Steward",
+    "deleteAppDataOnUninstall": false,
+    "uninstallDisplayName": "${productName}",
+    "runAfterFinish": true,
     "artifactName": "Realm-Steward-Setup-${version}.${ext}"
   },
   "portable": {

@@ -1,7 +1,7 @@
 // Breaking News: an alert queue for betrayals, claims, rebellions and the fall of a crown. Alerts play
 // one at a time for `hold` seconds; urgent ones (rebellion, oathbreaking) jump the queue.
 
-import { setupScene, startFeed, el, dyeFor, houseLabel, icon, healthChip, TYPE_ICON, TYPE_LABEL } from './kit.js';
+import { setupScene, startFeed, el, dyeFor, houseLabel, eventIcon, houseArt, healthChip, TYPE_LABEL } from './kit.js';
 import { AlertQueue, BREAKING_TYPES, breakingSeverity, formatUtc } from './model.js';
 
 const kit = setupScene({ transparent: true, hold: 10, anchor: 'top center' });
@@ -27,16 +27,21 @@ function card(e) {
   const house = m ? m[1] : null;
   const dye = dyeFor(house || e.title);
   const more = queue.length;
-  return el('section', { class: `alert sev-${sev} ${position}`, '--hold': `${kit.hold}s`, ...dye, 'data-id': String(e.id) },
+  const crest = houseArt(house, 'shield', 'crest');
+  // A rebellion is the biggest news there is: the frame runs red and the card shakes.
+  const big = e.type === 'rebellion_started';
+  return el('section', { class: `alert sev-${sev} ${position}${big ? ' rebellion' : ''}${crest ? ' has-crest' : ''}`, '--hold': `${kit.hold}s`, ...dye, 'data-id': String(e.id), 'data-type': e.type },
+    big ? el('div', { class: 'war-edge', 'aria-hidden': 'true' }) : null,
     el('div', { class: 'tag' },
-      el('div', { class: 'tag-icon' }, icon(TYPE_ICON[e.type] || 'scroll')),
-      el('div', { class: 'tag-text' }, el('span', { class: 'big' }, 'Breaking'), el('span', { class: 'small' }, 'The Chronicle of Ostreval'))),
+      el('div', { class: 'tag-icon' }, eventIcon(e.type)),
+      el('div', { class: 'tag-text' }, el('span', { class: 'big' }, big ? 'To Arms' : 'Breaking'), el('span', { class: 'small' }, 'The Chronicle of Ostreval'))),
     el('div', { class: 'body parchment' },
       el('div', { class: 'kind' }, TYPE_LABEL[e.type] || e.type.replace(/_/g, ' '),
         house ? el('span', { class: 'house' }, el('i', { class: 'dot' }), houseLabel(house)) : null),
       el('div', { class: 'headline' }, e.title || ''),
       e.detail ? el('div', { class: 'detail' }, e.detail) : null,
       el('div', { class: 'meta' }, e.ts ? formatUtc(Date.parse(e.ts)) : '', more > 0 ? el('span', { class: 'more' }, `+${more} more`) : null)),
+    crest ? el('div', { class: 'crest-wrap' }, crest) : null,
     el('div', { class: 'timer' }));
 }
 

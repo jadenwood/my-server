@@ -104,7 +104,8 @@ test('normal start: ports, A2S, console commands, world slot, /shutdown order an
       [P.TYPE.DISCONNECT, '']
     ]);
     assert.equal(after[2].id, id);
-    assert.ok(fs.existsSync(path.join(dir, 'Saves', 'rok-sim-slot-0.json')));
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'Saves', 'Slot0', 'rok-sim-world.json'), 'utf8')).saves, 1);
+    assert.ok(!fs.existsSync(path.join(dir, 'Saves', 'Slot0', 'Session.lock')), 'a clean exit deletes Session.lock');
     const log = H.readGameLog(dir);
     assert.match(log, /Steam game server started\. \(IP: 203\.0\.113\.10, Logged: True, Secure: True\)/);
     assert.match(log, /Server for 120 players started on port \d+\./);
@@ -336,7 +337,8 @@ test('simulator commands and scenario steps drive joins, chat, logs and crashes'
     await c.command('/sim.join Wren');
     const st = JSON.parse((await c.command('/sim.status')).lines.find((l) => l.startsWith('[I] SIMSTATUS ')).slice('[I] SIMSTATUS '.length));
     assert.deepEqual(st.players.map((p) => p.name).sort(), ['Petra Halloran', 'Wren']);
-    assert.deepEqual((await c.command('/sim.chat Wren Long live the Charter')).lines.slice(0, 1), ['[C] Wren: Long live the Charter']);
+    // The scenario's timed warning can stream into this reply on a slow runner, so pick out the chat line.
+    assert.deepEqual((await c.command('/sim.chat Wren Long live the Charter')).lines.filter((l) => l.startsWith('[C] ')), ['[C] Wren: Long live the Charter']);
     await c.command('/sim.log error injected failure');
     await H.until(() => /scenario warning/.test(H.readGameLog(dir)), 2000, 'scenario log');
     assert.match(H.readGameLog(dir), /\[Error\]  injected failure/);
@@ -346,7 +348,7 @@ test('simulator commands and scenario steps drive joins, chat, logs and crashes'
     assert.equal(await exit, 3);
     await H.until(() => c.closed, 2000, 'closed');
     assert.ok(!c.groups.some((g) => g.type === P.TYPE.DISCONNECT), 'a crash sends no Disconnect');
-    assert.ok(!fs.existsSync(path.join(dir, 'Saves')), 'a crash does not save');
+    assert.doesNotMatch(H.readGameLog(dir), /Saving game\.\.\./, 'a crash does not save');
   } finally {
     c.close();
     await H.stopSim(s);

@@ -1,0 +1,65 @@
+{
+  "Version": 1,
+  "Goals": [
+    {
+      "Id": "h_walls", "Title": "Walls of the House", "Points": 10, "Marks": 30, "Weight": 10,
+      "Text": "The heralds judge a house by its walls before its words. Raise walls together this week.",
+      "Objective": { "Type": "build", "Count": 1500, "Text": "Blocks laid by the house" }
+    },
+    {
+      "Id": "h_stone_keep", "Title": "A Keep of Stone", "Points": 12, "Marks": 35, "Weight": 8,
+      "Text": "Timber burns in the Lawful Hours. Stone does not. Build the house a keep of stone.",
+      "Objective": { "Type": "build", "Targets": ["stone", "cobblestone", "reinforced"], "Count": 800, "Text": "Stone blocks laid by the house" }
+    },
+    {
+      "Id": "h_woodpile", "Title": "The House Woodpile", "Points": 10, "Marks": 30, "Weight": 9,
+      "Text": "A long winter is won in the autumn woodpile. Fill the house's levy of timber.",
+      "Objective": { "Type": "deliver", "Targets": ["Wood"], "Count": 3000, "Text": "Wood handed in by the house" }
+    },
+    {
+      "Id": "h_quarry", "Title": "The House Quarry", "Points": 10, "Marks": 30, "Weight": 9,
+      "Text": "Every house in Ostreval owes the realm stone for its roads. Pay the debt together.",
+      "Objective": { "Type": "deliver", "Targets": ["Stone"], "Count": 2500, "Text": "Stone handed in by the house" }
+    },
+    {
+      "Id": "h_armoury", "Title": "Fill the Armoury", "Points": 12, "Marks": 35, "Weight": 8,
+      "Text": "The Lawful Hours come every week. Arm the house before the bells ring.",
+      "Objective": { "Type": "craft", "Targets": ["~Sword", "~Axe", "~Mace", "~Spear", "~Flail", "~Hammer", "~Halberd", "~Morning Star"], "Count": 30, "Text": "Weapons forged by the house" }
+    },
+    {
+      "Id": "h_arrows", "Title": "A Sky of Arrows", "Points": 8, "Marks": 25, "Weight": 7,
+      "Text": "Halloran's old saying: a house that can darken the sky need never draw a sword. Fletch the house's arrows.",
+      "Objective": { "Type": "craft", "Targets": ["~Arrow", "~Bolt"], "Count": 500, "Text": "Arrows and bolts fletched by the house" }
+    },
+    {
+      "Id": "h_house_hunt", "Title": "The House Hunt", "Points": 10, "Marks": 30, "Weight": 8,
+      "Text": "Feast or famine is decided in the forest. Hunt as a house, and the house will eat.",
+      "Objective": { "Type": "slay_creature", "Count": 120, "Text": "Creatures slain by the house" }
+    },
+    {
+      "Id": "h_wolfsbane", "Title": "Wolfsbane Week", "Points": 10, "Marks": 30, "Weight": 6,
+      "Text": "The wolves grow bold in a new season. Teach them where your house's land begins.",
+      "Objective": { "Type": "slay_creature", "Targets": ["wolf"], "Count": 40, "Text": "Wolves slain by the house" }
+    },
+    {
+      "Id": "h_banners", "Title": "Banners in the Field", "Points": 15, "Marks": 40, "Weight": 5,
+      "Text": "Let the realm see your banners where the fighting is. Meet the foes of other houses in the field.",
+      "Objective": { "Type": "slay_player", "Count": 15, "Text": "Foes of other houses defeated" }
+    },
+    {
+      "Id": "h_iron", "Title": "Iron for the House", "Points": 12, "Marks": 35, "Weight": 7,
+      "Text": "Iron is the realm's true coin. Bring the house a hoard of ore.",
+      "Objective": { "Type": "deliver", "Targets": ["IronOre"], "Count": 800, "Text": "Iron ore handed in by the house" }
+    },
+    {
+      "Id": "h_many_hands", "Title": "Many Hands", "Points": 8, "Marks": 25, "Weight": 8,
+      "Text": "A house is the people who turn up. Turn up, all of you, and keep busy while you do.",
+      "Objective": { "Type": "playtime", "Count": 1500, "Text": "Active minutes of the house's members" }
+    },
+    {
+      "Id": "h_honest_work", "Title": "Honest Work", "Points": 12, "Marks": 35, "Weight": 5,
+      "Text": "Contracts finished are promises kept. Let the board know your house's word is good.",
+      "Objective": { "Type": "contract", "Count": 6, "Text": "Contracts finished by the house" }
+    }
+  ]
+}

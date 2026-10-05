@@ -122,8 +122,23 @@ const BUILD = {
 
   // [DEC] CoreCommandHandler.Shutdown: saves and stops; with the admin console attached the game
   // also sends a Disconnect packet (RestartAfterShutdown = false).
-  shutdown: () => ({ command: '/shutdown', summary: 'Save and shut down' })
+  shutdown: () => ({ command: '/shutdown', summary: 'Save and shut down' }),
+
+  // Oxide's own console command (docs/oxide-rok-api.md section 6.5, src/ReignOfKingsCore.cs:88-103):
+  // re-reads the plugin, its config (oxide/config/<Plugin>.json) and its data. Used after Steward
+  // changes a plugin's config or data files. UNVERIFIED over the admin console socket on the real
+  // server (launcher/README.md, Not verified, test F1).
+  reload: ({ plugin }) => {
+    const p = pluginName(plugin);
+    return { command: `/oxide.reload ${p}`, summary: `Reload ${p}` };
+  }
 };
+
+function pluginName(name) {
+  const s = String(name == null ? '' : name).trim();
+  if (!/^[A-Z][A-Za-z0-9]{2,40}$/.test(s)) throw new Error('Choose a plugin first.');
+  return s;
+}
 
 const ACTIONS = Object.keys(BUILD);
 
@@ -147,8 +162,134 @@ const PLUGIN_ADMIN = [
   { plugin: 'CrownAndConsequences', perm: null, template: '/crown', label: 'Show the crown', args: [] },
   { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin cancel {id}', label: 'Cancel a contract', args: ['id'] },
   { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin refund {id}', label: 'Refund a contract to its poster', args: ['id'] },
-  { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin pay {id}', label: 'Pay a contract to its fulfiller', args: ['id'] }
+  { plugin: 'RealmContracts', perm: 'realmcontracts.admin', template: '/contract admin pay {id}', label: 'Pay a contract to its fulfiller', args: ['id'] },
+  // RealmSentinel (plugins/docs/RealmSentinel.md, Commands). The Sentinel screen fills these per suspect.
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel status', label: 'Sentinel: mode, checks and the highest scores', args: [] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel report {player}', label: 'Sentinel: evidence for one player', args: ['player'] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel freeze {player} {minutes}', label: 'Sentinel: freeze a player (1-1440 minutes)', args: ['player', 'minutes'] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel unfreeze {player}', label: 'Sentinel: lift a freeze', args: ['player'] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel clear {player}', label: 'Sentinel: clear a score (evidence is kept)', args: ['player'] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel ban {player} confirm', label: 'Sentinel: ban with the evidence kept', args: ['player'] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel peaks', label: 'Sentinel: highest honest values (for tuning)', args: [] },
+  { plugin: 'RealmSentinel', perm: 'realmsentinel.admin', template: '/sentinel reload', label: 'Sentinel: re-read its config', args: [] },
+  // RealmSculptor, RealmPainter, RealmLegendary (their guides in plugins/docs/). ROADMAP STW-2.
+  { plugin: 'RealmSculptor', perm: 'realmsculptor.admin', template: '/sculpt status', label: 'Monuments: totals, running job, protection', args: [] },
+  { plugin: 'RealmSculptor', perm: 'realmsculptor.admin', template: '/sculpt placed', label: 'Monuments: the newest placements', args: [] },
+  { plugin: 'RealmSculptor', perm: 'realmsculptor.admin', template: '/sculpt list', label: 'Monuments: sculptures loaded and files refused', args: [] },
+  { plugin: 'RealmSculptor', perm: 'realmsculptor.admin', template: '/sculpt repair {n}', label: 'Monuments: put back missing blocks of placement #n', args: ['n'] },
+  { plugin: 'RealmSculptor', perm: 'realmsculptor.admin', template: '/sculpt reload', label: 'Monuments: read the sculpture files again', args: [] },
+  { plugin: 'RealmPainter', perm: 'realmpainter.admin', template: '/paint status', label: 'Signs: queue, art version, sources', args: [] },
+  { plugin: 'RealmPainter', perm: 'realmpainter.admin', template: '/paint signs', label: 'Signs: every bound sign', args: [] },
+  { plugin: 'RealmPainter', perm: 'realmpainter.admin', template: '/paint redraw all', label: 'Signs: draw every sign again', args: [] },
+  { plugin: 'RealmPainter', perm: 'realmpainter.admin', template: '/paint reload', label: 'Signs: read the art bundle again', args: [] },
+  { plugin: 'RealmLegendary', perm: 'realmlegendary.admin', template: '/ironbreaker status', label: 'Ironbreaker: who bears it and since when', args: [] },
+  { plugin: 'RealmLegendary', perm: 'realmlegendary.admin', template: '/ironbreaker revoke', label: 'Ironbreaker: back to the armoury', args: [] },
+  { plugin: 'RealmLegendary', perm: 'realmlegendary.admin', template: '/ironbreaker grant {player}', label: 'Ironbreaker: give it to an online player', args: ['player'] },
+  // RealmLaws (plugins/docs/RealmLaws.md). ROADMAP STW-2.
+  { plugin: 'RealmLaws', perm: null, template: '/law zone list', label: 'Laws: the law zones', args: [] },
+  { plugin: 'RealmLaws', perm: 'realmlaws.admin', template: '/court admin dismiss {case}', label: 'Court: dismiss an open case', args: ['case'] },
+  { plugin: 'RealmLaws', perm: 'realmlaws.admin', template: '/court admin verdict {case} {ruling}', label: 'Court: rule on a case (guilty or innocent)', args: ['case', 'ruling'] },
+  { plugin: 'RealmLaws', perm: 'realmlaws.admin', template: '/court admin clear {player}', label: 'Court: clear a player\'s sentences and cases', args: ['player'] },
+  // Wave 3 (their guides in plugins/docs/). The plugins do the work; Steward only fills the command.
+  { plugin: 'RealmQuests', perm: 'realmquests.admin', template: '/quest admin status', label: 'Quests: content files, problems, owed rewards', args: [] },
+  { plugin: 'RealmQuests', perm: 'realmquests.admin', template: '/quest admin reload', label: 'Quests: read the content files again', args: [] },
+  { plugin: 'RealmQuests', perm: 'realmquests.admin', template: '/quest admin places', label: 'Quests: named places and whether each is marked', args: [] },
+  { plugin: 'RealmQuests', perm: 'realmquests.admin', template: '/quest admin reset {player} {board}', label: 'Quests: reset a player\'s board or story', args: ['player', 'board'] },
+  { plugin: 'RealmTravel', perm: 'realmtravel.admin', template: '/travel admin status', label: 'Travel: counters and integrations', args: [] },
+  { plugin: 'RealmTravel', perm: 'realmtravel.admin', template: '/travel admin list', label: 'Travel: every waystone', args: [] },
+  { plugin: 'RealmTravel', perm: 'realmtravel.admin', template: '/kit admin check', label: 'Kits: check every kit\'s items', args: [] },
+  { plugin: 'RealmTravel', perm: 'realmtravel.admin', template: '/kit admin reset {player} all', label: 'Kits: clear a player\'s kit claims', args: ['player'] },
+  { plugin: 'RealmArena', perm: 'realmarena.admin', template: '/arena admin status', label: 'Arena: duels, games, payouts waiting', args: [] },
+  { plugin: 'RealmArena', perm: 'realmarena.admin', template: '/arena admin void {duel}', label: 'Arena: call a duel off, stakes back', args: ['duel'] },
+  { plugin: 'RealmArena', perm: 'realmarena.admin', template: '/arena admin unbar {player}', label: 'Arena: lift a bar from the ring', args: ['player'] },
+  { plugin: 'RealmArena', perm: 'realmarena.admin', template: '/arena admin settle', label: 'Arena: retry waiting payouts now', args: [] },
+  { plugin: 'RealmDominion', perm: 'realmdominion.admin', template: '/dominion admin status', label: 'Dominion: field state, holdings, last payday', args: [] },
+  { plugin: 'RealmDominion', perm: 'realmdominion.admin', template: '/dominion admin open {minutes}', label: 'Dominion: open the field by hand', args: ['minutes'] },
+  { plugin: 'RealmDominion', perm: 'realmdominion.admin', template: '/dominion admin close', label: 'Dominion: close the field', args: [] },
+  { plugin: 'RealmDominion', perm: 'realmdominion.admin', template: '/dominion admin auto', label: 'Dominion: back to the schedule', args: [] },
+  { plugin: 'RealmWorld', perm: 'realmworld.admin', template: '/world admin status', label: 'World: what runs, festival, postponed events', args: [] },
+  { plugin: 'RealmWorld', perm: 'realmworld.admin', template: '/world admin schedule', label: 'World: the schedule as players see it', args: [] },
+  { plugin: 'RealmWorld', perm: 'realmworld.admin', template: '/world admin stop', label: 'World: call off what runs (no rewards)', args: [] },
+  { plugin: 'RealmWorld', perm: 'realmworld.admin', template: '/world admin census', label: 'World: take the census now', args: [] },
+  { plugin: 'RealmCrafts', perm: 'realmcrafts.admin', template: '/craft admin status', label: 'Guilds: counts, items, next crowning', args: [] },
+  { plugin: 'RealmCrafts', perm: 'realmcrafts.admin', template: '/craft admin unmapped', label: 'Guilds: products that matched no profession', args: [] },
+  { plugin: 'RealmCrafts', perm: 'realmcrafts.admin', template: '/craft admin cancel {commission}', label: 'Guilds: cancel a commission, hold back to poster', args: ['commission'] },
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/heraldry status', label: 'Heraldry: switches, last sync, ballots open', args: [] },
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/heraldry preview', label: 'Heraldry: what a sync would change', args: [] },
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/heraldry sync', label: 'Heraldry: bring every guild in step now', args: [] },
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/ballot admin audit {ballot}', label: 'Council: votes by house, to look for alts', args: ['ballot'] },
+  { plugin: 'RealmHeraldry', perm: 'realmheraldry.admin', template: '/ballot admin cancel {ballot}', label: 'Council: call a ballot off, deposits back', args: ['ballot'] },
+  // RealmArrival (plugins/docs/RealmArrival.md, Commands). The commands that store a point where the
+  // admin stands (site anchor, stone, hall, banner, gate set ...) are left out: they are typed on the spot.
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin status', label: 'Arrival: open or closed, mode, gate, live arrivals, counters', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin check', label: 'Arrival: every problem that keeps the Gatehouse shut', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin site', label: 'Arrival: site file, anchor, pair lot, then the check', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin site plan', label: 'Arrival: every point the plan names and whether it is stored', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin site pieces', label: 'Arrival: the sculptures to place, in route order', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin site signs', label: 'Arrival: the sign spots and their /paint binding', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin site reload', label: 'Arrival: read the site file (site.json) again', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin runsheet', label: 'Arrival: the after-wipe list', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin lot', label: 'Arrival: the pair lot (which house stands where)', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin lot draw', label: 'Arrival: draw the pair lot (the Herald tells the realm)', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin open', label: 'Arrival: open the Gatehouse (once the check passes)', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin close', label: 'Arrival: close it (vanilla spawns for new players)', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin pause', label: 'Arrival: instant off (vanilla spawns, gate open)', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin resume', label: 'Arrival: lift the pause', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin mode {mode}', label: 'Arrival: routing (teleport, provider, road or off)', args: ['mode'] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin gate test', label: 'Arrival: open the portcullis and close it again', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin beacon test', label: 'Arrival: flare the ember band', args: [] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin skip {player}', label: 'Arrival: end a player\'s arrival', args: ['player'] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin pass {player}', label: 'Arrival: open the gate for a stuck player', args: ['player'] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin reset {player} {stage}', label: 'Arrival: reset a record (pending or done)', args: ['player', 'stage'] },
+  { plugin: 'RealmArrival', perm: 'realmarrival.admin', template: '/arrival admin veteran {player}', label: 'Arrival: mark a known veteran', args: ['player'] }
 ];
+
+// Placeholder rules: a player name is quoted when it has spaces (the plugins read "Old Tom" as one
+// argument); numbers are whole numbers in their command's range.
+const ARG_RULES = {
+  player: (v) => {
+    const n = v.replace(/["']/g, '');
+    if (!n) throw new Error('Fill in "player" first.');
+    return /\s/.test(n) ? `"${n}"` : n;
+  },
+  minutes: (v) => {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 1 || n > 1440) throw new Error('Minutes must be a whole number from 1 to 1440.');
+    return String(n);
+  },
+  n: (v) => {
+    const n = Number(String(v).replace(/^#/, ''));
+    if (!Number.isInteger(n) || n < 1 || n > 99999) throw new Error('Use the placement number from /sculpt placed.');
+    return String(n);
+  },
+  // Numbered records (court cases, duels, commissions, ballots); the plugins accept an optional #.
+  case: numbered('case'),
+  duel: numbered('duel'),
+  commission: numbered('commission'),
+  ballot: numbered('ballot'),
+  // RealmLaws treats anything but "guilty" as an acquittal, so the word is checked here.
+  ruling: oneOf('ruling', ['guilty', 'innocent']),
+  board: oneOf('board', ['daily', 'weekly', 'story', 'all']),
+  // RealmArrival: /arrival admin mode and the stage /arrival admin reset sets.
+  mode: oneOf('mode', ['teleport', 'provider', 'road', 'off']),
+  stage: oneOf('stage', ['pending', 'done'])
+};
+
+function numbered(what) {
+  return (v) => {
+    const n = Number(String(v).replace(/^#/, ''));
+    if (!Number.isInteger(n) || n < 1 || n > 999999) throw new Error(`Use the ${what} number (for example 12 or #12).`);
+    return String(n);
+  };
+}
+
+function oneOf(what, words) {
+  return (v) => {
+    const w = String(v).trim().toLowerCase();
+    if (!words.includes(w)) throw new Error(`The ${what} is one of: ${words.join(', ')}.`);
+    return w;
+  };
+}
 
 function pluginCommand(index, values = {}) {
   const def = PLUGIN_ADMIN[index];
@@ -156,8 +297,15 @@ function pluginCommand(index, values = {}) {
   return def.template.replace(/\{(\w+)\}/g, (_m, k) => {
     const v = clean(values[k], MAX_NAME, k);
     if (!v) throw new Error(`Fill in "${k}" first.`);
-    return v;
+    return ARG_RULES[k] ? ARG_RULES[k](v) : v;
   });
+}
+
+// The command for a template, by its text (the Sentinel screen fills /sentinel commands per player).
+function pluginCommandFor(template, values = {}) {
+  const i = PLUGIN_ADMIN.findIndex((d) => d.template === template);
+  if (i < 0) throw new Error('Unknown plugin command.');
+  return pluginCommand(i, values);
 }
 
 // ---------- reading command output ----------
@@ -310,6 +458,7 @@ module.exports = {
   PLUGIN_ADMIN,
   build,
   pluginCommand,
+  pluginCommandFor,
   parsePlayerList,
   parseRoster,
   parseBanList,

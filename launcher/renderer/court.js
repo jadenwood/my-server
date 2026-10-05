@@ -42,6 +42,13 @@
     svg.appendChild(use);
     return svg;
   }
+  // An empty list in the shared look (renderer/heraldry.js), compact for the Court's narrow cards.
+  function emptyNote(art, title, body) {
+    if (!window.RealmArt) return el('p', 'fine court-empty', body ? `${title}. ${body}` : `${title}.`);
+    const n = window.RealmArt.emptyState({ art, title, body });
+    n.classList.add('compact');
+    return n;
+  }
   function btn(label, iconId, cls, title) {
     const b = el('button', 'btn ' + (cls || ''));
     b.type = 'button';
@@ -374,7 +381,7 @@
         ? 'Reading the hall...'
         : 'Nobody can be seen without the live console.';
     const list = players.filter((p) => !q || p.name.toLowerCase().includes(q));
-    if (playersAt && !list.length) ui.players.appendChild(el('p', 'fine court-empty', q ? 'No one by that name.' : 'The hall is empty.'));
+    if (playersAt && !list.length) ui.players.appendChild(emptyNote(q ? 'accuse' : 'house', q ? 'No one by that name' : 'The hall is empty', q ? 'Check the spelling, or clear the search.' : 'Players appear here as they join.'));
     for (const p of list) {
       const row = el('div', 'court-player');
       const who = el('div', 'court-who');
@@ -429,12 +436,25 @@
 
   function renderPluginCommands(list) {
     ui.plugins.replaceChildren();
-    let lastPlugin = null;
-    for (const d of list) {
-      if (d.plugin !== lastPlugin) {
-        ui.plugins.appendChild(el('h3', 'mini-h', d.plugin));
-        lastPlugin = d.plugin;
+    // One fold per plugin (more than twenty plugins have staff commands); the first two start open.
+    const folds = new Map();
+    const foldFor = (plugin) => {
+      if (!folds.has(plugin)) {
+        const f = el('details', 'court-plug-fold');
+        if (folds.size < 2) f.open = true;
+        const sum = el('summary', 'court-plug-sum', plugin);
+        sum.appendChild(el('span', 'court-plug-count', ''));
+        f.appendChild(sum);
+        ui.plugins.appendChild(f);
+        folds.set(plugin, { f, n: 0, count: sum.lastChild });
       }
+      const g = folds.get(plugin);
+      g.n++;
+      g.count.textContent = String(g.n);
+      return g.f;
+    };
+    for (const d of list) {
+      const fold = foldFor(d.plugin);
       const row = el('div', 'court-plug');
       row.appendChild(el('span', 'court-plug-label', d.label));
       const fields = {};
@@ -454,7 +474,7 @@
       line.appendChild(copy);
       row.appendChild(el('code', 'court-plug-cmd mono', d.template));
       row.appendChild(line);
-      ui.plugins.appendChild(row);
+      fold.appendChild(row);
     }
   }
 
@@ -512,7 +532,7 @@
     ui.bans.replaceChildren();
     const bans = r.parsed || [];
     if (!bans.length) {
-      ui.bans.appendChild(el('p', 'fine court-empty', r.ok ? 'No one is banished.' : r.result || 'No one is banished.'));
+      ui.bans.appendChild(r.ok ? emptyNote('pardon', 'No one is banished', null) : el('p', 'fine court-empty', r.result || 'No one is banished.'));
       return;
     }
     for (const b of bans) {
@@ -539,7 +559,7 @@
     }
     ui.rolls.replaceChildren();
     if (!list.length) {
-      ui.rolls.appendChild(el('p', 'fine court-empty', 'Nothing judged yet. Every kick, ban, notice and save from the Court is written here and to disk.'));
+      ui.rolls.appendChild(emptyNote('scales', 'Nothing judged yet', 'Every kick, ban, notice and save from the Court is written here and to disk.'));
       return;
     }
     for (const r of list.slice(0, 60)) {

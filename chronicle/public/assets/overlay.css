@@ -8,6 +8,9 @@ html, body {
 }
 
 #stage {
+  /* Title-safe area of a 1920 x 1080 frame (5% each side). Text never goes outside it. */
+  --safe-x: 96px;
+  --safe-y: 54px;
   position: absolute;
   left: 0;
   top: 0;
@@ -29,8 +32,8 @@ body.preview-bg {
 /* ---------- crown plate ---------- */
 .crown-plate {
   position: absolute;
-  top: 36px;
-  left: 40px;
+  top: var(--safe-y);
+  left: var(--safe-x);
   width: 620px;
   box-sizing: border-box;
   padding: 20px 26px 18px 20px;
@@ -72,6 +75,15 @@ body.preview-bg {
     0 0 18px var(--ember-glow);
 }
 .medallion svg { filter: drop-shadow(0 0 6px rgba(244, 201, 109, 0.6)); }
+/* A great house on the throne: its sigil fills the medallion, a small crown sits on the rim. */
+.medallion.art { position: relative; background: none; box-shadow: 0 0 0 3px var(--ember), 0 0 0 5px #120d06, 0 0 22px var(--ember-glow); }
+.medal-sigil { width: 104px; height: 104px; border-radius: 50%; display: block; }
+.medal-crown {
+  position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+  width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 24px;
+  color: var(--ember-hot); background: radial-gradient(circle at 50% 35%, #3b2c14, #120d06 75%);
+  box-shadow: 0 0 0 2px var(--ember), 0 2px 6px rgba(0, 0, 0, 0.8);
+}
 .crown-plate.vacant .medallion { color: var(--iron-400); box-shadow: inset 0 0 0 3px var(--iron-600), inset 0 0 0 7px var(--iron-400), inset 0 0 22px #000; }
 .crown-plate.vacant .medallion svg { filter: none; }
 
@@ -139,8 +151,8 @@ body.preview-bg {
 /* ---------- house banners ---------- */
 .banners {
   position: absolute;
-  top: 26px;
-  right: 46px;
+  top: calc(var(--safe-y) - 18px);
+  right: var(--safe-x);
   display: flex;
   gap: 22px;
   align-items: flex-start;
@@ -161,6 +173,8 @@ body.preview-bg {
 .banner-slot:nth-child(2n) .banner { animation-duration: 7.2s; animation-delay: -2s; }
 .banner-slot:nth-child(3n) .banner { animation-duration: 6.6s; animation-delay: -4s; }
 .banner .monogram { font-size: 34px; }
+/* Drawn banners carry their own pole and hang a little longer than the dyed cloth. */
+.banner-slot .banner.art { width: 104px; margin-top: -6px; }
 .banner .sigil { font-size: 10.5px; }
 .banner-slot .crest {
   height: 26px;
@@ -205,8 +219,8 @@ body.preview-bg {
 /* ---------- proclamation card ---------- */
 .proclamations {
   position: absolute;
-  left: 40px;
-  bottom: 118px;
+  left: var(--safe-x);
+  bottom: calc(var(--safe-y) + 88px);
   width: 780px;
 }
 .proclaim {
@@ -263,6 +277,9 @@ body.preview-bg {
   box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.25), inset 0 -4px 8px rgba(0, 0, 0, 0.4), 0 3px 6px rgba(60, 20, 10, 0.5);
   animation: seal-stamp 0.5s cubic-bezier(.5, 1.8, .5, 1) 1.1s both;
 }
+/* A season medal or a renown title badge replaces the wax seal. */
+.seal.has-badge { background: none; box-shadow: none; width: 104px; height: 104px; margin: -8px; }
+.seal-badge { width: 104px; height: 104px; display: block; filter: drop-shadow(0 4px 6px rgba(60, 30, 10, 0.55)); }
 .proclaim[data-tone='gold'] .seal { background: radial-gradient(circle at 38% 32%, #e2b45a, #a8731f 55%, #5a3a0c); color: #fff3d0; }
 .proclaim[data-tone='moss'] .seal { background: radial-gradient(circle at 38% 32%, #7d9a5c, var(--moss) 55%, #1f2d16); color: #f3ecd0; }
 .proclaim[data-tone='iron'] .seal { background: radial-gradient(circle at 38% 32%, #8a8d94, #4a4c52 55%, #1d1e21); color: #f0ece0; }
@@ -323,9 +340,9 @@ body.preview-bg {
 /* ---------- ticker ---------- */
 .ticker {
   position: absolute;
-  left: 40px;
-  right: 40px;
-  bottom: 30px;
+  left: var(--safe-x);
+  right: var(--safe-x);
+  bottom: var(--safe-y);
   height: 60px;
   border-radius: 5px;
   display: flex;
@@ -415,6 +432,188 @@ body.preview-bg {
 @keyframes ticker-scroll { to { transform: translateX(-50%); } }
 @keyframes fresh-glow { 50% { color: var(--ember-hot); text-shadow: 0 0 12px var(--ember-glow); } }
 
-@media (prefers-reduced-motion: reduce) {
-  .banner-slot .banner, .run { animation: none; }
+/* ---------- moments: coronation and rebellion take the centre ---------- */
+.moment-layer { position: absolute; inset: 0; pointer-events: none; }
+.moment {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  animation: moment-in 0.6s ease-out both;
 }
+.moment.leaving { animation: moment-out 0.9s ease-in both; }
+.m-veil { position: absolute; inset: 0; }
+.m-crest { position: relative; display: grid; place-items: center; }
+.m-text { position: relative; max-width: calc(1920px - 2 * var(--safe-x) - 200px); margin-top: 18px; }
+.m-kicker {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--ember);
+  text-shadow: 0 2px 6px #000;
+  animation: m-rise 0.8s cubic-bezier(.2, .8, .2, 1) 1.7s both;
+}
+.m-title {
+  font-size: 96px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  margin: 6px 0 4px;
+  overflow-wrap: anywhere;
+  animation: m-title 1.1s cubic-bezier(.2, .8, .2, 1) 1.9s both;
+}
+.m-sub {
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--parchment);
+  text-shadow: 0 2px 8px #000;
+  animation: m-rise 0.8s ease-out 2.4s both;
+}
+.m-words {
+  margin-top: 10px;
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 34px;
+  color: var(--parchment-2);
+  text-shadow: 0 2px 8px #000;
+  animation: m-rise 0.8s ease-out 2.8s both;
+}
+
+/* Coronation: rays, the house banner drops, the crown descends and flashes, sparks burst. */
+.coronation .m-veil {
+  background: radial-gradient(ellipse 46% 56% at 50% 52%, rgba(10, 8, 6, 0.88), rgba(10, 8, 6, 0.64) 55%, transparent 100%);
+}
+.coronation .m-rays {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  width: 1500px;
+  height: 1500px;
+  margin: -750px 0 0 -750px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(244, 201, 109, 0.2) 0deg 4deg, transparent 4deg 15deg);
+  -webkit-mask-image: radial-gradient(circle, #000 0, rgba(0, 0, 0, 0.6) 25%, transparent 62%);
+  mask-image: radial-gradient(circle, #000 0, rgba(0, 0, 0, 0.6) 25%, transparent 62%);
+  animation: m-fade 1.4s ease-out 0.9s both, m-spin 60s linear infinite;
+}
+/* The glow sits on the crest, not on the banner, so the unfurl's clip does not cut it into a box. */
+.coronation .m-crest { width: 220px; margin-top: 60px; filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 30px rgba(244, 177, 76, 0.35)); }
+.coronation .m-banner { width: 220px; animation: m-unfurl 1.2s cubic-bezier(.25, .9, .25, 1) 0.3s both; }
+.coronation .banner.m-banner .monogram { font-size: 80px; }
+.coronation .banner.m-banner .sigil { font-size: 20px; }
+.m-crown {
+  position: absolute;
+  top: -92px;
+  left: 50%;
+  width: 124px;
+  height: 124px;
+  margin-left: -62px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 78px;
+  color: var(--ember-hot);
+  background: radial-gradient(circle at 50% 35%, #4a3616, #120d06 72%);
+  box-shadow: inset 0 0 0 3px var(--ember-deep), inset 0 0 0 6px #120d06, inset 0 0 0 9px var(--ember), 0 0 40px var(--ember-glow);
+  animation: m-crown 1s cubic-bezier(.3, 1.4, .5, 1) 1.2s both, m-flash 1.4s ease-out 2.1s both;
+}
+.m-crown svg { filter: drop-shadow(0 0 10px rgba(244, 201, 109, 0.8)); }
+.m-sparks { position: absolute; left: 50%; top: 34%; width: 0; height: 0; }
+.m-sparks span {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ember-hot);
+  box-shadow: 0 0 10px 3px var(--ember-glow);
+  opacity: 0;
+  animation: m-spark 2.2s cubic-bezier(.1, .7, .3, 1) 2.1s both;
+}
+
+/* Rebellion: the screen's edges run red, the rebel shield and the rebellion mark slam in. */
+.rebellion .m-veil {
+  background: radial-gradient(ellipse 48% 56% at 50% 50%, rgba(12, 6, 5, 0.88), rgba(12, 6, 5, 0.55) 60%, transparent 100%);
+  box-shadow: inset 0 0 260px 70px rgba(139, 43, 34, 0.9);
+  animation: m-pulse 1.6s ease-in-out 0.4s 4;
+}
+.m-slash {
+  position: absolute;
+  left: -20%;
+  top: 40%;
+  width: 140%;
+  height: 6px;
+  transform: rotate(-12deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 220, 190, 0.95) 48%, #fff 50%, rgba(255, 220, 190, 0.95) 52%, transparent);
+  box-shadow: 0 0 30px 8px rgba(224, 116, 95, 0.7);
+  opacity: 0;
+  animation: m-slash 0.7s ease-out 0.5s both;
+}
+.rebellion .m-crest { min-width: 260px; min-height: 220px; animation: m-shake 0.5s linear 1.1s both; }
+.m-shield { width: 250px; filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.8)); animation: m-slam 0.55s cubic-bezier(.5, 1.6, .5, 1) 0.6s both; }
+.m-mark {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 140px;
+  color: #ffe0c8;
+  background: radial-gradient(circle at 38% 32%, #c4473b, var(--blood) 55%, #3a0e0a);
+  box-shadow: inset 0 0 0 5px rgba(0, 0, 0, 0.3), 0 0 0 4px #1b0806, 0 0 50px rgba(224, 116, 95, 0.55);
+  animation: m-slam 0.55s cubic-bezier(.5, 1.6, .5, 1) 0.9s both;
+}
+.m-mark.small { position: absolute; right: -34px; bottom: -14px; width: 124px; height: 124px; font-size: 76px; }
+.rebellion .m-kicker { color: #f08a72; }
+.rebellion .m-title { font-size: 84px; color: #fff1e4; text-shadow: 0 4px 0 #3a0e0a, 0 0 30px rgba(224, 116, 95, 0.6); }
+.rebellion .m-sparks { top: 40%; }
+.rebellion .m-sparks span { background: #ffb08f; box-shadow: 0 0 10px 3px rgba(224, 116, 95, 0.7); animation-delay: 1s; }
+
+@keyframes moment-in { from { opacity: 0; } }
+@keyframes moment-out { to { opacity: 0; transform: scale(1.03); } }
+@keyframes m-fade { from { opacity: 0; } }
+@keyframes m-spin { to { transform: rotate(360deg); } }
+@keyframes m-rise { from { opacity: 0; transform: translateY(18px); } }
+@keyframes m-title { from { opacity: 0; letter-spacing: 0.3em; filter: blur(6px); } }
+@keyframes m-unfurl { from { clip-path: inset(0 0 100% 0); transform: translateY(-30px); } to { clip-path: inset(0 0 0 0); } }
+@keyframes m-crown { from { opacity: 0; transform: translateY(-160px) scale(0.6); } }
+@keyframes m-flash {
+  0% { box-shadow: inset 0 0 0 9px var(--ember-hot), 0 0 0 0 rgba(255, 230, 160, 0.9); }
+  40% { box-shadow: inset 0 0 0 9px var(--ember-hot), 0 0 120px 50px rgba(255, 220, 150, 0.6); }
+}
+@keyframes m-spark {
+  0% { opacity: 0; transform: translate(0, 0) scale(1.4); }
+  12% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--x), var(--y)) scale(0.2); }
+}
+@keyframes m-pulse { 50% { box-shadow: inset 0 0 320px 110px rgba(176, 52, 40, 0.95); } }
+@keyframes m-slash {
+  0% { opacity: 0; transform: rotate(-12deg) translateX(-60%) scaleX(0.3); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(-12deg) translateX(40%) scaleX(1); }
+}
+@keyframes m-slam { from { opacity: 0; transform: scale(2.2); } }
+@keyframes m-shake {
+  0%, 100% { transform: none; }
+  20% { transform: translate(-8px, 4px); }
+  40% { transform: translate(7px, -5px); }
+  60% { transform: translate(-5px, -3px); }
+  80% { transform: translate(4px, 3px); }
+}
+
+/* motion=0 or the system setting: no decorative motion. Moments and proclamations still show, without movement. */
+body.reduced .banner-slot .banner, body.reduced .run, body.reduced .m-rays { animation: none; }
+body.reduced .m-sparks, body.reduced .m-slash, body.reduced .embers { display: none; }
+body.reduced .moment, body.reduced .moment *, body.reduced .proclaim, body.reduced .proclaim * {
+  animation-duration: 0.01s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .banner-slot .banner, .run, .m-rays { animation: none; }
+  .m-sparks, .m-slash, .embers { display: none; }
+  .moment, .moment *, .proclaim, .proclaim * { animation-duration: 0.01s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
+}
+

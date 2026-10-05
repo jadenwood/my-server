@@ -1,4 +1,4 @@
-// Behavioural test mocks for RealmSeasons and RealmEvents (derived from the RealmLaws mocks): only the surface the
+// Behavioural test mocks for RealmSeasons, RealmEvents and RealmChronicle (derived from the RealmLaws mocks): only the surface the
 // plugins touch. Not the real game.
 using System;
 using System.Collections.Generic;
@@ -55,6 +55,7 @@ namespace CodeHatch.Engine.Networking
     public static class Server
     {
         public static List<Player> ClientPlayers = new List<Player>();
+        public static int PlayerLimit = 50;
         public static List<string> Broadcasts = new List<string>();
         public static Player GetPlayerById(ulong id) { return ClientPlayers.FirstOrDefault(p => p.Id == id); }
         public static Player GetPlayerByName(string n) { return ClientPlayers.FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase)); }
@@ -71,12 +72,17 @@ namespace CodeHatch.Engine.Modules.SocialSystem
         public static Dictionary<Type, object> Registry = new Dictionary<Type, object>();
         public static T Get<T>() where T : class { object o; return Registry.TryGetValue(typeof(T), out o) ? (T)o : null; }
     }
+    public class Members { public int Count; public int MemberCount() { return Count; } }   // RealmChronicle's guild fallback
 }
 
 namespace CodeHatch.Thrones.SocialSystem
 {
     using CodeHatch.Engine.Networking;
-    public class Guild { public string Name; public ulong OwnerId; }
+    public class Guild
+    {
+        public string Name; public ulong OwnerId; public ulong BaseID;
+        public CodeHatch.Engine.Modules.SocialSystem.Members Members() { return new CodeHatch.Engine.Modules.SocialSystem.Members { Count = Server.ClientPlayers.Count(p => p.Guild == this) }; }
+    }
     public class GuildScheme { public Guild TryGetGuildByMember(ulong id) { var p = Server.GetPlayerById(id); return p != null ? p.Guild : null; } }
     public class KingsScheme
     {
@@ -240,11 +246,11 @@ namespace Oxide.Plugins
         public LangLib lang = new LangLib();
         public PermLib permission = new PermLib();
         public TimerLib timer = new TimerLib();
-        public List<string> Log = new List<string>();
+        public List<string> Logged = new List<string>();   // not "Log": RealmChronicle has a Log method
         protected virtual void LoadDefaultConfig() { }
         protected virtual void LoadDefaultMessages() { }
-        public void Puts(string s) { Log.Add(s); }
-        public void PrintWarning(string s) { Log.Add("WARN " + s); }
-        public void PrintError(string s) { Log.Add("ERROR " + s); }
+        public void Puts(string s) { Logged.Add(s); }
+        public void PrintWarning(string s) { Logged.Add("WARN " + s); }
+        public void PrintError(string s) { Logged.Add("ERROR " + s); }
     }
 }

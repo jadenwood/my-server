@@ -90,9 +90,7 @@ async function main() {
   await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${server.address().port}`;
   const { chromium } = loadPlaywright();
-  // Web fonts are optional (the scenes fall back to Palatino/Georgia). Set SHOTS_PROXY=1 to fetch them via HTTPS_PROXY.
-  const proxy = process.env.SHOTS_PROXY === '1' && process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: '127.0.0.1,localhost' } : undefined;
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium', proxy });
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium' });
   const problems = [];
   let pages = 0;
 
@@ -101,7 +99,7 @@ async function main() {
     const page = await ctx.newPage();
     const errs = [];
     page.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`));
-    page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g/.test(m.text())) errs.push(`console: ${m.text()}`); });
+    page.on('console', (m) => { if (m.type() === 'error') errs.push(`console: ${m.text()}`); });
     page.on('requestfailed', (r) => { if (r.url().startsWith(base)) errs.push(`requestfailed: ${r.url()}`); });
     page.on('response', (r) => { if (r.url().startsWith(base) && r.status() >= 400 && !r.url().endsWith('/schedule.json')) errs.push(`HTTP ${r.status()} ${r.url()}`); });
     const url = `${base}${path}?now=${NOW}${q ? `&${q}` : ''}`;

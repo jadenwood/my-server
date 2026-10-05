@@ -7,6 +7,8 @@ act, because its syntax can still move.
 
 | Command | Defined by | Status | Used in |
 |---|---|---|---|
+| `/arrival` | RealmArrival | committed | locations.md |
+| `/arrival admin` | RealmArrival | committed | calendar-8-weeks.md |
 | `/chronicle` | RealmChronicle | committed | legends.md, proclamations.md, runsheets/act-1-the-empty-seat.md, runsheets/act-2-the-charter-tested.md, runsheets/act-3-the-lawful-hours.md, runsheets/act-4-the-reckoning.md, season-1-the-hollow-crown.md |
 | `/claim cancel` | CrownAndConsequences | committed | runsheets/act-1-the-empty-seat.md, season-1-the-hollow-crown.md |
 | `/claim declare` | CrownAndConsequences | committed | README.md, legends.md, runsheets/act-3-the-lawful-hours.md, season-1-the-hollow-crown.md |
@@ -44,6 +46,7 @@ act, because its syntax can still move.
 | `/dynasty list` | RealmDynasties | being built this run | proclamations.md, runsheets/act-1-the-empty-seat.md, runsheets/act-2-the-charter-tested.md, runsheets/act-3-the-lawful-hours.md |
 | `/event start` | RealmEvents | being built this run | README.md |
 | `/events` | RealmEvents | being built this run | runsheets/act-1-the-empty-seat.md, runsheets/act-2-the-charter-tested.md |
+| `/home` | RealmTravel | committed | locations.md |
 | `/house` | RealmHouses | committed | season-1-the-hollow-crown.md |
 | `/house disband` | RealmHouses | committed | runsheets/act-1-the-empty-seat.md |
 | `/house found` | RealmHouses | committed | season-1-the-hollow-crown.md |
@@ -73,7 +76,7 @@ act, because its syntax can still move.
 | `/raven spy` | RealmRavens | being built this run | runsheets/act-3-the-lawful-hours.md |
 | `/raven spymaster` | RealmRavens | being built this run | locations.md, runsheets/act-3-the-lawful-hours.md, season-1-the-hollow-crown.md |
 | `/raven watch` | RealmRavens | being built this run | runsheets/act-3-the-lawful-hours.md, season-1-the-hollow-crown.md |
-| `/realm.save` | RealmCourt | uncommitted in working tree; console only; UNVERIFIED at run time | runsheets/act-1-the-empty-seat.md, runsheets/act-2-the-charter-tested.md, runsheets/act-3-the-lawful-hours.md, runsheets/act-4-the-reckoning.md |
+| `/realm.save` | RealmCourt | committed; console only; UNVERIFIED at run time | runsheets/act-1-the-empty-seat.md, runsheets/act-2-the-charter-tested.md, runsheets/act-3-the-lawful-hours.md, runsheets/act-4-the-reckoning.md |
 | `/renounce` | RealmHouses | committed | legends.md |
 | `/renown top` | RealmRenown | being built this run | runsheets/act-3-the-lawful-hours.md |
 | `/rumour` | RealmRavens | being built this run | locations.md, runsheets/act-3-the-lawful-hours.md, season-1-the-hollow-crown.md |
@@ -132,5 +135,5 @@ A server config can override these. Times are UTC.
 - Decrees (`/decree <id>`): `peace`, `roads`, `relief`, `stores`
 - Laws (`/law proclaim <id>`): `kings_peace`, `market_curfew`, `no_building_towns`, `no_binding_towns`, `banned_weapons`, `bridge_toll`, `harbouring`
 - Realm events (`/event start <kind>`): `crown_night`, `tournament`, `kings_hunt`, `truce`
-- Titles (`/titles set <title>`): Kingslayer, Usurper, Kingmaker, The Unbowed, Shield of the Crown, The Long Reign, Warden of Roads, Sellsword, Headtaker, Champion of the Lists, Crown's Huntsman, the Renowned, Legend of Ostreval, Oathbreaker, The Faithless, Trucebreaker, The Hunted, Black Name
-- Chronicle types: `coronation`, `abdication`, `claim_declared`, `rebellion_started`, `rebellion_ended`, `house_founded`, `oath_sworn`, `oath_broken`, `treaty_signed`, `treaty_broken`, `decree`, `ransom_set`, `ransom_paid`, `released`, `contract_posted`, `contract_fulfilled`, `contract_ended`, `season_started`, `season_ended`, `event_started`, `event_ended`, `tournament_champion`, `hunt_kill`, `truce_broken`, `law_proclaimed`, `law_repealed`, `accusation`, `trial_by_combat`, `verdict`, `pardon`, `dynasty_founded`, `heir_named`, `succession`, `blood_claim`, `blood_restored`, `title_bestowed`, `title_earned`, `treasury_mint`, `treasury_grant`, `tithe_levied`, `great_trade`, `rumour`
+- Titles (`/titles set <title>`): Kingslayer, Usurper, Kingmaker, The Unbowed, Shield of the Crown, The Long Reign, Warden of Roads, Sellsword, Headtaker, Champion of the Lists, the Duelist, Champion of the Ring, Master of the Ring, Victor of the Ring, Guildmaster, Master Crafter, Crown's Huntsman, Hoardfinder, Caravan Warden, Bane of Legends, the Renowned, Legend of Ostreval, Oathbreaker, The Faithless, Trucebreaker, The Hunted, Black Name
+- Chronicle types: `coronation`, `abdication`, `claim_declared`, `rebellion_started`, `rebellion_ended`, `house_founded`, `oath_sworn`, `oath_broken`, `treaty_signed`, `treaty_broken`, `decree`, `ransom_set`, `ransom_paid`, `released`, `contract_posted`, `contract_fulfilled`, `contract_ended`, `season_started`, `season_ended`, `event_started`, `event_ended`, `tournament_champion`, `hunt_kill`, `truce_broken`, `law_proclaimed`, `law_repealed`, `accusation`, `trial_by_combat`, `verdict`, `pardon`, `dynasty_founded`, `heir_named`, `succession`, `blood_claim`, `blood_restored`, `title_bestowed`, `title_earned`, `treasury_mint`, `treasury_grant`, `tithe_levied`, `great_trade`, `rumour`, `holding_taken`, `census_taken`, `vote_held`, `blade_claimed`, `blade_lost`

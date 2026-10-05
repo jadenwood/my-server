@@ -5,11 +5,13 @@ A small local web service that turns the data files written by the `RealmChronic
 - `GET /api/state`: the crown, the houses, and the online count
 - `GET /api/events`: the chronicle feed
 - `/overlay`: a transparent 1920x1080 OBS browser source showing the crown, house banners, a ticker and animated proclamations
-- `/realm`: a public chronicle page with the crown, the great houses and a filterable timeline
+- `/realm`: a public chronicle page under the key art of the Old Throne, with the crown (and the ruling house's sigil), the great houses' banners and a filterable timeline on parchment
 
-It has no dependencies; it uses only Node 20+ built-ins (tested on Node 22). It only ever **reads** the data directory and never writes to it.
+It has no dependencies; it uses only Node 20+ built-ins (tested on Node 22). It only ever **reads** the data directory and never writes to it. The pages need no internet: the fonts (OFL Cinzel and EB Garamond) and the Realm art pack are served from `public/assets/fonts` and `public/assets/art`, copies made by `node portal/scripts/sync-art.mjs` (edit `art/`, never the copies).
 
 ![Overlay preview](../docs/img/overlay-preview.png)
+
+More screenshots (sample data, rendered by `streamkit/tools/chronicle-shots.mjs`): `docs/img/overlay-coronation.png`, `overlay-rebellion.png`, `overlay-transparent.png`, `realm-desktop.png`, `realm-mobile.png`.
 
 ## Running it on the server PC (Windows)
 
@@ -56,10 +58,19 @@ Overlay query options:
 | `ticker=0` / `crown=0` / `proclaim=0` | Hide the ticker, the crown plate, or the proclamation cards |
 | `hold=S` | How long each proclamation stays up, in seconds (default 12) |
 | `poll=S` | Event poll interval, in seconds (default 3) |
-| `replay=1` | Proclaim the latest event on load (useful for positioning) |
+| `replay=1` | Proclaim the latest event on load (useful for positioning). `replay=coronation` or `replay=rebellion_started` plays the latest event of that type, to rehearse the big moments |
+| `moments=0` | Show coronations and rebellions as ordinary proclamations instead of taking the centre of the screen |
+| `motion=0` | No decorative motion (turning rays, sparks, swaying banners, the scrolling ticker). Moments and proclamations still appear. The system's reduced-motion setting does the same |
 | `bg=1` | Dim backdrop for previewing in a normal browser. Do not use it in OBS. |
 
-New events appear as an unrolling parchment proclamation with a wax seal and embers, and are added to the scrolling ticker. A change of king makes the crown plate flare. If the plugin stops refreshing `RealmState.json`, the crown plate shows "The ravens are late".
+New events appear as an unrolling parchment proclamation with the event's own icon on a wax seal (a season's medal or a renown title's badge when there is one) and embers, and are added to the scrolling ticker. A change of king makes the crown plate flare. If the plugin stops refreshing `RealmState.json`, the crown plate shows "The ravens are late".
+
+Two events take the centre of the screen for about ten seconds:
+
+- **Coronation.** Light rays turn behind the new monarch's house banner as it unfurls, the crown drops onto it and flashes, sparks burst, then "Long live the crown", the monarch's name, the house and its words.
+- **Rebellion.** The edges of the frame pulse blood red, a blade of light cuts across, the rebel house's shield and the crossed swords slam in and shake, then the headline.
+
+The six great houses of the lore show their drawn banners, sigils and shields from the art pack; a house a player founds keeps its dyed banner with its initial. Everything with text stays inside the 1080p title-safe area (96 px at the sides, 54 px top and bottom). **UNVERIFIED in OBS itself:** add the overlay as a browser source and play `replay=coronation`, then `replay=rebellion_started`, to see both moments over the game.
 
 ## API
 

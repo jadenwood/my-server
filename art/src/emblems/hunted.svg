@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>The Hunted: arrows from every side</title>
+  <circle cx="12" cy="12" r="2.2"/>
+  <path d="m3 3 6.2 6.2m-2.8.4h3.2V6.4M21 3l-6.2 6.2m-1.4-2.8v3.2h3.2M12 22v-7.6m-2.2 2.2 2.2-2.2 2.2 2.2"/>
+</svg>

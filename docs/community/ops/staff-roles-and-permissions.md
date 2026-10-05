@@ -29,7 +29,10 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmwarden.admin` | `RealmWarden.cs` | `/warden alerts`, `ack`, `player`, `evidence`, `protect`, `mute`, `unmute`, `clear`, `raid` | With `General.AdminsExempt: true` (the default): **skips raid hours**, chat limits and the name filter | Yes | Yes | Yes | No |
 | `realmravens.admin` | `RealmRavens.cs` | `/raven admin queue`, `approve`, `reject`, `reports`, `resolve`, `audit`, `letter`, `mute`, `unmute`, `purge`, `save`. **`letter` shows a private letter's real sender and text**; every read is audited | Skips the spymaster change cooldown | Yes | Yes | Yes (privacy rule in section 4) | No |
 | `realmstats.admin` | `RealmStats.cs` | `/stats status`, `/stats save` | None | Yes | Yes | No | No |
+| `realmherald.admin` | `RealmHerald.cs` | `/realm admin motd add\|clear\|list`, `tip`, `reset <player>`, `status` | None (changes the welcome text and restarts a player's first steps) | Yes | Yes | No | No |
+| `realmpainter.admin` | `RealmPainter.cs` | `/paint <artwork>` (binds the sign you look at and paints it), `list`, `info`, `signs`, `redraw`, `unbind`, `clear`, `forget`, `face`, `fit`, `notice`, `status`, `reload` | None (changes what signs show; touches no house, crown, law or item) | Yes | Yes | No | Yes |
 | `realmevents.admin` | `RealmEvents.cs` | `/event start`, `stop`, `cancel`; may name King's Hunt quarry | Can name quarry and end events with prizes | Yes | Yes | No | Yes |
+| `realmarena.admin` | `RealmArena.cs` | `/arena admin status`, `zone set\|remove`, `tavern set\|remove`, `void <duel>`, `rating <player> <n>`, `reset <player> confirm`, `bar <player> <hours>`, `unbar`, `crown`, `pairs`, `settle`; `/arena tourney open [fee]`, `start`, `cancel`: arenas and taverns on the land, ratings, bars for fleeing, the weekly crowning and the Lists of the Ring | **Can set any fighter's rating** and crown the week's champion early; voiding a duel or a tournament returns every stake | Yes | Yes | No | Yes |
 | `realmseasons.admin` | `RealmSeasons.cs` | `/season start`, `/season end`, `/season status` | Ends a season and its standings | Yes | On call | No | No |
 | `realmhouses.admin` | `RealmHouses.cs` | `/house disband`, `pardon`, `unlink`, `sync` | Can dissolve rival houses and clear marks | Yes | Yes | No | No |
 | `crownandconsequences.admin` | `CrownAndConsequences.cs` | `/claim cancel`, `/council appoint\|remove` without being monarch; stuck-captive alerts | **Bypasses the throne-capture gate** (can take the throne outside rebellion windows) | Yes | Yes | No | No |
@@ -38,6 +41,17 @@ Legend: **Yes** = granted to the role's Oxide group. **On call** = the Owner gra
 | `realmdynasties.admin` | `RealmDynasties.cs` | `/dynasty admin pass`, `dissolve`, `title`, `prestige`, `check`, `save` | Skips disown and abdicate cooldowns | Yes | On call | No | No |
 | `realmrenown.admin` | `RealmRenown.cs` | `/renown admin grant`, `title give\|take`, `reset`, `status`, `save` | Skips the command cooldown; can grant points and titles | Yes | On call | No | No |
 | `realmtreasury.admin` | `RealmTreasury.cs` | `/treasury audit`, `freeze`, `unfreeze`, `cancel` (any order), `escheat` | Skips trade rate cooldowns; can cancel any market order | Yes | On call | No | No |
+| `realmsentinel.admin` | `RealmSentinel.cs` | `/sentinel status`, `report`, `clear`, `reload`, `freeze`, `unfreeze`, `ban <player> confirm`, `peaks`: suspicion scores, cheat evidence and responses. Holders also count as staff for the name-impersonation check | With `General.AdminsExempt: true` (the default): **skips every cheat check** | Yes | Yes | No | No |
+| `realmlegendary.admin` | `RealmLegendary.cs` | `/ironbreaker status`, `grant <player> [force]`, `revoke`, `reset confirm`, `items [word]`: who bears the Ironbreaker, and its audit | **Can put the legendary blade in anyone's hands**, including their own | Yes | Yes | No | No |
+| `realmsculptor.admin` | `RealmSculptor.cs` | `/sculpt list`, `preview`, `place`, `undo`, `remove`, `placed`, `status`, `protect`, `repair`, `materials`, `reload`: place, protect and take down the realm's block monuments | `place ... force` replaces players' blocks (put back on undo); a protected monument can block a road or a door | Yes | Yes | No | No |
+| `realmdominion.admin` | `RealmDominion.cs` | `/dominion admin status`, `create`, `move`, `radius`, `rename`, `remove`, `enable`, `disable`, `owner`, `reset`, `open`, `close`, `auto`, `payday`: mark the holdings on the land, open or close the War Hours, settle an owner | **Can hand a holding (and its daily marks) to any house** and open the field at will; holders never count in the field while `AdminsCount` is false (the default) | Yes | Yes | No | Yes |
+| `realmquests.admin` | `RealmQuests.cs` | `/quest admin status`, `reload`, `places`, `place set\|clear`, `reset <player>`, `complete <player> <quest>`, `creatures`, `items`: quest content, named places and a player's journal | `complete` finishes a task with its reward (a testing aid): **can pay marks and goods to anyone**, including themselves | Yes | On call | No | No |
+| `realmcrafts.admin` | `RealmCrafts.cs` | `/craft admin status`, `watch <player> [off]`, `unmapped`, `items <word>`, `xp <player> <profession> <amount>`, `level <player> <profession> <level>`, `reset <player> confirm`, `crown`, `cancel <id>`: professions, the weekly Master Crafter and the commission board | **Can set anyone's profession XP and level** (and with it their perks and market fee discount) and close the week early; `cancel` returns a commission's marks to its poster. Holders are never named Master Crafter while `AdminsCountForWeekly` is false (the default) | Yes | Yes | No | No |
+| `realmtravel.admin` | `RealmTravel.cs` | `/travel admin set`, `name`, `note`, `house`, `kind`, `toll`, `radius`, `hidden`, `enabled`, `mark`, `remove`, `list`, `unlock`, `lock`, `throne`, `tp`, `status`; `/kit admin items`, `check`, `reset`: raise and run the realm's waystones and kits | `/travel admin tp` moves them to any waystone; `unlock` and `/kit admin reset` can favour a player. With `General.AdminsExempt: true`: **no channel time, cooldowns or tolls** | Yes | Yes | No | No |
+| `realmworld.admin` | `RealmWorld.cs` | `/world admin status`, `start`, `stop`, `schedule`, `place set\|clear`, `places`, `hunt ...`, `route add\|remove`, `routes`, `deco add\|remove\|list`, `festival start\|stop\|cancel`, `census`, `creatures`, `legends`, `bounty [clear]`: lay out treasure hunts, caravan routes and festival decorations, start or call off world events | `start ... force` can run a world event over a RealmEvents event; a hunt's riddles and dig site are known to whoever lays them out, so holders win nothing in the world while `General.AdminsCanWin` is false (the default) | Yes | Yes | No | Yes |
+| `realmheraldry.admin` | `RealmHeraldry.cs` | `/heraldry sync`, `preview`, `set`, `reset`, `banner`, `status`: house colours on the game's guild banners; `/ballot admin open`, `advance`, `cancel`, `strike`, `audit`, `voter`: council elections and referendums | **Can set any house's colours, call or end an election early, cancel a ballot and strike a vote** (every strike is logged); may put a question to the realm without being monarch | Yes | Yes | No | No |
+| `realmarrival.admin` | `RealmArrival.cs` | `/arrival admin status`, `site` (`anchor`, `plan`, `pieces`, `signs`, `reload`), `check`, `runsheet`, `lot draw\|set\|clear`, `open`, `close`, `pause`, `resume`, `mode`, `gatemode`, `stone`, `mercy`, `hall`, `droppad`, `eject`, `threshold`, `hearth`, `wayboard`, `throne`, `banner`, `gate set\|build\|open\|close\|test\|remove`, `beacon build\|clear\|test`, `evict`, `wave`, `play`, `skip`, `reset`, `veteran`, `pass`: the Gatehouse of the Unwritten and every newcomer's first minutes | `play <player>` moves an online player (not in a fight) into the Gatehouse and walks them through the arrival (no quest credit, deed or Herald line); `pass` and `skip` move a player in the hall 4 m out to the forecourt; `gate` and `beacon` write the plugin's own 54 block cells | Yes | Yes | No | No |
+| `realmarrival.skip` | `RealmArrival.cs` | No command: holders spawn as the game spawns them (or at the Hearth with `StaffToHearth`) and are never evicted from the Gatehouse | Lets staff and testers stand in the Gatehouse without being moved, and skip the arrival | Yes | Yes | Yes | Yes |
 
 Things that are **not** Oxide permissions but are staff powers all the same:
 
@@ -61,16 +75,36 @@ oxide.group add realm_host "Event host" 1
 oxide.grant group realm_admin realmwarden.admin
 oxide.grant group realm_admin realmravens.admin
 oxide.grant group realm_admin realmstats.admin
+oxide.grant group realm_admin realmherald.admin
+oxide.grant group realm_admin realmpainter.admin
 oxide.grant group realm_admin realmevents.admin
+oxide.grant group realm_admin realmarena.admin
 oxide.grant group realm_admin realmhouses.admin
 oxide.grant group realm_admin crownandconsequences.admin
 oxide.grant group realm_admin realmcontracts.admin
 oxide.grant group realm_admin realmlaws.admin
+oxide.grant group realm_admin realmsentinel.admin
+oxide.grant group realm_admin realmlegendary.admin
+oxide.grant group realm_admin realmsculptor.admin
+oxide.grant group realm_admin realmdominion.admin
+oxide.grant group realm_admin realmquests.admin
+oxide.grant group realm_admin realmtravel.admin
+oxide.grant group realm_admin realmcrafts.admin
+oxide.grant group realm_admin realmworld.admin
+oxide.grant group realm_admin realmheraldry.admin
+oxide.grant group realm_admin realmarrival.admin
+oxide.grant group realm_admin realmarrival.skip
 
 oxide.grant group realm_mod realmwarden.admin
 oxide.grant group realm_mod realmravens.admin
+oxide.grant group realm_mod realmarrival.skip
 
 oxide.grant group realm_host realmevents.admin
+oxide.grant group realm_host realmarena.admin
+oxide.grant group realm_host realmworld.admin
+oxide.grant group realm_host realmpainter.admin
+oxide.grant group realm_host realmdominion.admin
+oxide.grant group realm_host realmarrival.skip
 
 oxide.usergroup add <SteamID64> realm_mod
 oxide.usergroup remove <SteamID64> realm_mod

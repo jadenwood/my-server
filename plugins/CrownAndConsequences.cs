@@ -315,6 +315,17 @@ namespace Oxide.Plugins
             public Dictionary<string, Captivity> Captives = new Dictionary<string, Captivity>();
             public Dictionary<string, DateTime> CaptureImmunityUntil = new Dictionary<string, DateTime>();
             public List<DateTime> CouncilChanges = new List<DateTime>();    // rolling 24 h, for CouncilChangesPerDay
+            // RealmHeraldry: seats won by election (seat -> end of the term, UTC) and the realm's votes on decrees.
+            public Dictionary<string, DateTime> ElectedUntil = new Dictionary<string, DateTime>();
+            public Dictionary<string, DecreeMandate> Mandates = new Dictionary<string, DecreeMandate>();
+        }
+
+        // A referendum's answer on one decree (RealmHeraldry): passed = the next issue costs no authority; refused = the
+        // decree may not be issued until Until.
+        private class DecreeMandate
+        {
+            public bool Passed;
+            public DateTime Until;
         }
 
         private void SaveData()
@@ -325,19 +336,71 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+
+        // A house name in its chat colour. The six great houses of Ostreval keep their own (art/palette.json
+        // "discordRole", chosen for dark backgrounds); any other house gets one of the six by a stable hash of its
+        // name, so it always shows in the same colour. Same table in every plugin that uses it (check.mjs).
+        private static readonly string[] HouseTintNames = { "varrow", "ashgrove", "corvane", "dunmere", "halloran", "merrin" };
+        private static readonly string[] HouseTintColours = { "C58FC0", "E08A5C", "8FB0BF", "B8B85A", "EC8A3C", "6FBF85" };
+
+        private static string HouseTint(string house)
+        {
+            if (string.IsNullOrEmpty(house)) return house;
+            string key = house.Trim().ToLowerInvariant();
+            int i = Array.IndexOf(HouseTintNames, key);
+            if (i < 0)
+            {
+                uint h = 2166136261;
+                foreach (char c in key) { h ^= c; h *= 16777619; }
+                i = (int)(h % (uint)HouseTintColours.Length);
+            }
+            return "[" + HouseTintColours[i] + "]" + house + "[FFFFFF]";
+        }
+
+        #endregion
+
         #region Lang
 
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Herald", "[C8A050]Herald[FFFFFF]: " },
+                { "Herald", "[D6A043]Herald[FFFFFF]: " },
+                { "Speaker", "Crown" },
                 { "NoPermission", "You may not do that." },
                 { "NotKing", "Only the reigning monarch may do that." },
                 { "NoKing", "The throne is vacant." },
                 { "PlayerNotFound", "No such person is online." },
-                { "CrownStatus", "Crown: {0} of {1}, reigning since {2} UTC. Authority {3}/{4}." },
-                { "DecreeList", "Decrees (/decree <id>):" },
+                { "CrownStatus", "{0} of {1} reigns since {2} UTC. Authority {3}/{4}." },
+                { "CrownInForce", "  In force: {0} ({1} min)" },
+                { "CrownNextWindow", "  Next rebellion window: {0} UTC" },
+                { "DecreeList", "Decrees ([F4C96D]/decree[FFFFFF] <id>):" },
                 { "DecreeLine", "  {0} - {1}: costs {2} authority, cooldown {3} min{4}" },
                 { "DecreeUnknown", "There is no such decree." },
                 { "DecreeCooldown", "That decree may be issued again in {0} min." },
@@ -349,14 +412,14 @@ namespace Oxide.Plugins
                 { "CouncilHeader", "The King's Council:" },
                 { "CouncilLine", "  {0}: {1}" },
                 { "CouncilVacant", "vacant" },
-                { "CouncilUsage", "Usage: /council appoint <player> <seat> | /council remove <player|seat>" },
+                { "CouncilUsage", "Usage: [F4C96D]/council appoint[FFFFFF] <player> <seat> | [F4C96D]/council remove[FFFFFF] <player|seat>" },
                 { "SeatUnknown", "Unknown seat. Seats: {0}" },
                 { "CouncilCooldown", "The council may be changed again in {0} s." },
                 { "RansomTooManyChanges", "The ransom for {0} may not be changed again." },
                 { "RansomReleasePending", "{0} is still bound. The realm will free them now." },
                 { "Appointed", "{0} is appointed {1}." },
                 { "Removed", "{0} is removed from the seat of {1}." },
-                { "ClaimUsage", "Usage: /claim declare | /claim list" },
+                { "ClaimUsage", "Usage: [F4C96D]/claim declare[FFFFFF] | [F4C96D]/claim list[FFFFFF]" },
                 { "ClaimNoHouse", "You must belong to a house to press a claim." },
                 { "ClaimNotLeader", "Only the head of your house may declare its claim." },
                 { "ClaimIsCrown", "Your house already holds the crown." },
@@ -365,13 +428,16 @@ namespace Oxide.Plugins
                 { "ClaimTooFewMembers", "A claim to the crown needs a house of at least {0} sworn members (yours has {1})." },
                 { "ClaimTooMany", "The realm already has {0} claims pending or under way. Wait for one to end." },
                 { "CouncilDaily", "The council has been changed {0} times today; the realm will not stand more churn until tomorrow." },
+                { "SeatElected", "The realm elected the {0}; the seat is theirs for {1} more hours." },
+                { "DecreeRefusedByRealm", "The realm voted against this decree; it may not be issued for {0} more hours." },
+                { "DecreeMandate", "The realm voted for this decree: it costs no authority this time." },
                 { "ClaimNoWindow", "No rebellion window is configured." },
                 { "ClaimLine", "  House {0}: {1}, window {2} to {3} UTC" },
                 { "ClaimNone", "No claims are open." },
                 { "CaptureGated", "The throne may only be contested during a declared rebellion window." },
                 { "CaptureNotClaimant", "Only houses with a declared claim may contest the throne now." },
                 { "CaptureImmune", "That person is under the realm's protection and cannot be taken again yet." },
-                { "RansomUsage", "Usage: /ransom set <player> <amount> | /ransom paid <player> | /ransom release <player> | /ransom free | /ransom list" },
+                { "RansomUsage", "Usage: [F4C96D]/ransom set[FFFFFF] <player> <amount> | [F4C96D]/ransom paid[FFFFFF] <player> | [F4C96D]/ransom release[FFFFFF] <player> | [F4C96D]/ransom free[FFFFFF] | [F4C96D]/ransom list[FFFFFF]" },
                 { "RansomNotCaptor", "You are not holding that person." },
                 { "RansomBadAmount", "Ransom must be a whole number from 1 to {0}." },
                 { "RansomOnlyLower", "A ransom may only be lowered once set." },
@@ -380,7 +446,7 @@ namespace Oxide.Plugins
                 { "RansomPaid", "Ransom recorded. Release {0} now; the law frees them in {1} min regardless." },
                 { "RansomFreeNotYet", "Your term is not over. You go free by law in {0} min." },
                 { "RansomNotHeld", "You are not held captive." },
-                { "RansomExpiredCaptive", "Your term of captivity has ended. Your captor must release you; if they do not, type /ransom free." },
+                { "RansomExpiredCaptive", "Your term of captivity has ended. Your captor must release you; if they do not, type [F4C96D]/ransom free[FFFFFF]." },
                 { "RansomExpiredCaptor", "The term for {0} has ended. Release them now." },
                 { "RansomSelfFreed", "You claim your freedom." },
                 { "RansomSelfFreeFailed", "The realm could not free you automatically. An admin has been alerted." },
@@ -390,7 +456,9 @@ namespace Oxide.Plugins
                 { "DecreeUnavailable", "That decree cannot be issued: the item '{0}' is not known to this server." },
                 { "ProvisionReceived", "The royal stores grant you {0} {1}." },
                 { "ProvisionFull", "Your packs are full; the royal stores could not give you {0}." },
-                { "AdminAlert", "[Crown] {0}" }
+                { "AdminAlert", "[E8913A]Crown alert[FFFFFF]: {0}" },
+                { "HeraldClaimDeclared", "House {0} declares a claim to the crown. The rebellion opens {1}." },
+                { "HeraldRebellionBegun", "The rebellion of House {0} has begun!" }
             }, this);
         }
 
@@ -402,13 +470,28 @@ namespace Oxide.Plugins
         private void Reply(Player player, string key, params object[] args)
         {
             string text = args.Length > 0 ? string.Format(Msg(key, player), args) : Msg(key, player);
-            player.SendMessage(text);                                   // single-string overload: brace safe
+            player.SendMessage(Styled(Msg("Speaker", player), ToneOf(key), text));   // single-string overload: brace safe
         }
 
         private void ReplyError(Player player, string key, params object[] args)
         {
             string text = args.Length > 0 ? string.Format(Msg(key, player), args) : Msg(key, player);
-            player.SendError(text);
+            player.SendError(Styled(Msg("Speaker", player), ChatError, text));
+        }
+
+        // Tone of a reply (chat style): done, or take care; everything else is news.
+        private static readonly HashSet<string> OkKeys = new HashSet<string>
+        {
+            "DecreeIssued", "ProvisionReceived", "RansomSet", "RansomPaid", "RansomSelfFreed"
+        };
+        private static readonly HashSet<string> WarnKeys = new HashSet<string>
+        {
+            "RansomYouAreHeld", "RansomExpiredCaptive", "RansomExpiredCaptor", "RansomReleasePending", "TaxCapped"
+        };
+
+        private static string ToneOf(string key)
+        {
+            return OkKeys.Contains(key) ? ChatOk : WarnKeys.Contains(key) ? ChatWarn : ChatGold;
         }
 
         private void Broadcast(string text)
@@ -452,6 +535,8 @@ namespace Oxide.Plugins
             if (data.HouseLastClaim == null) data.HouseLastClaim = new Dictionary<string, DateTime>();
             if (data.Captives == null) data.Captives = new Dictionary<string, Captivity>();
             if (data.CaptureImmunityUntil == null) data.CaptureImmunityUntil = new Dictionary<string, DateTime>();
+            if (data.ElectedUntil == null) data.ElectedUntil = new Dictionary<string, DateTime>();
+            if (data.Mandates == null) data.Mandates = new Dictionary<string, DecreeMandate>();
             data.ActiveDecrees.RemoveAll(IsBrokenActive);
             data.Claims.RemoveAll(IsBrokenClaim);
             foreach (string k in new List<string>(data.Captives.Keys))
@@ -551,8 +636,13 @@ namespace Oxide.Plugins
             data.LastAuthorityTick = now;
             if (config.ClearCouncilOnSuccession)
             {
-                data.Council.Clear();
-                data.CouncilNames.Clear();
+                // Seats the realm elected (RealmHeraldry) outlast a change of monarch until their term ends.
+                foreach (string seat in new List<string>(data.Council.Keys))
+                {
+                    if (ElectedSeat(seat)) continue;
+                    data.Council.Remove(seat);
+                    data.CouncilNames.Remove(seat);
+                }
             }
 
             string house = data.KingHouse ?? "no house";
@@ -673,7 +763,11 @@ namespace Oxide.Plugins
                 DateTime ready = last.AddMinutes(def.CooldownMinutes);
                 if (ready > now) { ReplyError(player, "DecreeCooldown", MinutesUntil(ready)); return; }
             }
-            if (data.Authority < def.AuthorityCost)
+            DecreeMandate mandate;
+            if (!data.Mandates.TryGetValue(def.Id, out mandate) || mandate == null || mandate.Until <= now) mandate = null;
+            if (mandate != null && !mandate.Passed && !IsAdmin(player)) { ReplyError(player, "DecreeRefusedByRealm", HoursLeft(mandate.Until)); return; }
+            float cost = mandate != null && mandate.Passed ? 0f : def.AuthorityCost;
+            if (data.Authority < cost)
             {
                 ReplyError(player, "DecreeAuthority", def.AuthorityCost, Math.Floor(data.Authority));
                 return;
@@ -687,7 +781,8 @@ namespace Oxide.Plugins
                 issued.NextGrantAt = now;                       // first grant right after the proclamation below
             }
 
-            data.Authority -= def.AuthorityCost;
+            data.Authority -= cost;
+            if (mandate != null && mandate.Passed) { data.Mandates.Remove(def.Id); Reply(player, "DecreeMandate"); }
             data.LastDecreeAt = now;
             data.DecreeLastIssued[def.Id] = now;
             data.ActiveDecrees.Add(issued);
@@ -933,7 +1028,10 @@ namespace Oxide.Plugins
                 if (seat == null) { ReplyError(player, "SeatUnknown", SeatList()); return; }
 
                 string oldSeat = SeatOf(target.Id);
-                if (oldSeat != null) { data.Council.Remove(oldSeat); data.CouncilNames.Remove(oldSeat); }
+                string held = ElectedSeat(seat) ? seat : (oldSeat != null && ElectedSeat(oldSeat) ? oldSeat : null);
+                if (held != null && !admin) { ReplyError(player, "SeatElected", held, HoursLeft(data.ElectedUntil[held])); return; }
+                if (oldSeat != null) { data.Council.Remove(oldSeat); data.CouncilNames.Remove(oldSeat); data.ElectedUntil.Remove(oldSeat); }
+                data.ElectedUntil.Remove(seat);
                 data.Council[seat] = target.Id;
                 data.CouncilNames[seat] = target.Name;
                 ChronicleMinor("decree", target.Name + " named " + seat,
@@ -952,9 +1050,11 @@ namespace Oxide.Plugins
                         if (kv.Value.StartsWith(rest, StringComparison.OrdinalIgnoreCase)) { seat = kv.Key; break; }
                 }
                 if (seat == null) { ReplyError(player, "PlayerNotFound"); return; }
+                if (ElectedSeat(seat) && !admin) { ReplyError(player, "SeatElected", seat, HoursLeft(data.ElectedUntil[seat])); return; }
                 string name = data.CouncilNames[seat];
                 data.Council.Remove(seat);
                 data.CouncilNames.Remove(seat);
+                data.ElectedUntil.Remove(seat);
                 ChronicleMinor("decree", name + " dismissed as " + seat,
                     name + " no longer serves as " + seat + ".", new[] { name, data.KingName ?? player.Name });
                 Broadcast(string.Format(Msg("Removed", null), name, seat));
@@ -1001,7 +1101,7 @@ namespace Oxide.Plugins
                 {
                     if (c.Status == "ended") continue;
                     any = true;
-                    player.SendMessage(string.Format(Msg("ClaimLine", player), c.House, c.Status,
+                    player.SendMessage(string.Format(Msg("ClaimLine", player), HouseTint(c.House), c.Status,
                         c.WindowStart.ToString("ddd HH:mm"), c.WindowEnd.ToString("HH:mm")));
                 }
                 if (!any) Reply(player, "ClaimNone");
@@ -1085,7 +1185,7 @@ namespace Oxide.Plugins
             Chronicle("claim_declared", "House " + myHouse + " claims the crown",
                 player.Name + " of House " + myHouse + " declares a claim against " + against + ". The rebellion opens " + when + ".",
                 data.KingName != null ? new[] { player.Name, data.KingName } : new[] { player.Name });
-            Broadcast("House " + myHouse + " declares a claim to the crown. The rebellion opens " + when + ".");
+            Broadcast(string.Format(Msg("HeraldClaimDeclared", null), HouseTint(myHouse), when));
             SaveData();
         }
 
@@ -1101,7 +1201,7 @@ namespace Oxide.Plugins
                     Chronicle("rebellion_started", "House " + c.House + " rises",
                         "The rebellion of House " + c.House + " has begun. The throne may be contested until "
                         + c.WindowEnd.ToString("HH:mm") + " UTC.", new[] { c.DeclaredBy });
-                    Broadcast("The rebellion of House " + c.House + " has begun!");
+                    Broadcast(string.Format(Msg("HeraldRebellionBegun", null), HouseTint(c.House)));
                 }
                 if (c.Status == "active" && c.WindowEnd <= now)
                 {
@@ -1567,17 +1667,18 @@ namespace Oxide.Plugins
         {
             if (data.KingId == 0) Reply(player, "NoKing");
             else
-                player.SendMessage(string.Format(Msg("CrownStatus", player), data.KingName, data.KingHouse ?? "no house",
+                player.SendMessage(Styled(Msg("Speaker", player), ChatGold, string.Format(Msg("CrownStatus", player), data.KingName,
+                    data.KingHouse != null ? "House " + HouseTint(data.KingHouse) : "no house",
                     data.Since.HasValue ? data.Since.Value.ToString("yyyy-MM-dd HH:mm") : "?",
-                    Math.Floor(data.Authority), config.MaxAuthority));
+                    Math.Floor(data.Authority), config.MaxAuthority)));
             foreach (ActiveDecree a in data.ActiveDecrees)
             {
                 DecreeDef d = FindDecree(a.Id);
-                if (d != null) player.SendMessage("  In force: " + d.Name + " (" + MinutesUntil(a.ExpiresAt) + " min)");
+                if (d != null) player.SendMessage(string.Format(Msg("CrownInForce", player), d.Name, MinutesUntil(a.ExpiresAt)));
             }
             DateTime s, e;
             if (NextWindow(DateTime.UtcNow, out s, out e))
-                player.SendMessage("  Next rebellion window: " + s.ToString("dddd HH:mm") + " UTC");
+                player.SendMessage(string.Format(Msg("CrownNextWindow", player), s.ToString("dddd HH:mm")));
         }
 
         #endregion
@@ -1651,6 +1752,84 @@ namespace Oxide.Plugins
         private bool IsHeldForRansom(ulong playerId)
         {
             return data != null && data.Captives.ContainsKey(playerId.ToString());
+        }
+
+        // RealmHeraldry (council elections and referendums). The seats as configured.
+        private List<string> GetCouncilSeats()
+        {
+            return config != null && config.CouncilSeats != null ? new List<string>(config.CouncilSeats) : new List<string>();
+        }
+
+        // Every seat as "seat|playerId|name|electedUntilIso" (empty fields for a vacant or appointed seat).
+        private string[] GetCouncil()
+        {
+            var list = new List<string>();
+            if (data == null || config.CouncilSeats == null) return list.ToArray();
+            foreach (string seat in config.CouncilSeats)
+            {
+                ulong id;
+                string name;
+                bool held = data.Council.TryGetValue(seat, out id);
+                data.CouncilNames.TryGetValue(seat, out name);
+                list.Add(seat + "|" + (held ? id.ToString() : "") + "|" + (held ? name ?? "" : "") + "|"
+                    + (held && ElectedSeat(seat) ? data.ElectedUntil[seat].ToString("o") : ""));
+            }
+            return list.ToArray();
+        }
+
+        // Seats the winner of a council election until `untilIso` (UTC). The monarch cannot appoint over or dismiss an
+        // elected councillor before then (admins can); the seat also survives a change of monarch. The election itself is
+        // chronicled by RealmHeraldry, so this writes no chronicle line. False for an unknown seat or a bad argument.
+        private bool SeatElectedCouncillor(string seat, string playerId, string name, string untilIso)
+        {
+            ulong id;
+            DateTime until;
+            if (data == null || string.IsNullOrEmpty(playerId) || !ulong.TryParse(playerId, out id) || id == 0) return false;
+            if (!DateTime.TryParse(untilIso, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out until)) return false;
+            string match = null;
+            foreach (string s in config.CouncilSeats) if (string.Equals(s, seat, StringComparison.OrdinalIgnoreCase)) match = s;
+            if (match == null || until <= DateTime.UtcNow || until > DateTime.UtcNow.AddDays(400)) return false;
+            string old = SeatOf(id);
+            if (old != null) { data.Council.Remove(old); data.CouncilNames.Remove(old); data.ElectedUntil.Remove(old); }
+            data.Council[match] = id;
+            data.CouncilNames[match] = string.IsNullOrEmpty(name) ? playerId : name;
+            data.ElectedUntil[match] = DateTime.SpecifyKind(until, DateTimeKind.Utc);
+            SaveData();
+            return true;
+        }
+
+        // The decrees as "id|name".
+        private string[] GetDecreeList()
+        {
+            var list = new List<string>();
+            if (config == null || config.Decrees == null) return list.ToArray();
+            foreach (DecreeDef d in config.Decrees) list.Add(d.Id + "|" + d.Name);
+            return list.ToArray();
+        }
+
+        // A referendum's answer on a decree, for `hours` (1..720): passed = the next issue costs no authority; refused =
+        // only an admin may issue it until then. A later answer replaces an earlier one.
+        private bool SetDecreeMandate(string decreeId, bool passed, int hours)
+        {
+            if (data == null || hours < 1 || hours > 720) return false;
+            DecreeDef def = FindDecree(decreeId);
+            if (def == null) return false;
+            data.Mandates[def.Id] = new DecreeMandate { Passed = passed, Until = DateTime.UtcNow.AddHours(hours) };
+            SaveData();
+            return true;
+        }
+
+        private bool ElectedSeat(string seat)
+        {
+            DateTime until;
+            return seat != null && data.ElectedUntil != null && data.ElectedUntil.TryGetValue(seat, out until) && until > DateTime.UtcNow
+                && data.Council.ContainsKey(seat);
+        }
+
+        private static int HoursLeft(DateTime until)
+        {
+            return Math.Max(1, (int)Math.Ceiling((until - DateTime.UtcNow).TotalHours));
         }
 
         #endregion

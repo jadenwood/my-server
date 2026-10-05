@@ -14,7 +14,7 @@ Everything here follows `docs/community/lore.md`. Ostreval, its houses and its p
 | [`runsheets/act-3-the-lawful-hours.md`](runsheets/act-3-the-lawful-hours.md) | Act III (weeks 5-6): rebellions, the King's Hunt, outlaws, spies, blood claims | Stewards on shift |
 | [`runsheets/act-4-the-reckoning.md`](runsheets/act-4-the-reckoning.md) | Act IV (weeks 7-8): the last Crown Night, the Hearth Truce, the season-end ceremony | Stewards on shift |
 | [`proclamations.md`](proclamations.md) | 30 ready-to-post herald lines (P01-P30), each with an in-game line and a Discord version | Stewards, Discord moderators |
-| [`locations.md`](locations.md) | 12 notable places (L01-L12), described generically so any group can map them onto the world | Stewards, builders, roleplayers |
+| [`locations.md`](locations.md) | 13 notable places (L01-L13), described generically so any group can map them onto the world | Stewards, builders, roleplayers |
 | [`legends.md`](legends.md) | 10 legend side-quests (Q01-Q10) that players complete with existing commands, each with how it is proven | Players, Stewards |
 | [`calendar-8-weeks.md`](calendar-8-weeks.md) | A template for the 8-week calendar, with the weekly rhythm read from the plugins' defaults | Stewards, community managers |
 | [`COMMANDS.md`](COMMANDS.md) | **Generated.** Every command the pack uses, which plugin defines it and how settled that plugin is | Stewards (before each act) |
@@ -32,7 +32,7 @@ Everything here follows `docs/community/lore.md`. Ostreval, its houses and its p
 | Channel | How | Notes |
 |---|---|---|
 | In-game chat as the server | Realm Steward → Court → **Say** (types the line into the admin console without `/`) | `[DEC]` `Console.Submit`, from `docs/admin-console.md`. UNVERIFIED at run time. |
-| On-screen notice | Court → **Notice**, which sends `/notice <text>` | `[DEC]` `Server.Notice`. Use it for the big moments only. UNVERIFIED at run time. |
+| Server notice (a chat line) | Court → **Notice**, which sends `/notice <text>` | `[DEC]` `Server.Notice` calls `CoreServer.Notice`, which is `BroadcastMessage` with a `[Server]` prefix: a line in every player's chat, not an on-screen banner. Use it for the big moments only. UNVERIFIED at run time. |
 | Popup | Court → **Popup**, which sends `/popup <text>` | `[DEC]` A window every player must close. Use it at most once per act. UNVERIFIED at run time. |
 | In-game chat as you | Type the line in game chat | Always works. It shows your name, not the server's. |
 | Discord | Post the ```` ```discord ```` version by hand in the announcements channel | The Steward's Discord herald (`docs/discord-herald.md`) already relays Chronicle events by itself, so do not repost those. |
@@ -61,7 +61,7 @@ It reads `plugins/*.cs`, `docs/admin-console.md` and `docs/oxide-rok-api.md`. It
 - `/season start` days or `/event start` minutes fall outside the range the plugin accepts;
 - a chronicle type named on a `**Chronicle:**` line is not in `RealmChronicle.cs` `KnownTypes` or `docs/saga/EVENTS.json`;
 - a herald line breaks the in-game rules above, or a Discord text is over 2000 characters or pings (`@everyone`, `@here`, mentions);
-- the pack is the wrong shape: not exactly 30 proclamations, 12 locations, 10 legends, 8 calendar weeks and 4 act run-sheets;
+- the pack is the wrong shape: not exactly 30 proclamations, 13 locations, 10 legends, 8 calendar weeks and 4 act run-sheets;
 - the weekly rhythm table in the calendar no longer matches the defaults in CrownAndConsequences, RealmEvents and RealmWarden;
 - `COMMANDS.md` is stale.
 

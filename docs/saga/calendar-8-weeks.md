@@ -13,6 +13,7 @@ Copy this file for each season, fill in the blanks (`____`), and pin the result 
 | Hearth (L02), zone centre and radius | `____` (set in Act I, step S6) |
 | Crown Market (L03), zone centre and radius | `____` (set in Act I, step S6) |
 | Other places (L04-L12) | `____` (see `locations.md`) |
+| Gatehouse of the Unwritten (L13) | anchored by `/arrival admin site anchor` (`plugins/docs/RealmArrival.md`) |
 
 ## The weekly rhythm (read from the plugins)
 

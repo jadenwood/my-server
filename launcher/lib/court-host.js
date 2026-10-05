@@ -17,6 +17,9 @@
 //   for that server for the rest of the session and the reason is logged.
 // - Server.exe (the wrapper) is never given -cport: it manages the console itself. Commands then
 //   keep going to stdin.
+// - An adopted server (lib/prestart.js, ServerManager.adopt) gets the same held connection through
+//   attachConsole(): Steward connects to the console port it already listens on. From then on the
+//   same rule applies: Steward is a console client, so closing Steward stops that server too.
 
 const fsp = require('fs/promises');
 const path = require('path');
@@ -54,6 +57,8 @@ function createCourt({ userData, settings, instOf, rootOf, clipboard, shell, pla
   function wireConsole(id, s, con) {
     con.on('connected', () => {
       s.staleLogged = false;
+      // The console now delivers the game's lines; the log-file tail stops showing the same ones.
+      if (s.m) s.m.consoleFeed = true;
       sys(s, `Admin console connected (127.0.0.1:${con.port}). Commands now go straight to the game, with its answers.`);
     });
     con.on('line', (line) => {
@@ -81,6 +86,7 @@ function createCourt({ userData, settings, instOf, rootOf, clipboard, shell, pla
       log('warn', `[court ${id}] protocol error: ${e.message}`);
     });
     con.on('disconnected', (ev) => {
+      if (s.m) s.m.consoleFeed = false;
       if (ev.deliberate) sys(s, 'Admin console closed by Steward (the game saves and shuts down when its last console client leaves).');
       else if (ev.serverSaidBye) sys(s, 'Admin console closed by the game.');
       else if (s.m && s.m.isRunning()) sys(s, `Admin console connection lost${ev.error ? ` (${ev.error})` : ''}. The game shuts down when its last console client leaves, so the server is probably stopping; Steward is reconnecting in case it is not.`);
@@ -196,6 +202,28 @@ function createCourt({ userData, settings, instOf, rootOf, clipboard, shell, pla
     });
   }
 
+  // Adopt: hold the admin console of a server Steward did not start. Never closes an open connection
+  // (that would stop the server); refuses when one is already held.
+  function attachConsole(id, port) {
+    if (!ID_RE.test(id)) throw new TypeError('server id is not one of s1, s2, s3, s4');
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new RangeError('port must be 1..65535');
+    const s = st(id);
+    if (!s.m || !s.m.isRunning()) throw Object.assign(new Error('Adopt the server first.'), { friendly: true });
+    if (s.con && s.con.isConnected()) throw Object.assign(new Error('The live console is already connected to this server.'), { friendly: true });
+    if (s.con) s.con.detach();
+    clearTimeout(s.stopTimer);
+    s.cport = port;
+    s.spawnedAt = null; // not our spawn: the "never reached the console" rule does not apply
+    s.players = null;
+    s.playersAt = null;
+    const con = new AC.AdminConsole({ port });
+    s.con = con;
+    wireConsole(id, s, con);
+    con.attach();
+    s.m.log('sys', `Live console: connecting to the adopted server's admin console on 127.0.0.1:${port}. Steward holds this connection from now on; the game shuts down (and saves) when its last console client leaves, so closing Steward stops this server too.`);
+    return status(id);
+  }
+
   function conOf(id) {
     const s = st(id);
     if (!s.con || !s.con.isConnected()) {
@@ -295,7 +323,7 @@ function createCourt({ userData, settings, instOf, rootOf, clipboard, shell, pla
     }
     if (action === 'whitelist' && ok) s.whitelist = !!(args && args.on);
     if (['kick', 'ban'].includes(action) && ok) s.playersAt = null;
-    const target = args && (args.name || null);
+    const target = args && (args.name || args.plugin || null);
     const reason = args && (args.reason || args.message || null);
     if (!['list', 'banlist', 'roster'].includes(action)) {
       await courtLog.append({ server: id, action, target, reason, command: built.command, ok, result }).catch((e) => log('warn', `[court] log write failed: ${e.message}`));
@@ -347,8 +375,14 @@ function createCourt({ userData, settings, instOf, rootOf, clipboard, shell, pla
     });
   }
 
+  // True when commands for this server go straight to the game over the admin console.
+  function consoleReady(id) {
+    const s = state.get(id);
+    return !!(s && s.con && s.con.isConnected() && s.m && s.m.isRunning());
+  }
+
   // Window closing: nothing special. m.stop() (wrapped above) already sends /shutdown.
-  return { adopt, register, status, act, feed, refreshPlayers, prefs, courtLog, dir, _state: state, platform };
+  return { adopt, attachConsole, register, status, act, feed, refreshPlayers, consoleReady, prefs, courtLog, dir, _state: state, platform };
 }
 
 module.exports = { createCourt, STOP_CLOSE_AFTER_MS };

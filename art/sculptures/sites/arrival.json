@@ -1,0 +1,770 @@
+{
+  "format": "realm-site/1",
+  "id": "arrival",
+  "name": "The Gatehouse of the Unwritten and the Hearth road",
+  "description": "Where every newcomer arrives: the walled Gatehouse, the processional between the six house monuments, and the Hearth fire with its ember band, the Herald's Pillar and the wayboard. One axis from the gate to the fire to the Old Throne.",
+  "source": "art/sculptures/src/sites/arrival.mjs",
+  "design": "docs/arrival-design.md",
+  "cellMetres": 1.2,
+  "frame": {
+    "origin": "cell [0, 0, 0] is the middle of the Gatehouse back wall's outer face, in the floor layer",
+    "x": "across the axis; +x is on the right of someone walking from the gate to the fire",
+    "y": "up; every piece's bottom layer is y 0 (the cell an admin's feet are in on bare ground)",
+    "z": "along the axis: back wall (0), gate (21-22), avenue, fire (107), wayboard (122), toward the Old Throne"
+  },
+  "lot": {
+    "rule": "Which house stands in which slot is drawn by lot in public at every build (after every wipe). The two houses of a pair face each other across the road.",
+    "slots": ["p1-left", "p1-right", "p2-left", "p2-right", "p3-left", "p3-right"],
+    "houses": ["varrow", "ashgrove", "corvane", "dunmere", "halloran", "merrin"],
+    "preview": {
+      "p1-left": "varrow",
+      "p1-right": "dunmere",
+      "p2-left": "ashgrove",
+      "p2-right": "corvane",
+      "p3-left": "halloran",
+      "p3-right": "merrin"
+    }
+  },
+  "pieces": [
+    {
+      "key": "gatehouse",
+      "sculpture": "gatehouse-unwritten",
+      "by": "sculptor",
+      "turn": 2,
+      "at": [-9, 0, 0],
+      "size": [19, 13, 23],
+      "order": 1,
+      "stand": {
+        "cell": [0, 0, 25],
+        "facing": "-z",
+        "command": "/sculpt place gatehouse-unwritten 2"
+      },
+      "note": "The walled court. Its floor carries the six arrival stones and the gold line; the gate gap is left open for the portcullis."
+    },
+    {
+      "key": "portcullis",
+      "sculpture": "gatehouse-portcullis",
+      "by": "plugin",
+      "turn": 2,
+      "at": [-2, 1, 21],
+      "size": [5, 6, 1],
+      "note": "Never placed with /sculpt: RealmArrival builds these cells with /arrival admin gate build (cells.gate) and takes them down row by row."
+    },
+    {
+      "key": "processional-a",
+      "sculpture": "processional-a",
+      "by": "sculptor",
+      "turn": 2,
+      "at": [-3, 0, 23],
+      "size": [7, 1, 39],
+      "order": 2,
+      "stand": {
+        "cell": [0, 0, 64],
+        "facing": "-z",
+        "command": "/sculpt place processional-a 2"
+      },
+      "optional": true,
+      "note": "Skip both halves if the ground is not flat to within one block over 45 m."
+    },
+    {
+      "key": "p1-left-monument",
+      "sculpture": "house-{house}",
+      "by": "sculptor",
+      "slot": "p1-left",
+      "turn": 3,
+      "at": [-13, 0, 28],
+      "size": [7, 28, 20],
+      "order": 3,
+      "stand": {
+        "cell": [-4, 0, 38],
+        "facing": "-x",
+        "command": "/sculpt place house-{house} 3"
+      }
+    },
+    {
+      "key": "p1-left-stone",
+      "sculpture": "pledge-stone-{house}",
+      "by": "sculptor",
+      "slot": "p1-left",
+      "turn": 0,
+      "at": [-6, 0, 36],
+      "size": [3, 2, 3],
+      "order": 4,
+      "stand": {
+        "cell": [-5, 0, 33],
+        "facing": "+z",
+        "command": "/sculpt place pledge-stone-{house} 0"
+      }
+    },
+    {
+      "key": "p1-right-monument",
+      "sculpture": "house-{house}",
+      "by": "sculptor",
+      "slot": "p1-right",
+      "turn": 1,
+      "at": [7, 0, 28],
+      "size": [7, 28, 20],
+      "order": 5,
+      "stand": {
+        "cell": [4, 0, 38],
+        "facing": "+x",
+        "command": "/sculpt place house-{house} 1"
+      }
+    },
+    {
+      "key": "p1-right-stone",
+      "sculpture": "pledge-stone-{house}",
+      "by": "sculptor",
+      "slot": "p1-right",
+      "turn": 0,
+      "at": [4, 0, 36],
+      "size": [3, 2, 3],
+      "order": 6,
+      "stand": {
+        "cell": [5, 0, 33],
+        "facing": "+z",
+        "command": "/sculpt place pledge-stone-{house} 0"
+      }
+    },
+    {
+      "key": "processional-b",
+      "sculpture": "processional-b",
+      "by": "sculptor",
+      "turn": 2,
+      "at": [-3, 0, 62],
+      "size": [7, 1, 38],
+      "order": 7,
+      "stand": {
+        "cell": [0, 0, 102],
+        "facing": "-z",
+        "command": "/sculpt place processional-b 2"
+      },
+      "optional": true
+    },
+    {
+      "key": "p2-left-monument",
+      "sculpture": "house-{house}",
+      "by": "sculptor",
+      "slot": "p2-left",
+      "turn": 3,
+      "at": [-13, 0, 52],
+      "size": [7, 28, 20],
+      "order": 8,
+      "stand": {
+        "cell": [-4, 0, 62],
+        "facing": "-x",
+        "command": "/sculpt place house-{house} 3"
+      }
+    },
+    {
+      "key": "p2-left-stone",
+      "sculpture": "pledge-stone-{house}",
+      "by": "sculptor",
+      "slot": "p2-left",
+      "turn": 0,
+      "at": [-6, 0, 60],
+      "size": [3, 2, 3],
+      "order": 9,
+      "stand": {
+        "cell": [-5, 0, 57],
+        "facing": "+z",
+        "command": "/sculpt place pledge-stone-{house} 0"
+      }
+    },
+    {
+      "key": "p2-right-monument",
+      "sculpture": "house-{house}",
+      "by": "sculptor",
+      "slot": "p2-right",
+      "turn": 1,
+      "at": [7, 0, 52],
+      "size": [7, 28, 20],
+      "order": 10,
+      "stand": {
+        "cell": [4, 0, 62],
+        "facing": "+x",
+        "command": "/sculpt place house-{house} 1"
+      }
+    },
+    {
+      "key": "p2-right-stone",
+      "sculpture": "pledge-stone-{house}",
+      "by": "sculptor",
+      "slot": "p2-right",
+      "turn": 0,
+      "at": [4, 0, 60],
+      "size": [3, 2, 3],
+      "order": 11,
+      "stand": {
+        "cell": [5, 0, 57],
+        "facing": "+z",
+        "command": "/sculpt place pledge-stone-{house} 0"
+      }
+    },
+    {
+      "key": "p3-left-monument",
+      "sculpture": "house-{house}",
+      "by": "sculptor",
+      "slot": "p3-left",
+      "turn": 3,
+      "at": [-13, 0, 76],
+      "size": [7, 28, 20],
+      "order": 12,
+      "stand": {
+        "cell": [-4, 0, 86],
+        "facing": "-x",
+        "command": "/sculpt place house-{house} 3"
+      }
+    },
+    {
+      "key": "p3-left-stone",
+      "sculpture": "pledge-stone-{house}",
+      "by": "sculptor",
+      "slot": "p3-left",
+      "turn": 0,
+      "at": [-6, 0, 84],
+      "size": [3, 2, 3],
+      "order": 13,
+      "stand": {
+        "cell": [-5, 0, 81],
+        "facing": "+z",
+        "command": "/sculpt place pledge-stone-{house} 0"
+      }
+    },
+    {
+      "key": "p3-right-monument",
+      "sculpture": "house-{house}",
+      "by": "sculptor",
+      "slot": "p3-right",
+      "turn": 1,
+      "at": [7, 0, 76],
+      "size": [7, 28, 20],
+      "order": 14,
+      "stand": {
+        "cell": [4, 0, 86],
+        "facing": "+x",
+        "command": "/sculpt place house-{house} 1"
+      }
+    },
+    {
+      "key": "p3-right-stone",
+      "sculpture": "pledge-stone-{house}",
+      "by": "sculptor",
+      "slot": "p3-right",
+      "turn": 0,
+      "at": [4, 0, 84],
+      "size": [3, 2, 3],
+      "order": 15,
+      "stand": {
+        "cell": [5, 0, 81],
+        "facing": "+z",
+        "command": "/sculpt place pledge-stone-{house} 0"
+      }
+    },
+    {
+      "key": "hearth-ring",
+      "sculpture": "hearth-ring",
+      "by": "sculptor",
+      "turn": 2,
+      "at": [-7, 0, 100],
+      "size": [15, 2, 15],
+      "order": 16,
+      "stand": {
+        "cell": [0, 0, 117],
+        "facing": "-z",
+        "command": "/sculpt place hearth-ring 2"
+      },
+      "note": "Centred on the fire. The staff fire pit goes on the hearthstone in the middle of the dais; the ember band sits on the dais round it (cells.emberBand)."
+    },
+    {
+      "key": "pillar",
+      "sculpture": "heralds-pillar",
+      "by": "sculptor",
+      "turn": 0,
+      "at": [-11, 0, 112],
+      "size": [5, 13, 5],
+      "order": 17,
+      "stand": {
+        "cell": [-9, 0, 109],
+        "facing": "+z",
+        "command": "/sculpt place heralds-pillar 0"
+      },
+      "note": "Left of the ring on the throne side, its notice toward the avenue. Off the axis, so it never hides the throne from the gate. The waystone the-hearth is marked with it (/travel admin mark)."
+    },
+    {
+      "key": "wayboard",
+      "sculpture": "wayboard",
+      "by": "sculptor",
+      "turn": 1,
+      "at": [9, 0, 108],
+      "size": [2, 5, 15],
+      "order": 18,
+      "stand": {
+        "cell": [6, 0, 115],
+        "facing": "+x",
+        "command": "/sculpt place wayboard 1"
+      },
+      "note": "Right of the ring, its five bays facing the axis (-x), so the throne stays in view from the gate."
+    },
+    {
+      "key": "old-throne",
+      "sculpture": "old-throne",
+      "by": "context",
+      "turn": 0,
+      "at": [-7, 10, 178],
+      "size": [15, 16, 13],
+      "note": "Context for previews only: the Old Throne (L01) on its hill, wherever it really stands. The site is laid out so gate, fire and throne line up."
+    }
+  ],
+  "cells": {
+    "gate": {
+      "piece": "portcullis",
+      "owner": "RealmArrival",
+      "command": "/arrival admin gate build",
+      "material": "reinforced",
+      "colour": "#131417",
+      "note": "Rows top first, each left to right as seen from the court. Opening removes one row every 0.4 s (material 0, collectPreviousCube false); closing puts them back bottom first.",
+      "rows": [
+        [[-2, 6, 21], [-1, 6, 21], [0, 6, 21], [1, 6, 21], [2, 6, 21]],
+        [[-2, 5, 21], [-1, 5, 21], [0, 5, 21], [1, 5, 21], [2, 5, 21]],
+        [[-2, 4, 21], [-1, 4, 21], [0, 4, 21], [1, 4, 21], [2, 4, 21]],
+        [[-2, 3, 21], [-1, 3, 21], [0, 3, 21], [1, 3, 21], [2, 3, 21]],
+        [[-2, 2, 21], [-1, 2, 21], [0, 2, 21], [1, 2, 21], [2, 2, 21]],
+        [[-2, 1, 21], [-1, 1, 21], [0, 1, 21], [1, 1, 21], [2, 1, 21]]
+      ]
+    },
+    "emberBand": {
+      "owner": "RealmArrival",
+      "command": "/arrival admin beacon build 5",
+      "material": "clay",
+      "rest": "#9c6a1e",
+      "flare": "#f4c96d",
+      "restsOn": "hearth-ring",
+      "centre": [0, 2, 107],
+      "radius": 5,
+      "rule": "hearth centre + (dx, 0, dz) for max(|dx|,|dz|) <= 5 and |dx|+|dz| <= 6, but not max <= 4 and |dx|+|dz| <= 5: an octagon of 24 cells",
+      "cells": [[0, 2, 102], [1, 2, 102], [2, 2, 103], [3, 2, 104], [4, 2, 105], [5, 2, 106], [5, 2, 107], [5, 2, 108], [4, 2, 109], [3, 2, 110], [2, 2, 111], [1, 2, 112], [0, 2, 112], [-1, 2, 112], [-2, 2, 111], [-3, 2, 110], [-4, 2, 109], [-5, 2, 108], [-5, 2, 107], [-5, 2, 106], [-4, 2, 105], [-3, 2, 104], [-2, 2, 103], [-1, 2, 102]]
+    },
+    "goldLine": {
+      "piece": "gatehouse",
+      "note": "The 5 x 1 inlay in the floor (clay, Ember hot). Z1 is centred over it.",
+      "cells": [[-2, 0, 19], [-1, 0, 19], [0, 0, 19], [1, 0, 19], [2, 0, 19]]
+    },
+    "stoneFloors": {
+      "piece": "gatehouse",
+      "note": "The inlay under each arrival stone, A1 to A6. The self-check (GetCubeInfoAtLocal) closes the arrival if one is missing.",
+      "cells": [[-4, 0, 9], [0, 0, 9], [4, 0, 9], [-4, 0, 5], [0, 0, 5], [4, 0, 5]]
+    }
+  },
+  "points": {
+    "A1": {
+      "kind": "stone",
+      "cell": [-4, 1, 9],
+      "note": "Arrival stones: teleport to the cell + 0.5 m up. A1-A3 are the row nearer the gate."
+    },
+    "A2": {
+      "kind": "stone",
+      "cell": [0, 1, 9]
+    },
+    "A3": {
+      "kind": "stone",
+      "cell": [4, 1, 9]
+    },
+    "A4": {
+      "kind": "stone",
+      "cell": [-4, 1, 5]
+    },
+    "A5": {
+      "kind": "stone",
+      "cell": [0, 1, 5]
+    },
+    "A6": {
+      "kind": "stone",
+      "cell": [4, 1, 5]
+    },
+    "threshold": {
+      "kind": "trigger",
+      "cell": [0, 1, 19],
+      "note": "Over the middle of the gold line (/arrival admin threshold set)."
+    },
+    "gateSet": {
+      "kind": "gate",
+      "cell": [-2, 1, 21],
+      "facing": "+z",
+      "note": "/arrival admin gate set 5 6: stand in the bottom-left cell of the empty opening (before gate build), facing out. It is the first cell of the gate's bottom row."
+    },
+    "E": {
+      "kind": "eject",
+      "cell": [0, 1, 26],
+      "note": "On the processional 4 m outside the gate (/arrival admin eject set)."
+    },
+    "banner.p1-left": {
+      "kind": "banner",
+      "slot": "p1-left",
+      "cell": [-5, 2, 37],
+      "note": "On the raised centre of each pledge stone (/arrival admin banner set <house>, with the house drawn for that slot)."
+    },
+    "banner.p1-right": {
+      "kind": "banner",
+      "slot": "p1-right",
+      "cell": [5, 2, 37]
+    },
+    "banner.p2-left": {
+      "kind": "banner",
+      "slot": "p2-left",
+      "cell": [-5, 2, 61]
+    },
+    "banner.p2-right": {
+      "kind": "banner",
+      "slot": "p2-right",
+      "cell": [5, 2, 61]
+    },
+    "banner.p3-left": {
+      "kind": "banner",
+      "slot": "p3-left",
+      "cell": [-5, 2, 85]
+    },
+    "banner.p3-right": {
+      "kind": "banner",
+      "slot": "p3-right",
+      "cell": [5, 2, 85]
+    },
+    "hearth": {
+      "kind": "fire",
+      "cell": [0, 2, 107],
+      "note": "The Hearth centre (/arrival admin hearth set): stand on the hearthstone in the middle of the dais before the fire pit is built. The band is this cell + (dx, 0, dz). Must be within 3 m of the RealmQuests place the_hearth and the RealmLaws zone Hearth."
+    },
+    "M1": {
+      "kind": "mercy",
+      "cell": [-6, 2, 107],
+      "note": "Mercy stones on the dais rim, outside the ember band (/arrival admin mercy add)."
+    },
+    "M2": {
+      "kind": "mercy",
+      "cell": [6, 2, 107]
+    },
+    "M3": {
+      "kind": "mercy",
+      "cell": [0, 2, 101]
+    },
+    "wayboard": {
+      "kind": "trigger",
+      "cell": [7, 0, 115],
+      "note": "In front of the wayboard's middle bay (/arrival admin wayboard set)."
+    },
+    "pilgrimLedge": {
+      "kind": "exit",
+      "cell": [-9, 2, 20],
+      "note": "The Pilgrim's ledge: through the door in the left tower and up one step; the drop pad is 2.4 m below it outside."
+    }
+  },
+  "boxes": {
+    "Z0": {
+      "name": "hall box",
+      "min": [-9, 0, 0],
+      "max": [9, 12, 22],
+      "note": "The whole Gatehouse footprint, walls and towers included (sanctuary, eviction)."
+    },
+    "Z0b": {
+      "name": "drop pad",
+      "min": [-12, 0, 18],
+      "max": [-10, 3, 23],
+      "note": "Outside the left wall under the Pilgrim's ledge."
+    }
+  },
+  "zones": [
+    {
+      "key": "Z0",
+      "name": "hall box",
+      "box": "Z0"
+    },
+    {
+      "key": "Z0b",
+      "name": "drop pad",
+      "box": "Z0b"
+    },
+    {
+      "key": "E",
+      "name": "eject point",
+      "point": "E"
+    },
+    {
+      "key": "Z1",
+      "name": "gold line",
+      "point": "threshold",
+      "radiusM": 2.5
+    },
+    {
+      "key": "Z2",
+      "name": "banners",
+      "point": "banner.*",
+      "radiusM": 9
+    },
+    {
+      "key": "Z2p",
+      "name": "pledge stones",
+      "point": "banner.*",
+      "radiusM": 1.5,
+      "dwellSeconds": 3
+    },
+    {
+      "key": "Z3q",
+      "name": "Hearth quiet ring",
+      "point": "hearth",
+      "radiusM": 40
+    },
+    {
+      "key": "Z3",
+      "name": "Hearth stone",
+      "point": "hearth",
+      "radiusM": 12
+    },
+    {
+      "key": "Z4",
+      "name": "wayboard",
+      "point": "wayboard",
+      "radiusM": 8
+    },
+    {
+      "key": "Z5",
+      "name": "Hearth outer",
+      "point": "hearth",
+      "radiusM": 70
+    },
+    {
+      "key": "corridor",
+      "name": "route corridor",
+      "axis": [[0, 0, 0], [0, 0, 122]],
+      "halfWidthM": 20,
+      "note": "Plus the hall box and Z5."
+    }
+  ],
+  "signs": [
+    {
+      "key": "G1",
+      "cell": [0, 2, 2],
+      "faces": "+z",
+      "binding": "art the-crossing",
+      "note": "Back wall, behind the stones."
+    },
+    {
+      "key": "G2",
+      "cell": [-4, 2, 2],
+      "faces": "+z",
+      "binding": "board chronicle",
+      "note": "Back wall: the Chronicle Wall."
+    },
+    {
+      "key": "G3",
+      "cell": [4, 2, 2],
+      "faces": "+z",
+      "binding": "notice",
+      "text": "The Unwritten | You have no page in the Chronicle yet. Walk through the gate, and the Chronicle opens."
+    },
+    {
+      "key": "G4",
+      "cell": [-4, 2, 20],
+      "faces": "-z",
+      "binding": "art poster-welcome",
+      "note": "Inner face of the front wall, left of the gate."
+    },
+    {
+      "key": "P1",
+      "slot": "p1-left",
+      "cell": [-6, 0, 34],
+      "faces": "+x",
+      "binding": "art crest-{house}",
+      "note": "A post beside each pledge stone, on its gate side."
+    },
+    {
+      "key": "P2",
+      "slot": "p1-right",
+      "cell": [6, 0, 34],
+      "faces": "-x",
+      "binding": "art crest-{house}"
+    },
+    {
+      "key": "P3",
+      "slot": "p2-left",
+      "cell": [-6, 0, 58],
+      "faces": "+x",
+      "binding": "art crest-{house}"
+    },
+    {
+      "key": "P4",
+      "slot": "p2-right",
+      "cell": [6, 0, 58],
+      "faces": "-x",
+      "binding": "art crest-{house}"
+    },
+    {
+      "key": "P5",
+      "slot": "p3-left",
+      "cell": [-6, 0, 82],
+      "faces": "+x",
+      "binding": "art crest-{house}"
+    },
+    {
+      "key": "P6",
+      "slot": "p3-right",
+      "cell": [6, 0, 82],
+      "faces": "-x",
+      "binding": "art crest-{house}"
+    },
+    {
+      "key": "W1",
+      "cell": [9, 1, 120],
+      "faces": "-x",
+      "binding": "notice",
+      "text": "Three Roads | Crown Market: coin and contracts. Listing Field: the Ring. The seats: the houses. /road shows the way."
+    },
+    {
+      "key": "W2",
+      "cell": [9, 1, 117],
+      "faces": "-x",
+      "binding": "board proclamation"
+    },
+    {
+      "key": "W3",
+      "cell": [9, 1, 115],
+      "faces": "-x",
+      "binding": "board event"
+    },
+    {
+      "key": "W4",
+      "cell": [9, 1, 112],
+      "faces": "-x",
+      "binding": "board standings"
+    },
+    {
+      "key": "W5",
+      "cell": [9, 1, 109],
+      "faces": "-x",
+      "binding": "notice",
+      "text": "Other Banners | Houses beyond the six recruit too. /house list names them; /raven <house> <letter> asks."
+    },
+    {
+      "key": "H1",
+      "cell": [4, 0, 98],
+      "faces": "-z",
+      "binding": "notice",
+      "text": "The Hearth | Raise a crest before you build. Log off behind walls. Nights are dark: carry a torch.",
+      "note": "Facing the avenue end, beside the path."
+    }
+  ],
+  "lights": [
+    {
+      "key": "C1",
+      "kind": "bowl",
+      "cell": [-7, 1, 2],
+      "note": "Fire bowls in the four corners of the court, on its floor."
+    },
+    {
+      "key": "C2",
+      "kind": "bowl",
+      "cell": [7, 1, 2]
+    },
+    {
+      "key": "C3",
+      "kind": "bowl",
+      "cell": [-7, 1, 16]
+    },
+    {
+      "key": "C4",
+      "kind": "bowl",
+      "cell": [7, 1, 16]
+    },
+    {
+      "key": "K1",
+      "kind": "brazier",
+      "cell": [-4, 0, 24],
+      "note": "Braziers on the ground one cell outside each kerb: a pair either side of the gate, then every 14.4 m (odd keys on the left)."
+    },
+    {
+      "key": "K2",
+      "kind": "brazier",
+      "cell": [4, 0, 24]
+    },
+    {
+      "key": "K3",
+      "kind": "brazier",
+      "cell": [-4, 0, 33]
+    },
+    {
+      "key": "K4",
+      "kind": "brazier",
+      "cell": [4, 0, 33]
+    },
+    {
+      "key": "K5",
+      "kind": "brazier",
+      "cell": [-4, 0, 45]
+    },
+    {
+      "key": "K6",
+      "kind": "brazier",
+      "cell": [4, 0, 45]
+    },
+    {
+      "key": "K7",
+      "kind": "brazier",
+      "cell": [-4, 0, 57]
+    },
+    {
+      "key": "K8",
+      "kind": "brazier",
+      "cell": [4, 0, 57]
+    },
+    {
+      "key": "K9",
+      "kind": "brazier",
+      "cell": [-4, 0, 69]
+    },
+    {
+      "key": "K10",
+      "kind": "brazier",
+      "cell": [4, 0, 69]
+    },
+    {
+      "key": "K11",
+      "kind": "brazier",
+      "cell": [-4, 0, 81]
+    },
+    {
+      "key": "K12",
+      "kind": "brazier",
+      "cell": [4, 0, 81]
+    },
+    {
+      "key": "K13",
+      "kind": "brazier",
+      "cell": [-4, 0, 93]
+    },
+    {
+      "key": "K14",
+      "kind": "brazier",
+      "cell": [4, 0, 93]
+    }
+  ],
+  "terrain": [
+    {
+      "kind": "mound",
+      "previewOnly": true,
+      "centre": [0, 186],
+      "radius": 34,
+      "top": 12,
+      "height": 10,
+      "colour": "#47644f",
+      "note": "A stand-in for the throne hill in previews."
+    },
+    {
+      "kind": "fire",
+      "previewOnly": true,
+      "centre": [0, 107],
+      "y": 2,
+      "colour": "#f4c96d",
+      "ember": "#a8642c",
+      "note": "A stand-in for the staff-built fire pit in previews."
+    }
+  ]
+}

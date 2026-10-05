@@ -38,6 +38,7 @@ export const TYPE_META = {
 const ICON_EMOJI = {
   crown: '👑', crownX: '💀', flag: '🚩', swords: '⚔️', sheath: '🗡️', shield: '🛡️', oath: '🤝', chain: '⛓️', chainX: '⛓️',
   seal: '🔏', scroll: '📜', scrollX: '🔥', coins: '🪙', people: '👥', trophy: '🏆', hourglass: '⏳', horn: '📯',
+  blade: '🗡️', bladeX: '🏰',
 };
 const emojiForIcon = (icon) => ICON_EMOJI[icon] || '📜';
 

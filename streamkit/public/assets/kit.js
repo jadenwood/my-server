@@ -3,6 +3,9 @@
 // textContent, never innerHTML, because event titles come from player input.
 
 import { parseKitParams } from './model.js';
+import { eventIcon, houseArt } from './realm-art.js';
+
+export { artIcon, eventIcon, eventBadge, houseArt, greatHouse, GREAT_HOUSES } from './realm-art.js';
 
 // ---------- params, motion, stage ----------
 
@@ -118,7 +121,7 @@ export async function loadSchedule() {
 // ---------- DOM ----------
 
 export function el(tag, attrs = {}, ...children) {
-  const svgTags = new Set(['svg', 'path', 'g', 'line', 'circle', 'text', 'defs', 'marker', 'rect', 'ellipse', 'title', 'linearGradient', 'radialGradient', 'stop', 'polygon', 'textPath']);
+  const svgTags = new Set(['svg', 'path', 'g', 'line', 'circle', 'text', 'defs', 'marker', 'rect', 'ellipse', 'title', 'linearGradient', 'radialGradient', 'stop', 'polygon', 'textPath', 'image', 'use', 'clipPath']);
   const node = svgTags.has(tag) ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v == null || v === false) continue;
@@ -179,7 +182,10 @@ export function houseLabel(name) {
   return /^house\s/i.test(name) ? name : `House ${name}`;
 }
 
+// A great house hangs its drawn banner; any other house the dyed cloth with its initial.
 export function banner(house, cls = '') {
+  const art = houseArt(house.name, 'banner');
+  if (art) return el('div', { class: `banner art ${cls}`.trim(), title: houseLabel(house.name), 'data-house': art.dataset.house }, art);
   return el('div', { class: `banner ${cls}`.trim(), ...dyeFor(house.name), title: houseLabel(house.name) },
     el('div', { class: 'pole' }),
     el('div', { class: 'cloth' },
@@ -211,11 +217,8 @@ export function icon(name, cls = 'icon') {
   el('path', { d: ICONS[name] || ICONS.scroll }));
 }
 
-export const TYPE_ICON = {
-  oath_broken: 'chainX', treaty_broken: 'scrollX', truce_broken: 'scrollX', claim_declared: 'flag',
-  rebellion_started: 'swords', rebellion_ended: 'sheath', abdication: 'crownX', coronation: 'crown',
-  blood_claim: 'flag', accusation: 'flag', trial_by_combat: 'swords', event_started: 'horn', decree: 'scroll',
-};
+// Event icons come from the art pack (eventIcon, one per Chronicle type).
+export const typeIcon = (type, cls = 'icon') => eventIcon(type, cls);
 
 export const TYPE_LABEL = {
   oath_broken: 'Oathbreaker', treaty_broken: 'Treaty Broken', truce_broken: 'Truce Broken',

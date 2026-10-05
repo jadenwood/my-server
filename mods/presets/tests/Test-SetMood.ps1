@@ -99,7 +99,8 @@ try {
     # ---- List / every preset validates -----------------------------------------------------------
     $r = Run @{ List = $true }
     Check 'List runs' $r.Ok $r.Error
-    foreach ($id in @('grim-but-readable', 'long-winter', 'blood-moon', 'golden-summer', 'storm-season', 'ashfall')) {
+    foreach ($id in @('grim-but-readable', 'long-winter', 'blood-moon', 'golden-summer', 'storm-season', 'ashfall',
+                      'crown-night', 'truce', 'spring-rains', 'hunters-moon', 'first-frost')) {
         Check "List shows $id" ($r.Out -match [regex]::Escape($id)) ''
     }
     Check 'List prints exact storm odds' ($r.Out -match 'heavy rain 20\.0%') ''
@@ -156,7 +157,7 @@ try {
     # ---- Event overlay and return ---------------------------------------------------------------
     Start-Sleep -Milliseconds 1100
     $r = Run @{ EventName = 'crown_night' }
-    Check 'Event crown_night applies blood-moon' ($r.Ok -and (ValueOf 'Environment.cfg' 'Atmosphere.MoonColor') -eq 'rgba(1,0.5,0.42,1)') $r.Error
+    Check 'Event crown_night applies crown-night' ($r.Ok -and (ValueOf 'Environment.cfg' 'Atmosphere.MoonColor') -eq 'rgba(1,0.92,0.7,1)') $r.Error
     Start-Sleep -Milliseconds 1100
     $r = Run @{ EventName = 'war_arc' }
     Check 'Stacked overlay (war_arc -> ashfall)' ($r.Ok -and (ValueOf 'Environment.cfg' 'Atmosphere.FogDensity') -eq '1.45') $r.Error

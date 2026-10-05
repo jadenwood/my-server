@@ -1,0 +1,32 @@
+{
+  "note": "One badge per default renown title in plugins/RealmRenown.cs (DefaultTitles). id and name must match the plugin; art/tools/test checks this. emblem is an icon from art/icons/ or art/src/emblems/ (24px grid). infamous titles get the blood frame. Server owners can add titles in the plugin config; those have no badge until one is added here.",
+  "titles": [
+    { "id": "kingslayer", "name": "Kingslayer", "infamous": false, "emblem": "emblems/kingslayer" },
+    { "id": "usurper", "name": "Usurper", "infamous": false, "emblem": "emblems/usurper" },
+    { "id": "kingmaker", "name": "Kingmaker", "infamous": false, "emblem": "emblems/kingmaker" },
+    { "id": "unbowed", "name": "The Unbowed", "infamous": false, "emblem": "emblems/tower" },
+    { "id": "shield_of_crown", "name": "Shield of the Crown", "infamous": false, "emblem": "emblems/crown-shield" },
+    { "id": "long_reign", "name": "The Long Reign", "infamous": false, "emblem": "emblems/long-reign" },
+    { "id": "warden_of_roads", "name": "Warden of Roads", "infamous": false, "emblem": "emblems/signpost" },
+    { "id": "sellsword", "name": "Sellsword", "infamous": false, "emblem": "emblems/sellsword" },
+    { "id": "headtaker", "name": "Headtaker", "infamous": false, "emblem": "emblems/axe" },
+    { "id": "champion", "name": "Champion of the Lists", "infamous": false, "emblem": "icons/trophy" },
+    { "id": "duelist", "name": "the Duelist", "infamous": false, "emblem": "icons/sheathed" },
+    { "id": "ring_champion", "name": "Champion of the Ring", "infamous": false, "emblem": "icons/laurel" },
+    { "id": "ring_master", "name": "Master of the Ring", "infamous": false, "emblem": "icons/medal" },
+    { "id": "ring_victor", "name": "Victor of the Ring", "infamous": false, "emblem": "icons/helm" },
+    { "id": "guildmaster", "name": "Guildmaster", "infamous": false, "emblem": "emblems/anvil" },
+    { "id": "master_crafter", "name": "Master Crafter", "infamous": false, "emblem": "emblems/tools" },
+    { "id": "huntsman", "name": "Crown's Huntsman", "infamous": false, "emblem": "emblems/horn" },
+    { "id": "hoardfinder", "name": "Hoardfinder", "infamous": false, "emblem": "icons/coins" },
+    { "id": "caravan_warden", "name": "Caravan Warden", "infamous": false, "emblem": "icons/contract-paid" },
+    { "id": "bane_of_legends", "name": "Bane of Legends", "infamous": false, "emblem": "icons/hunt" },
+    { "id": "renowned", "name": "the Renowned", "infamous": false, "emblem": "emblems/star" },
+    { "id": "legend", "name": "Legend of Ostreval", "infamous": false, "emblem": "emblems/legend" },
+    { "id": "oathbreaker", "name": "Oathbreaker", "infamous": true, "emblem": "icons/oath-broken" },
+    { "id": "faithless", "name": "The Faithless", "infamous": true, "emblem": "icons/treaty-broken" },
+    { "id": "trucebreaker", "name": "Trucebreaker", "infamous": true, "emblem": "icons/dagger" },
+    { "id": "hunted", "name": "The Hunted", "infamous": true, "emblem": "emblems/hunted" },
+    { "id": "black_name", "name": "Black Name", "infamous": true, "emblem": "emblems/black-name" }
+  ]
+}

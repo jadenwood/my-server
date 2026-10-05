@@ -20,7 +20,18 @@ body {
 :focus-visible { outline: 2px solid var(--ember-hot); outline-offset: 2px; }
 
 /* ---------- masthead ---------- */
-.masthead { padding: 48px 0 28px; text-align: center; }
+.masthead {
+  position: relative;
+  padding: 36px 0 clamp(150px, 24vw, 300px);
+  margin-bottom: -64px;
+  text-align: center;
+  background:
+    linear-gradient(180deg, rgba(12, 13, 15, 0.6) 0%, rgba(12, 13, 15, 0.15) 45%, rgba(12, 13, 15, 0.5) 80%, var(--iron-950) 100%),
+    url('art/keyart/old-throne-1920.svg') center 18% / cover no-repeat,
+    var(--iron-950);
+}
+.masthead .emblem { display: block; width: 84px; height: 84px; margin: 0 auto 8px; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.7)); }
+.masthead .kicker, .masthead .status { text-shadow: 0 1px 3px #000, 0 0 12px #000; }
 .kicker {
   margin: 0;
   font-family: var(--font-display);
@@ -60,6 +71,10 @@ body {
   background: radial-gradient(circle at 50% 35%, #3b2c14, #1a130a 70%);
   box-shadow: inset 0 0 0 3px var(--ember-deep), inset 0 0 0 5px #120d06, inset 0 0 0 7px var(--ember), 0 0 18px var(--ember-glow);
 }
+.crown-seal.art { background: none; box-shadow: 0 0 0 3px var(--ember), 0 0 0 5px #120d06, 0 0 22px var(--ember-glow); }
+.seal-sigil { width: 100%; height: 100%; border-radius: 50%; display: block; }
+.crown-card .words { margin: 2px 0 0; font-style: italic; color: var(--iron-200); font-size: 16px; }
+.crown-card .words:empty { display: none; }
 .crown-card.vacant .crown-seal { color: var(--iron-400); box-shadow: inset 0 0 0 3px var(--iron-600), inset 0 0 0 7px var(--iron-400); }
 .eyebrow {
   margin: 0;
@@ -176,6 +191,11 @@ body {
 /* ---------- timeline ---------- */
 .timeline {
   list-style: none;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255, 250, 230, 0.4), transparent 65%),
+    radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(120, 80, 30, 0.35) 100%),
+    url('art/textures/parchment.svg') 0 0 / 512px 512px,
+    var(--parchment);
   margin: 0 0 24px;
   padding: 10px 28px 18px;
   border-radius: 4px;
@@ -211,6 +231,8 @@ body {
   background: radial-gradient(circle at 38% 32%, #c4473b, var(--blood) 55%, #4a120d);
   box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.35), 0 2px 3px rgba(60, 20, 10, 0.4);
 }
+.entry .seal.badge { background: none; box-shadow: none; width: 48px; height: 48px; margin: -4px; }
+.entry-badge { width: 48px; height: 48px; display: block; filter: drop-shadow(0 2px 3px rgba(60, 30, 10, 0.45)); }
 .entry[data-tone='gold'] .seal { background: radial-gradient(circle at 38% 32%, #e2b45a, #a8731f 55%, #5a3a0c); color: #fff3d0; }
 .entry[data-tone='moss'] .seal { background: radial-gradient(circle at 38% 32%, #7d9a5c, var(--moss) 55%, #1f2d16); }
 .entry[data-tone='iron'] .seal { background: radial-gradient(circle at 38% 32%, #8a8d94, #4a4c52 55%, #1d1e21); }
@@ -245,6 +267,14 @@ body {
 
 @media (max-width: 720px) {
   body { font-size: 17px; }
+  /* Narrow screens: the key art sits under the title, the sky above it is filled with night. */
+  .masthead {
+    padding-bottom: 210px;
+    background:
+      linear-gradient(180deg, rgba(12, 13, 15, 0.2) 0%, rgba(12, 13, 15, 0.1) 60%, rgba(12, 13, 15, 0.5) 85%, var(--iron-950) 100%),
+      url('art/keyart/old-throne-1920.svg') center bottom / auto 300px no-repeat,
+      linear-gradient(180deg, #0c0d0f, #0e1119 30%, #1f2433 75%);
+  }
   .crown-card { grid-template-columns: auto 1fr; padding: 18px; gap: 16px; }
   .crown-seal { width: 70px; height: 70px; font-size: 38px; }
   .stats { grid-column: 1 / -1; justify-content: space-around; border-top: 1px solid rgba(214, 160, 67, 0.3); padding-top: 12px; }

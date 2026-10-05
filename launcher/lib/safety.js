@@ -280,6 +280,10 @@ function sha256Matches(actual, expected) {
 
 // ---------- server console ----------
 
+// Unity's engine banner in the -logFile. It comes long before the world has loaded, so it is NOT
+// how Steward decides a server is ready any more: lib/readiness.js waits for "Server for N players
+// started on port P." then "Game has started." (seen on the owner's server). Kept under its old name
+// for tools that check the Unity log.
 const READY_LINE = /^\s*Initialize engine version:/;
 const JOIN_LINE = /Authentication verified for (.+?) \(\d+\)\./;
 const LEAVE_LINE = /^\s*(.+?) has disconnected\./;

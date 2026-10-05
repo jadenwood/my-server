@@ -66,15 +66,61 @@ test('builders refuse bad input', () => {
 });
 
 test('plugin admin commands come from the plugins and fill their placeholders', () => {
-  const src = ['RealmHouses', 'CrownAndConsequences', 'RealmContracts'].map((p) => fs.readFileSync(path.join(__dirname, '..', '..', 'plugins', `${p}.cs`), 'utf8'));
+  const plugins = [...new Set(MOD.PLUGIN_ADMIN.map((d) => d.plugin))];
+  assert.ok(['RealmSentinel', 'RealmSculptor', 'RealmPainter', 'RealmLegendary'].every((p) => plugins.includes(p)));
+  const src = Object.fromEntries(plugins.map((p) => [p, fs.readFileSync(path.join(__dirname, '..', '..', 'plugins', `${p}.cs`), 'utf8')]));
   for (const d of MOD.PLUGIN_ADMIN) {
-    if (d.perm) assert.ok(src.some((s) => s.includes(`"${d.perm}"`)), `permission ${d.perm} exists in a plugin`);
-    const verb = d.template.split(' ')[0].slice(1);
-    assert.ok(src.some((s) => s.includes(`[ChatCommand("${verb}")]`)), `chat command ${verb} exists`);
+    const s = src[d.plugin];
+    if (d.perm) assert.ok(s.includes(`"${d.perm}"`), `permission ${d.perm} exists in ${d.plugin}`);
+    const words = d.template.split(' ');
+    const verb = words[0].slice(1);
+    assert.ok(s.includes(`[ChatCommand("${verb}")]`), `chat command ${verb} exists in ${d.plugin}`);
+    // The subcommand word is one the plugin's command handler reads.
+    if (words[1] && !words[1].startsWith('{') && d.plugin !== 'CrownAndConsequences') assert.ok(s.includes(`"${words[1]}"`), `${d.template}: ${words[1]} is handled by ${d.plugin}`);
+    if (['admin', 'zone'].includes(words[1]) && words[2] && !words[2].startsWith('{')) assert.ok(s.includes(`"${words[2]}"`), `${d.template}: ${words[2]} is handled by ${d.plugin}`);
+    for (const a of d.args) assert.ok(d.template.includes(`{${a}}`), `${d.template} has {${a}}`);
   }
   const i = MOD.PLUGIN_ADMIN.findIndex((d) => d.template === '/house pardon {house}');
   assert.equal(MOD.pluginCommand(i, { house: 'Thornvale' }), '/house pardon Thornvale');
   assert.throws(() => MOD.pluginCommand(i, {}), /Fill in/);
+  // Names with spaces are quoted for the plugins; numbers are checked.
+  assert.equal(MOD.pluginCommandFor('/sentinel report {player}', { player: 'Old Tom' }), '/sentinel report "Old Tom"');
+  assert.equal(MOD.pluginCommandFor('/sentinel report {player}', { player: 'Wren' }), '/sentinel report Wren');
+  assert.equal(MOD.pluginCommandFor('/sentinel report {player}', { player: 'Odo "the" Tall' }), '/sentinel report "Odo the Tall"');
+  assert.equal(MOD.pluginCommandFor('/sentinel freeze {player} {minutes}', { player: 'Wren', minutes: 30 }), '/sentinel freeze Wren 30');
+  assert.throws(() => MOD.pluginCommandFor('/sentinel freeze {player} {minutes}', { player: 'Wren', minutes: 0 }), /1 to 1440/);
+  assert.throws(() => MOD.pluginCommandFor('/sentinel freeze {player} {minutes}', { player: 'Wren', minutes: 1441 }), /1 to 1440/);
+  assert.equal(MOD.pluginCommandFor('/sculpt repair {n}', { n: '#12' }), '/sculpt repair 12');
+  assert.throws(() => MOD.pluginCommandFor('/sculpt repair {n}', { n: 'x' }), /placement number/);
+  assert.equal(MOD.pluginCommandFor('/sentinel ban {player} confirm', { player: 'Grimsby' }), '/sentinel ban Grimsby confirm');
+  assert.throws(() => MOD.pluginCommandFor('/nope', {}), /Unknown plugin command/);
+  // Wave 3 and RealmLaws: every plugin with staff commands is listed, and their arguments are checked.
+  assert.ok(['RealmLaws', 'RealmQuests', 'RealmTravel', 'RealmArena', 'RealmDominion', 'RealmWorld', 'RealmCrafts', 'RealmHeraldry'].every((p) => plugins.includes(p)));
+  assert.equal(MOD.pluginCommandFor('/court admin verdict {case} {ruling}', { case: '#7', ruling: 'Guilty' }), '/court admin verdict 7 guilty');
+  assert.throws(() => MOD.pluginCommandFor('/court admin verdict {case} {ruling}', { case: '7', ruling: 'maybe' }), /guilty, innocent/);
+  assert.throws(() => MOD.pluginCommandFor('/arena admin void {duel}', { duel: 'all' }), /duel number/);
+  assert.equal(MOD.pluginCommandFor('/ballot admin audit {ballot}', { ballot: '3' }), '/ballot admin audit 3');
+  assert.equal(MOD.pluginCommandFor('/quest admin reset {player} {board}', { player: 'Old Tom', board: 'story' }), '/quest admin reset "Old Tom" story');
+  assert.throws(() => MOD.pluginCommandFor('/quest admin reset {player} {board}', { player: 'Wren', board: 'everything' }), /daily, weekly, story, all/);
+  assert.equal(MOD.pluginCommandFor('/dominion admin open {minutes}', { minutes: '90' }), '/dominion admin open 90');
+  assert.equal(MOD.pluginCommandFor('/craft admin cancel {commission}', { commission: '#41' }), '/craft admin cancel 41');
+  // RealmArrival: its staff commands are listed and their words checked.
+  assert.ok(plugins.includes('RealmArrival'));
+  assert.equal(MOD.pluginCommandFor('/arrival admin mode {mode}', { mode: 'Road' }), '/arrival admin mode road');
+  assert.throws(() => MOD.pluginCommandFor('/arrival admin mode {mode}', { mode: 'walk' }), /teleport, provider, road, off/);
+  assert.equal(MOD.pluginCommandFor('/arrival admin reset {player} {stage}', { player: 'Old Tom', stage: 'done' }), '/arrival admin reset "Old Tom" done');
+  assert.throws(() => MOD.pluginCommandFor('/arrival admin reset {player} {stage}', { player: 'Wren', stage: 'gatehouse' }), /pending, done/);
+  // Every third word of an /arrival admin command is one its sub-handler reads (site plan, lot draw, gate test ...).
+  const arrival = src.RealmArrival;
+  for (const d of MOD.PLUGIN_ADMIN.filter((x) => x.plugin === 'RealmArrival')) {
+    const w = d.template.split(' ')[3];
+    if (w && !w.startsWith('{')) assert.ok(arrival.includes(`case "${w}"`), `${d.template}: ${w} is handled by RealmArrival`);
+  }
+});
+
+test('reload builds the Oxide console command and refuses anything but a plugin name', () => {
+  assert.deepEqual(MOD.build('reload', { plugin: 'RealmSentinel' }), { command: '/oxide.reload RealmSentinel', summary: 'Reload RealmSentinel' });
+  for (const bad of ['', 'realmsentinel', 'Realm Sentinel', 'RealmX; /shutdown', '*', '../x']) assert.throws(() => MOD.build('reload', { plugin: bad }), /Choose a plugin/);
 });
 
 test('parsers read the exact formats of /list, /banlist and the RealmCourt roster', () => {

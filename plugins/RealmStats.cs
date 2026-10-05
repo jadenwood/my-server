@@ -1071,20 +1071,48 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
+        }
+
+        #endregion
+
         #region Lang and helpers
 
         protected override void LoadDefaultMessages()
         {
             Dictionary<string, string> m = new Dictionary<string, string>();
-            m["Prefix"] = "[8FA3B8]Realm Stats[FFFFFF]: ";
+            m["Speaker"] = "Stats";
             m["Help1"] = "This server keeps privacy-friendly play statistics (no names, no Steam ids, no positions).";
-            m["Help2"] = "/stats privacy - what is recorded.  /stats me - what is stored about you.";
-            m["Help3"] = "/stats optout - stop being counted by key (and remove your key from kept days).  /stats optin - undo.";
-            m["HelpAdmin"] = "Admin: /stats status - today's numbers and data health.  /stats save - write the files now.";
+            m["Help2"] = "  [F4C96D]/stats privacy[FFFFFF] - what is recorded.  [F4C96D]/stats me[FFFFFF] - what is stored about you.";
+            m["Help3"] = "  [F4C96D]/stats optout[FFFFFF] - stop being counted by key (and remove your key from kept days).  [F4C96D]/stats optin[FFFFFF] - undo.";
+            m["HelpAdmin"] = "  Admin: [F4C96D]/stats status[FFFFFF] - today's numbers and data health.  [F4C96D]/stats save[FFFFFF] - write the files now.";
             m["Privacy1"] = "Recorded: a salted one-way key per player, session start and length (without the key), players online every few minutes, joins and leaves per hour, death causes, and house activity.";
-            m["Privacy2"] = "Never recorded: names, Steam ids, IPs, chat, positions or items. Day files are deleted after {0} days and stay on this server.";
-            m["Privacy3"] = "Type /stats optout to remove your key; you then only count in anonymous totals.";
-            m["PrivacyNotice"] = "This server keeps anonymous play statistics. Type /stats privacy to learn more or /stats optout to opt out.";
+            m["Privacy2"] = "  Never recorded: names, Steam ids, IPs, chat, positions or items. Day files are deleted after {0} days and stay on this server.";
+            m["Privacy3"] = "  Type [F4C96D]/stats optout[FFFFFF] to remove your key; you then only count in anonymous totals.";
+            m["PrivacyNotice"] = "This server keeps anonymous play statistics. Type [F4C96D]/stats privacy[FFFFFF] to learn more or [F4C96D]/stats optout[FFFFFF] to opt out.";
             m["Me"] = "Your key starts with {0} (the full key cannot be turned back into your Steam id without the server's secret). First seen: {1}. Kept for {2} days.";
             m["MeOptedOut"] = "You have opted out. Nothing is stored about you except that opt-out choice (as a key).";
             m["OptedOut"] = "Done. Your key was removed from today's data and will be removed from older kept days over the next minutes.";
@@ -1097,9 +1125,9 @@ namespace Oxide.Plugins
             m["Slow"] = "Please wait a moment before using that again.";
             m["Saved"] = "Saved ({0}).";
             m["Status1"] = "{0} UTC | online {1} | peak {2} | active players {3} | new {4}";
-            m["Status2"] = "sessions {0} | joins {1} | leaves {2} | deaths {3} | houses {4}";
-            m["Status3"] = "data {0} | file {1} | {2} day files kept (max {3} days) | salt id {4} | {5} keys known | {6} opted out";
-            m["Status4"] = "note: {0}";
+            m["Status2"] = "  sessions {0} | joins {1} | leaves {2} | deaths {3} | houses {4}";
+            m["Status3"] = "  data {0} | file {1} | {2} day files kept (max {3} days) | salt id {4} | {5} keys known | {6} opted out";
+            m["Status4"] = "  note: {0}";
             m["Scrubbing"] = "Removing {0} opted-out key(s) from old files: {1}/{2} done.";
             m["Healthy"] = "OK";
             m["Degraded"] = "DEGRADED (state.json unreadable; fix it and reload)";
@@ -1121,12 +1149,13 @@ namespace Oxide.Plugins
 
         private void Reply(Player player, string key, params object[] args)
         {
-            player.SendMessage(Msg("Prefix", player) + Fmt(key, player, args));      // single-string overload: brace safe
+            string tone = key == "OptedOut" || key == "OptedIn" || key == "Saved" ? ChatOk : ChatGold;   // chat style: done, or news
+            player.SendMessage(Styled(Msg("Speaker", player), tone, Fmt(key, player, args)));   // single-string overload: brace safe
         }
 
         private void ReplyError(Player player, string key, params object[] args)
         {
-            player.SendError(Msg("Prefix", player) + Fmt(key, player, args));
+            player.SendError(Styled(Msg("Speaker", player), ChatError, Fmt(key, player, args)));
         }
 
         private bool IsAdmin(Player player)

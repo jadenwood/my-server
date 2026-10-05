@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewBox="0 0 24 24">
+  <title>Dagger (a truce broken)</title>
+  <g transform="rotate(-135 12 12)">
+    <path d="M12 2.5 13.8 6v7.5h-3.6V6Zm-4 11h8m-4 0V18"/>
+    <circle cx="12" cy="19.5" r="1.4"/>
+  </g>
+  <path fill="currentColor" stroke="none" d="M17.5 17.8c0 1.2.8 2 1.8 2s1.8-.8 1.8-2c0-1-1.8-3.1-1.8-3.1s-1.8 2.1-1.8 3.1"/>
+</svg>

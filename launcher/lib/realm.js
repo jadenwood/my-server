@@ -399,6 +399,128 @@ async function deployPlugins(root, srcDir) {
   return { ...plan, copied: todo.length, backupDir: backedUp ? backupDir : null };
 }
 
+// ---------- plugin data files (ROADMAP STW-1) ----------
+//
+// Some plugins read files Realm ships rather than files they write: RealmSculptor's sculptures,
+// RealmPainter's art bundle, RealmQuests' content and RealmArrival's site plan. "Update plugins" copies
+// them to oxide\data next to the plugins (Deploy-Plugins.ps1 does the same on the PowerShell path). Rules:
+// - every source file must parse as a JSON object first; a damaged or truncated source is refused and
+//   the copy on the server is left as it is (never replaced by a broken one);
+// - a changed file on the server is saved to _realm-backups\data-<time>\ before it is replaced;
+// - files on the server that Realm does not ship (an owner's own sculpture) are listed, never touched;
+// - each copy goes to <name>.realm-part and is renamed into place, so a crash never leaves half a file.
+//
+// A set may write a file under another name on the server (`as`: { source name: destination name }):
+// RealmArrival reads art/sculptures/sites/arrival.json as oxide\data\RealmArrival\site.json. Backups,
+// the .realm-part file, the "others" listing and the plan's rel/dest all use the destination name.
+//
+// In the installed Steward the files are under resources\realm-data (build/steward.json extraResources);
+// in a development checkout they are read from the repository itself.
+
+const DATA_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}\.json$/;
+const DATA_MAX_BYTES = 16 * 1024 * 1024;
+
+function dataSets(resourceBase, packaged) {
+  const p = (...a) => path.join(resourceBase, ...a);
+  return [
+    { id: 'sculptures', label: 'Monuments', plugin: 'RealmSculptor', src: packaged ? p('realm-data', 'RealmSculptor') : p('art', 'sculptures'), dest: 'RealmSculptor', only: null, versionKey: null },
+    { id: 'paintings', label: 'Sign art bundle', plugin: 'RealmPainter', src: packaged ? p('realm-data') : p('art', 'paintings'), dest: '', only: ['RealmPainterArt.json'], versionKey: 'Version' },
+    { id: 'quests', label: 'Quests and deeds', plugin: 'RealmQuests', src: packaged ? p('realm-data', 'RealmQuests') : p('plugins', 'docs', 'RealmQuests', 'content'), dest: 'RealmQuests', only: null, versionKey: null },
+    { id: 'arrival', label: 'Arrival site plan', plugin: 'RealmArrival', src: packaged ? p('realm-data', 'RealmArrival') : p('art', 'sculptures', 'sites'), dest: 'RealmArrival', only: ['arrival.json'], as: { 'arrival.json': 'site.json' }, versionKey: null }
+  ];
+}
+
+// The name a shipped file has on the server (the set's `as` rename, or its own name).
+function dataDestName(set, name) {
+  const to = set.as && Object.prototype.hasOwnProperty.call(set.as, name) ? set.as[name] : null;
+  return typeof to === 'string' && DATA_NAME_RE.test(to) ? to : name;
+}
+
+// Reads and checks one shipped data file. Returns { ok, version, reason }.
+async function checkDataFile(file, versionKey) {
+  let text;
+  try {
+    const st = await fsp.stat(file);
+    if (st.size > DATA_MAX_BYTES) return { ok: false, reason: `larger than ${S.formatBytes(DATA_MAX_BYTES)}` };
+    text = await fsp.readFile(file, 'utf8');
+  } catch (e) {
+    return { ok: false, reason: e.code === 'ENOENT' ? 'missing' : e.message };
+  }
+  try {
+    const j = JSON.parse(text.replace(/^﻿/, ''));
+    if (!j || typeof j !== 'object' || Array.isArray(j)) return { ok: false, reason: 'not a JSON object' };
+    const v = versionKey && (typeof j[versionKey] === 'string' || typeof j[versionKey] === 'number') ? String(j[versionKey]).slice(0, 40) : null;
+    return { ok: true, version: v };
+  } catch (e) {
+    return { ok: false, reason: `damaged JSON (${e.message.slice(0, 80)})` };
+  }
+}
+
+async function planData(root, sets) {
+  const oxideDir = (await getOxideDir(root)) || path.join(root, 'oxide');
+  const dataDir = path.join(oxideDir, 'data');
+  const out = { target: dataDir, items: [], sets: [] };
+  for (const set of sets) {
+    let names = [];
+    try {
+      names = (await fsp.readdir(set.src)).filter((n) => DATA_NAME_RE.test(n) && /\.json$/i.test(n));
+    } catch {
+      names = [];
+    }
+    if (set.only) names = names.filter((n) => set.only.includes(n));
+    names.sort();
+    const destDir = set.dest ? path.join(dataDir, set.dest) : dataDir;
+    const destNames = names.map((n) => dataDestName(set, n));
+    const renamed = names.map((n, i) => ({ from: n, to: destNames[i] })).filter((r) => r.from !== r.to);
+    const summary = { id: set.id, label: set.label, plugin: set.plugin, dir: destDir, files: 0, changed: 0, invalid: 0, version: null, others: [], renamed, missing: !names.length };
+    for (const name of names) {
+      const destName = dataDestName(set, name);
+      const src = path.join(set.src, name);
+      const dest = path.join(destDir, destName);
+      const check = await checkDataFile(src, set.versionKey);
+      let state;
+      if (!check.ok) state = 'invalid';
+      else if (await F.isFile(dest)) state = (await F.sha256File(src)) === (await F.sha256File(dest)) ? 'unchanged' : 'changed';
+      else state = 'new';
+      if (check.version) summary.version = check.version;
+      summary.files++;
+      if (state === 'new' || state === 'changed') summary.changed++;
+      if (state === 'invalid') summary.invalid++;
+      out.items.push({ set: set.id, plugin: set.plugin, name, destName, rel: set.dest ? `${set.dest}/${destName}` : destName, src, dest, state, reason: check.ok ? null : check.reason });
+    }
+    if (set.dest) {
+      try {
+        summary.others = (await fsp.readdir(destDir)).filter((n) => /\.json$/i.test(n) && !destNames.includes(n)).sort();
+      } catch {
+        summary.others = [];
+      }
+    }
+    out.sets.push(summary);
+  }
+  return out;
+}
+
+async function deployData(root, sets) {
+  const plan = await planData(root, sets);
+  const todo = plan.items.filter((i) => i.state === 'new' || i.state === 'changed');
+  const backupDir = path.join(root, '_realm-backups', `data-${S.timestamp()}`);
+  let backedUp = false;
+  for (const i of todo) {
+    await fsp.mkdir(path.dirname(i.dest), { recursive: true });
+    if (i.state === 'changed') {
+      const b = path.join(backupDir, ...i.rel.split('/'));
+      await fsp.mkdir(path.dirname(b), { recursive: true });
+      await fsp.copyFile(i.dest, b);
+      backedUp = true;
+    }
+    const tmp = i.dest + '.realm-part';
+    await fsp.copyFile(i.src, tmp);
+    await fsp.rename(tmp, i.dest);
+  }
+  const reload = [...new Set(todo.map((i) => i.plugin))].sort();
+  return { ...plan, copied: todo.length, invalid: plan.items.filter((i) => i.state === 'invalid').length, reload, backupDir: backedUp ? backupDir : null };
+}
+
 // ---------- backups ----------
 
 function backupsDir(root) {
@@ -521,6 +643,10 @@ module.exports = {
   chronicleDataDir,
   planPlugins,
   deployPlugins,
+  dataSets,
+  checkDataFile,
+  planData,
+  deployData,
   backupsDir,
   downloadsDir,
   createBackup,

@@ -6,7 +6,8 @@
 //   vaults    each house (RealmHouses) has a vault of items and marks. Any member deposits; the head of the house
 //             and up to MaxStewards named stewards withdraw, within a daily outflow budget.
 //   market    /market sell|bid|buy|fill|list|history: escrowed asks (items held) and bids (marks held), with expiry,
-//             a capped market fee paid to the treasury, and a public price history.
+//             a capped market fee paid to the treasury, and a public price history. A seller who has risen in the
+//             craft of the goods pays less fee (RealmCrafts.GetMarketFeeDiscount, 0 to 50 percent off).
 //   mint      the king's minting decree creates MARKS ONLY. Marks are pure accounting; no command in this plugin
 //             creates an item. Items only leave the realm's custody as payment of a persisted "owed" ledger that
 //             was filled from items previously TAKEN (measured) from players.
@@ -35,7 +36,9 @@
 //
 // Zero-sum proof (checked by /treasury audit, on load, and by the logic tests):
 //   for every item:  ItemsIn[item] - ItemsOut[item] == treasury + all vaults + open asks + owed
-//   for marks:       MarksMinted == treasury + all vaults + all purses + open bid escrow
+//   for marks:       MarksMinted == treasury + all vaults + all purses + open bid escrow + holds
+// Holds are marks other plugins keep in escrow for a player (RealmArena's duel and tavern stakes: HoldMarks, PayFromHold,
+// ReleaseHold); a hold left open past its time goes back to the player by itself.
 // ItemsIn only grows by measured takes from player inventories; ItemsOut only by measured gives to them.
 //
 // Language level: C# 3, .NET 3.5. Cross-plugin API methods are non-public instance methods (Oxide.CSharp registers
@@ -65,6 +68,7 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin RealmChronicle;
         [PluginReference] private Plugin RealmHouses;
         [PluginReference] private Plugin CrownAndConsequences;
+        [PluginReference] private Plugin RealmCrafts;      // mastery perk: a lower market fee for a master selling their craft
 
         private const string PermAdmin = "realmtreasury.admin";
         private const string DataName = "RealmTreasury";
@@ -113,6 +117,7 @@ namespace Oxide.Plugins
             public long MintMaxPerDay = 2000;
             public long MintSupplyCap = 100000;                // total marks that may ever exist
             public int MintCooldownMinutes = 60;
+            public long PluginIncomeMaxPerDay = 3000;          // rolling 24 h per source: marks other plugins strike into house vaults (GrantHouseIncome)
 
             public int TitheMaxPercent = 10;                   // the Charter's ceiling on the tithe
             public int TitheDefaultPercent = 0;
@@ -146,6 +151,12 @@ namespace Oxide.Plugins
 
             public long PayMaxPerDay = 5000;                   // rolling 24 h per player, /purse pay
             public int PayCooldownSeconds = 10;
+
+            // Rewards for deeds (RealmQuests calls RewardMarks): new marks struck straight into a purse, under caps of their own.
+            public bool RewardsEnabled = true;
+            public long RewardMintPerDay = 3000;               // rolling 24 h, every player together
+            public long RewardMaxPerCall = 500;
+            public long RewardCrownReserve = 20000;            // rewards stop this far below MintSupplyCap, so the crown can still mint
 
             public int JournalMax = 1000;                      // in the data file; the full ledger goes to oxide/logs
             public bool LedgerToLogFile = true;
@@ -182,6 +193,7 @@ namespace Oxide.Plugins
             if (c.MintSupplyCap < 0) c.MintSupplyCap = 0;
             if (c.MintSupplyCap > 1000000000L) c.MintSupplyCap = 1000000000L;  // keeps every sum far from overflow
             if (c.MintCooldownMinutes < 0) c.MintCooldownMinutes = 0;
+            if (c.PluginIncomeMaxPerDay < 0) c.PluginIncomeMaxPerDay = 0;
             if (c.TitheMaxPercent < 0) c.TitheMaxPercent = 0;
             if (c.TitheMaxPercent > 50) c.TitheMaxPercent = 50;
             if (c.TitheDefaultPercent < 0) c.TitheDefaultPercent = 0;
@@ -294,6 +306,16 @@ namespace Oxide.Plugins
             public string Note;
         }
 
+        private class Hold
+        {
+            public string PlayerId;        // whose marks they were
+            public string PlayerName;
+            public long Marks;
+            public string Source;          // the plugin that may pay it out or release it
+            public DateTime At;
+            public DateTime Expires;       // still open then: back to the player
+        }
+
         private class Spend
         {
             public DateTime At;
@@ -332,6 +354,7 @@ namespace Oxide.Plugins
             public DateTime LastLevy = DateTime.MinValue;
             public DateTime LastMint = DateTime.MinValue;
             public bool MarketFrozen;
+            public Dictionary<string, Hold> Holds = new Dictionary<string, Hold>();   // escrow for other plugins (RealmArena)
         }
 
         private void SaveData()
@@ -422,6 +445,38 @@ namespace Oxide.Plugins
             if (data.TithePercent > config.TitheMaxPercent) data.TithePercent = config.TitheMaxPercent;
             if (data.MarketFeePercent < 0) data.MarketFeePercent = config.MarketFeeDefaultPercent;
             if (data.MarketFeePercent > config.MarketFeeMaxPercent) data.MarketFeePercent = config.MarketFeeMaxPercent;
+            if (data.Holds == null) data.Holds = new Dictionary<string, Hold>();
+            var holds = new Dictionary<string, Hold>();
+            foreach (KeyValuePair<string, Hold> kv in data.Holds) if (kv.Key != null && kv.Value != null && kv.Value.PlayerId != null) holds[kv.Key] = kv.Value;
+            data.Holds = holds;
+        }
+
+        #endregion
+
+        #region Chat style
+
+        // Realm chat style, the same block in every Realm plugin (docs/realm-commands.md, "Chat style";
+        // tools/realm-integration/check.mjs checks it). A reply opens with its speaker in the colour of its tone:
+        // gold for news and answers, green for done, amber for take care, red for refused. A line that starts with
+        // a space continues a list and carries no speaker. A text that already opens with a colour tag or with
+        // "<speaker>:" (a server's older lang file, or a line with a voice of its own) is sent as it is.
+        private const string ChatGold = "D6A043";
+        private const string ChatOk = "8FC97A";
+        private const string ChatWarn = "E8913A";
+        private const string ChatError = "E86A5C";
+
+        private static string Styled(string speaker, string tone, string text)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(speaker) || text[0] == ' ') return text;
+            if (text.StartsWith(speaker + ":", StringComparison.OrdinalIgnoreCase)) return text;
+            if (text.Length >= 8 && text[0] == '[' && text[7] == ']' && IsChatHex(text.Substring(1, 6))) return text;
+            return "[" + tone + "]" + speaker + "[FFFFFF]: " + text;
+        }
+
+        private static bool IsChatHex(string s)
+        {
+            foreach (char c in s) if ("0123456789ABCDEFabcdef".IndexOf(c) < 0) return false;
+            return true;
         }
 
         #endregion
@@ -432,17 +487,18 @@ namespace Oxide.Plugins
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "Prefix", "[D4AF37]Treasury[FFFFFF]: " },
-                { "Help0", "[D4AF37]The coffers of Ostreval[FFFFFF] - currency: {0}. Market fee {1}%, house tithe {2}%, game tax {3}." },
-                { "HelpMarket1", "/market list [item|mine] | /market history <item> | /market items <search> | /market collect" },
-                { "HelpMarket2", "/market sell <qty> <price each> <item> [24h] | /market bid <qty> <price each> <item> [24h]" },
-                { "HelpMarket3", "/market buy <id> [qty] | /market fill <id> [qty] | /market cancel <id> | /purse | /purse pay <player> <n>" },
-                { "HelpVault1", "/vault [house] | /vault deposit <qty> <item> | /vault withdraw <qty> <item> | /vault give <n> | /vault take <n>" },
-                { "HelpVault2", "/vault sell|bid <qty> <price> <item> | /vault buy|fill <id> [qty] | /vault cancel <id> | /vault steward add|remove <player>" },
-                { "HelpTreasury1", "/treasury | /treasury deposit <qty> <item> | /treasury taxin <qty> <item> | /treasury ledger [n] | /treasury tax" },
-                { "HelpTreasury2", "Crown & Keeper of Coin: /treasury withdraw <qty> <item> | award <player> <qty> <item> | grant <player> <n> | sell|bid|buy|fill|cancel" },
-                { "HelpTreasury3", "Crown: /treasury mint <n> | /treasury tithe <percent> | /treasury levy | /treasury fee <percent> | /treasury escheat <house>" },
-                { "HelpAdmin", "Admin: /treasury audit | /treasury freeze | /treasury unfreeze | /treasury cancel <id> (any listing) | /treasury restore <house> (fallen <date>)" },
+                { "Speaker", "Treasury" },
+                { "Herald", "[D6A043]Herald[FFFFFF]: " },
+                { "Help0", "The coffers of Ostreval. Currency: {0}. Market fee {1}%, house tithe {2}%, game tax {3}." },
+                { "HelpMarket1", "  [F4C96D]/market list[FFFFFF] [item|mine] | [F4C96D]/market history[FFFFFF] <item> | [F4C96D]/market items[FFFFFF] <search> | [F4C96D]/market collect[FFFFFF]" },
+                { "HelpMarket2", "  [F4C96D]/market sell[FFFFFF] <qty> <price each> <item> [24h] | [F4C96D]/market bid[FFFFFF] <qty> <price each> <item> [24h]" },
+                { "HelpMarket3", "  [F4C96D]/market buy[FFFFFF] <id> [qty] | [F4C96D]/market fill[FFFFFF] <id> [qty] | [F4C96D]/market cancel[FFFFFF] <id> | [F4C96D]/purse[FFFFFF] | [F4C96D]/purse pay[FFFFFF] <player> <n>" },
+                { "HelpVault1", "  [F4C96D]/vault[FFFFFF] [house] | [F4C96D]/vault deposit[FFFFFF] <qty> <item> | [F4C96D]/vault withdraw[FFFFFF] <qty> <item> | [F4C96D]/vault give[FFFFFF] <n> | [F4C96D]/vault take[FFFFFF] <n>" },
+                { "HelpVault2", "  [F4C96D]/vault sell|bid[FFFFFF] <qty> <price> <item> | [F4C96D]/vault buy|fill[FFFFFF] <id> [qty] | [F4C96D]/vault cancel[FFFFFF] <id> | [F4C96D]/vault steward add|remove[FFFFFF] <player>" },
+                { "HelpTreasury1", "  [F4C96D]/treasury[FFFFFF] | [F4C96D]/treasury deposit[FFFFFF] <qty> <item> | [F4C96D]/treasury taxin[FFFFFF] <qty> <item> | [F4C96D]/treasury ledger[FFFFFF] [n] | [F4C96D]/treasury tax[FFFFFF]" },
+                { "HelpTreasury2", "  Crown & Keeper of Coin: [F4C96D]/treasury withdraw[FFFFFF] <qty> <item> | award <player> <qty> <item> | grant <player> <n> | sell|bid|buy|fill|cancel" },
+                { "HelpTreasury3", "  Crown: [F4C96D]/treasury mint[FFFFFF] <n> | [F4C96D]/treasury tithe[FFFFFF] <percent> | [F4C96D]/treasury levy[FFFFFF] | [F4C96D]/treasury fee[FFFFFF] <percent> | [F4C96D]/treasury escheat[FFFFFF] <house>" },
+                { "HelpAdmin", "  Admin: [F4C96D]/treasury audit[FFFFFF] | [F4C96D]/treasury freeze[FFFFFF] | [F4C96D]/treasury unfreeze[FFFFFF] | [F4C96D]/treasury cancel[FFFFFF] <id> (any listing) | [F4C96D]/treasury restore[FFFFFF] <house> (fallen <date>)" },
                 { "Restored", "The sealed vault '{0}' is returned to House {1}." },
                 { "NotRestorable", "'{0}' is not a sealed vault of a fallen house, or no house of that name stands now." },
                 { "NoPermission", "You may not do that." },
@@ -454,12 +510,12 @@ namespace Oxide.Plugins
                 { "NotSteward", "Only the head of House {0} or its stewards may do that." },
                 { "NotLeader", "Only the head of House {0} may do that." },
                 { "BadNumber", "'{0}' is not a whole number from {1} to {2}." },
-                { "UnknownItem", "No item is named '{0}'. Try /market items <search>." },
+                { "UnknownItem", "No item is named '{0}'. Try [F4C96D]/market items[FFFFFF] <search>." },
                 { "ItemNotAllowed", "'{0}' may not be traded or stored on this server." },
                 { "ItemsFound", "Items matching '{0}': {1}" },
                 { "ItemsNone", "No item matches '{0}'." },
                 { "NotEnoughItems", "You need {0} {1} in your inventory (you have {2})." },
-                { "TakeFailed", "The realm could not take the items. Nothing changed; anything taken is returned (/market collect)." },
+                { "TakeFailed", "The realm could not take the items. Nothing changed; anything taken is returned ([F4C96D]/market collect[FFFFFF])." },
                 { "NotEnoughMarks", "{0} has {1} {2}; {3} are needed." },
                 { "NotEnoughStock", "{0} holds only {1} {2}." },
                 { "Cooldown", "Wait {0} s." },
@@ -471,7 +527,7 @@ namespace Oxide.Plugins
                 { "TooManyMine", "{0} already has {1} open orders." },
                 { "TooManyTotal", "The market board is full. Try again later." },
                 { "NotFound", "There is no open order #{0}." },
-                { "WrongSide", "Order #{0} is a {1} order; use /market {2}." },
+                { "WrongSide", "Order #{0} is a {1} order; use [F4C96D]/market[FFFFFF] {2}." },
                 { "OwnOrder", "You cannot trade with your own order." },
                 { "NotOwner", "That order is not yours to cancel." },
                 { "Posted", "Order #{0} posted: {1}." },
@@ -481,7 +537,7 @@ namespace Oxide.Plugins
                 { "Cancelled", "Order #{0} withdrawn; the escrow returns to {1}." },
                 { "Line", "  #{0} {1} {2} {3} @ {4} - {5} ({6})" },
                 { "ListNone", "No open orders." },
-                { "ListMore", "  ... and {0} more. Filter with /market list <item>." },
+                { "ListMore", "  ... and {0} more. Filter with [F4C96D]/market list[FFFFFF] <item>." },
                 { "HistoryNone", "No trades of {0} are recorded." },
                 { "History", "{0}: last {1} ({2} ago); 24h avg {3} on {4} units; 7d avg {5}; low {6} high {7}; {8} trades in all." },
                 { "HistoryLine", "  {0} {1} x{2} @ {3}  {4} -> {5}" },
@@ -489,7 +545,7 @@ namespace Oxide.Plugins
                 { "Paid", "You paid {0} {1} to {2}." },
                 { "PaidYou", "{0} paid you {1} {2}." },
                 { "Received", "You receive {0} {1}." },
-                { "StillOwed", "Your packs are full. {0} {1} wait for you: /market collect" },
+                { "StillOwed", "Your packs are full. {0} {1} wait for you: [F4C96D]/market collect[FFFFFF]" },
                 { "NothingOwed", "Nothing is owed to you." },
                 { "Deposited", "{0} {1} placed in {2}." },
                 { "DepositedTithe", "{0} {1} placed in {2}." },
@@ -516,7 +572,7 @@ namespace Oxide.Plugins
                 { "Levied", "The tithe of {0}% is gathered from {1} houses: {2}." },
                 { "LevyNone", "No house owed a tithe." },
                 { "LevyCooldown", "The next tithe may be gathered in {0} min." },
-                { "LevyZero", "The tithe is 0%. Set it with /treasury tithe <percent>." },
+                { "LevyZero", "The tithe is 0%. Set it with [F4C96D]/treasury tithe[FFFFFF] <percent>." },
                 { "LevyNeedCrownPlugin", "Only sworn houses pay; that needs the CrownAndConsequences plugin." },
                 { "Granted", "{0} {1} granted from the treasury to {2}." },
                 { "Awarded", "{0} {1} awarded from the treasury to {2}." },
@@ -544,13 +600,26 @@ namespace Oxide.Plugins
         private void Reply(Player player, string key, params object[] args)
         {
             if (player == null) return;
-            player.SendMessage(Msg("Prefix", player) + Fmt(key, player, args));   // single-string overload: brace safe
+            player.SendMessage(Styled(Msg("Speaker", player), ToneOf(key), Fmt(key, player, args)));   // single-string overload: brace safe
         }
 
         private void ReplyError(Player player, string key, params object[] args)
         {
             if (player == null) return;
-            player.SendError(Fmt(key, player, args));
+            player.SendError(Styled(Msg("Speaker", player), ChatError, Fmt(key, player, args)));
+        }
+
+        // Tone of a reply (chat style): done, or take care; everything else is news.
+        private static readonly HashSet<string> OkKeys = new HashSet<string>
+        {
+            "Restored", "Posted", "Bought", "Filled", "Cancelled", "Paid", "Received", "Deposited", "DepositedTithe", "Withdrawn",
+            "MarksMoved", "StewardAdded", "StewardRemoved", "RateSet", "Levied", "Granted", "Awarded", "Escheated", "AuditOk",
+            "FrozenSet", "AdminDone", "Minted", "GrantedYou", "PaidYou"
+        };
+
+        private static string ToneOf(string key)
+        {
+            return OkKeys.Contains(key) ? ChatOk : ChatGold;
         }
 
         #endregion
@@ -676,6 +745,8 @@ namespace Oxide.Plugins
             foreach (string k in new List<string>(data.Cooldowns.Keys))
                 if (data.Cooldowns[k] <= now) { data.Cooldowns.Remove(k); dirty = true; }
             PruneClosedListings();
+            foreach (KeyValuePair<string, Hold> kv in new List<KeyValuePair<string, Hold>>(data.Holds))
+                if (now >= kv.Value.Expires) EndHold(kv.Key, kv.Value, "lapsed");
             if (dirty) SaveData();
             foreach (Player p in Server.ClientPlayers)
                 if (p != null && !p.IsServer && HasOwed(p.Id.ToString())) PayOwed(p);
@@ -1184,10 +1255,23 @@ namespace Oxide.Plugins
             SetCooldown(cdKey, config.TradeCooldownSeconds);
         }
 
-        private long FeeOn(Party payee, long total)
+        private long FeeOn(Party payee, long total, string item)
         {
             if (payee.Kind == KTreasury) return 0;               // the crown does not tax itself
-            return total * data.MarketFeePercent / 100;
+            long fee = total * data.MarketFeePercent / 100;
+            if (fee > 0 && payee.Kind == KPlayer) fee -= fee * CraftsFeeDiscount(payee.Id, item) / 100;
+            return fee;
+        }
+
+        // RealmCrafts' mastery perk: 0 to 50 percent off the fee when a player sells goods of a craft they have risen in;
+        // 0 without RealmCrafts, or if it fails.
+        private int CraftsFeeDiscount(string playerId, string item)
+        {
+            if (RealmCrafts == null) return 0;
+            object r;
+            try { r = RealmCrafts.Call("GetMarketFeeDiscount", playerId, item); }
+            catch (Exception) { return 0; }
+            return r is int ? Math.Max(0, Math.Min(50, (int)r)) : 0;
         }
 
         private void Buy(Player player, Party buyer, Listing l, int qty)
@@ -1197,7 +1281,7 @@ namespace Oxide.Plugins
             if (MarksOf(buyer) < total) { ReplyError(player, "NotEnoughMarks", buyer.Name, MarksOf(buyer), config.CurrencyName, total); return; }
             if (buyer.Kind != KPlayer && !VaultCanHold(buyer, l.Item, qty)) { ReplyFull(player, buyer, l.Item); return; }
             if (!SpendMarks(player, buyer, total)) return;
-            long fee = FeeOn(seller, total);
+            long fee = FeeOn(seller, total, l.Item);
             // State first, then the transfers; all in memory and saved together before any item is paid out.
             DebitMarks(buyer, total);
             CreditMarks(seller, total - fee);
@@ -1238,7 +1322,7 @@ namespace Oxide.Plugins
             string reference = "order #" + l.Id;
             int taken = TakeGoods(seller, player, bp, qty, "escrow_in", reference);
             if (taken < qty) { ReplyError(player, "TakeFailed"); SaveData(); return; }
-            long fee = FeeOn(seller, total);
+            long fee = FeeOn(seller, total, l.Item);
             l.EscrowMarks -= total;
             l.Remaining -= qty;
             CreditMarks(seller, total - fee);
@@ -1898,6 +1982,11 @@ namespace Oxide.Plugins
                 if (l.Status != SOpen && l.Side == SideSell && l.Remaining != 0) problems.Add("closed order #" + l.Id + " still holds " + l.Remaining + " " + l.Item);
                 if (l.Remaining < 0 || l.EscrowMarks < 0) problems.Add("order #" + l.Id + " is negative");
             }
+            foreach (KeyValuePair<string, Hold> kv in data.Holds)
+            {
+                marks += kv.Value.Marks;
+                if (kv.Value.Marks < 0) problems.Add("hold " + kv.Key + " is negative");
+            }
             if (marks != data.MarksMinted) problems.Add("marks: minted " + data.MarksMinted + " but " + marks + " are held");
             return problems;
         }
@@ -2067,7 +2156,7 @@ namespace Oxide.Plugins
 
         private void Broadcast(string text)
         {
-            PrintToChat("{0}", Msg("Prefix", null) + text);
+            PrintToChat("{0}", Msg("Herald", null) + text);
         }
 
         #endregion
@@ -2079,6 +2168,27 @@ namespace Oxide.Plugins
         {
             long m;
             return data != null && playerId != null && data.Purses.TryGetValue(playerId, out m) ? m : 0;
+        }
+
+        // Rewards for deeds (RealmQuests): strikes up to `amount` new marks into a player's purse and returns how many it
+        // paid (0 when refused). Not the crown's mint: RewardMintPerDay (rolling 24 h, all players), RewardMaxPerCall,
+        // and never within RewardCrownReserve of MintSupplyCap, so rewards cannot use up what the crown may still strike.
+        // Counted in MarksMinted, so the zero-sum audit holds. The caller keeps any shortfall owed and asks again later.
+        private long RewardMarks(string playerId, string playerName, long amount, string source)
+        {
+            ulong u;
+            if (data == null || !config.RewardsEnabled || amount <= 0 || playerId == null || playerId.Length < 17 || !ulong.TryParse(playerId, out u)) return 0;
+            long n = Math.Min(amount, Math.Max(0, config.RewardMaxPerCall));
+            n = Math.Min(n, Math.Max(0, config.RewardMintPerDay) - SpentToday("reward"));
+            n = Math.Min(n, config.MintSupplyCap - Math.Max(0, config.RewardCrownReserve) - data.MarksMinted);
+            if (n <= 0) return 0;
+            string name = string.IsNullOrEmpty(playerName) ? NameOf(playerId) : playerName;
+            data.Spends.Add(new Spend { At = DateTime.UtcNow, Key = "reward", Amount = n });
+            data.MarksMinted += n;
+            CreditMarks(PlayerParty(playerId, name), n);
+            Journal("reward", source ?? "reward", MarksAsset, n, "reward", name, "supply " + data.MarksMinted);
+            SaveData();
+            return n;
         }
 
         // Marks held by the treasury.
@@ -2093,11 +2203,49 @@ namespace Oxide.Plugins
             return data != null && item != null ? Held(data.Treasury, item) : 0;
         }
 
+        // A price another Realm plugin charges a player (RealmTravel's road tolls): `amount` marks move from the
+        // player's purse into the crown's treasury, all or nothing. Nothing is minted or destroyed, so the zero-sum audit
+        // holds, and the move is in the journal. Returns true when paid; false for a short purse or a bad argument.
+        private bool ChargeMarks(string playerId, string playerName, long amount, string source, string note)
+        {
+            ulong u;
+            if (data == null || amount <= 0 || amount > 1000000 || string.IsNullOrEmpty(source)) return false;
+            if (playerId == null || playerId.Length < 17 || !ulong.TryParse(playerId, out u)) return false;
+            Party from = PlayerParty(playerId, string.IsNullOrEmpty(playerName) ? NameOf(playerId) : playerName);
+            if (!DebitMarks(from, amount)) return false;
+            CreditMarks(TreasuryParty(), amount);
+            Journal("charge", source, MarksAsset, amount, Label(from), "treasury", note ?? "");
+            SaveData();
+            return true;
+        }
+
         // Last traded price per unit of an item, or 0.
         private long GetLastPrice(string item)
         {
             PriceStat st;
             return data != null && item != null && data.Prices.TryGetValue(item, out st) ? st.Last : 0;
+        }
+
+        // Income for a house from another Realm plugin (RealmDominion's holdings). New marks are struck straight into the
+        // house vault and counted in MarksMinted, so the zero-sum audit holds. Limits: the supply cap and a rolling 24 h
+        // budget per source (PluginIncomeMaxPerDay). The house must exist in RealmHouses (refused while it is not loaded).
+        // Returns the marks credited (possibly fewer than asked), 0 when refused.
+        private long GrantHouseIncome(string house, long marks, string source, string note)
+        {
+            if (data == null || string.IsNullOrEmpty(house) || marks <= 0 || string.IsNullOrEmpty(source)) return 0;
+            if (HouseFounded(house) == null) return 0;
+            string key = "income:" + source.ToLowerInvariant();
+            long n = Math.Min(marks, config.PluginIncomeMaxPerDay - SpentToday(key));
+            n = Math.Min(n, config.MintSupplyCap - data.MarksMinted);
+            if (n <= 0) return 0;
+            house = CanonicalHouse(house);
+            CheckLineage(house);
+            data.Spends.Add(new Spend { At = DateTime.UtcNow, Key = key, Amount = n });
+            data.MarksMinted += n;
+            CreditMarks(HouseParty(house), n);
+            Journal("income", source, MarksAsset, n, "mint", "house:" + house, note ?? "");
+            SaveData();
+            return n;
         }
 
         // Summary for the chronicle/state page: "marks|minted|fee|tithe|openOrders".
@@ -2107,6 +2255,76 @@ namespace Oxide.Plugins
             int open = 0;
             foreach (Listing l in data.Listings) if (l.Status == SOpen) open++;
             return data.Treasury.Marks + "|" + data.MarksMinted + "|" + data.MarketFeePercent + "|" + data.TithePercent + "|" + open;
+        }
+
+        // Escrow for another Realm plugin (RealmArena's duel stakes, tavern games and tournament fees). HoldMarks moves
+        // `amount` marks out of a purse into the hold `holdId`, all or nothing; only `source` may then pay it out
+        // (PayFromHold) or give it back (ReleaseHold), and a hold still open after `minutes` goes back to the player by
+        // itself. Holds are counted in the zero-sum audit and every move is in the journal. Returns the marks held, 0 when
+        // refused (unknown id, a hold of that id already open, a short purse, or too many holds open).
+        private const int MaxHolds = 2000;
+
+        private long HoldMarks(string holdId, string playerId, string playerName, long amount, string source, int minutes)
+        {
+            if (data == null || string.IsNullOrEmpty(holdId) || holdId.Length > 80 || string.IsNullOrEmpty(source) || amount <= 0) return 0;
+            ulong u;
+            if (playerId == null || playerId.Length < 17 || !ulong.TryParse(playerId, out u)) return 0;
+            if (data.Holds.ContainsKey(holdId) || data.Holds.Count >= MaxHolds) return 0;
+            Party p = PlayerParty(playerId, string.IsNullOrEmpty(playerName) ? NameOf(playerId) : playerName);
+            if (!DebitMarks(p, amount)) return 0;
+            DateTime now = DateTime.UtcNow;
+            data.Holds[holdId] = new Hold { PlayerId = playerId, PlayerName = p.Name, Marks = amount, Source = source, At = now,
+                Expires = now.AddMinutes(Math.Max(1, Math.Min(minutes, 10080))) };
+            Journal("hold", source, MarksAsset, amount, Label(p), "hold:" + holdId, "");
+            SaveData();
+            return amount;
+        }
+
+        // Pays up to `amount` marks out of a hold into a player's purse; the rest stays held. Returns the marks paid.
+        private long PayFromHold(string holdId, string toPlayerId, string toName, long amount, string source)
+        {
+            Hold h;
+            ulong u;
+            if (data == null || holdId == null || amount <= 0 || toPlayerId == null || toPlayerId.Length < 17 || !ulong.TryParse(toPlayerId, out u)) return 0;
+            if (!data.Holds.TryGetValue(holdId, out h) || h.Source != source) return 0;
+            long n = Math.Min(amount, h.Marks);
+            if (n <= 0) return 0;
+            h.Marks -= n;
+            if (h.Marks <= 0) data.Holds.Remove(holdId);
+            Party to = PlayerParty(toPlayerId, string.IsNullOrEmpty(toName) ? NameOf(toPlayerId) : toName);
+            CreditMarks(to, n);
+            Journal("hold-pay", source, MarksAsset, n, "hold:" + holdId, Label(to), "");
+            SaveData();
+            return n;
+        }
+
+        // Gives whatever is left in a hold back to the player it came from. Returns the marks returned (0 if none).
+        private long ReleaseHold(string holdId, string source)
+        {
+            Hold h;
+            if (data == null || holdId == null || !data.Holds.TryGetValue(holdId, out h) || h.Source != source) return 0;
+            return EndHold(holdId, h, source);
+        }
+
+        // Marks left in a hold (0 if none).
+        private long GetHold(string holdId)
+        {
+            Hold h;
+            return data != null && holdId != null && data.Holds.TryGetValue(holdId, out h) ? h.Marks : 0;
+        }
+
+        private long EndHold(string holdId, Hold h, string actor)
+        {
+            data.Holds.Remove(holdId);
+            long n = Math.Max(0, h.Marks);
+            if (n > 0)
+            {
+                Party p = PlayerParty(h.PlayerId, h.PlayerName);
+                CreditMarks(p, n);
+                Journal("hold-return", actor, MarksAsset, n, "hold:" + holdId, Label(p), "");
+            }
+            SaveData();
+            return n;
         }
 
         #endregion

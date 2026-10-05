@@ -120,6 +120,8 @@ export function loadConfig(env, { baseDir = process.cwd(), requireDiscord = true
   if (serverId && !/^[a-z0-9-]{1,24}$/.test(serverId)) problems.push('REALM_SERVER_ID must be 1 to 24 lower-case letters, digits or "-" (the id in the player app\'s server list)');
 
   const stateFile = env.REALM_BOT_STATE_FILE || 'state/bot-state.json';
+  // Embed pictures: PNGs from the art pack in this repository (art/png, next to bot/).
+  const artDir = resolve(baseDir, env.REALM_ART_DIR || join('..', 'art', 'png'));
 
   const config = {
     token,
@@ -148,6 +150,7 @@ export function loadConfig(env, { baseDir = process.cwd(), requireDiscord = true
       maxRoles: intIn(env.REALM_SWEAR_MAX_ROLES, 25, 1, 100, 'REALM_SWEAR_MAX_ROLES', problems),
     },
     stateFile: isAbsolute(stateFile) ? stateFile : resolve(baseDir, stateFile),
+    art: { enabled: bool(env.REALM_EMBED_ART, true), dir: artDir },
     warnings,
   };
   if (problems.length) throw new ConfigError(problems);

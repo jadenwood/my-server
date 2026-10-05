@@ -1,12 +1,12 @@
 # Notable Places of Ostreval
 
-Twelve places for *The Hollow Crown*. The names and stories are original to this server. They are tied to the **kind** of terrain, not to any named spot on the game's map, so any Steward team can lay them over the world they run. Choose the real spots before launch, write them into the calendar template, and keep them for the whole season.
+Thirteen places for *The Hollow Crown*. The names and stories are original to this server. They are tied to the **kind** of terrain, not to any named spot on the game's map, so any Steward team can lay them over the world they run. Choose the real spots before launch, write them into the calendar template, and keep them for the whole season.
 
 Each entry has:
 
 - **Lore:** what the realm says about the place. This is written for players and is safe to quote.
 - **Place it at:** the kind of terrain to look for.
-- **Mechanics:** which plugin features meet there. Most of this is roleplay: apart from the Old Throne and the two law zones, no code knows where these places are.
+- **Mechanics:** which plugin features meet there. Most of this is roleplay: apart from the Old Throne, the two law zones and the Gatehouse of the Unwritten (RealmArrival), no code knows where these places are.
 - **Story use:** where it appears in the saga.
 
 **Law zones.** RealmLaws knows two places by default: **Crown Market** and **Hearth**. Both are towns, and both start at placeholder coordinates. Before Act II a Steward stands in each place and sets the zone (Act I run-sheet, step S6). Do **not** mark the other places as towns. The law `no_building_towns` (*The Builder's Reserve*) blocks building in **every** town zone except by the crown's house, so a house seat marked as a town would lock its own house out.
@@ -132,3 +132,13 @@ Each entry has:
 **Mechanics:** a house seat. In the story, the realm's second market: delivery contracts, market listings (`/market sell`) and ransom go-betweens.
 
 **Story use:** P16 and P17. It is neutral ground in Act III. Legend Q10.
+
+### L13 The Gatehouse of the Unwritten
+
+**Lore:** A walled court of pale stone below the Hearth, older than the Charter. Since the Charter the Stewards of the Seat have kept it for anyone who wants to be counted, and its gate opens only for the Unwritten: those who come over the Grey Water with no house, no oath and no debt, and so no page in the Chronicle. The Stewards say that anyone who walks out of it is written from that moment on. When the throne stands empty they feed the Hearth high, and its smoke is the summons.
+
+**Place it at:** flat ground on the far side of the Hearth from the throne hill, so that the line from the gate to the fire to the Old Throne is roughly straight. The gate stands about 100 m from the fire. The court itself (the hall and its six stones) stays outside the Hearth's 40 m town zone; the far end of the avenue, the hearth ring, the Herald's Pillar and the wayboard lie inside it. No part of it may sit inside a RealmDominion holding circle or an arena zone. The whole layout, with every stone, banner and sign spot, is `art/sculptures/sites/arrival.json`.
+
+**Mechanics:** RealmArrival only (`/arrival`): newcomers wake on its six arrival stones, the portcullis sinks when they reach the gold line, six house banners line the avenue to the fire, and the Hearth's ember band flares. It is not a waystone, a town zone, a quest place or a holding, and nobody can make it their `/home`. Staff build it with RealmSculptor and RealmPainter after every wipe (`plugins/docs/RealmArrival.md`, the after-wipe run-sheet).
+
+**Story use:** every newcomer's first minute. The Hearth Truce on the season's last Sunday brings the realm back to the place where each newcomer first arrived.

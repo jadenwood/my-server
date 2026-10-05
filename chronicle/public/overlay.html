@@ -4,18 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Realm Overlay</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Cinzel+Decorative:wght@700&family=EB+Garamond:ital,wght@0,500;1,500&display=swap">
-  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/art/logo/realm-favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/assets/fonts/cinzel.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/assets/theme.css">
   <link rel="stylesheet" href="/assets/overlay.css">
 </head>
 <body>
-  <!-- 1920x1080 stage; transparent everywhere except the panels. Scaled to fit the browser source. -->
+  <!-- 1920x1080 stage; transparent everywhere except the panels. Scaled to fit the browser source.
+       Everything with text stays inside the title-safe area (5%: 96 px left and right, 54 px top and bottom). -->
   <div id="stage">
     <section id="crown" class="crown-plate iron" aria-live="polite">
-      <div class="medallion"><span id="crown-icon"></span></div>
+      <div class="medallion" id="medallion"></div>
       <div class="crown-text">
         <div class="eyebrow">The Crown of the Realm</div>
         <div id="king" class="king gold-text">&nbsp;</div>
@@ -30,6 +29,9 @@
     <section id="banners" class="banners" aria-label="Great houses"></section>
 
     <section id="proclamations" class="proclamations" aria-live="assertive"></section>
+
+    <!-- Coronations and rebellions take the centre of the screen for a few seconds. -->
+    <section id="moment" class="moment-layer" aria-live="assertive"></section>
 
     <section id="ticker" class="ticker iron" aria-label="Latest from the chronicle">
       <div class="plaque"><span id="ticker-icon"></span><span>The Chronicle</span></div>
