@@ -123,7 +123,11 @@ async function checkGameFiles(root, { steamRoot = null } = {}) {
   let fix = `Copy only the missing file${cmp.missing.length > 1 ? 's' : ''} (${list}) from the Steam copy of the dedicated server (its ${data}\\Managed folder) into ${managed}. Do not copy or overwrite Assembly-CSharp.dll: the server's copy is the Oxide-patched one.`;
   if (notInSteam.length) fix += ` ${notInSteam.join(', ')} ${notInSteam.length > 1 ? 'are' : 'is'} missing from the Steam copy too: in Steam, right-click Reign of Kings Dedicated Server > Properties > Installed Files > Verify integrity of game files, then copy.`;
   else fix += ' If a file is missing from the Steam copy too, run Verify integrity of game files on Reign of Kings Dedicated Server in Steam first.';
-  return result('bad', `${cmp.missing.length} assembl${cmp.missing.length > 1 ? 'ies' : 'y'} that Assembly-CSharp.dll needs ${cmp.missing.length > 1 ? 'are' : 'is'} missing from ${data}\\Managed: ${list}. The server stops at start-up (TypeInitializationException for CodeHatch.Networking.Events.EventManager).`, fix, extra);
+  // Only a file the Steam copy has is certainly part of a working server. When the Steam copy lacks every missing
+  // file too (or cannot be read), the build may simply not ship it, so this is a warning, not a start-up blocker.
+  const status = cmp.missing.some((m) => m.inSteam === true) ? 'bad' : 'warn';
+  if (status === 'warn') fix += ' If the server starts normally (the log shows "Server for N players started on port P."), this build may not ship these files and nothing needs doing.';
+  return result(status, `${cmp.missing.length} assembl${cmp.missing.length > 1 ? 'ies' : 'y'} that Assembly-CSharp.dll needs ${cmp.missing.length > 1 ? 'are' : 'is'} missing from ${data}\\Managed: ${list}. ${status === 'bad' ? 'The server stops at start-up' : 'If it is really needed, the server stops at start-up'} (TypeInitializationException for CodeHatch.Networking.Events.EventManager).`, fix, extra);
 }
 
 module.exports = { isFrameworkAssembly, compareReferences, findDataFolder, checkGameFiles, MAX_DLL_BYTES };

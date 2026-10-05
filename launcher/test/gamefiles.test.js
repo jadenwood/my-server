@@ -242,6 +242,9 @@ test('checkGameFiles: complete server is Good; missing DLLs are a Problem with a
   const before = fs.readdirSync(managed).sort();
   const noSteam = await GF.checkGameFiles(root);
   assert.match(noSteam.fix, /Verify integrity of game files/);
+  // Unknown to the Steam copy: maybe this build never shipped the file, so only a warning, never a blocker.
+  assert.equal(noSteam.status, 'warn');
+  assert.match(noSteam.fix, /starts normally/);
   assert.deepEqual(fs.readdirSync(managed).sort(), before);
   // The same folder as the Steam copy is not compared with itself.
   assert.equal((await GF.checkGameFiles(root, { steamRoot: root })).missing.every((m) => m.inSteam === undefined), true);
