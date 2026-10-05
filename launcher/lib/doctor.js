@@ -19,6 +19,7 @@ const A2S = require('./shared/a2s');
 const N = require('./netcheck');
 const FW = require('./firewall');
 const S = require('./safety');
+const GF = require('./gamefiles');
 
 const ADMIN_PORTS = [11000, 11001, 11002, 11003];
 
@@ -120,7 +121,7 @@ function sockFor(list, proto, port) {
 
 // input: { inst:{id,ports,network}, name, platform, server:{running,pid,exe,ready,steam,listening,externals[]},
 //          cfg, serverScan:{findings}, clientScan:{findings}|null, clientLogs:[...], lan:[] }
-// deps:  { listeners(ports), a2s(host,port), steam(), game(), firewall(), tcp(host,port) }
+// deps:  { listeners(ports), a2s(host,port), steam(), game(), firewall(), tcp(host,port), gameFiles() }
 async function runChecks(input, deps) {
   const { inst, server = {}, cfg = { exists: false }, platform = process.platform } = input;
   const n = inst.id.slice(1);
@@ -130,6 +131,18 @@ async function runChecks(input, deps) {
   const steps = [];
   const running = !!server.running || (server.externals || []).length > 0;
 
+  // 0. game files: a server copy missing a DLL that Assembly-CSharp.dll references stops at start-up
+  // (TypeInitializationException for EventManager), so this comes first and wins the verdict.
+  if (deps.gameFiles) {
+    let gf;
+    try {
+      gf = await deps.gameFiles();
+    } catch (e) {
+      gf = { status: 'skip', detail: `Could not check: ${e.message}`, fix: '' };
+    }
+    steps.push(step('game-files', 'Server game files', gf.status, gf.detail, gf.fix || ''));
+  }
+
   // 1. process
   if (server.running) steps.push(step('process', 'Server process', 'ok', `Server ${n} (${input.name || inst.id}) runs as ${server.exe || 'ROK'}.exe, pid ${server.pid}, started by Realm.`));
   else if ((server.externals || []).length) steps.push(step('process', 'Server process', 'warn', `Server ${n} runs outside Realm: ${server.externals.map((p) => `${p.name}.exe pid ${p.pid}`).join(', ')}. Realm cannot see its console.`, 'Stop it (type quit in its window) and start it from Realm\'s Servers screen so its log and restarts are handled.'));
@@ -138,7 +151,7 @@ async function runChecks(input, deps) {
   // 2. log ready
   const sf = (input.serverScan && input.serverScan.findings) || [];
   const ready = sf.find((f) => f.id === 'server-ready');
-  const blocker = GL.verdict(sf.filter((f) => ['first-run-exit', 'game-port-taken', 'server-start-error', 'version-mismatch'].includes(f.id) && (!ready || f.line > ready.line)));
+  const blocker = GL.verdict(sf.filter((f) => ['first-run-exit', 'game-port-taken', 'server-start-error', 'version-mismatch', 'missing-game-files'].includes(f.id) && (!ready || f.line > ready.line)));
   if (blocker) steps.push(step('ready', 'Server log', 'bad', `${blocker.title}: "${blocker.match}"`, blocker.fix));
   else if (ready && running) steps.push(step('ready', 'Server log', 'ok', `"${ready.match}"`));
   else if (running) steps.push(step('ready', 'Server log', 'warn', 'The log does not show "Server for N players started on port P." yet. The world may still be loading (1 to 3 minutes).', 'Wait, then run the checks again. If it never appears, open the server log below and look for red lines.'));
@@ -260,7 +273,7 @@ function pickVerdict(steps) {
 
 // ---------------------------------------------------------------- IPC (steward)
 
-// ctx: { handle, app, clipboard, fleet, instOf, mgr, rootCheckFor, externalProcesses, gameInstall }
+// ctx: { handle, app, clipboard, fleet, instOf, mgr, rootCheckFor, externalProcesses, gameInstall, steamServer }
 function registerSteward(ctx) {
   let allowed = [];
   let lastReport = null;
@@ -329,7 +342,8 @@ function registerSteward(ctx) {
         steam: () => ST.steamState(),
         game: async () => logs.install,
         firewall: () => firewallRules(inst.id),
-        tcp: (h, p) => N.tcpConnect(h, p, 2500)
+        tcp: (h, p) => N.tcpConnect(h, p, 2500),
+        gameFiles: async () => GF.checkGameFiles(logs.root, { steamRoot: ctx.steamServer ? await ctx.steamServer().catch(() => null) : null })
       }
     );
     const findings = merge([...clientScans, ...serverScans]).findings;

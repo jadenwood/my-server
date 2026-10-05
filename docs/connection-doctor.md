@@ -36,6 +36,7 @@ Evidence tags are the same as in [join-and-scale.md](join-and-scale.md).
 | `You have been disconnected for failing to initialize with the ping system.` / `…No players are connected to the ping system on port N.` | popup / server log | TCP pingPort is not reachable while `enablePingLimit` is on → allow and forward TCP as well as UDP, or turn the limit off |
 | `…exceeding the ping limit.`, `…unreliable connection to the ping system.` | popup | ping kicks |
 | `This is the first time you have run this server.` | server log | a new folder exits on purpose → start it again |
+| `TypeInitializationException` … `CodeHatch.Networking.Events.EventManager` | server log | the server copy lacks a DLL that `Assembly-CSharp.dll` references → see the **Server game files** check below |
 | `The port N is already being used by another application.` | server log | port clash |
 | `Port already in use. Make sure you have allowed port N…`, `The Steam game server could not initialize.` | server log | steamAuthPort clash, or Steam is down; the server runs without Steam auth |
 | `Server for N players started on port P.`, `Steam game server started. (IP: …)` | server log | good news: ready, and the public IP |
@@ -45,8 +46,9 @@ If a later `Connecting to '<ip>:<port>'.` line follows an error, that error was 
 
 ## The steward checks
 
+0. **Server game files.** Every assembly that the server's `<Data>\Managed\Assembly-CSharp.dll` references is a DLL in that `Managed` folder. Steward reads the DLL's .NET metadata itself (the AssemblyRef table, `launcher/lib/clrmeta.js`; nothing is loaded or run) and lists the folder. Framework assemblies (`mscorlib`, `System`, `System.*`, `Mono.*`) are not checked, because Unity's Mono may provide them from elsewhere. Any other missing reference is a **Problem**: the server stops at start-up with `TypeInitializationException` for `CodeHatch.Networking.Events.EventManager`, whose static constructor walks Assembly-CSharp's exported types and fails when a referenced assembly cannot be loaded (a real owner's server, 2026-10). The fix names the files: copy **only those** DLLs from the Steam copy of the dedicated server (`ROK_Data\Managed`), never over the Oxide-patched `Assembly-CSharp.dll`; when a file is missing from the Steam copy too, run **Verify integrity of game files** on Reign of Kings Dedicated Server in Steam first. The check says which files the Steam copy has. It comes first, so a missing file is the verdict even while the server is stopped. **UNVERIFIED:** which assemblies a real server keeps in `ROK_Data\Managed` (the reference list was read from the Oxide-patched DLL; the rule is conservative for that reason).
 1. The server process: which instance and pid, or a server from that folder running outside Realm.
-2. The server log shows `Server for N players started on port P.`, or the blocker: first run, a port clash, a version problem.
+2. The server log shows `Server for N players started on port P.`, or the blocker: first run, a port clash, a version problem, missing game files.
 3. UDP game port and TCP ping port are listening. This uses `Get-NetUDPEndpoint` and `Get-NetTCPConnection` (read-only) and shows the owning process. On a public server it also checks for a socket bound only to 127.0.0.1.
 4. A2S answers on `127.0.0.1:<steamAuthPort>`.
 5. Steam is running and signed in. [SEC] This reads `HKCU\Software\Valve\Steam\ActiveProcess` (`pid`, `ActiveUser`). **UNVERIFIED** in Steam's offline mode.
@@ -71,5 +73,5 @@ The report is plain text: the verdict, every step with its fix, the known messag
 
 ## Tests
 
-- `npm test`: `test/gamelog.test.js` checks the classifier against the real strings, log parsing, log locations, live-tail reads and redaction. `test/doctor.test.js` runs both check runners with fake facts.
+- `npm test`: `test/gamelog.test.js` checks the classifier against the real strings, log parsing, log locations, live-tail reads and redaction. `test/doctor.test.js` runs both check runners with fake facts. `test/gamefiles.test.js` checks the metadata reader on synthetic assemblies it builds (and on the real Oxide-patched `Assembly-CSharp.dll` when `~/.cache/realm-compile-check` has it; otherwise that one test is skipped with a message), damaged and truncated files, the game-files check on temporary server folders, its Doctor step and the `EventManager` log rule.
 - `xvfb-run -a node scripts/doctor-screens.mjs`: both apps against an imitation server and an imitation game install (20 checks), and it saves the screenshots above. This run does not exercise PowerShell, the registry or Windows Firewall. Those paths are **UNVERIFIED** until they are run on the owner's PC.

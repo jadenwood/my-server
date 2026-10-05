@@ -1920,6 +1920,8 @@ if (!app.requestSingleInstanceLock()) {
       rootCheckFor,
       externalProcesses,
       gameInstall: () => ST.detectGameInstall({ appId: config.steamAppId || ST.GAME_APP_ID }),
+      // The Steam copy of the dedicated server (read only): the game-files check says whether a missing DLL is there.
+      steamServer: async () => (await steamInfo()).found || null,
       devGameDir: DEV ? process.env.REALM_DEV_GAME_DIR || null : null
     });
     // ----- end Connection Doctor -----
