@@ -116,6 +116,10 @@ test('plugin admin commands come from the plugins and fill their placeholders', 
     const w = d.template.split(' ')[3];
     if (w && !w.startsWith('{')) assert.ok(arrival.includes(`case "${w}"`), `${d.template}: ${w} is handled by RealmArrival`);
   }
+  // The recovery commands (team/arrival-fixes): gate open force and the broken-config reset are listed and read.
+  const templates = MOD.PLUGIN_ADMIN.filter((x) => x.plugin === 'RealmArrival').map((x) => x.template);
+  for (const t of ['/arrival admin gate open force', '/arrival admin config', '/arrival admin config reset confirm']) assert.ok(templates.includes(t), `${t} is listed`);
+  assert.ok(arrival.includes('case "config"') && arrival.includes('== "force"') && arrival.includes('a3 != "confirm"'), 'RealmArrival reads config, force and confirm');
 });
 
 test('reload builds the Oxide console command and refuses anything but a plugin name', () => {
